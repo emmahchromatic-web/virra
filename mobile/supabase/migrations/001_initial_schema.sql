@@ -58,8 +58,8 @@ create table public.symptom_logs (
   created_at       timestamptz default now(),
   unique (user_id, date)
 );
-alter table public.sympt_logs enable row level security;
-create policy "owner_all" on public.sympt_logs using (auth.uid() = user_id);
+alter table public.symptom_logs enable row level security;
+create policy "owner_all" on public.symptom_logs using (auth.uid() = user_id);
 
 -- ── plan_templates ────────────────────────────────────────────────────────
 create table public.plan_templates (
@@ -186,4 +186,5 @@ create table public.subscriptions (
 );
 alter table public.subscriptions enable row level security;
 create policy "owner_select" on public.subscriptions for select using (auth.uid() = user_id);
-create policy "service_all" on public.subscriptions using (true);
+-- RevenueCat webhook Edge Function uses the service role key, which bypasses RLS entirely.
+-- No additional policy needed for webhook writes.
