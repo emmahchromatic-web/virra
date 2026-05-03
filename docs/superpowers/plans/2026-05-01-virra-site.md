@@ -1,6 +1,6 @@
 # Virra Site Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build the Virra holding page and blog as a static Astro site with Decap CMS for content editing, deployed to GitHub Pages at virra.app.
 
@@ -68,14 +68,14 @@ virra/
 **Files:**
 - Create: `astro.config.mjs`, `package.json`, `src/env.d.ts` (all from scaffold)
 
-- [ ] **Step 1: Move existing HTML files to reference folder**
+- [x] **Step 1: Move existing HTML files to reference folder**
 
 ```bash
 mkdir _reference
 mv index.html option-1-editorial.html option-2-precision.html option-3-precision.html _reference/ 2>/dev/null; true
 ```
 
-- [ ] **Step 2: Scaffold Astro**
+- [x] **Step 2: Scaffold Astro**
 
 ```bash
 pnpm create astro@latest . --template minimal --no-install --no-git --skip-houston
@@ -83,14 +83,14 @@ pnpm create astro@latest . --template minimal --no-install --no-git --skip-houst
 
 When prompted to overwrite existing files: choose **Yes** for any conflicts. The scaffold creates `src/`, `astro.config.mjs`, `package.json`, `tsconfig.json`.
 
-- [ ] **Step 3: Install dependencies**
+- [x] **Step 3: Install dependencies**
 
 ```bash
 pnpm install
 pnpm add @astrojs/sitemap
 ```
 
-- [ ] **Step 4: Verify dev server starts**
+- [x] **Step 4: Verify dev server starts**
 
 ```bash
 pnpm dev
@@ -98,7 +98,7 @@ pnpm dev
 
 Expected: `Local: http://localhost:4321` in terminal. Open in browser — you see the Astro starter page. Kill the server (Ctrl+C).
 
-- [ ] **Step 5: Clear the starter content**
+- [x] **Step 5: Clear the starter content**
 
 Replace `src/pages/index.astro` with an empty placeholder:
 
@@ -108,7 +108,7 @@ Replace `src/pages/index.astro` with an empty placeholder:
 <html lang="en"><body><p>placeholder</p></body></html>
 ```
 
-- [ ] **Step 6: Replace astro.config.mjs**
+- [x] **Step 6: Replace astro.config.mjs**
 
 ```javascript
 import { defineConfig } from 'astro/config';
@@ -120,7 +120,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **Step 7: Verify build succeeds**
+- [x] **Step 7: Verify build succeeds**
 
 ```bash
 pnpm build
@@ -128,7 +128,7 @@ pnpm build
 
 Expected: `dist/` folder created, no errors.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git init
@@ -143,7 +143,7 @@ git commit -m "chore: scaffold astro project"
 **Files:**
 - Create: `src/styles/global.css`
 
-- [ ] **Step 1: Create styles directory and global.css**
+- [x] **Step 1: Create styles directory and global.css**
 
 ```bash
 mkdir -p src/styles
@@ -210,7 +210,7 @@ body::before {
 .prose hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/styles/global.css
@@ -224,7 +224,7 @@ git commit -m "feat: add global css design tokens and prose styles"
 **Files:**
 - Create: `src/layouts/BaseLayout.astro`
 
-- [ ] **Step 1: Write BaseLayout.astro**
+- [x] **Step 1: Write BaseLayout.astro**
 
 ```astro
 ---
@@ -270,7 +270,7 @@ const fullOgImage = ogImage
 </html>
 ```
 
-- [ ] **Step 2: Verify build still passes**
+- [x] **Step 2: Verify build still passes**
 
 ```bash
 pnpm build
@@ -278,7 +278,7 @@ pnpm build
 
 Expected: no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/layouts/BaseLayout.astro
@@ -293,7 +293,7 @@ git commit -m "feat: add BaseLayout with SEO meta tags"
 - Create: `src/components/Header.astro`
 - Create: `src/components/Footer.astro`
 
-- [ ] **Step 1: Write Header.astro**
+- [x] **Step 1: Write Header.astro**
 
 ```astro
 ---
@@ -348,7 +348,7 @@ git commit -m "feat: add BaseLayout with SEO meta tags"
 </style>
 ```
 
-- [ ] **Step 2: Write Footer.astro**
+- [x] **Step 2: Write Footer.astro**
 
 ```astro
 ---
@@ -394,7 +394,7 @@ const year = new Date().getFullYear();
 </style>
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/components/Header.astro src/components/Footer.astro
@@ -408,7 +408,7 @@ git commit -m "feat: add Header and Footer components"
 **Files:**
 - Modify: `src/pages/index.astro`
 
-- [ ] **Step 1: Write index.astro** (ports `_reference/option-1-editorial.html`)
+- [x] **Step 1: Write index.astro** (ports `_reference/option-1-editorial.html`)
 
 Replace the placeholder content in `src/pages/index.astro`:
 
@@ -612,7 +612,7 @@ import Footer from '../components/Footer.astro';
 </script>
 ```
 
-- [ ] **Step 2: Start dev server and visually check the holding page**
+- [x] **Step 2: Start dev server and visually check the holding page**
 
 ```bash
 pnpm dev
@@ -627,7 +627,7 @@ Open http://localhost:4321. Verify:
 
 Kill the server.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/pages/index.astro
@@ -675,7 +675,7 @@ git commit -m "feat: wire Formspree email form"
 **Files:**
 - Create: `src/content/config.ts`
 
-- [ ] **Step 1: Write config.ts**
+- [x] **Step 1: Write config.ts**
 
 ```typescript
 import { defineCollection, z } from 'astro:content';
@@ -697,7 +697,7 @@ const blog = defineCollection({
 export const collections = { blog };
 ```
 
-- [ ] **Step 2: Verify TypeScript compiles**
+- [x] **Step 2: Verify TypeScript compiles**
 
 ```bash
 pnpm build
@@ -705,7 +705,7 @@ pnpm build
 
 Expected: no TypeScript errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/content/config.ts
@@ -721,7 +721,7 @@ git commit -m "feat: add blog content collection schema"
 
 This banner appears at the bottom of every blog post. It mirrors the holding page's email form. The Formspree ID must match Task 6.
 
-- [ ] **Step 1: Write CtaBanner.astro**
+- [x] **Step 1: Write CtaBanner.astro**
 
 Replace `YOUR_FORMSPREE_ID` with the same form ID used in Task 6.
 
@@ -823,7 +823,7 @@ Replace `YOUR_FORMSPREE_ID` with the same form ID used in Task 6.
 </script>
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/components/CtaBanner.astro
@@ -837,7 +837,7 @@ git commit -m "feat: add CtaBanner component for blog posts"
 **Files:**
 - Create: `src/components/BlogCard.astro`
 
-- [ ] **Step 1: Write BlogCard.astro**
+- [x] **Step 1: Write BlogCard.astro**
 
 ```astro
 ---
@@ -897,7 +897,7 @@ const formattedDate = published_date.toLocaleDateString('en-GB', {
 </style>
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/components/BlogCard.astro
@@ -911,13 +911,13 @@ git commit -m "feat: add BlogCard component"
 **Files:**
 - Create: `src/pages/blog/index.astro`
 
-- [ ] **Step 1: Create blog directory**
+- [x] **Step 1: Create blog directory**
 
 ```bash
 mkdir -p src/pages/blog
 ```
 
-- [ ] **Step 2: Write blog/index.astro**
+- [x] **Step 2: Write blog/index.astro**
 
 ```astro
 ---
@@ -989,7 +989,7 @@ const sorted = posts.sort(
 </style>
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/pages/blog/index.astro
@@ -1003,7 +1003,7 @@ git commit -m "feat: add blog index page"
 **Files:**
 - Create: `src/layouts/BlogPostLayout.astro`
 
-- [ ] **Step 1: Write BlogPostLayout.astro**
+- [x] **Step 1: Write BlogPostLayout.astro**
 
 ```astro
 ---
@@ -1123,7 +1123,7 @@ const formattedDate = published_date.toLocaleDateString('en-GB', {
 </style>
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/layouts/BlogPostLayout.astro
@@ -1137,7 +1137,7 @@ git commit -m "feat: add BlogPostLayout with hero paragraph standfirst"
 **Files:**
 - Create: `src/pages/blog/[...slug].astro`
 
-- [ ] **Step 1: Write [...slug].astro**
+- [x] **Step 1: Write [...slug].astro**
 
 ```astro
 ---
@@ -1177,7 +1177,7 @@ const readingTime = Math.max(1, Math.ceil(wordCount / 200));
 </BlogPostLayout>
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add src/pages/blog/\[...slug\].astro
@@ -1190,7 +1190,7 @@ git commit -m "feat: add dynamic blog post route"
 
 Already installed `@astrojs/sitemap` in Task 1. Just need to verify it's wired into `astro.config.mjs` (done in Task 1 Step 6).
 
-- [ ] **Step 1: Verify sitemap config**
+- [x] **Step 1: Verify sitemap config**
 
 Open `astro.config.mjs`. It should contain:
 
@@ -1206,7 +1206,7 @@ export default defineConfig({
 
 If anything is missing, fix it now.
 
-- [ ] **Step 2: Build and verify sitemap output**
+- [x] **Step 2: Build and verify sitemap output**
 
 ```bash
 pnpm build
@@ -1215,7 +1215,7 @@ ls dist/sitemap-index.xml dist/sitemap-0.xml
 
 Expected: both files exist. Open `dist/sitemap-0.xml` — it should list `https://virra.app/` and `https://virra.app/blog/`.
 
-- [ ] **Step 3: Commit if any changes were made**
+- [x] **Step 3: Commit if any changes were made**
 
 ```bash
 git add astro.config.mjs
@@ -1232,14 +1232,14 @@ A real Markdown file so the blog isn't empty during testing. This is a placehold
 - Create: `src/content/blog/2026-05-01-welcome.md`
 - Create: `public/images/blog/.gitkeep`
 
-- [ ] **Step 1: Create the images directory**
+- [x] **Step 1: Create the images directory**
 
 ```bash
 mkdir -p public/images/blog
 touch public/images/blog/.gitkeep
 ```
 
-- [ ] **Step 2: Write the seed post**
+- [x] **Step 2: Write the seed post**
 
 Create `src/content/blog/2026-05-01-welcome.md`:
 
@@ -1272,7 +1272,7 @@ We're building something we're proud of. Here's what to expect at launch:
 We're targeting a launch later this year on iOS and Android. [Join the waitlist](/) to be first.
 ```
 
-- [ ] **Step 3: Add a placeholder cover image**
+- [x] **Step 3: Add a placeholder cover image**
 
 The seed post references `/images/blog/welcome.jpg`. For testing, copy any JPEG to that path:
 
@@ -1283,7 +1283,7 @@ curl -o public/images/blog/welcome.jpg https://placehold.co/1200x675/09090A/C8FF
   echo "Skipping placeholder image — add public/images/blog/welcome.jpg manually before building"
 ```
 
-- [ ] **Step 4: Build and verify blog renders**
+- [x] **Step 4: Build and verify blog renders**
 
 ```bash
 pnpm build && pnpm preview
@@ -1294,7 +1294,7 @@ Open http://localhost:4321/blog/2026-05-01-welcome — the full post should rend
 
 Kill the server.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/content/blog/2026-05-01-welcome.md public/images/blog/
@@ -1440,13 +1440,13 @@ git commit -m "feat: add Decap CMS admin interface and blog collection config"
 **Files:**
 - Create: `.github/workflows/deploy.yml`
 
-- [ ] **Step 1: Create workflows directory**
+- [x] **Step 1: Create workflows directory**
 
 ```bash
 mkdir -p .github/workflows
 ```
 
-- [ ] **Step 2: Write deploy.yml**
+- [x] **Step 2: Write deploy.yml**
 
 ```yaml
 name: Deploy to GitHub Pages
@@ -1506,7 +1506,7 @@ jobs:
         uses: actions/deploy-pages@v4
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add .github/workflows/deploy.yml
@@ -1520,13 +1520,13 @@ git commit -m "feat: add GitHub Actions deploy workflow"
 **Files:**
 - Create: `public/CNAME`
 
-- [ ] **Step 1: Write CNAME**
+- [x] **Step 1: Write CNAME**
 
 ```bash
 echo "virra.app" > public/CNAME
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add public/CNAME
