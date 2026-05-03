@@ -28,8 +28,8 @@ export default function AppLayout() {
     <Tabs
       tabBar={(props) => <AppTabBar {...props} />}
       screenOptions={{
-        headerShown:  false,
-        contentStyle: { backgroundColor: colors.mile },
+        headerShown: false,
+        sceneStyle:  { backgroundColor: colors.mile },
       }}
     >
       <Tabs.Screen name="index"    />

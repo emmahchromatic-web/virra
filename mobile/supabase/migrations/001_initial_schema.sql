@@ -188,3 +188,8 @@ alter table public.subscriptions enable row level security;
 create policy "owner_select" on public.subscriptions for select using (auth.uid() = user_id);
 -- RevenueCat webhook Edge Function uses the service role key, which bypasses RLS entirely.
 -- No additional policy needed for webhook writes.
+
+-- ── indexes ───────────────────────────────────────────────────────────────
+create index on public.articles (published_at) where published_at is not null;
+create index on public.activities (user_id, started_at desc);
+create index on public.nutrition_logs (user_id, date desc);

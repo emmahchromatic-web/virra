@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Alert, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
@@ -77,19 +77,19 @@ export default function PaywallScreen() {
         {packages.length > 0 && (
           <View style={styles.packages}>
             {packages.map((pkg) => (
-              <VirraCard
-                key={pkg.identifier}
-                accent={pkg === selected}
-                style={[styles.pkg, pkg === selected && styles.pkgSelected]}
-              >
-                <VirraText
-                  variant="bodyMedium"
-                  color={pkg === selected ? colors.pulse : colors.breath}
-                  onPress={() => setSelected(pkg)}
+              <Pressable key={pkg.identifier} onPress={() => setSelected(pkg)}>
+                <VirraCard
+                  accent={pkg === selected}
+                  style={pkg === selected ? styles.pkgSelected : styles.pkg}
                 >
-                  {pkg.product.title} — {pkg.product.priceString}
-                </VirraText>
-              </VirraCard>
+                  <VirraText
+                    variant="bodyMedium"
+                    color={pkg === selected ? colors.pulse : colors.breath}
+                  >
+                    {pkg.product.title} — {pkg.product.priceString}
+                  </VirraText>
+                </VirraCard>
+              </Pressable>
             ))}
           </View>
         )}

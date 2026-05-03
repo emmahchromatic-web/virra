@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, ActivityIndicator, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { colors, radius, spacing } from '@/constants/theme';
 import { VirraText } from './VirraText';
 
@@ -11,7 +11,7 @@ interface VirraButtonProps {
   variant?:  Variant;
   disabled?: boolean;
   loading?:  boolean;
-  style?:    ViewStyle;
+  style?:    StyleProp<ViewStyle>;
 }
 
 const variantStyle: Record<Variant, ViewStyle> = {
