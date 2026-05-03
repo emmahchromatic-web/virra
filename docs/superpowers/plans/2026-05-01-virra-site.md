@@ -1537,7 +1537,7 @@ git commit -m "chore: add CNAME for virra.app custom domain"
 
 ## Task 18: Push to GitHub and Enable Pages
 
-- [ ] **Step 1: Add GitHub remote**
+- [x] **Step 1: Add GitHub remote**
 
 Replace `YOUR_GITHUB_USERNAME` with your actual GitHub username (or org name):
 
@@ -1545,17 +1545,17 @@ Replace `YOUR_GITHUB_USERNAME` with your actual GitHub username (or org name):
 git remote add origin https://github.com/YOUR_GITHUB_USERNAME/virra.git
 ```
 
-- [ ] **Step 2: Push**
+- [x] **Step 2: Push**
 
 ```bash
 git push -u origin main
 ```
 
-- [ ] **Step 3: Watch the first build**
+- [x] **Step 3: Watch the first build**
 
 Open the repo on GitHub → Actions tab. You should see a "Deploy to GitHub Pages" workflow running. Wait for it to complete (~60 seconds). Green tick = success.
 
-- [ ] **Step 4: Enable GitHub Pages**
+- [x] **Step 4: Enable GitHub Pages**
 
 In the GitHub repo: Settings → Pages → Source → select **GitHub Actions**. Save.
 
@@ -1567,7 +1567,7 @@ Expected: GitHub shows a URL like `https://yourhandle.github.io/virra` or, once 
 
 Do this at your domain registrar (wherever virra.app is registered).
 
-- [ ] **Step 1: Add A records**
+- [x] **Step 1: Add A records**
 
 Create four A records pointing `@` (root domain) to GitHub Pages IPs:
 
@@ -1579,20 +1579,20 @@ A     @     185.199.110.153
 A     @     185.199.111.153
 ```
 
-- [ ] **Step 2: Add CNAME for www**
+- [x] **Step 2: Add CNAME for www**
 
 ```
 Type   Name  Value
 CNAME  www   YOUR_GITHUB_USERNAME.github.io
 ```
 
-- [ ] **Step 3: Set custom domain in GitHub Pages settings**
+- [x] **Step 3: Set custom domain in GitHub Pages settings**
 
 GitHub repo → Settings → Pages → Custom domain → enter `virra.app` → Save.
 
 GitHub will verify DNS and issue a Let's Encrypt SSL certificate automatically. This can take up to 24 hours for DNS to propagate, but is usually under an hour.
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Once DNS propagates: open https://virra.app — the holding page should load over HTTPS.
 
