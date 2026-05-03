@@ -40,3 +40,4 @@ export const radius = {
 export type ColorKey   = keyof typeof colors;
 export type FontKey    = keyof typeof fonts;
 export type SpacingKey = keyof typeof spacing;
+export type RadiusKey  = keyof typeof radius;
