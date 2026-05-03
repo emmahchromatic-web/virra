@@ -6,3 +6,5 @@ dist/
 !.env.example
 .superpowers/
 .worktrees/
+mobile/.env.local
+mobile/.env*.local
