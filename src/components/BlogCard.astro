@@ -1,0 +1,55 @@
+---
+interface Props {
+  title: string;
+  excerpt: string;
+  slug: string;
+  cover_image: string;
+  category: string;
+  published_date: Date;
+  readingTime: number;
+}
+
+const { title, excerpt, slug, cover_image, category, published_date, readingTime } = Astro.props;
+const formattedDate = published_date.toLocaleDateString('en-GB', {
+  day: 'numeric', month: 'long', year: 'numeric',
+});
+---
+<a href={`/blog/${slug}`} class="card">
+  <div class="card-image">
+    <img src={cover_image} alt={title} loading="lazy" width="800" height="450">
+  </div>
+  <div class="card-body">
+    <div class="card-meta">
+      <span class="cat">{category}</span>
+      <span class="dot" aria-hidden="true">&middot;</span>
+      <span class="rtime">{readingTime} min read</span>
+    </div>
+    <h2 class="card-title">{title}</h2>
+    <p class="card-excerpt">{excerpt}</p>
+    <time class="card-date" datetime={published_date.toISOString()}>{formattedDate}</time>
+  </div>
+</a>
+
+<style>
+  .card {
+    display: block; text-decoration: none;
+    border: 1px solid var(--border); border-radius: 4px;
+    overflow: hidden; transition: border-color 0.25s, transform 0.2s;
+  }
+  .card:hover { border-color: rgba(235,230,218,0.2); transform: translateY(-2px); }
+  .card-image img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+  .card-body { padding: 24px; }
+  .card-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .cat {
+    font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--lime); opacity: 0.8;
+  }
+  .dot { color: var(--muted); }
+  .rtime { font-size: 0.68rem; color: var(--muted); }
+  .card-title {
+    font-family: 'Cormorant', serif; font-size: 1.5rem; font-weight: 400;
+    color: var(--text); line-height: 1.15; margin-bottom: 12px;
+  }
+  .card-excerpt { font-size: 0.88rem; line-height: 1.65; color: var(--muted); margin-bottom: 16px; }
+  .card-date { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.05em; }
+</style>

@@ -1,0 +1,67 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import BlogCard from '../../components/BlogCard.astro';
+
+function readingTime(body: string): number {
+  return Math.max(1, Math.ceil(body.split(/\s+/).length / 200));
+}
+
+const posts = await getCollection('blog');
+const sorted = posts.sort(
+  (a, b) => b.data.published_date.valueOf() - a.data.published_date.valueOf()
+);
+---
+<BaseLayout
+  title="Journal — Virra"
+  description="Health, fitness, and nutrition insights from the Virra team."
+>
+  <Header />
+  <main class="blog-main">
+    <div class="b-wrap">
+      <header class="page-header">
+        <p class="page-eyebrow">Journal</p>
+        <h1 class="page-title">Insights for women who move</h1>
+      </header>
+      {sorted.length === 0 && (
+        <p class="empty">No posts yet &mdash; check back soon.</p>
+      )}
+      <div class="grid">
+        {sorted.map(post => (
+          <BlogCard
+            title={post.data.title}
+            excerpt={post.data.excerpt}
+            slug={post.id}
+            cover_image={post.data.cover_image}
+            category={post.data.category}
+            published_date={post.data.published_date}
+            readingTime={readingTime(post.body ?? '')}
+          />
+        ))}
+      </div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .blog-main { padding: 48px 0 96px; }
+  .b-wrap { max-width: 1140px; margin: 0 auto; padding: 0 52px; }
+  .page-header { margin-bottom: 56px; animation: up 0.7s ease 0.2s both; }
+  .page-eyebrow {
+    font-size: 0.7rem; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--lime); margin-bottom: 16px; opacity: 0.8;
+  }
+  .page-title {
+    font-family: 'Cormorant', serif;
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 300; color: var(--text);
+  }
+  .empty { color: var(--muted); font-size: 0.95rem; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  @keyframes up { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } .b-wrap { padding: 0 24px; } }
+</style>
