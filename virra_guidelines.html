@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VIRRA — Brand Guidelines · Vol. 02</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;700;800;900&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400;1,9..144,600;1,9..144,800&family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+:root {
+  --pulse:   #D4FF26;
+  --heat:    #FF2E7E;
+  --mile:    #0A0A0F;
+  --breath:  #F4EDE0;
+  --dawn:    #FF6B3D;
+  --mist:    #1C1C24;
+}
+
+@page { size: 297mm 210mm; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  font-family: 'Inter', sans-serif;
+  background: var(--mile);
+  color: var(--breath);
+  -webkit-font-smoothing: antialiased;
+}
+.page {
+  width: 297mm; height: 210mm;
+  page-break-after: always;
+  position: relative;
+  overflow: hidden;
+  break-inside: avoid;
+}
+.page:last-child { page-break-after: auto; }
+
+/* universal type */
+.kicker { font-family: 'Space Mono', monospace; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 700; }
+.framemark { position: absolute; top: 12mm; left: 14mm; font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.55; }
+.pageno    { position: absolute; top: 12mm; right: 14mm; font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.16em; opacity: 0.55; }
+.section-tag { position: absolute; bottom: 10mm; left: 14mm; font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.55; }
+.byline    { position: absolute; bottom: 10mm; right: 14mm; font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.55; }
+
+/* ------------ COVER ------------- */
+.p-cover { background: var(--mile); color: var(--breath); padding: 14mm; display: flex; flex-direction: column; justify-content: space-between; }
+.p-cover .topbar { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: rgba(244,237,224,0.6); }
+.p-cover .hero { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 200pt; line-height: 0.85; letter-spacing: -0.04em; color: var(--pulse); text-transform: uppercase; }
+.p-cover .hero .accent { color: var(--heat); }
+.p-cover .subtitle { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 28pt; letter-spacing: -0.015em; color: var(--breath); margin-top: 6mm; max-width: 220mm; }
+.p-cover .vol { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 56pt; letter-spacing: -0.01em; color: var(--heat); text-transform: uppercase; }
+.p-cover .footrow { display: flex; justify-content: space-between; align-items: end; font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(244,237,224,0.7); }
+
+/* ------------ CONTENTS ------------- */
+.p-contents { background: var(--mile); color: var(--breath); padding: 18mm 14mm; display: grid; grid-template-columns: 1fr 1.6fr; gap: 14mm; }
+.p-contents h1 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 80pt; line-height: 0.85; text-transform: uppercase; letter-spacing: -0.025em; }
+.p-contents .sub { margin-top: 6mm; font-family: 'Fraunces', serif; font-style: italic; font-size: 16pt; line-height: 1.2; max-width: 90mm; color: rgba(244,237,224,0.85);}
+.p-contents .toc { columns: 2; column-gap: 10mm; }
+.p-contents .toc-row { display: grid; grid-template-columns: 18mm 1fr 14mm; padding: 2.2mm 0; border-bottom: 1px solid rgba(244,237,224,0.18); break-inside: avoid; align-items: baseline; }
+.p-contents .toc-row .num { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.16em; color: var(--heat); }
+.p-contents .toc-row .ttl { font-family: 'Inter', sans-serif; font-size: 11pt; }
+.p-contents .toc-row .pg { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.16em; text-align: right; color: rgba(244,237,224,0.65); }
+.p-contents .toc-row.section { border-bottom: 1pt solid var(--pulse); padding-top: 5mm; }
+.p-contents .toc-row.section .ttl { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 16pt; text-transform: uppercase; letter-spacing: -0.005em; color: var(--pulse); }
+.p-contents .toc-row.section .num { color: var(--pulse); }
+
+/* ------------ SECTION DIVIDER ------------- */
+.p-divider { padding: 14mm; display: flex; flex-direction: column; justify-content: space-between; }
+.p-divider .section-num { font-family: 'Space Mono', monospace; font-size: 11pt; letter-spacing: 0.18em; text-transform: uppercase; }
+.p-divider h1 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 240pt; line-height: 0.82; text-transform: uppercase; letter-spacing: -0.04em; }
+.p-divider .lede { font-family: 'Fraunces', serif; font-style: italic; font-size: 22pt; line-height: 1.15; letter-spacing: -0.015em; max-width: 220mm; }
+.d-bg-mile { background: var(--mile); color: var(--breath); }
+.d-bg-mile h1 { color: var(--pulse); }
+.d-bg-mile h1 .b { color: var(--heat); font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; }
+.d-bg-pulse { background: var(--pulse); color: var(--mile); }
+.d-bg-pulse h1 { color: var(--mile); }
+.d-bg-pulse h1 .b { color: var(--heat); font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; }
+.d-bg-heat { background: var(--heat); color: var(--breath); }
+.d-bg-heat h1 { color: var(--breath); }
+.d-bg-heat h1 .b { color: var(--pulse); font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; }
+.d-bg-breath { background: var(--breath); color: var(--mile); }
+.d-bg-breath h1 { color: var(--mile); }
+.d-bg-breath h1 .b { color: var(--heat); font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; }
+
+/* ------------ SECTION CONTENT (REFERENCE PAGES) ------------- */
+.p-ref { padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.p-ref .head { display: flex; justify-content: space-between; align-items: end; }
+.p-ref h1 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em; }
+.p-ref .sub { font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right; }
+.bg-mile { background: var(--mile); color: var(--breath); }
+.bg-breath { background: var(--breath); color: var(--mile); }
+.bg-pulse { background: var(--pulse); color: var(--mile); }
+.bg-heat { background: var(--heat); color: var(--breath); }
+
+/* ------------ MANIFESTO PAGE ------------- */
+.p-manifesto { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-columns: 0.7fr 1.3fr; gap: 14mm; }
+.p-manifesto h1 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 110pt; line-height: 0.82; text-transform: uppercase; letter-spacing: -0.03em; color: var(--pulse); }
+.p-manifesto .left { display: flex; flex-direction: column; justify-content: space-between; }
+.p-manifesto .left .meta { font-family: 'Space Mono', monospace; font-size: 8.5pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; }
+.p-manifesto .right { display: flex; flex-direction: column; justify-content: center; font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 16pt; line-height: 1.22; letter-spacing: -0.015em; }
+.p-manifesto .right p { margin-bottom: 4mm; }
+.p-manifesto .right .shout { font-style: normal; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 28pt; line-height: 0.92; letter-spacing: -0.01em; color: var(--heat); text-transform: uppercase; }
+.p-manifesto .right .signoff { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-style: normal; font-size: 24pt; letter-spacing: 0.04em; text-transform: uppercase; color: var(--pulse); margin-top: 2mm; }
+
+/* ------------ PILLARS ------------- */
+.p-pillars { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.pillargrid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 3mm; height: calc(100% - 4mm); }
+.pillar { padding: 7mm; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
+.pillar .num { font-family: 'Space Mono', monospace; font-size: 8.5pt; letter-spacing: 0.18em; }
+.pillar h2 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 56pt; line-height: 0.88; letter-spacing: -0.015em; text-transform: uppercase; }
+.pillar p { font-family: 'Inter', sans-serif; font-size: 9.5pt; line-height: 1.45; }
+.pillar.pulse  { background: var(--pulse); color: var(--mile); }
+.pillar.heat   { background: var(--heat);  color: var(--breath); }
+.pillar.pack   { background: var(--breath); color: var(--mile); }
+.pillar.mile   { background: var(--mist);  color: var(--breath); border: 1pt solid rgba(244,237,224,0.2);}
+
+/* ------------ WORDMARK ANATOMY ------------- */
+.p-anatomy { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.anatomy-stage { border: 1pt dashed rgba(244,237,224,0.18); padding: 10mm; display: flex; align-items: center; justify-content: center; position: relative; }
+.anatomy-stage svg { width: 100%; height: auto; max-height: 90mm; }
+.anatomy-notes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6mm; margin-top: 5mm; }
+.anatomy-notes .item .n { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); display: block; margin-bottom: 1.5mm; }
+.anatomy-notes .item .b { font-family: 'Inter', sans-serif; font-size: 9.5pt; line-height: 1.4; }
+
+/* ------------ LOCKUP GRID ------------- */
+.p-lockups { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.lockupgrid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap: 3mm; height: calc(100% - 4mm); }
+.lock { display: flex; align-items: center; justify-content: center; padding: 8mm; position: relative; }
+.lock .l { position: absolute; bottom: 4mm; left: 4mm; font-family: 'Space Mono', monospace; font-size: 7.5pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; }
+.lock svg { max-width: 100%; max-height: 60mm; }
+.lock.cream { background: var(--breath); color: var(--mile); }
+.lock.lime  { background: var(--pulse);  color: var(--mile); }
+.lock.heat  { background: var(--heat);   color: var(--breath); }
+.lock.dawn  { background: var(--dawn);   color: var(--mile); }
+.lock.mist  { background: var(--mist);   color: var(--breath); }
+.lock.mile  { background: var(--mile);   color: var(--breath); border: 1pt dashed rgba(244,237,224,0.18); }
+
+/* ------------ CLEAR SPACE / MIN SIZE ------------- */
+.p-rules { background: var(--breath); color: var(--mile); padding: 14mm; display: grid; grid-template-columns: 1fr 1fr; gap: 10mm; }
+.p-rules h2 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 32pt; line-height: 0.92; letter-spacing: -0.01em; text-transform: uppercase; }
+.p-rules .desc { font-family: 'Inter', sans-serif; font-size: 10pt; line-height: 1.5; margin-top: 3mm; }
+.p-rules .stage { border: 1pt solid var(--mile); padding: 6mm; margin-top: 6mm; background: var(--breath); position: relative; min-height: 80mm; display: flex; align-items: center; justify-content: center;}
+.p-rules .stage svg { max-width: 100%; }
+.p-rules .stage .x-marker { position: absolute; font-family: 'Space Mono', monospace; font-size: 7pt; letter-spacing: 0.14em; color: var(--heat); }
+.p-rules .stage .x-marker.tl { top: 2mm; left: 2mm; }
+.p-rules .stage .x-marker.br { bottom: 2mm; right: 2mm; }
+.p-rules .min-grid { margin-top: 4mm; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4mm; }
+.p-rules .min-grid .min-spec { background: var(--mile); color: var(--breath); padding: 5mm; }
+.p-rules .min-grid .min-spec .n { font-family: 'Space Mono', monospace; font-size: 7.5pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); margin-bottom: 1mm; display: block;}
+.p-rules .min-grid .min-spec .v { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 28pt; color: var(--breath); line-height: 0.95;}
+.p-rules .min-grid .min-spec .u { font-family: 'Inter', sans-serif; font-size: 9pt; line-height: 1.4; color: rgba(244,237,224,0.7); margin-top: 2mm;}
+
+/* ------------ DOs & DON'Ts ------------- */
+.p-dod { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.dod-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr 1fr; gap: 3mm; height: calc(100% - 4mm); }
+.dod-cell { padding: 5mm; position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 0; overflow: hidden; }
+.dod-cell .stamp { position: absolute; top: 3mm; left: 3mm; font-family: 'Space Mono', monospace; font-size: 7pt; letter-spacing: 0.18em; text-transform: uppercase; padding: 1mm 2mm; }
+.dod-cell .stamp.do  { background: var(--pulse); color: var(--mile); }
+.dod-cell .stamp.dont{ background: var(--heat);  color: var(--breath); }
+.dod-cell .label { position: absolute; bottom: 3mm; left: 3mm; right: 3mm; font-family: 'Inter', sans-serif; font-size: 8.5pt; line-height: 1.35; }
+.dod-cell.dark { background: var(--mist); color: var(--breath); border: 1pt solid rgba(244,237,224,0.18);}
+.dod-cell.cream { background: var(--breath); color: var(--mile); }
+.dod-cell.heat  { background: var(--heat);  color: var(--breath); }
+.dod-cell.lime  { background: var(--pulse);  color: var(--mile); }
+
+/* ------------ TYPE SPECIMEN ------------- */
+.p-spec { padding: 14mm; display: grid; grid-template-rows: auto auto 1fr; gap: 5mm; }
+.p-spec.bg-mile { background: var(--mile); color: var(--breath); }
+.p-spec h1 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.01em; }
+.spec-strip { padding: 5mm 7mm; border: 1pt solid rgba(244,237,224,0.18); margin-bottom: 3mm;}
+.spec-strip.cream { border-color: var(--mile); background: var(--breath); color: var(--mile);}
+.spec-strip.heat { background: var(--heat); border: none; color: var(--breath);}
+.spec-strip.lime { background: var(--pulse); border: none; color: var(--mile);}
+.spec-strip .meta { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 3mm;}
+.spec-strip .meta b { color: var(--heat); }
+.spec-strip.heat .meta b { color: var(--pulse); }
+.spec-strip.cream .meta b { color: var(--heat); }
+.spec-strip.lime .meta b { color: var(--heat); }
+.spec-strip .glyphs { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 56pt; line-height: 0.95; letter-spacing: -0.015em;}
+.spec-strip.fraunces .glyphs { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 50pt; line-height: 0.95; letter-spacing: -0.025em; text-transform: none;}
+.spec-strip.inter .glyphs { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 30pt; text-transform: none; letter-spacing: -0.015em; line-height: 1.15;}
+.spec-strip.mono .glyphs { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 22pt; text-transform: uppercase; letter-spacing: 0.05em;}
+.spec-strip .alpha { font-size: 14pt; opacity: 0.75; margin-top: 3mm; font-family: inherit; line-height: 1.2;}
+.spec-strip.fraunces .alpha { font-size: 12pt; }
+.spec-strip.inter .alpha { font-size: 10pt; opacity: 0.65;}
+.spec-strip.mono .alpha { font-size: 9pt; opacity: 0.65;}
+
+/* ------------ TYPE SCALE ------------- */
+.p-scale { background: var(--breath); color: var(--mile); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 5mm; }
+.scale-rows { display: flex; flex-direction: column; gap: 1.5mm; }
+.scale-row { display: grid; grid-template-columns: 22mm 22mm 1fr 35mm; align-items: baseline; padding: 2mm 0; border-bottom: 1px solid rgba(10,10,15,0.15);}
+.scale-row .lvl { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--heat);}
+.scale-row .siz { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.16em; color: rgba(10,10,15,0.6);}
+.scale-row .ex  { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; line-height: 0.92; text-transform: uppercase; letter-spacing: -0.012em;}
+.scale-row .use { font-family: 'Space Mono', monospace; font-size: 7.5pt; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(10,10,15,0.6); text-align: right;}
+.scale-row.italic .ex { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; text-transform: none; letter-spacing: -0.02em;}
+.scale-row.body .ex { font-family: 'Inter', sans-serif; font-weight: 500; text-transform: none; letter-spacing: -0.01em;}
+.scale-row.mono .ex { font-family: 'Space Mono', monospace; font-weight: 700; letter-spacing: 0.05em;}
+
+/* ------------ COLOUR SPEC ------------- */
+.p-cspec { padding: 14mm; background: var(--mile); color: var(--breath); display: grid; grid-template-rows: auto 1fr; gap: 5mm;}
+.cspec-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; gap: 0; }
+.cs { padding: 7mm 5mm; min-height: 145mm; display: flex; flex-direction: column; justify-content: space-between; }
+.cs .nm { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 28pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.01em;}
+.cs .role { font-family: 'Fraunces', serif; font-style: italic; font-size: 11pt; margin-top: 2mm; line-height: 1.2;}
+.cs .codes { font-family: 'Space Mono', monospace; font-size: 7.5pt; letter-spacing: 0.06em; line-height: 1.55; }
+.cs .use { font-family: 'Inter', sans-serif; font-size: 8.5pt; line-height: 1.4; margin-top: 2mm; opacity: 0.85;}
+.cs.s-pulse { background: var(--pulse); color: var(--mile); }
+.cs.s-heat  { background: var(--heat);  color: var(--breath); }
+.cs.s-mile  { background: var(--mile);  color: var(--breath); border: 1pt solid rgba(244,237,224,0.2);}
+.cs.s-breath{ background: var(--breath); color: var(--mile); }
+.cs.s-dawn  { background: var(--dawn);  color: var(--mile); }
+
+/* ------------ COLOUR RATIOS ------------- */
+.p-ratios { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.ratiogrid { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8mm; }
+.ratio-stack { display: flex; flex-direction: column; gap: 3mm; }
+.ratio-row { display: grid; grid-template-columns: 18mm 1fr; gap: 4mm; align-items: center; }
+.ratio-row .lbl { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; }
+.ratio-row .lbl b { display: block; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 24pt; color: var(--pulse); line-height: 1; letter-spacing: -0.01em;}
+.ratio-bar { height: 16mm; display: flex; }
+.ratio-bar .seg { display: flex; align-items: end; padding: 2mm 3mm; font-family: 'Space Mono', monospace; font-size: 7pt; letter-spacing: 0.14em; text-transform: uppercase; }
+.ratio-side { font-family: 'Inter', sans-serif; font-size: 10.5pt; line-height: 1.5; }
+.ratio-side h3 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 22pt; line-height: 0.95; text-transform: uppercase; letter-spacing: -0.005em; color: var(--pulse); margin-bottom: 3mm;}
+.ratio-side p { margin-bottom: 3mm;}
+
+/* ------------ PAIRINGS ------------- */
+.p-pair { background: var(--breath); color: var(--mile); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.pair-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr 1fr; gap: 3mm; height: calc(100% - 4mm);}
+.pair { display: flex; align-items: center; justify-content: center; padding: 6mm; position: relative; overflow: hidden;}
+.pair .stamp { position: absolute; bottom: 3mm; left: 3mm; right: 3mm; font-family: 'Space Mono', monospace; font-size: 7pt; letter-spacing: 0.16em; text-transform: uppercase;}
+.pair .demo { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 30pt; line-height: 0.92; text-transform: uppercase; letter-spacing: -0.01em; text-align: center;}
+.pair .demo em { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800;}
+.pair.p1 { background: var(--mile); color: var(--breath);} .pair.p1 .demo .b { color: var(--pulse);}
+.pair.p2 { background: var(--mile); color: var(--breath);} .pair.p2 .demo .b { color: var(--heat);}
+.pair.p3 { background: var(--pulse); color: var(--mile);} .pair.p3 .demo em { color: var(--heat);}
+.pair.p4 { background: var(--heat); color: var(--breath);} .pair.p4 .demo .b { color: var(--pulse);}
+.pair.p5 { background: var(--breath); color: var(--mile); border: 1pt solid var(--mile);} .pair.p5 .demo em { color: var(--heat);}
+.pair.p6 { background: var(--dawn); color: var(--mile);} .pair.p6 .demo em { color: var(--mile);}
+.pair.p7 { background: var(--mile); color: var(--breath); border: 1pt dashed var(--pulse);} .pair.p7 .demo .b { color: var(--dawn);}
+.pair.p8 { background: var(--mist); color: var(--breath); border: 1pt solid rgba(244,237,224,0.18);} .pair.p8 .demo em { color: var(--pulse);}
+
+/* ------------ PATTERN SYSTEM ------------- */
+.p-patterns { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm; }
+.pat-spec-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; height: calc(100% - 4mm);}
+.pat-spec { display: flex; flex-direction: column; gap: 3mm; }
+.pat-tile { flex: 1; min-height: 0; position: relative; overflow: hidden; border: 1pt solid rgba(244,237,224,0.15);}
+.pat-info h3 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 26pt; line-height: 0.95; text-transform: uppercase; letter-spacing: -0.005em; color: var(--pulse);}
+.pat-info p { font-family: 'Inter', sans-serif; font-size: 8.5pt; line-height: 1.45; margin-top: 2mm; opacity: 0.8;}
+.pat-info .use { display: block; margin-top: 1.5mm; font-family: 'Space Mono', monospace; font-size: 7pt; letter-spacing: 0.16em; text-transform: uppercase; color: var(--heat);}
+.pat-stencil { background: var(--heat); color: var(--pulse); display: flex; flex-direction: column; justify-content: center; font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 26pt; line-height: 0.95; letter-spacing: -0.02em; text-transform: uppercase; text-align: center; white-space: nowrap;}
+.pat-stencil .row.rev { color: var(--breath); font-style: italic; font-family: 'Fraunces', serif; font-weight: 800;}
+.pat-contour { background: var(--pulse);}
+.pat-contour svg { width: 100%; height: 100%; display: block;}
+.pat-pulse { background: var(--mile);}
+.pat-pulse svg { width: 100%; height: 100%; display: block;}
+
+/* ------------ PHOTOGRAPHY ------------- */
+.p-photo { background: var(--mile); color: var(--breath); padding: 14mm; display: grid; grid-template-columns: 1fr 1.4fr; gap: 10mm;}
+.p-photo h1 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 80pt; line-height: 0.85; text-transform: uppercase; letter-spacing: -0.025em;}
+.p-photo h1 b { color: var(--pulse);}
+.p-photo h1 .b2 { color: var(--heat); font-family: 'Fraunces', serif; font-style: italic; font-weight: 800;}
+.p-photo .lede { margin-top: 6mm; font-family: 'Fraunces', serif; font-style: italic; font-size: 14pt; line-height: 1.25; letter-spacing: -0.005em;}
+.p-photo .principles { margin-top: 5mm; }
+.p-photo .principles .pr { padding: 3mm 0; border-bottom: 1px solid rgba(244,237,224,0.18);}
+.p-photo .principles .pr h4 { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); margin-bottom: 1mm;}
+.p-photo .principles .pr p { font-family: 'Inter', sans-serif; font-size: 9.5pt; line-height: 1.45;}
+.photo-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 3mm;}
+.photo-cell { background-size: cover; background-position: center; background-color: var(--mist); position: relative; overflow: hidden; min-height: 0;}
+.photo-cell .credit { position: absolute; bottom: 2mm; left: 2mm; font-family: 'Space Mono', monospace; font-size: 6.5pt; letter-spacing: 0.14em; text-transform: uppercase; background: rgba(10,10,15,0.7); color: var(--breath); padding: 1mm 1.5mm;}
+
+/* ------------ VOICE TEMPLATES ------------- */
+.p-voice { background: var(--breath); color: var(--mile); padding: 14mm; display: grid; grid-template-rows: auto 1fr; gap: 6mm;}
+.voice-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3mm; height: calc(100% - 4mm);}
+.voice-card { background: var(--mile); color: var(--breath); padding: 6mm; position: relative; overflow: hidden; min-height: 0; display: flex; flex-direction: column;}
+.voice-card .ctx { font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--heat);}
+.voice-card h3 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 22pt; line-height: 0.95; text-transform: uppercase; letter-spacing: -0.005em; color: var(--pulse); margin: 2mm 0 3mm;}
+.voice-card .ex { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 11pt; line-height: 1.25; margin-bottom: 3mm; }
+.voice-card .alt { font-family: 'Inter', sans-serif; font-size: 9pt; line-height: 1.4; opacity: 0.85;}
+.voice-card .alt b { color: var(--pulse); font-weight: 600;}
+
+/* ------------ CLOSING ------------- */
+.p-close { background: var(--heat); color: var(--breath); padding: 14mm; display: flex; flex-direction: column; justify-content: space-between;}
+.p-close .topkick { font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse);}
+.p-close .megaclose { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 150pt; line-height: 0.85; letter-spacing: -0.04em; text-transform: uppercase; color: var(--breath);}
+.p-close .megaclose .a { color: var(--pulse);}
+.p-close .megaclose .b { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--mile);}
+.p-close .footrow { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase;}
+
+/* SVG style */
+.wm .lima  { fill: var(--pulse); }
+.wm .heatr { fill: var(--heat); }
+.wm .breath { fill: var(--breath); }
+.wm .mile { fill: var(--mile); }
+.wm .dawn { fill: var(--dawn); }
+</style>
+</head>
+<body>
+
+<!-- ========== 01 COVER ========== -->
+<section class="page p-cover">
+  <div class="topbar"><span>VIRRA · 2026</span><span>Brand Guidelines · Vol. 02</span></div>
+  <div>
+    <div class="hero">V<span class="accent">I</span>RRA</div>
+    <div class="vol">Brand Guidelines</div>
+    <div class="subtitle">The working reference. How Virra looks, sounds, and behaves — from the smallest button to the loudest poster.</div>
+  </div>
+  <div class="footrow">
+    <span>Vol. 02 · Guidelines</span>
+    <span>For founders, collaborators, photographers, designers, anyone making Virra.</span>
+  </div>
+</section>
+
+<!-- ========== 02 CONTENTS ========== -->
+<section class="page p-contents">
+  <div>
+    <h1>Contents.</h1>
+    <div class="sub">Seven sections. One Virra. Read top to bottom or jump to where you need.</div>
+  </div>
+  <div class="toc">
+    <div class="toc-row section"><span class="num">§01</span><span class="ttl">The Brand</span><span class="pg">p.04</span></div>
+    <div class="toc-row"><span class="num">1.1</span><span class="ttl">The idea, the manifesto</span><span class="pg">p.04</span></div>
+    <div class="toc-row"><span class="num">1.2</span><span class="ttl">Four pillars</span><span class="pg">p.05</span></div>
+
+    <div class="toc-row section"><span class="num">§02</span><span class="ttl">Logo</span><span class="pg">p.07</span></div>
+    <div class="toc-row"><span class="num">2.1</span><span class="ttl">Wordmark anatomy</span><span class="pg">p.07</span></div>
+    <div class="toc-row"><span class="num">2.2</span><span class="ttl">Lockups & system</span><span class="pg">p.08</span></div>
+    <div class="toc-row"><span class="num">2.3</span><span class="ttl">Clear space & min size</span><span class="pg">p.09</span></div>
+    <div class="toc-row"><span class="num">2.4</span><span class="ttl">DOs and DON'Ts</span><span class="pg">p.10</span></div>
+
+    <div class="toc-row section"><span class="num">§03</span><span class="ttl">Typography</span><span class="pg">p.12</span></div>
+    <div class="toc-row"><span class="num">3.1</span><span class="ttl">Type families</span><span class="pg">p.12</span></div>
+    <div class="toc-row"><span class="num">3.2</span><span class="ttl">Type scale</span><span class="pg">p.13</span></div>
+    <div class="toc-row"><span class="num">3.3</span><span class="ttl">DOs and DON'Ts</span><span class="pg">p.14</span></div>
+
+    <div class="toc-row section"><span class="num">§04</span><span class="ttl">Colour</span><span class="pg">p.16</span></div>
+    <div class="toc-row"><span class="num">4.1</span><span class="ttl">Full palette</span><span class="pg">p.16</span></div>
+    <div class="toc-row"><span class="num">4.2</span><span class="ttl">Use ratios — 60/30/10</span><span class="pg">p.17</span></div>
+    <div class="toc-row"><span class="num">4.3</span><span class="ttl">Pairings & contrast</span><span class="pg">p.18</span></div>
+
+    <div class="toc-row section"><span class="num">§05</span><span class="ttl">Pattern</span><span class="pg">p.20</span></div>
+    <div class="toc-row"><span class="num">5.1</span><span class="ttl">Three textures</span><span class="pg">p.20</span></div>
+
+    <div class="toc-row section"><span class="num">§06</span><span class="ttl">Photography</span><span class="pg">p.22</span></div>
+    <div class="toc-row"><span class="num">6.1</span><span class="ttl">Principles & moodboard</span><span class="pg">p.22</span></div>
+    <div class="toc-row"><span class="num">6.2</span><span class="ttl">Casting & DOs / DON'Ts</span><span class="pg">p.23</span></div>
+
+    <div class="toc-row section"><span class="num">§07</span><span class="ttl">Voice</span><span class="pg">p.25</span></div>
+    <div class="toc-row"><span class="num">7.1</span><span class="ttl">Templates · product, push, plan</span><span class="pg">p.25</span></div>
+    <div class="toc-row"><span class="num">7.2</span><span class="ttl">Templates · social, email, errors</span><span class="pg">p.26</span></div>
+  </div>
+</section>
+
+<!-- ========== 03 §01 DIVIDER ========== -->
+<section class="page p-divider d-bg-mile">
+  <div class="section-num">§01 — The Brand</div>
+  <h1>The<br>Brand.</h1>
+  <div class="lede">A 60-second recap of who Virra is, who she's for, and what we're not. If everything else gets lost in a fire, this is what survives.</div>
+</section>
+
+<!-- ========== 04 IDEA + MANIFESTO ========== -->
+<section class="page p-manifesto">
+  <div class="framemark">VIRRA · 04</div>
+  <div class="pageno">§1.1 — Idea</div>
+  <div class="left">
+    <h1>Felt,<br>not<br>seen.</h1>
+    <div class="meta">The brand idea.<br>The line that everything answers to.</div>
+  </div>
+  <div class="right">
+    <p>Virra is the running brand for women who don't want to be looked at while they run — they want to <em>feel</em> something while they run.</p>
+    <p>Heat. Pulse. Pack. Mile. The somatic truth of the sport, not the optics of it.</p>
+    <p class="shout">We run hot.<br>We don't apologise.<br>We don't cool down<br>for anyone.</p>
+    <p>Every decision — colour, type, copy, casting, product — answers the same question: does this make her <em>feel</em> something? If not, it isn't Virra.</p>
+    <p class="signoff">VIRRA. Felt, not seen.</p>
+  </div>
+</section>
+
+<!-- ========== 05 PILLARS ========== -->
+<section class="page p-pillars">
+  <div class="framemark">VIRRA · 05</div>
+  <div class="pageno">§1.2 — Pillars</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Four pillars.<br>One <em style="font-family: 'Fraunces', serif; font-style: italic; color: var(--heat); font-weight: 800;">heartbeat.</em></h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7;">Brand pillars · §1.2</div>
+  </div>
+  <div class="pillargrid">
+    <div class="pillar pulse">
+      <div class="num">№.01</div>
+      <h2>Pulse.</h2>
+      <p>Embodied. Somatic. Alive. Heart rate as truth, not metric. Virra listens to the body before it counts the calories.</p>
+    </div>
+    <div class="pillar heat">
+      <div class="num">№.02</div>
+      <h2>Heat.</h2>
+      <p>Hormones. Effort. Flush. Fury. What diet culture taught her to fear, we treat as her superpower.</p>
+    </div>
+    <div class="pillar pack">
+      <div class="num">№.03</div>
+      <h2>Pack.</h2>
+      <p>A pack of one or a pack of a thousand. Women in motion together — never for the lens, always for the lift.</p>
+    </div>
+    <div class="pillar mile">
+      <div class="num">№.04</div>
+      <h2>Mile.</h2>
+      <p>Craft. Distance. Science. Earned every km, with training plans built around her physiology — not retro-fitted from his.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 06 §02 DIVIDER LOGO ========== -->
+<section class="page p-divider d-bg-pulse">
+  <div class="section-num">§02 — Logo</div>
+  <h1>Logo.</h1>
+  <div class="lede">The wordmark, the mark, the lockups, and the rules that keep them tight.</div>
+</section>
+
+<!-- ========== 07 WORDMARK ANATOMY ========== -->
+<section class="page p-anatomy">
+  <div class="framemark">VIRRA · 07</div>
+  <div class="pageno">§2.1 — Anatomy</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Wordmark<br>anatomy.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Custom-cut from<br>Big Shoulders Display 900<br>+ Fraunces Italic 800</div>
+  </div>
+  <div class="anatomy-stage">
+    <svg class="wm" viewBox="0 -30 1100 310" xmlns="http://www.w3.org/2000/svg">
+      <!-- guides -->
+      <g stroke="#FF2E7E" stroke-width="0.6" stroke-dasharray="3,3" opacity="0.5">
+        <line x1="0" y1="40"  x2="1100" y2="40"/>
+        <line x1="0" y1="220" x2="1100" y2="220"/>
+        <line x1="0" y1="234" x2="1100" y2="234"/>
+      </g>
+      <!-- letters -->
+      <text x="40"  y="220" class="lima"   font-family="Big Shoulders Display" font-weight="900" font-size="240" letter-spacing="-8">V</text>
+      <text x="165" y="220" class="heatr"  font-family="Fraunces"              font-weight="800" font-size="300" font-style="italic">i</text>
+      <text x="280" y="220" class="lima"   font-family="Big Shoulders Display" font-weight="900" font-size="240" letter-spacing="-8">R</text>
+      <text x="450" y="220" class="lima"   font-family="Big Shoulders Display" font-weight="900" font-size="240" letter-spacing="-8">R</text>
+      <text x="620" y="220" class="lima"   font-family="Big Shoulders Display" font-weight="900" font-size="240" letter-spacing="-8">A</text>
+      <!-- horizon -->
+      <rect x="40" y="232" width="740" height="6" class="heatr"/>
+      <!-- callouts -->
+      <g font-family="Space Mono" font-size="11" fill="#D4FF26">
+        <line x1="84"  y1="40"  x2="84"  y2="20" stroke="#D4FF26" stroke-width="1"/>
+        <text x="80"   y="14" text-anchor="start">A · CAP HEIGHT</text>
+        <line x1="190" y1="220" x2="190" y2="262" stroke="#FF2E7E" stroke-width="1"/>
+        <text x="186"  y="274" text-anchor="start" fill="#FF2E7E">B · LOWERCASE ITALIC i · FRAUNCES 800</text>
+        <line x1="780" y1="238" x2="900" y2="266" stroke="#D4FF26" stroke-width="1"/>
+        <text x="900"  y="276" text-anchor="start">C · HEAT HORIZON BAR</text>
+        <line x1="220" y1="260" x2="160" y2="260" stroke="#D4FF26" stroke-width="1"/>
+        <text x="0"    y="276" text-anchor="start">D · TRACKING −20</text>
+      </g>
+      <!-- pulse mark -->
+      <g transform="translate(960, 130)">
+        <circle cx="0" cy="0" r="80" fill="none" stroke="#D4FF26" stroke-width="6"/>
+        <path d="M -55 0 L -30 0 L -15 -30 L 5 35 L 25 -15 L 40 0 L 55 0" fill="none" stroke="#FF2E7E" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <text x="960" y="250" text-anchor="middle" font-family="Space Mono" font-size="11" fill="#D4FF26">E · PULSE MARK</text>
+    </svg>
+  </div>
+  <div class="anatomy-notes">
+    <div class="item"><span class="n">A · Cap height</span><span class="b">Big Shoulders Display 900 caps. Set on a single baseline. No descenders.</span></div>
+    <div class="item"><span class="n">B · The lowercase italic i</span><span class="b">A single Fraunces italic 800 lowercase i sits inside the wordmark. The forward lean. Never substitute.</span></div>
+    <div class="item"><span class="n">C · Horizon bar</span><span class="b">The heat-magenta bar sits 12px below the baseline. A start line. A finish line. Never optional.</span></div>
+    <div class="item"><span class="n">D + E · Tracking + Mark</span><span class="b">Letters tracked at −20. Pulse mark is the lone version: app icons, watermarks, end stamps.</span></div>
+  </div>
+</section>
+
+<!-- ========== 08 LOCKUPS ========== -->
+<section class="page p-lockups">
+  <div class="framemark">VIRRA · 08</div>
+  <div class="pageno">§2.2 — Lockups</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Lockups.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Six approved versions.<br>Anything else, ask.</div>
+  </div>
+  <div class="lockupgrid">
+    <div class="lock cream">
+      <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg"><text x="20" y="160" font-family="Big Shoulders Display" font-weight="900" font-size="180" fill="#0A0A0F" letter-spacing="-6">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text></svg>
+      <span class="l">Primary · Cream</span>
+    </div>
+    <div class="lock lime">
+      <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg"><text x="20" y="160" font-family="Big Shoulders Display" font-weight="900" font-size="180" fill="#0A0A0F" letter-spacing="-6">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text></svg>
+      <span class="l">Hot Lockup · Lime</span>
+    </div>
+    <div class="lock heat">
+      <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg"><text x="20" y="160" font-family="Big Shoulders Display" font-weight="900" font-size="180" fill="#D4FF26" letter-spacing="-6">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#F4EDE0">i</tspan>RRA</text></svg>
+      <span class="l">Heat Lockup · Magenta</span>
+    </div>
+    <div class="lock mile">
+      <svg viewBox="0 0 600 200" xmlns="http://www.w3.org/2000/svg"><text x="20" y="160" font-family="Big Shoulders Display" font-weight="900" font-size="180" fill="#D4FF26" letter-spacing="-6">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text></svg>
+      <span class="l">Default · Ink</span>
+    </div>
+    <div class="lock dawn">
+      <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><text x="120" y="200" text-anchor="middle" font-family="Big Shoulders Display" font-weight="900" font-size="240" fill="#0A0A0F" letter-spacing="-6">V</text><rect x="40" y="208" width="160" height="6" fill="#FF2E7E"/></svg>
+      <span class="l">Monogram · V</span>
+    </div>
+    <div class="lock mist">
+      <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg"><circle cx="120" cy="120" r="100" fill="none" stroke="#D4FF26" stroke-width="8"/><path d="M 50 120 L 80 120 L 100 80 L 120 170 L 145 60 L 165 120 L 195 120" fill="none" stroke="#FF2E7E" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="l">Pulse Mark · Lone</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 09 CLEAR SPACE / MIN SIZE ========== -->
+<section class="page p-rules">
+  <div class="framemark" style="color: var(--mile); opacity: 0.55;">VIRRA · 09</div>
+  <div class="pageno" style="color: var(--mile); opacity: 0.55;">§2.3 — Spacing</div>
+  <div class="left">
+    <span class="kicker" style="color: var(--heat);">2.3 · CLEAR SPACE</span>
+    <h2 style="margin-top: 2mm;">Give it<br>room to<br>breathe.</h2>
+    <p class="desc">The clear space around the wordmark is <b>1× the cap height (X)</b> on all four sides. Nothing — no copy, no edge, no other graphic — enters that zone.</p>
+    <div class="stage">
+      <span class="x-marker tl">X</span>
+      <span class="x-marker br">X</span>
+      <svg viewBox="0 0 600 220" xmlns="http://www.w3.org/2000/svg" style="margin: 8mm;">
+        <rect x="0" y="0" width="600" height="220" fill="none" stroke="#FF2E7E" stroke-width="1" stroke-dasharray="4,4"/>
+        <rect x="50" y="40" width="500" height="140" fill="none" stroke="#0A0A0F" stroke-width="0.5" stroke-dasharray="2,2"/>
+        <text x="80" y="148" font-family="Big Shoulders Display" font-weight="900" font-size="120" fill="#0A0A0F" letter-spacing="-4">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text>
+        <rect x="80" y="158" width="320" height="4" fill="#FF2E7E"/>
+        <line x1="20" y1="40" x2="50" y2="40" stroke="#FF2E7E" stroke-width="0.5"/>
+        <line x1="20" y1="180" x2="50" y2="180" stroke="#FF2E7E" stroke-width="0.5"/>
+        <text x="22" y="115" font-family="Space Mono" font-size="11" fill="#FF2E7E">X</text>
+      </svg>
+    </div>
+  </div>
+  <div class="right">
+    <span class="kicker" style="color: var(--heat);">2.3 · MINIMUM SIZE</span>
+    <h2 style="margin-top: 2mm;">Don't go<br>smaller<br>than this.</h2>
+    <p class="desc">Below these sizes the lowercase italic i loses its punctum and the wordmark falls apart. If you need it tinier, use the Pulse Mark or the V monogram instead.</p>
+    <div class="min-grid">
+      <div class="min-spec">
+        <span class="n">Print</span>
+        <span class="v">22mm</span>
+        <span class="u">Wide. Below this on cotton, vinyl, paper or signage, switch to the V monogram.</span>
+      </div>
+      <div class="min-spec">
+        <span class="n">Digital</span>
+        <span class="v">120px</span>
+        <span class="u">Wide. For UI, web, social headers. Below 120px, use Pulse Mark in place of the wordmark.</span>
+      </div>
+      <div class="min-spec">
+        <span class="n">Favicon</span>
+        <span class="v">16px</span>
+        <span class="u">Pulse Mark only. Never the full wordmark. The i disappears below 60px.</span>
+      </div>
+    </div>
+    <div class="stage" style="margin-top: 5mm; min-height: 40mm;">
+      <svg viewBox="0 0 600 80" xmlns="http://www.w3.org/2000/svg">
+        <text x="40"  y="60" font-family="Big Shoulders Display" font-weight="900" font-size="64" fill="#0A0A0F" letter-spacing="-2">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text>
+        <text x="220" y="60" font-family="Big Shoulders Display" font-weight="900" font-size="44" fill="#0A0A0F" letter-spacing="-1.5">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text>
+        <text x="346" y="60" font-family="Big Shoulders Display" font-weight="900" font-size="28" fill="#0A0A0F" letter-spacing="-1">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text>
+        <text x="430" y="60" font-family="Big Shoulders Display" font-weight="900" font-size="18" fill="#0A0A0F" letter-spacing="-0.6">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text>
+        <circle cx="510" cy="50" r="14" fill="none" stroke="#0A0A0F" stroke-width="1.4"/>
+        <path d="M 498 50 L 504 50 L 508 42 L 512 60 L 516 38 L 520 50 L 522 50" fill="none" stroke="#FF2E7E" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 10 LOGO DOs/DON'Ts ========== -->
+<section class="page p-dod">
+  <div class="framemark">VIRRA · 10</div>
+  <div class="pageno">§2.4 — DOs / DON'Ts</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">DOs and<br><em style="font-family: 'Fraunces', serif; font-style: italic; color: var(--heat); font-weight: 800;">don'ts.</em></h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Logo system rules.<br>If in doubt, ask.</div>
+  </div>
+  <div class="dod-grid">
+    <div class="dod-cell dark">
+      <span class="stamp do">DO</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 80%;"><text x="20" y="64" font-family="Big Shoulders Display" font-weight="900" font-size="68" fill="#D4FF26" letter-spacing="-2">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text></svg>
+      <span class="label">Use approved lockups only. Lowercase italic Fraunces i is non-negotiable.</span>
+    </div>
+    <div class="dod-cell cream">
+      <span class="stamp do">DO</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 70%;"><text x="20" y="64" font-family="Big Shoulders Display" font-weight="900" font-size="68" fill="#0A0A0F" letter-spacing="-2">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text></svg>
+      <span class="label">Pair with cream paper for editorial moments. Looks like a magazine.</span>
+    </div>
+    <div class="dod-cell heat">
+      <span class="stamp do">DO</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 70%;"><text x="20" y="64" font-family="Big Shoulders Display" font-weight="900" font-size="68" fill="#D4FF26" letter-spacing="-2">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#F4EDE0">i</tspan>RRA</text></svg>
+      <span class="label">On magenta, the i turns cream — never magenta-on-magenta.</span>
+    </div>
+    <div class="dod-cell lime">
+      <span class="stamp do">DO</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 70%;"><circle cx="40" cy="40" r="30" fill="none" stroke="#0A0A0F" stroke-width="3"/><path d="M 16 40 L 26 40 L 32 26 L 40 60 L 48 22 L 54 40 L 64 40" fill="none" stroke="#FF2E7E" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="80" y="52" font-family="Big Shoulders Display" font-weight="900" font-size="34" fill="#0A0A0F" letter-spacing="-1">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text></svg>
+      <span class="label">Pulse Mark + wordmark may be combined. Mark sits left, wordmark right.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 80%; transform: skewX(-15deg);"><text x="20" y="64" font-family="Big Shoulders Display" font-weight="900" font-size="68" fill="#D4FF26" letter-spacing="-2">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em" fill="#FF2E7E">i</tspan>RRA</text></svg>
+      <span class="label">Don't skew, slant or rotate the wordmark. The italic i is the only italic moment.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 80%;"><text x="20" y="64" font-family="Big Shoulders Display" font-weight="900" font-size="68" fill="#D4FF26" letter-spacing="-2">VIRRA</text></svg>
+      <span class="label">Don't substitute the lowercase italic i with a regular i. The i is the brand, full stop.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 80%;"><text x="20" y="64" font-family="Arial" font-weight="900" font-size="68" fill="#D4FF26" letter-spacing="-1">VIRRA</text></svg>
+      <span class="label">Don't recreate the wordmark in any other typeface. Use the supplied SVG only.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" style="width: 80%;">
+        <defs><linearGradient id="grad-dont" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FF2E7E"/><stop offset="100%" stop-color="#FF6B3D"/></linearGradient></defs>
+        <text x="20" y="64" font-family="Big Shoulders Display" font-weight="900" font-size="68" fill="url(#grad-dont)" letter-spacing="-2">V<tspan font-family="Fraunces" font-style="italic" font-weight="800" font-size="1.25em">i</tspan>RRA</text>
+      </svg>
+      <span class="label">Don't apply gradients or shadows. Virra colours are flat. Always.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 11 §03 DIVIDER TYPE ========== -->
+<section class="page p-divider d-bg-mile">
+  <div class="section-num">§03 — Typography</div>
+  <h1>Type<span class="b">.</span></h1>
+  <div class="lede">Three voices in tempo. Athletic. Editorial. Functional. The system that lets one brand shout, whisper, and explain in the same breath.</div>
+</section>
+
+<!-- ========== 12 TYPE FAMILIES SPECIMEN ========== -->
+<section class="page p-spec bg-mile">
+  <div class="framemark">VIRRA · 12</div>
+  <div class="pageno">§3.1 — Families</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1>Type families.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">All free via Google Fonts.<br>One brand, four roles.</div>
+  </div>
+  <div>
+    <div class="spec-strip lime">
+      <div class="meta"><span><b>Display</b> · Big Shoulders Display 900 — "Virra Hot"</span><span>Headlines · posters · race kit</span></div>
+      <div class="glyphs">RUN HOT. BREATHE LOUD.</div>
+      <div class="alpha">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z &nbsp; 0 1 2 3 4 5 6 7 8 9 &nbsp; ! ? &amp; · / —</div>
+    </div>
+    <div class="spec-strip heat fraunces">
+      <div class="meta"><span><b>Editorial</b> · Fraunces Italic 400 / 800 — "Virra Soft"</span><span>Manifestos · quotes · serif punctum</span></div>
+      <div class="glyphs">felt, not seen.</div>
+      <div class="alpha">a b c d e f g h i j k l m n o p q r s t u v w x y z &nbsp; A B C D E F G H I J K L M N O P Q R S T U V W X Y Z</div>
+    </div>
+    <div class="spec-strip cream inter">
+      <div class="meta"><span><b>Body</b> · Inter 400 / 600 — "Virra Working"</span><span>UI · plans · captions · long copy</span></div>
+      <div class="glyphs">Tomorrow's long run. You don't need to feel ready. You need to lace up.</div>
+      <div class="alpha">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z &nbsp; 0 1 2 3 4 5 6 7 8 9 &nbsp; The quick brown fox jumps over the lazy dog.</div>
+    </div>
+    <div class="spec-strip mono">
+      <div class="meta"><span><b>Mono</b> · Space Mono 700 — "Virra Splits"</span><span>Labels · data · pace · captions</span></div>
+      <div class="glyphs">5:12/KM · CYCLE D.21 · HR 158</div>
+      <div class="alpha">A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 13 TYPE SCALE ========== -->
+<section class="page p-scale">
+  <div class="framemark" style="color: var(--mile); opacity: 0.55;">VIRRA · 13</div>
+  <div class="pageno" style="color: var(--mile); opacity: 0.55;">§3.2 — Scale</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Type scale.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Eight steps. Web units (px / rem).<br>Print scales proportionally.</div>
+  </div>
+  <div class="scale-rows">
+    <div class="scale-row"><span class="lvl">Hero</span><span class="siz">128/110</span><span class="ex" style="font-size: 56pt;">RUN HOT.</span><span class="use">Hero · landing · poster</span></div>
+    <div class="scale-row"><span class="lvl">H1</span><span class="siz">72/72</span><span class="ex" style="font-size: 38pt;">Felt, not seen.</span><span class="use">Section opener</span></div>
+    <div class="scale-row italic"><span class="lvl">H1·italic</span><span class="siz">72/76</span><span class="ex" style="font-size: 32pt;">a quiet roar.</span><span class="use">Editorial moments</span></div>
+    <div class="scale-row"><span class="lvl">H2</span><span class="siz">48/52</span><span class="ex" style="font-size: 24pt;">FOUR PILLARS.</span><span class="use">Sub-section · card</span></div>
+    <div class="scale-row"><span class="lvl">H3</span><span class="siz">28/32</span><span class="ex" style="font-size: 17pt;">PULSE / HEAT / PACK / MILE</span><span class="use">Module title</span></div>
+    <div class="scale-row body"><span class="lvl">Lede</span><span class="siz">20/28</span><span class="ex" style="font-size: 13pt;">A 60-second recap of who Virra is, who she's for, and what we're not.</span><span class="use">Section intro paragraph</span></div>
+    <div class="scale-row body"><span class="lvl">Body</span><span class="siz">16/24</span><span class="ex" style="font-size: 11pt;">Tomorrow's long run. You don't need to feel ready. You need to lace up.</span><span class="use">UI · plan · long copy</span></div>
+    <div class="scale-row body"><span class="lvl">Caption</span><span class="siz">13/18</span><span class="ex" style="font-size: 9pt;">Cycle d.21 · Threshold session · 5×6'</span><span class="use">Annotations · captions</span></div>
+    <div class="scale-row mono"><span class="lvl">Mono</span><span class="siz">12/16</span><span class="ex" style="font-size: 8.5pt;">5:12/KM · HR 158 · DRIFT 4%</span><span class="use">Data · splits · labels</span></div>
+  </div>
+</section>
+
+<!-- ========== 14 TYPE DOs / DON'Ts ========== -->
+<section class="page p-dod">
+  <div class="framemark">VIRRA · 14</div>
+  <div class="pageno">§3.3 — DOs / DON'Ts</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Type rules.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">What to do.<br>What to never do.</div>
+  </div>
+  <div class="dod-grid">
+    <div class="dod-cell dark">
+      <span class="stamp do">DO</span>
+      <div style="font-family: 'Big Shoulders Display'; font-weight: 900; font-size: 30pt; color: var(--pulse); line-height: 0.9; text-transform: uppercase; letter-spacing: -0.01em;">RUN HOT.<br>BREATHE LOUD.</div>
+      <span class="label">Big Shoulders Display in caps for headlines, tracked tight.</span>
+    </div>
+    <div class="dod-cell cream">
+      <span class="stamp do">DO</span>
+      <div style="font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 28pt; color: var(--mile); line-height: 0.95; letter-spacing: -0.025em;">felt,<br>not seen.</div>
+      <span class="label">Fraunces italic, lowercase, for editorial pull-quotes.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp do">DO</span>
+      <div style="font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13pt; color: var(--breath); line-height: 1.4;">Tomorrow's long run.<br>You don't need to feel ready.<br>You need to lace up.</div>
+      <span class="label">Inter for working copy. Tight rag, no orphans, plain English.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp do">DO</span>
+      <div style="font-family: 'Space Mono', monospace; font-weight: 700; font-size: 14pt; color: var(--pulse); line-height: 1.5; text-transform: uppercase; letter-spacing: 0.08em;">CYCLE D.21<br>HR 158 · 5:12/KM</div>
+      <span class="label">Space Mono caps for data, splits, labels, kicker copy.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <div style="font-family: 'Big Shoulders Display'; font-weight: 900; font-size: 30pt; color: var(--pulse); line-height: 1.6; text-transform: uppercase; letter-spacing: 0.06em;">RUN HOT.<br>BREATHE LOUD.</div>
+      <span class="label">Don't add positive tracking to display. It loosens the punch.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <div style="font-family: 'Fraunces', serif; font-style: normal; font-weight: 700; font-size: 28pt; color: var(--breath); line-height: 0.95;">FELT, NOT SEEN.</div>
+      <span class="label">Don't use Fraunces in caps or non-italic. Italic lowercase only.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <div style="font-family: 'Big Shoulders Display'; font-weight: 900; font-size: 13pt; color: var(--breath); line-height: 1.4; text-transform: uppercase;">Tomorrow's long run. You don't need to feel ready. You need to lace up.</div>
+      <span class="label">Don't set body copy in display. It's a sledgehammer for headlines only.</span>
+    </div>
+    <div class="dod-cell dark">
+      <span class="stamp dont">DON'T</span>
+      <div style="font-family: 'Times New Roman', serif; font-weight: 400; font-size: 18pt; color: var(--breath); line-height: 1.4;">Felt, not seen.</div>
+      <span class="label">Don't substitute fonts. Big Shoulders, Fraunces, Inter, Space Mono — that's the whole list.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 15 §04 DIVIDER COLOUR ========== -->
+<section class="page p-divider d-bg-pulse">
+  <div class="section-num">§04 — Colour</div>
+  <h1>Colour<span class="b">.</span></h1>
+  <div class="lede">Five colours, named for what they do. Pulse, Heat, Mile, Breath, Dawn. The temperature of the brand.</div>
+</section>
+
+<!-- ========== 16 COLOUR SPEC ========== -->
+<section class="page p-cspec">
+  <div class="framemark">VIRRA · 16</div>
+  <div class="pageno">§4.1 — Palette</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">The palette.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Five colours · five roles<br>HEX · RGB · CMYK · PMS</div>
+  </div>
+  <div class="cspec-grid">
+    <div class="cs s-pulse">
+      <div>
+        <div class="nm">Pulse<br>Lime</div>
+        <div class="role" style="color: var(--heat);">The heartbeat colour.<br>The moment of effort.</div>
+      </div>
+      <div>
+        <div class="codes">HEX · #D4FF26<br>RGB · 212/255/38<br>CMYK · 19/0/93/0<br>PMS · 389 C<br>—<br>Role · Primary · Brand</div>
+        <div class="use">Use for: hero accents, the italic i, primary buttons, data callouts, the Pulse Mark.</div>
+      </div>
+    </div>
+    <div class="cs s-heat">
+      <div>
+        <div class="nm">Heat<br>Magenta</div>
+        <div class="role" style="color: var(--pulse);">The flush. Period. Power.</div>
+      </div>
+      <div>
+        <div class="codes">HEX · #FF2E7E<br>RGB · 255/46/126<br>CMYK · 0/87/27/0<br>PMS · 213 C<br>—<br>Role · Primary · Accent</div>
+        <div class="use">Use for: italic i, manifesto pages, hot lockups, accent markers, the horizon bar.</div>
+      </div>
+    </div>
+    <div class="cs s-mile">
+      <div>
+        <div class="nm">Mile<br>Ink</div>
+        <div class="role" style="color: var(--pulse);">The distance.<br>Anchors the system.</div>
+      </div>
+      <div>
+        <div class="codes">HEX · #0A0A0F<br>RGB · 10/10/15<br>CMYK · 80/75/65/95<br>PMS · Black 6 C<br>—<br>Role · Anchor · Default</div>
+        <div class="use">Use for: app dark mode, default backgrounds, body type on light, deep contrast.</div>
+      </div>
+    </div>
+    <div class="cs s-breath">
+      <div>
+        <div class="nm">Breath<br>Bone</div>
+        <div class="role" style="color: var(--heat);">The cool-down.<br>Body warmth in print.</div>
+      </div>
+      <div>
+        <div class="codes">HEX · #F4EDE0<br>RGB · 244/237/224<br>CMYK · 4/6/14/0<br>PMS · 7527 C<br>—<br>Role · Neutral · Paper</div>
+        <div class="use">Use for: editorial paper, body type on dark, soft backgrounds, race kit cream.</div>
+      </div>
+    </div>
+    <div class="cs s-dawn">
+      <div>
+        <div class="nm">Dawn<br>Coral</div>
+        <div class="role" style="color: var(--mile);">The 06:00 sky.<br>Used sparingly.</div>
+      </div>
+      <div>
+        <div class="codes">HEX · #FF6B3D<br>RGB · 255/107/61<br>CMYK · 0/72/82/0<br>PMS · 7416 C<br>—<br>Role · Tertiary · Moments</div>
+        <div class="use">Use for: starting-line moments, race-day, special drops. Never default surface colour.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 17 COLOUR RATIOS ========== -->
+<section class="page p-ratios">
+  <div class="framemark">VIRRA · 17</div>
+  <div class="pageno">§4.2 — Ratios</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">60 / 30 / 10.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Default ratio.<br>Holds the system together.</div>
+  </div>
+  <div class="ratiogrid">
+    <div class="ratio-stack">
+      <div class="ratio-row">
+        <div class="lbl"><b>60%</b>Anchor</div>
+        <div class="ratio-bar">
+          <div class="seg" style="background: var(--mile); color: var(--breath); flex: 6;">MILE INK · #0A0A0F</div>
+        </div>
+      </div>
+      <div class="ratio-row">
+        <div class="lbl"><b>30%</b>Brand</div>
+        <div class="ratio-bar">
+          <div class="seg" style="background: var(--pulse); color: var(--mile); flex: 3;">PULSE LIME · #D4FF26</div>
+        </div>
+      </div>
+      <div class="ratio-row">
+        <div class="lbl"><b>10%</b>Accent</div>
+        <div class="ratio-bar">
+          <div class="seg" style="background: var(--heat); color: var(--breath); flex: 1;">HEAT</div>
+        </div>
+      </div>
+      <div class="ratio-row" style="margin-top: 4mm;">
+        <div class="lbl" style="color: rgba(244,237,224,0.65);"><b style="color: rgba(244,237,224,0.65);">Alt</b>Cream</div>
+        <div class="ratio-bar">
+          <div class="seg" style="background: var(--breath); color: var(--mile); flex: 6;">BREATH BONE · #F4EDE0</div>
+          <div class="seg" style="background: var(--mile); color: var(--breath); flex: 3;">MILE INK</div>
+          <div class="seg" style="background: var(--heat); color: var(--breath); flex: 1;">HEAT</div>
+        </div>
+      </div>
+      <div class="ratio-row">
+        <div class="lbl" style="color: rgba(244,237,224,0.65);"><b style="color: rgba(244,237,224,0.65);">Hot</b>Magenta</div>
+        <div class="ratio-bar">
+          <div class="seg" style="background: var(--heat); color: var(--breath); flex: 6;">HEAT MAGENTA · #FF2E7E</div>
+          <div class="seg" style="background: var(--pulse); color: var(--mile); flex: 3;">PULSE</div>
+          <div class="seg" style="background: var(--mile); color: var(--breath); flex: 1;">MILE</div>
+        </div>
+      </div>
+      <div class="ratio-row">
+        <div class="lbl" style="color: rgba(244,237,224,0.65);"><b style="color: rgba(244,237,224,0.65);">Race</b>Dawn</div>
+        <div class="ratio-bar">
+          <div class="seg" style="background: var(--dawn); color: var(--mile); flex: 6;">DAWN CORAL · #FF6B3D</div>
+          <div class="seg" style="background: var(--mile); color: var(--breath); flex: 3;">MILE</div>
+          <div class="seg" style="background: var(--pulse); color: var(--mile); flex: 1;">PULSE</div>
+        </div>
+      </div>
+    </div>
+    <div class="ratio-side">
+      <h3>Reading the<br>ratios.</h3>
+      <p><b style="color: var(--pulse);">Default.</b> Most of Virra lives in the 60% Mile Ink + 30% Pulse Lime + 10% Heat ratio. App, web, social, dark print.</p>
+      <p><b style="color: var(--pulse);">Alt — cream.</b> For editorial moments — magazine spreads, brand films, the printed guidelines book. Cream becomes the field.</p>
+      <p><b style="color: var(--pulse);">Hot.</b> Manifesto frames, race-week comms, the loudest social posts. Magenta-led, pulse and ink in support.</p>
+      <p><b style="color: var(--pulse);">Race.</b> Reserved for in-person event moments — the Pulse Lounge, Hot Mile, race-day kit. Dawn shows up here, not before.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 18 COLOUR PAIRINGS / ACCESSIBILITY ========== -->
+<section class="page p-pair">
+  <div class="framemark" style="color: var(--mile); opacity: 0.55;">VIRRA · 18</div>
+  <div class="pageno" style="color: var(--mile); opacity: 0.55;">§4.3 — Pairings</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Pairings.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">All AAA / AA contrast tested.<br>If it's not on this page, ask.</div>
+  </div>
+  <div class="pair-grid">
+    <div class="pair p1"><div class="demo"><span class="b">PULSE</span><br>on Ink</div><div class="stamp">AAA · 14.6:1</div></div>
+    <div class="pair p2"><div class="demo"><span class="b">HEAT</span><br>on Ink</div><div class="stamp">AAA · 7.1:1</div></div>
+    <div class="pair p3"><div class="demo">Pulse <em>×</em> Heat</div><div class="stamp">Hero pairing</div></div>
+    <div class="pair p4"><div class="demo">on Magenta<br><span class="b">Pulse</span></div><div class="stamp">Headlines only · 4.4:1</div></div>
+    <div class="pair p5"><div class="demo">Bone <em>×</em> Ink</div><div class="stamp">AAA · 16.2:1</div></div>
+    <div class="pair p6"><div class="demo">Dawn <em>×</em> Ink</div><div class="stamp">Race kit only · 5.8:1</div></div>
+    <div class="pair p7"><div class="demo">Ink + <span class="b">Dawn</span></div><div class="stamp">Sparingly</div></div>
+    <div class="pair p8"><div class="demo">Mist <em>×</em> Pulse</div><div class="stamp">Soft mode · AAA</div></div>
+  </div>
+</section>
+
+<!-- ========== 19 §05 DIVIDER PATTERN ========== -->
+<section class="page p-divider d-bg-heat">
+  <div class="section-num">§05 — Pattern</div>
+  <h1>Pattern<span class="b">.</span></h1>
+  <div class="lede">Three textures. Stencil for the race banner. Contour for the route. Pulse for the heartbeat. Pick one per surface.</div>
+</section>
+
+<!-- ========== 20 PATTERN SYSTEM ========== -->
+<section class="page p-patterns">
+  <div class="framemark">VIRRA · 20</div>
+  <div class="pageno">§5.1 — System</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Three textures.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Each one earns its place.<br>Never two in the same frame.</div>
+  </div>
+  <div class="pat-spec-grid">
+    <div class="pat-spec">
+      <div class="pat-tile pat-stencil">
+        <div class="row">VIRRA·VIRRA·</div>
+        <div class="row rev">virra·virra·</div>
+        <div class="row">VIRRA·VIRRA·</div>
+        <div class="row rev">virra·virra·</div>
+        <div class="row">VIRRA·VIRRA·</div>
+        <div class="row rev">virra·virra·</div>
+      </div>
+      <div class="pat-info">
+        <h3>Stencil.</h3>
+        <span class="use">Race banner · Tee back · Vinyl</span>
+        <p>Wordmark repeated, alternating caps and italic. Used at scale, not as wallpaper. For race kit, vinyl wraps, finish-line banners, the back of tees.</p>
+      </div>
+    </div>
+    <div class="pat-spec">
+      <div class="pat-tile pat-contour">
+        <svg viewBox="0 0 300 500" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="#0A0A0F" stroke-width="1.2">
+            <path d="M -50 60   Q 80 30 160 90  T 350 70" />
+            <path d="M -50 100  Q 80 70 160 130 T 350 110" />
+            <path d="M -50 140  Q 80 110 160 170 T 350 150" />
+            <path d="M -50 180  Q 80 150 160 210 T 350 190" />
+            <path d="M -50 220  Q 80 190 160 250 T 350 230" />
+            <path d="M -50 260  Q 80 230 160 290 T 350 270" />
+            <path d="M -50 300  Q 80 270 160 330 T 350 310" />
+            <path d="M -50 340  Q 80 310 160 370 T 350 350" />
+            <path d="M -50 380  Q 80 350 160 410 T 350 390" />
+            <path d="M -50 420  Q 80 390 160 450 T 350 430" />
+            <path d="M -50 460  Q 80 430 160 490 T 350 470" />
+          </g>
+          <circle cx="150" cy="250" r="9" fill="#FF2E7E"/>
+        </svg>
+      </div>
+      <div class="pat-info">
+        <h3>Contour.</h3>
+        <span class="use">Route maps · Editorial · Print</span>
+        <p>Topographic line work. Used as a soft pattern on educational content, route maps, and the back-of-the-magazine spreads. Always with a magenta dot for the runner.</p>
+      </div>
+    </div>
+    <div class="pat-spec">
+      <div class="pat-tile pat-pulse">
+        <svg viewBox="0 0 300 500" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+          <g fill="none" stroke="#D4FF26" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M 0 80   L 40 80   L 60 30   L 90 130  L 120 50   L 140 80  L 300 80" />
+            <path d="M 0 160  L 40 160  L 60 110  L 90 210  L 120 130  L 140 160 L 300 160" stroke="#FF2E7E" />
+            <path d="M 0 240  L 40 240  L 60 190  L 90 290  L 120 210  L 140 240 L 300 240" />
+            <path d="M 0 320  L 40 320  L 60 270  L 90 370  L 120 290  L 140 320 L 300 320" stroke="#FF2E7E"/>
+            <path d="M 0 400  L 40 400  L 60 350  L 90 450  L 120 370  L 140 400 L 300 400" />
+          </g>
+        </svg>
+      </div>
+      <div class="pat-info">
+        <h3>Pulse.</h3>
+        <span class="use">App · Loading · Motion</span>
+        <p>Heart rate trace, alternating Pulse and Heat. Used in product UI, loading states, and as the brand's motion identity — animates left-to-right at the cadence of a long-run heart rate.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 21 §06 DIVIDER PHOTOGRAPHY ========== -->
+<section class="page p-divider d-bg-mile">
+  <div class="section-num">§06 — Photography</div>
+  <h1>Photo<span class="b">graphy.</span></h1>
+  <div class="lede">Sweat is the light source. Real runners over models. The camera goes where the body is — never where the brand wants the body to be.</div>
+</section>
+
+<!-- ========== 22 PHOTOGRAPHY PRINCIPLES + MOODBOARD ========== -->
+<section class="page p-photo">
+  <div class="framemark">VIRRA · 22</div>
+  <div class="pageno">§6.1 — Principles</div>
+  <div class="left">
+    <h1>Sweat is<br>the <b>light</b><br><span class="b2">source.</span></h1>
+    <div class="lede">Cast from clubs and parkruns, not agencies. Shoot in the conditions she actually runs in — pre-dawn fog, hard sun, the post-effort flush. Studio lighting is for product, never for the runner.</div>
+    <div class="principles">
+      <div class="pr"><h4>Light</h4><p>Golden, hard, low. Pre-dawn blues. Post-rain wet sheen. Ring lights are forbidden.</p></div>
+      <div class="pr"><h4>Crop</h4><p>Tight on hands on knees, sweat on collarbone, lungs working, mid-air feet. Symmetrical full-body retouch shots are not Virra.</p></div>
+      <div class="pr"><h4>Wardrobe</h4><p>Lived-in kit. Mismatched club tees. The old shorts she keeps for long runs. No matching co-ords. No pastel.</p></div>
+    </div>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-cell" style="background-image: url('https://images.unsplash.com/photo-1571008887538-b36bb32f4571?auto=format&fit=crop&w=900&q=70');"><span class="credit">Ref · Pre-dawn solo</span></div>
+    <div class="photo-cell" style="background-image: url('https://images.unsplash.com/photo-1486218119243-13883505764c?auto=format&fit=crop&w=900&q=70');"><span class="credit">Ref · Pack club run</span></div>
+    <div class="photo-cell" style="background-image: url('https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=70');"><span class="credit">Ref · Hard sunlight</span></div>
+    <div class="photo-cell" style="background-image: url('https://images.unsplash.com/photo-1502904550040-7534597429ae?auto=format&fit=crop&w=900&q=70');"><span class="credit">Ref · Effort, mid-stride</span></div>
+    <div class="photo-cell" style="background-image: url('https://images.unsplash.com/photo-1530143584546-02191bc84eb5?auto=format&fit=crop&w=900&q=70');"><span class="credit">Ref · Post-run flush</span></div>
+    <div class="photo-cell" style="background-image: url('https://images.unsplash.com/photo-1594737625785-a6cbdabd333c?auto=format&fit=crop&w=900&q=70');"><span class="credit">Ref · Hands on knees</span></div>
+  </div>
+</section>
+
+<!-- ========== 23 CASTING + DOs / DONTs ========== -->
+<section class="page p-photo" style="background: var(--breath); color: var(--mile);">
+  <div class="framemark" style="color: var(--mile); opacity: 0.55;">VIRRA · 23</div>
+  <div class="pageno" style="color: var(--mile); opacity: 0.55;">§6.2 — Casting</div>
+  <div class="left">
+    <h1 style="color: var(--mile);">Cast for<br><b style="color: var(--heat);">truth,</b><br>not for type.</h1>
+    <div class="lede" style="color: var(--mile);">Real runners. Real bodies. Real cycle stages. We cast from the comments section before we cast from an agency book.</div>
+    <div class="principles">
+      <div class="pr" style="border-bottom-color: rgba(10,10,15,0.18);"><h4 style="color: var(--heat);">Bodies</h4><p style="color: var(--mile);">All body types. Visible postpartum. Visible perimenopause. Visible scars. Visible joy.</p></div>
+      <div class="pr" style="border-bottom-color: rgba(10,10,15,0.18);"><h4 style="color: var(--heat);">Ages</h4><p style="color: var(--mile);">18 to 65+. Every shoot includes at least one woman over 50.</p></div>
+      <div class="pr" style="border-bottom-color: rgba(10,10,15,0.18);"><h4 style="color: var(--heat);">Paces</h4><p style="color: var(--mile);">4:00/km to 9:00/km. Pace is a number on a watch, not a cast requirement.</p></div>
+    </div>
+  </div>
+  <div style="display: grid; grid-template-rows: 1fr 1fr; gap: 4mm;">
+    <div style="background: var(--mile); color: var(--breath); padding: 7mm; display: flex; flex-direction: column; gap: 2mm;">
+      <span style="font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse);">DO</span>
+      <ul style="list-style: none; font-family: 'Inter', sans-serif; font-size: 10pt; line-height: 1.55; padding: 0;">
+        <li>— Real runners. Real club kit. Real club mud.</li>
+        <li>— Sweat, redness, breath, bodies in actual effort.</li>
+        <li>— Crop in: hands on knees, collarbone, mid-air feet.</li>
+        <li>— Hard or low natural light. Pre-dawn, golden hour, post-rain.</li>
+        <li>— Postpartum bodies. Perimenopausal bodies. Scars.</li>
+      </ul>
+    </div>
+    <div style="background: var(--heat); color: var(--breath); padding: 7mm; display: flex; flex-direction: column; gap: 2mm;">
+      <span style="font-family: 'Space Mono', monospace; font-size: 8pt; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse);">DON'T</span>
+      <ul style="list-style: none; font-family: 'Inter', sans-serif; font-size: 10pt; line-height: 1.55; padding: 0;">
+        <li>— Before/after weight-loss frames, ever.</li>
+        <li>— Faceless "running into the sunset" clichés.</li>
+        <li>— Pastel matching co-ord sets. Manicured nails on the watch.</li>
+        <li>— Studio fluorescents. Ring lights. Retouched-smooth skin.</li>
+        <li>— Anything that asks her to perform femininity for the lens.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 24 §07 DIVIDER VOICE ========== -->
+<section class="page p-divider d-bg-pulse">
+  <div class="section-num">§07 — Voice</div>
+  <h1>Voice<span class="b">.</span></h1>
+  <div class="lede">A coach who is also her best friend. Warm. Direct. Never cute. Names the thing. Roars in caps when it matters.</div>
+</section>
+
+<!-- ========== 25 VOICE TEMPLATES 1 ========== -->
+<section class="page p-voice">
+  <div class="framemark" style="color: var(--mile); opacity: 0.55;">VIRRA · 25</div>
+  <div class="pageno" style="color: var(--mile); opacity: 0.55;">§7.1 — Templates 1/2</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Templates · product, push, plan.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Working voice library.<br>Copy and adapt.</div>
+  </div>
+  <div class="voice-grid">
+    <div class="voice-card">
+      <div class="ctx">Product · Plan opener</div>
+      <h3>Day before<br>a long run.</h3>
+      <p class="ex">"Tomorrow's long run. You don't need to feel ready. You need to lace up. We've trained for this."</p>
+      <div class="alt"><b>Don't:</b> "You've got this, queen!" / "Smash it tomorrow babe!" — anything cheerleader-coded.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Push notification · Pre-dawn</div>
+      <h3>06:14<br>nudge.</h3>
+      <p class="ex">"It's still dark. The bed is warm. Lace anyway. The first km is the hardest part of the day."</p>
+      <div class="alt"><b>Don't:</b> "Rise &amp; grind!" / "No excuses!" — bro-fitness language is forbidden.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Product · Recovery day</div>
+      <h3>Rest is<br>training.</h3>
+      <p class="ex">"Today is a no. Not because you're weak — because you're listening. Walk. Sleep. Eat. We'll run tomorrow."</p>
+      <div class="alt"><b>Don't:</b> "You missed today!" / "Streak broken." — never punish rest, never gamify recovery.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Product · Cycle-aware coaching</div>
+      <h3>Cycle d.21<br>callout.</h3>
+      <p class="ex">"You're cycle-strong this week. Use it. Push the threshold session. Trust the body that's doing the maths."</p>
+      <div class="alt"><b>Don't:</b> "Hormones can be tough!" — never patronise her physiology, treat it as data.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Push · Post long run</div>
+      <h3>You<br>did it.</h3>
+      <p class="ex">"That was a hard one. Eat. Rest. Brag a little. The pack saw it too."</p>
+      <div class="alt"><b>Don't:</b> "You crushed it!" / "Beast mode!" — performative rather than felt.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Product · Plan empty state</div>
+      <h3>Before<br>day one.</h3>
+      <p class="ex">"No plan yet. That's a fine place to start. Pick a distance, pick a date, we'll do the maths."</p>
+      <div class="alt"><b>Don't:</b> "Get started today!" / "Begin your journey!" — bland onboarding-speak.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 26 VOICE TEMPLATES 2 ========== -->
+<section class="page p-voice">
+  <div class="framemark" style="color: var(--mile); opacity: 0.55;">VIRRA · 26</div>
+  <div class="pageno" style="color: var(--mile); opacity: 0.55;">§7.1 — Templates 2/2</div>
+  <div class="head" style="display: flex; justify-content: space-between; align-items: end;">
+    <h1 style="font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 50pt; line-height: 0.9; text-transform: uppercase; letter-spacing: -0.015em;">Templates · social, email, errors.</h1>
+    <div style="font-family: 'Space Mono', monospace; font-size: 9pt; letter-spacing: 0.18em; text-transform: uppercase; opacity: 0.7; line-height: 1.5; text-align: right;">Voice in the wild.<br>The grid. The inbox. The error states.</div>
+  </div>
+  <div class="voice-grid">
+    <div class="voice-card">
+      <div class="ctx">Social · Manifesto frame</div>
+      <h3>Pillar<br>post.</h3>
+      <p class="ex">"Your cycle is not a bug. It's a performance variable. We treat it like one."</p>
+      <div class="alt"><b>Don't:</b> hashtag stack, "#fitspo #girlboss" — Virra doesn't beg for an algorithm.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Social · Confessions / education</div>
+      <h3>I thought<br>X until Y.</h3>
+      <p class="ex">"I thought running ruined my body — until I learnt my body was the thing running was building."</p>
+      <div class="alt"><b>Don't:</b> bait-and-switch hook copy. The format is honest, not click-y.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Email · Welcome</div>
+      <h3>First<br>email.</h3>
+      <p class="ex">"You're in. Here's what we're not: a diet plan, a step counter, a girlboss pep-talk. Here's what we are: training, body literacy, a pack."</p>
+      <div class="alt"><b>Don't:</b> "Welcome to our journey!" / "Let's crush your goals!" — opt-in cliché.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Email · Race week</div>
+      <h3>Five<br>days out.</h3>
+      <p class="ex">"Race week. Don't pick up new tricks. Don't read more articles. Don't second-guess your shoes. Just turn up."</p>
+      <div class="alt"><b>Don't:</b> "You've trained, now believe!" — vague platitudes are the enemy of good copy.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Error · Connection lost</div>
+      <h3>Offline.</h3>
+      <p class="ex">"Connection lost. Your run isn't. We'll catch the data when you're back."</p>
+      <div class="alt"><b>Don't:</b> "Oops! Something went wrong!" — Virra speaks like an adult, not a chatbot.</div>
+    </div>
+    <div class="voice-card">
+      <div class="ctx">Error · Plan paused</div>
+      <h3>Plan<br>paused.</h3>
+      <p class="ex">"Plan paused. Whenever you're ready — illness, life, just because — we'll pick it back up where you left it. No streak to break."</p>
+      <div class="alt"><b>Don't:</b> "Don't lose your progress!" — never use loss-aversion to coerce a return.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 27 CLOSING ========== -->
+<section class="page p-close">
+  <div class="topkick">End of Vol. 02 · 27 / 27</div>
+  <div>
+    <div class="megaclose"><span class="a">RUN</span><br><span class="b">hot.</span></div>
+  </div>
+  <div class="footrow">
+    <span>VIRRA · 2026</span>
+    <span>If in doubt, run it hot.</span>
+  </div>
+</section>
+
+</body>
+</html>

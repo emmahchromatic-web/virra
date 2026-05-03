@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virra — Design Options</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --lime: #C8FF45;
+            --pink: #FF3575;
+            --bg: #0C0D0C;
+            --text: #EBE6DA;
+            --muted: rgba(235,230,218,0.38);
+            --border: rgba(235,230,218,0.07);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            padding: 56px 48px;
+        }
+
+        header {
+            margin-bottom: 72px;
+        }
+
+        .wordmark {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 800;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .wordmark em {
+            color: var(--lime);
+            font-style: normal;
+        }
+
+        header p {
+            font-size: 0.8rem;
+            font-weight: 300;
+            color: var(--muted);
+            letter-spacing: 0.04em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.25s, transform 0.2s;
+            text-decoration: none;
+            display: block;
+        }
+
+        .card:hover {
+            border-color: rgba(235,230,218,0.2);
+            transform: translateY(-3px);
+        }
+
+        .preview {
+            height: 240px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Option 1 preview - dark editorial */
+        .p1 {
+            background: #09090A;
+        }
+
+        .p1-headline {
+            font-family: 'Syne', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 800;
+            line-height: 0.88;
+            color: #EBE6DA;
+            padding: 24px;
+        }
+
+        .p1-headline em {
+            display: block;
+            color: #C8FF45;
+            font-style: italic;
+            font-family: Georgia, serif;
+            font-weight: 400;
+        }
+
+        .p1-glow-l {
+            position: absolute;
+            top: -60px;
+            left: -60px;
+            width: 200px;
+            height: 200px;
+            background: radial-gradient(circle, rgba(200,255,69,0.2) 0%, transparent 65%);
+        }
+
+        .p1-glow-p {
+            position: absolute;
+            bottom: -60px;
+            right: -60px;
+            width: 180px;
+            height: 180px;
+            background: radial-gradient(circle, rgba(255,53,117,0.15) 0%, transparent 65%);
+        }
+
+        /* Option 2 preview - white precision */
+        .p2 {
+            background: #FAFAF6;
+        }
+
+        .p2::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(15,15,14,0.055) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15,15,14,0.055) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        .p2-rings {
+            position: absolute;
+            right: -50px;
+            bottom: -50px;
+            width: 220px;
+            height: 220px;
+        }
+
+        .p2-ring {
+            position: absolute;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+        }
+
+        .p2-r1 { width: 220px; height: 220px; border: 1px solid rgba(170,255,42,0.3); transform: translate(-50%,-50%); }
+        .p2-r2 { width: 160px; height: 160px; border: 1px solid rgba(255,45,120,0.2); transform: translate(-50%,-50%); }
+        .p2-r3 { width: 100px; height: 100px; border: 1px solid rgba(15,15,14,0.12); transform: translate(-50%,-50%); }
+        .p2-r4 { width: 48px; height: 48px; border: 1.5px solid rgba(170,255,42,0.5); transform: translate(-50%,-50%); }
+
+        .p2-headline {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.7rem;
+            font-weight: 800;
+            line-height: 0.9;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            color: #0F0F0E;
+            padding: 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .p2-headline .lime { color: #AAFF2A; }
+        .p2-headline .ghost { -webkit-text-stroke: 1.5px #0F0F0E; color: transparent; }
+
+        /* Option 3 preview - organic cream */
+        .p3 {
+            background: #F3EDE5;
+            position: relative;
+        }
+
+        .p3-blob-l {
+            position: absolute;
+            top: -60px;
+            left: -60px;
+            width: 200px;
+            height: 200px;
+            background: rgba(180,255,53,0.35);
+            border-radius: 50%;
+            filter: blur(50px);
+        }
+
+        .p3-blob-p {
+            position: absolute;
+            bottom: -60px;
+            right: -60px;
+            width: 180px;
+            height: 180px;
+            background: rgba(255,80,152,0.28);
+            border-radius: 50%;
+            filter: blur(50px);
+        }
+
+        .p3-card {
+            position: relative;
+            z-index: 1;
+            background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.9);
+            border-radius: 14px;
+            padding: 18px 22px;
+            backdrop-filter: blur(12px);
+            max-width: 180px;
+            text-align: center;
+        }
+
+        .p3-card-title {
+            font-family: Georgia, serif;
+            font-size: 0.95rem;
+            color: #1A1410;
+            margin-bottom: 4px;
+            font-style: italic;
+        }
+
+        .p3-card-sub {
+            font-size: 0.65rem;
+            color: rgba(26,20,16,0.45);
+            letter-spacing: 0.04em;
+        }
+
+        .p3-btn {
+            margin-top: 12px;
+            background: linear-gradient(130deg, #FF5098, #FF8ABE);
+            color: white;
+            font-size: 0.62rem;
+            letter-spacing: 0.06em;
+            padding: 7px 16px;
+            border-radius: 100px;
+            display: inline-block;
+            font-weight: 500;
+        }
+
+        /* Card info */
+        .info {
+            padding: 24px 28px;
+            border-top: 1px solid var(--border);
+        }
+
+        .opt-num {
+            font-size: 0.6rem;
+            font-weight: 400;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--lime);
+            margin-bottom: 8px;
+        }
+
+        .opt-name {
+            font-family: 'Syne', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 8px;
+            letter-spacing: 0.01em;
+        }
+
+        .opt-desc {
+            font-size: 0.8rem;
+            font-weight: 300;
+            color: var(--muted);
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .opt-link {
+            font-size: 0.68rem;
+            font-weight: 400;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--lime);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .opt-link::after {
+            content: '→';
+            transition: transform 0.2s;
+        }
+
+        .card:hover .opt-link::after {
+            transform: translateX(4px);
+        }
+
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .chip {
+            font-size: 0.58rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 3px 8px;
+            border-radius: 100px;
+        }
+
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            body { padding: 40px 28px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="wordmark">VIRRA<em>.</em></div>
+        <p>3 holding page concepts &mdash; click to preview each option in full</p>
+    </header>
+
+    <div class="grid">
+
+        <!-- Option 1 -->
+        <a class="card" href="option-1-editorial.html">
+            <div class="preview p1">
+                <div class="p1-glow-l"></div>
+                <div class="p1-glow-p"></div>
+                <div class="p1-headline">
+                    Train.<br>
+                    <em>Nourish.</em>
+                    Thrive.
+                </div>
+            </div>
+            <div class="info">
+                <p class="opt-num">Option 01</p>
+                <p class="opt-name">Editorial</p>
+                <div class="chips">
+                    <span class="chip">Dark</span>
+                    <span class="chip">Serif</span>
+                    <span class="chip">Luxury</span>
+                    <span class="chip">Left-aligned</span>
+                </div>
+                <p class="opt-desc">
+                    Dark editorial aesthetic with Cormorant serif headlines and staggered
+                    reveal animations. Ambient lime and pink glows. Premium, magazine-like feel.
+                </p>
+                <span class="opt-link">View option</span>
+            </div>
+        </a>
+
+        <!-- Option 2 -->
+        <a class="card" href="option-2-precision.html">
+            <div class="preview p2">
+                <div class="p2-rings">
+                    <div class="p2-ring p2-r1"></div>
+                    <div class="p2-ring p2-r2"></div>
+                    <div class="p2-ring p2-r3"></div>
+                    <div class="p2-ring p2-r4"></div>
+                </div>
+                <div class="p2-headline">
+                    Every<br>
+                    <span class="lime">Workout.</span><br>
+                    <span class="ghost">Every Meal.</span><br>
+                    One App.
+                </div>
+            </div>
+            <div class="info">
+                <p class="opt-num">Option 02</p>
+                <p class="opt-name">Precision</p>
+                <div class="chips">
+                    <span class="chip">White</span>
+                    <span class="chip">Geometric</span>
+                    <span class="chip">Bold Sans</span>
+                    <span class="chip">Animated Rings</span>
+                </div>
+                <p class="opt-desc">
+                    Clean white with a grid background and slow-rotating concentric rings.
+                    Syne 800 uppercase headlines with outlined ghost text. Bold, athletic, data-forward.
+                </p>
+                <span class="opt-link">View option</span>
+            </div>
+        </a>
+
+        <!-- Option 3 -->
+        <a class="card" href="option-3-organic.html">
+            <div class="preview p3">
+                <div class="p3-blob-l"></div>
+                <div class="p3-blob-p"></div>
+                <div class="p3-card">
+                    <p class="p3-card-title">Your whole health,<br>beautifully unified.</p>
+                    <p class="p3-card-sub">One app for women who move</p>
+                    <span class="p3-btn">Get Early Access</span>
+                </div>
+            </div>
+            <div class="info">
+                <p class="opt-num">Option 03</p>
+                <p class="opt-name">Organic</p>
+                <div class="chips">
+                    <span class="chip">Cream</span>
+                    <span class="chip">Serif</span>
+                    <span class="chip">Glassmorphism</span>
+                    <span class="chip">Centred</span>
+                </div>
+                <p class="opt-desc">
+                    Warm cream background with animated gradient blobs in lime and pink.
+                    Fraunces serif headline, centred layout, glassmorphism form card. Luxe wellness feel.
+                </p>
+                <span class="opt-link">View option</span>
+            </div>
+        </a>
+
+    </div>
+</body>
+</html>

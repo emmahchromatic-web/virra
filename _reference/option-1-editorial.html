@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virra — Coming Soon</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400;1,9..144,800&family=Inter:wght@300;400&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --pulse:  #D4FF26;
+            --heat:   #FF2E7E;
+            --mile:   #0A0A0F;
+            --breath: #F4EDE0;
+            --muted:  rgba(244,237,224,0.35);
+            --border: rgba(244,237,224,0.08);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { font-size: 16px; }
+
+        body {
+            background: var(--mile);
+            color: var(--breath);
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Grain overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+            opacity: 0.04;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        /* Ambient glows */
+        .glow-pulse {
+            position: fixed;
+            top: -280px;
+            left: -180px;
+            width: 650px;
+            height: 650px;
+            background: radial-gradient(circle, rgba(212,255,38,0.12) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        .glow-heat {
+            position: fixed;
+            bottom: -280px;
+            right: -180px;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(255,46,126,0.10) 0%, transparent 65%);
+            pointer-events: none;
+        }
+
+        /* Vertical side label */
+        .side-label {
+            position: fixed;
+            right: 28px;
+            top: 50%;
+            transform: rotate(90deg) translateX(-50%);
+            transform-origin: right;
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 0.52rem;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: rgba(212,255,38,0.18);
+            white-space: nowrap;
+            animation: fade 1.5s ease 1.8s both;
+        }
+
+        .wrap {
+            max-width: 1140px;
+            margin: 0 auto;
+            padding: 0 52px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Nav */
+        nav {
+            padding: 40px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: up 0.7s ease 0.1s both;
+        }
+
+        .logo {
+            display: inline-flex;
+            flex-direction: column;
+            text-decoration: none;
+            gap: 3px;
+        }
+
+        .logo-text {
+            font-family: 'Big Shoulders Display', sans-serif;
+            font-weight: 900;
+            font-size: 1.55rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--breath);
+            line-height: 1;
+        }
+
+        .logo-text em {
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            font-weight: 800;
+            font-size: 1.25em;
+            color: var(--heat);
+            letter-spacing: 0;
+            line-height: 0;
+            vertical-align: baseline;
+        }
+
+        .logo-bar {
+            display: block;
+            height: 3px;
+            background: var(--heat);
+        }
+
+        .pill {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 0.56rem;
+            letter-spacing: 0.22em;
+            text-transform: uppercase;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 8px 18px;
+            border-radius: 2px;
+        }
+
+        /* Hero */
+        .hero { padding: 96px 0 72px; }
+
+        .eyebrow {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 0.6rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--pulse);
+            margin-bottom: 44px;
+            animation: up 0.7s ease 0.4s both;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .eyebrow::after {
+            content: '';
+            width: 38px;
+            height: 1px;
+            background: currentColor;
+            opacity: 0.5;
+            display: block;
+        }
+
+        h1 {
+            font-size: clamp(5.5rem, 13vw, 10.5rem);
+            line-height: 0.88;
+            margin-bottom: 52px;
+        }
+
+        .lw { display: block; overflow: hidden; }
+
+        .li {
+            display: block;
+            transform: translateY(110%);
+            opacity: 0;
+        }
+
+        .lw:nth-child(1) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.5s forwards; }
+        .lw:nth-child(2) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.64s forwards; }
+        .lw:nth-child(3) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.78s forwards; }
+
+        /* Headline line styles */
+        .line-display {
+            font-family: 'Big Shoulders Display', sans-serif;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+            color: var(--breath);
+        }
+
+        .line-editorial {
+            font-family: 'Fraunces', serif;
+            font-style: italic;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: var(--heat);
+        }
+
+        .line-climax {
+            font-family: 'Big Shoulders Display', sans-serif;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+            color: var(--pulse);
+        }
+
+        /* Horizon rule — heat bar */
+        .rule {
+            display: block;
+            width: 0;
+            height: 3px;
+            background: var(--heat);
+            margin-bottom: 32px;
+            animation: widen 0.9s ease 1.1s forwards;
+            opacity: 0;
+        }
+
+        .sub {
+            font-size: 1.05rem;
+            font-weight: 300;
+            line-height: 1.78;
+            color: rgba(244,237,224,0.5);
+            max-width: 450px;
+            animation: up 0.7s ease 1.0s both;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 40px;
+            animation: up 0.7s ease 1.15s both;
+        }
+
+        .tag {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 0.55rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            border: 1px solid rgba(212,255,38,0.18);
+            color: rgba(212,255,38,0.5);
+            padding: 5px 12px;
+            border-radius: 2px;
+        }
+
+        /* Signup */
+        .signup {
+            padding: 60px 0;
+            border-top: 1px solid var(--border);
+            animation: up 0.7s ease 1.3s both;
+        }
+
+        .signup-lbl {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 0.58rem;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .form {
+            display: flex;
+            gap: 10px;
+            max-width: 460px;
+        }
+
+        input[type=email] {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            color: var(--breath);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 300;
+            padding: 14px 20px;
+            border-radius: 2px;
+            outline: none;
+            transition: border-color 0.25s, background 0.25s;
+        }
+
+        input[type=email]::placeholder { color: var(--muted); }
+
+        input[type=email]:focus {
+            border-color: rgba(212,255,38,0.38);
+            background: rgba(212,255,38,0.03);
+        }
+
+        button {
+            background: var(--pulse);
+            color: var(--mile);
+            border: none;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.6rem;
+            font-weight: 700;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: 14px 26px;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.15s;
+            white-space: nowrap;
+        }
+
+        button:hover { background: #deff40; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        .note { margin-top: 14px; font-size: 0.68rem; color: var(--muted); }
+
+        .ok {
+            display: none;
+            color: var(--pulse);
+            font-size: 0.92rem;
+            padding: 14px 0;
+            opacity: 0.9;
+        }
+
+        /* Footer */
+        footer {
+            padding: 30px 0;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            animation: fade 0.8s ease 1.5s both;
+        }
+
+        .cp { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.06em; }
+
+        .pl {
+            font-family: 'Space Mono', monospace;
+            font-weight: 700;
+            font-size: 0.58rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(244,237,224,0.22);
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        @keyframes up { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fade { from { opacity:0; } to { opacity:1; } }
+        @keyframes slide { to { transform:translateY(0); opacity:1; } }
+        @keyframes widen { from { width:0; opacity:0; } to { width:80px; opacity:1; } }
+
+        @media (max-width: 680px) {
+            .wrap { padding: 0 28px; }
+            h1 { font-size: clamp(4rem, 15vw, 6rem); }
+            .form { flex-direction: column; }
+            footer { flex-direction: column; gap: 14px; }
+            .side-label { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="glow-pulse"></div>
+    <div class="glow-heat"></div>
+    <div class="side-label">Health &bull; Nutrition &bull; Performance</div>
+
+    <div class="wrap">
+        <nav>
+            <a class="logo" href="#">
+                <span class="logo-text">V<em>i</em>RRA</span>
+                <span class="logo-bar"></span>
+            </a>
+            <span class="pill">Launching 2025</span>
+        </nav>
+
+        <section class="hero">
+            <p class="eyebrow">Your whole health, unified</p>
+
+            <h1>
+                <span class="lw"><span class="li line-display">Train.</span></span>
+                <span class="lw"><span class="li line-editorial">Nourish.</span></span>
+                <span class="lw"><span class="li line-climax">Thrive.</span></span>
+            </h1>
+
+            <span class="rule"></span>
+
+            <p class="sub">
+                The first premium platform built for women who want it all &mdash; workouts,
+                nutrition, and progress tracking unified in one beautifully crafted app.
+            </p>
+
+            <div class="tags">
+                <span class="tag">Running</span>
+                <span class="tag">Cycling</span>
+                <span class="tag">Strength</span>
+                <span class="tag">Yoga</span>
+                <span class="tag">Pilates</span>
+                <span class="tag">Nutrition</span>
+                <span class="tag">Progress</span>
+            </div>
+        </section>
+
+        <section class="signup">
+            <label class="signup-lbl">Join the waitlist</label>
+            <div class="form" id="frm">
+                <input type="email" id="em" placeholder="your@email.com" autocomplete="email">
+                <button onclick="go()">Get Early Access</button>
+            </div>
+            <p class="ok" id="ok">You're on the list &mdash; we'll be in touch soon.</p>
+            <p class="note">No spam, ever. Unsubscribe at any time.</p>
+        </section>
+
+        <footer>
+            <span class="cp">&copy; 2025 Virra. All rights reserved.</span>
+            <div class="pl">
+                <span>iOS</span>
+                <span>&middot;</span>
+                <span>Android</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        function go() {
+            const e = document.getElementById('em');
+            if (!e.value || !e.value.includes('@')) { e.focus(); return; }
+            document.getElementById('frm').style.display = 'none';
+            document.getElementById('ok').style.display = 'block';
+        }
+        document.getElementById('em').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') go();
+        });
+    </script>
+</body>
+</html>
