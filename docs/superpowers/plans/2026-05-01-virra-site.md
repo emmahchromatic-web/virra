@@ -641,11 +641,11 @@ git commit -m "feat: add holding page (Option 1 editorial design)"
 **Files:**
 - Modify: `src/pages/index.astro` — replace `YOUR_FORMSPREE_ID`
 
-- [ ] **Step 1: Get your Formspree form ID**
+- [x] **Step 1: Get your Formspree form ID**
 
 Log in to formspree.io. Under Forms, find your form. The endpoint shown is `https://formspree.io/f/xxxxxxxx` — copy the `xxxxxxxx` part.
 
-- [ ] **Step 2: Replace placeholder in index.astro**
+- [x] **Step 2: Replace placeholder in index.astro**
 
 In `src/pages/index.astro`, find:
 ```
@@ -653,7 +653,7 @@ action="https://formspree.io/f/YOUR_FORMSPREE_ID"
 ```
 Replace `YOUR_FORMSPREE_ID` with your actual form ID.
 
-- [ ] **Step 3: Test form submission**
+- [x] **Step 3: Test form submission**
 
 ```bash
 pnpm dev
@@ -661,7 +661,7 @@ pnpm dev
 
 Open http://localhost:4321, enter a test email, submit. Check Formspree dashboard — the submission should appear within a few seconds.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/pages/index.astro
