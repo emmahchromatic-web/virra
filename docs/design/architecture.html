@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virra — System Architecture v2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --pulse: #D4FF26;
+    --heat: #FF2E7E;
+    --mile: #0A0A0F;
+    --breath: #F4EDE0;
+    --dawn: #FF6B3D;
+    --mist: #1C1C24;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--mile);
+    color: var(--breath);
+    font-family: 'Inter', sans-serif;
+    padding: 40px 48px 60px;
+    min-height: 100vh;
+  }
+
+  .page-title {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    font-size: 42px;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    margin-bottom: 4px;
+  }
+  .page-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(244,237,224,0.4);
+    margin-bottom: 40px;
+  }
+
+  .arch {
+    display: grid;
+    grid-template-columns: 1fr 2px 1fr 2px 1fr;
+    gap: 0;
+    min-height: 520px;
+  }
+
+  .divider {
+    background: rgba(244,237,224,0.1);
+    position: relative;
+  }
+  .divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 28px;
+    height: 28px;
+    background: var(--mist);
+    border: 2px solid rgba(244,237,224,0.2);
+    border-radius: 50%;
+  }
+
+  .layer { padding: 28px 24px; }
+
+  .layer-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(244,237,224,0.35);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(244,237,224,0.08);
+  }
+
+  .block {
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .block-name {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .block-desc {
+    font-size: 11px;
+    line-height: 1.5;
+    opacity: 0.7;
+  }
+  .block-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+  .block-tag {
+    display: inline-block;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 100px;
+  }
+
+  .b-engine  { background: rgba(212,255,38,0.08); border: 1.5px solid var(--pulse); }
+  .b-engine  .block-name { color: var(--pulse); }
+  .b-engine  .block-tag  { background: var(--pulse); color: var(--mile); }
+
+  .b-training { background: var(--mist); border: 1.5px solid rgba(212,255,38,0.4); }
+  .b-training .block-name { color: var(--pulse); }
+  .b-training .t-mvp      { background: rgba(212,255,38,0.18); color: var(--pulse); }
+  .b-training .t-fw       { background: rgba(244,237,224,0.07); color: rgba(244,237,224,0.55); }
+
+  .b-app     { background: var(--mist); border: 1px solid rgba(244,237,224,0.1); }
+  .b-app     .block-name { color: var(--breath); }
+
+  .b-design  { background: var(--mist); border: 1px solid rgba(255,46,126,0.25); }
+  .b-design  .block-name { color: var(--heat); }
+  .b-design  .block-tag  { background: rgba(255,46,126,0.15); color: var(--heat); }
+
+  .b-supa    { background: var(--mist); border: 1px solid rgba(212,255,38,0.3); }
+  .b-supa    .block-name { color: var(--pulse); }
+  .b-supa    .block-tag  { background: rgba(212,255,38,0.12); color: var(--pulse); }
+
+  .b-rc      { background: var(--mist); border: 1px solid rgba(255,107,61,0.35); }
+  .b-rc      .block-name { color: var(--dawn); }
+  .b-rc      .block-tag  { background: rgba(255,107,61,0.15); color: var(--dawn); }
+
+  .b-neutral { background: var(--mist); border: 1px solid rgba(244,237,224,0.08); }
+  .b-neutral .block-name { color: var(--breath); }
+
+  .b-hk      { background: var(--mist); border: 1px solid rgba(255,46,126,0.2); }
+  .b-hk      .block-name { color: var(--heat); }
+  .b-hk      .block-tag  { background: rgba(255,46,126,0.12); color: var(--heat); }
+
+  .b-ext     { background: var(--mist); border: 1px solid rgba(244,237,224,0.08); }
+  .b-ext     .block-name { color: rgba(244,237,224,0.6); }
+
+  /* Schema callout */
+  .schema-callout {
+    margin-top: 28px;
+    background: var(--mist);
+    border: 1px solid rgba(244,237,224,0.08);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .schema-callout h3 {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(244,237,224,0.35);
+    margin-bottom: 14px;
+  }
+  .schema-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .schema-group { }
+  .schema-group-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    margin-bottom: 6px;
+  }
+  .schema-table {
+    background: rgba(212,255,38,0.04);
+    border: 1px solid rgba(212,255,38,0.15);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: rgba(244,237,224,0.7);
+    margin-bottom: 5px;
+    line-height: 1.3;
+  }
+  .schema-table.neutral {
+    background: rgba(244,237,224,0.03);
+    border-color: rgba(244,237,224,0.08);
+  }
+  .schema-table .tname {
+    color: var(--breath);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .schema-table.neutral .tname { color: rgba(244,237,224,0.6); }
+
+  .flow-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 14px 20px;
+    background: var(--mist);
+    border-radius: 10px;
+    border: 1px solid rgba(244,237,224,0.06);
+    flex-wrap: wrap;
+  }
+  .flow-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(244,237,224,0.35);
+    white-space: nowrap;
+  }
+  .flow-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: rgba(244,237,224,0.65);
+  }
+  .flow-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .arrow { color: rgba(244,237,224,0.2); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="page-title">System Architecture</div>
+<div class="page-sub">Virra MVP · v2 — Multi-sport framework, running-first structured plans</div>
+
+<div class="arch">
+
+  <!-- MOBILE APP -->
+  <div class="layer">
+    <div class="layer-label">Mobile App · Expo + expo-router (iOS)</div>
+
+    <div class="block b-engine">
+      <div class="block-name">Cycle Phase Engine</div>
+      <div class="block-desc">On-device. Period date + cycle length + today → phase. Feeds training load, nutrition targets, recovery cues. Pure math — offline, instant.</div>
+      <div class="block-tags"><span class="block-tag">VIRRA core</span></div>
+    </div>
+
+    <div class="block b-training">
+      <div class="block-name">Training & Activity Framework</div>
+      <div class="block-desc">
+        <strong style="color:rgba(212,255,38,0.9)">MVP:</strong> Structured running plans (5K → marathon), cycle-adjusted weekly load, GPS run tracking.<br><br>
+        <strong style="color:rgba(244,237,224,0.5)">Framework:</strong> Generic activity log accepts any workout type (swim, strength, yoga, cycle) with type, duration, distance, notes — ready for structured plans later.
+      </div>
+      <div class="block-tags">
+        <span class="block-tag t-mvp">Running plans MVP</span>
+        <span class="block-tag t-fw">Multi-sport ready</span>
+      </div>
+    </div>
+
+    <div class="block b-design">
+      <div class="block-name">Design System</div>
+      <div class="block-desc">Vol. 02 tokens: Big Shoulders Display, Fraunces, Inter, Space Mono. Pulse, heat, mile, breath, dawn. Shared component library used across all screens.</div>
+      <div class="block-tags"><span class="block-tag">Brand-aligned</span></div>
+    </div>
+
+    <div class="block b-app">
+      <div class="block-name">State · Zustand + expo-router</div>
+      <div class="block-desc">Local state for cycle, today's session, nutrition. File-based routing: 5 tabs + modals. Synced to Supabase. Core features work offline.</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- BACKEND -->
+  <div class="layer">
+    <div class="layer-label">Backend · Supabase (Postgres + Auth + Storage)</div>
+
+    <div class="block b-supa">
+      <div class="block-name">Auth + User Data</div>
+      <div class="block-desc">Email + Apple Sign-In. Row-level security per user. Stores onboarding profile, cycle history, subscription status.</div>
+      <div class="block-tags"><span class="block-tag">RLS</span></div>
+    </div>
+
+    <div class="block b-supa" style="border-color:rgba(244,237,224,0.12)">
+      <div class="block-name" style="color:var(--breath)">Training Store</div>
+      <div class="block-desc">Plan templates (running, extensible). User active plan instance. Planned sessions with cycle-phase overrides. Completed activities (generic type field).</div>
+      <div class="block-tags"><span class="block-tag" style="background:rgba(244,237,224,0.07);color:rgba(244,237,224,0.5)">Extensible schema</span></div>
+    </div>
+
+    <div class="block b-rc">
+      <div class="block-name">RevenueCat</div>
+      <div class="block-desc">14-day free trial → paid. Validates App Store receipts. Webhook updates Supabase subscription status. Entitlement gates all features.</div>
+      <div class="block-tags"><span class="block-tag">IAP · 15% cut (SBP)</span></div>
+    </div>
+
+    <div class="block b-neutral">
+      <div class="block-name">Push · Expo + APNs</div>
+      <div class="block-desc">Training reminders, cycle phase shift alerts, long-run fuelling cues. Personalised, not spammy.</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- EXTERNAL -->
+  <div class="layer">
+    <div class="layer-label">External Services</div>
+
+    <div class="block b-hk">
+      <div class="block-name">Apple HealthKit</div>
+      <div class="block-desc">Read: heart rate, steps, active energy. Write: workouts back to Health app. Auto-imports runs from Apple Watch via react-native-health.</div>
+      <div class="block-tags"><span class="block-tag">Watch sync</span></div>
+    </div>
+
+    <div class="block b-ext">
+      <div class="block-name">Nutritionix API</div>
+      <div class="block-desc">800k+ foods, barcode scanning, natural language search. Free tier covers MVP volume.</div>
+    </div>
+
+    <div class="block b-ext" style="border-color:rgba(244,237,224,0.05)">
+      <div class="block-name" style="color:rgba(244,237,224,0.4)">Astro site (existing)</div>
+      <div class="block-desc" style="color:rgba(244,237,224,0.35)">virra.app — marketing + blog. Completely separate. No shared code.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- SCHEMA CALLOUT -->
+<div class="schema-callout">
+  <h3>Key Supabase tables — generic activity framework supports multi-sport from day one</h3>
+  <div class="schema-grid">
+    <div class="schema-group">
+      <div class="schema-group-label">Cycle</div>
+      <div class="schema-table"><span class="tname">cycle_logs</span>period_start, cycle_length, phase_overrides</div>
+      <div class="schema-table"><span class="tname">symptom_logs</span>energy, mood, sleep, symptoms, date</div>
+    </div>
+    <div class="schema-group">
+      <div class="schema-group-label">Training (extensible)</div>
+      <div class="schema-table"><span class="tname">plan_templates</span>sport_type, weeks, sessions_json</div>
+      <div class="schema-table"><span class="tname">user_plans</span>template_id, start_date, goal_date</div>
+      <div class="schema-table neutral"><span class="tname">activities</span><em>type</em>: run|swim|strength|yoga|other · duration, distance, notes, phase_at_time</div>
+      <div class="schema-table neutral"><span class="tname">run_details</span>gps_trace, avg_pace, splits, hr_avg</div>
+    </div>
+    <div class="schema-group">
+      <div class="schema-group-label">Nutrition</div>
+      <div class="schema-table"><span class="tname">nutrition_logs</span>date, meal_type, phase_targets</div>
+      <div class="schema-table"><span class="tname">food_entries</span>log_id, nutritionix_id, qty, macros</div>
+    </div>
+    <div class="schema-group">
+      <div class="schema-group-label">Content + Auth</div>
+      <div class="schema-table"><span class="tname">articles</span>title, body_md, tags, linked_feature</div>
+      <div class="schema-table"><span class="tname">user_profiles</span>fitness_level, goal, dietary_prefs</div>
+      <div class="schema-table"><span class="tname">subscriptions</span>rc_customer_id, status, trial_end</div>
+    </div>
+  </div>
+</div>
+
+<div class="flow-row">
+  <div class="flow-label">Data flow</div>
+  <div class="flow-item"><div class="flow-dot" style="background:var(--pulse)"></div>Cycle engine → training load + nutrition targets</div>
+  <div class="arrow">→</div>
+  <div class="flow-item"><div class="flow-dot" style="background:var(--heat)"></div>HealthKit → activities table (run_details for GPS runs)</div>
+  <div class="arrow">→</div>
+  <div class="flow-item"><div class="flow-dot" style="background:var(--dawn)"></div>RevenueCat → Supabase subscriptions via webhook</div>
+  <div class="arrow">→</div>
+  <div class="flow-item"><div class="flow-dot" style="background:rgba(244,237,224,0.35)"></div>Nutritionix → food_entries → phase-adjusted targets</div>
+</div>
+
+</body>
+</html>

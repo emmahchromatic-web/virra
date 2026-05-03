@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virra — Navigation v2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+  :root { --pulse:#D4FF26;--heat:#FF2E7E;--mile:#0A0A0F;--breath:#F4EDE0;--dawn:#FF6B3D;--mist:#1C1C24; }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--mile);color:var(--breath);font-family:'Inter',sans-serif;padding:36px 44px 60px;}
+
+  .page-title{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:38px;letter-spacing:-0.02em;text-transform:uppercase;color:var(--pulse);margin-bottom:4px;}
+  .page-sub{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(244,237,224,0.35);margin-bottom:32px;}
+
+  .section-label{font-family:'Space Mono',monospace;font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid rgba(244,237,224,0.07);margin-bottom:14px;}
+  hr{border:none;border-top:1px solid rgba(244,237,224,0.06);margin:22px 0;}
+
+  /* --- ONBOARDING --- */
+  .onboard-flow{display:flex;gap:6px;align-items:stretch;flex-wrap:wrap;}
+  .ob-step{background:var(--mist);border:1px solid rgba(244,237,224,0.08);border-radius:9px;padding:11px 13px;min-width:120px;flex:1;}
+  .ob-step.highlight{border-color:rgba(212,255,38,0.3);background:rgba(212,255,38,0.04);}
+  .ob-step.perm{border-color:rgba(255,107,61,0.35);background:rgba(255,107,61,0.05);}
+  .ob-step.paywall{border-color:rgba(255,107,61,0.5);background:rgba(255,107,61,0.08);}
+  .ob-num{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.14em;color:rgba(244,237,224,0.3);margin-bottom:4px;}
+  .ob-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;color:var(--breath);margin-bottom:3px;line-height:1.1;}
+  .ob-step.highlight .ob-name{color:var(--pulse);}
+  .ob-step.perm .ob-name{color:var(--dawn);}
+  .ob-step.paywall .ob-name{color:var(--dawn);}
+  .ob-desc{font-size:10px;line-height:1.45;color:rgba(244,237,224,0.5);}
+  .ob-tag{display:inline-block;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;padding:1px 7px;border-radius:100px;margin-top:5px;}
+  .tag-new{background:rgba(212,255,38,0.15);color:var(--pulse);}
+  .tag-perm{background:rgba(255,107,61,0.2);color:var(--dawn);}
+  .tag-rev{background:rgba(255,107,61,0.2);color:var(--dawn);}
+
+  .ob-arrow{color:rgba(244,237,224,0.15);font-size:18px;display:flex;align-items:center;padding:0 2px;flex-shrink:0;}
+
+  /* Perm sub-items */
+  .perm-list{margin-top:6px;display:flex;flex-direction:column;gap:3px;}
+  .perm-item{font-size:9.5px;color:rgba(244,237,224,0.45);padding-left:8px;border-left:2px solid rgba(255,107,61,0.25);line-height:1.3;}
+  .perm-item strong{color:rgba(244,237,224,0.7);}
+
+  /* Fitness assess callout */
+  .fitness-callout{margin-top:10px;background:rgba(212,255,38,0.05);border:1px solid rgba(212,255,38,0.2);border-radius:8px;padding:10px 12px;}
+  .fc-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--pulse);margin-bottom:5px;}
+  .fc-row{display:flex;gap:10px;flex-wrap:wrap;}
+  .fc-item{font-size:10px;color:rgba(244,237,224,0.6);line-height:1.4;}
+  .fc-item strong{color:rgba(244,237,224,0.85);}
+
+  /* --- MAIN APP --- */
+  .phone-frame{background:var(--mist);border:1.5px solid rgba(244,237,224,0.1);border-radius:14px;padding:14px 14px 8px;position:relative;}
+  .phone-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(244,237,224,0.06);}
+  .phone-title{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:16px;text-transform:uppercase;color:var(--pulse);}
+  .phone-action{background:rgba(212,255,38,0.12);border:1px solid rgba(212,255,38,0.3);border-radius:6px;padding:4px 10px;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:var(--pulse);}
+
+  .tab-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px;}
+  .tab{background:var(--mile);border:1px solid rgba(244,237,224,0.08);border-radius:8px;padding:8px 6px;text-align:center;}
+  .tab.active{border-color:var(--pulse);background:rgba(212,255,38,0.08);}
+  .tab-icon{font-size:16px;margin-bottom:2px;}
+  .tab-lbl{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(244,237,224,0.5);}
+  .tab.active .tab-lbl{color:var(--pulse);}
+
+  /* main layout */
+  .app-layout{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;}
+  .app-col{}
+  .col-header{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(244,237,224,0.3);margin-bottom:7px;}
+
+  .sc{background:var(--mile);border:1px solid rgba(244,237,224,0.07);border-radius:7px;padding:9px 10px;margin-bottom:5px;}
+  .sc.prime{border-color:rgba(212,255,38,0.25);background:rgba(212,255,38,0.03);}
+  .sc.new-flag{border-color:rgba(255,107,61,0.3);}
+  .sc-name{font-size:11px;font-weight:500;color:rgba(244,237,224,0.85);margin-bottom:2px;}
+  .sc.prime .sc-name{color:var(--pulse);}
+  .sc.new-flag .sc-name{color:var(--dawn);}
+  .sc-desc{font-size:9.5px;line-height:1.4;color:rgba(244,237,224,0.4);}
+  .sc-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.1em;text-transform:uppercase;padding:1px 6px;border-radius:100px;margin-top:4px;}
+  .badge-new{background:rgba(255,107,61,0.15);color:var(--dawn);}
+  .badge-ai{background:rgba(212,255,38,0.12);color:var(--pulse);}
+  .badge-local{background:rgba(244,237,224,0.06);color:rgba(244,237,224,0.45);}
+
+  /* Profile drawer */
+  .profile-drawer{margin-top:14px;background:var(--mile);border:1px solid rgba(244,237,224,0.08);border-radius:10px;padding:12px 14px;}
+  .drawer-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(244,237,224,0.3);margin-bottom:8px;}
+  .drawer-items{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .di{background:var(--mist);border:1px solid rgba(244,237,224,0.06);border-radius:7px;padding:8px 10px;}
+  .di-name{font-size:11px;font-weight:500;color:rgba(244,237,224,0.7);margin-bottom:2px;}
+  .di-desc{font-size:9.5px;color:rgba(244,237,224,0.35);line-height:1.35;}
+
+  /* modals */
+  .modals-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+  .mc{background:rgba(255,46,126,0.06);border:1px solid rgba(255,46,126,0.2);border-radius:8px;padding:10px 11px;}
+  .mc-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;color:var(--heat);margin-bottom:3px;}
+  .mc-desc{font-size:10px;line-height:1.4;color:rgba(244,237,224,0.45);}
+  .mc-from{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,46,126,0.5);margin-top:5px;}
+
+  /* insight split */
+  .insight-split{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:5px;}
+  .is-box{border-radius:7px;padding:9px 11px;}
+  .is-local{background:rgba(244,237,224,0.03);border:1px solid rgba(244,237,224,0.08);}
+  .is-ai{background:rgba(212,255,38,0.04);border:1px solid rgba(212,255,38,0.2);}
+  .is-label{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px;}
+  .is-local .is-label{color:rgba(244,237,224,0.35);}
+  .is-ai .is-label{color:var(--pulse);}
+  .is-items{font-size:9.5px;line-height:1.6;color:rgba(244,237,224,0.5);}
+  .is-ai .is-items{color:rgba(212,255,38,0.7);}
+</style>
+</head>
+<body>
+
+<div class="page-title">Screen Map v2</div>
+<div class="page-sub">Virra MVP · Updated navigation · Design Section 02</div>
+
+<!-- ONBOARDING -->
+<div class="section-label" style="color:rgba(244,237,224,0.35)">① Auth Stack — Onboarding flow (new users)</div>
+<div class="onboard-flow">
+  <div class="ob-step"><div class="ob-num">01</div><div class="ob-name">Welcome</div><div class="ob-desc">Value prop. What VIRRA is and why it's different.</div></div>
+  <div class="ob-arrow">→</div>
+  <div class="ob-step highlight"><div class="ob-num">02</div><div class="ob-name">Fitness Assessment</div><div class="ob-desc">Fitness level, current weekly mileage, recent race times. Stored in profile. Dynamically revised against actual logged data.</div><span class="ob-tag tag-new">Dynamic — auto-updates</span></div>
+  <div class="ob-arrow">→</div>
+  <div class="ob-step"><div class="ob-num">03</div><div class="ob-name">Running Goal</div><div class="ob-desc">5K → marathon. Sets active plan type.</div></div>
+  <div class="ob-arrow">→</div>
+  <div class="ob-step"><div class="ob-num">04</div><div class="ob-name">Cycle Data</div><div class="ob-desc">Period start date, avg cycle length, any irregularities.</div></div>
+  <div class="ob-arrow">→</div>
+  <div class="ob-step"><div class="ob-num">05</div><div class="ob-name">Dietary Prefs</div><div class="ob-desc">Vegan, vegetarian, gluten-free, etc. Shapes nutrition guidance.</div></div>
+  <div class="ob-arrow">→</div>
+  <div class="ob-step perm"><div class="ob-num">06</div><div class="ob-name">Permissions</div><div class="ob-desc">Explained before requesting — why each is needed.</div>
+    <span class="ob-tag tag-perm">Pre-permission screens</span>
+    <div class="perm-list">
+      <div class="perm-item"><strong>Location / GPS</strong> — live run tracking</div>
+      <div class="perm-item"><strong>HealthKit</strong> — heart rate, Watch sync, write workouts</div>
+      <div class="perm-item"><strong>Notifications</strong> — training reminders, cycle alerts, trial end</div>
+      <div class="perm-item"><strong>Camera</strong> — barcode scanning for food log</div>
+    </div>
+  </div>
+  <div class="ob-arrow">→</div>
+  <div class="ob-step paywall"><div class="ob-num">07</div><div class="ob-name">Paywall</div><div class="ob-desc">14-day free trial. No charge without opt-in action. Trial-end reminders at day 11 + day 13 via push.</div><span class="ob-tag tag-rev">RevenueCat · explicit CTA</span></div>
+</div>
+
+<div class="fitness-callout">
+  <div class="fc-label">Fitness assessment — dynamic revision logic</div>
+  <div class="fc-row">
+    <div class="fc-item"><strong>Initial state:</strong> self-reported (e.g. "45 min 5K")</div>
+    <div class="fc-item"><strong>Trigger:</strong> 3+ logged runs consistently faster than stated baseline</div>
+    <div class="fc-item"><strong>Action:</strong> prompt to update fitness level + celebrate the improvement in-app</div>
+    <div class="fc-item"><strong>Stored:</strong> full assessment history in profile — plans adapt in real-time</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- MAIN APP -->
+<div class="section-label" style="color:var(--pulse)">② Main App — 4-tab navigator + top-right Profile button</div>
+
+<div class="phone-frame">
+  <div class="phone-top">
+    <div class="phone-title">Dashboard</div>
+    <div class="phone-action">⊙ Profile →</div>
+  </div>
+
+  <div class="tab-grid">
+    <div class="tab active"><div class="tab-icon">⌂</div><div class="tab-lbl">Dashboard</div></div>
+    <div class="tab"><div class="tab-icon">⚡</div><div class="tab-lbl">Training</div></div>
+    <div class="tab"><div class="tab-icon">◎</div><div class="tab-lbl">Nutrition</div></div>
+    <div class="tab"><div class="tab-icon">▦</div><div class="tab-lbl">Library</div></div>
+  </div>
+
+  <div class="app-layout">
+
+    <!-- Dashboard -->
+    <div class="app-col">
+      <div class="col-header">Dashboard</div>
+      <div class="sc prime"><div class="sc-name">Home</div><div class="sc-desc">Today's session · Cycle phase · Fuelling cue · Last run · Weekly ring</div></div>
+    </div>
+
+    <!-- Training -->
+    <div class="app-col">
+      <div class="col-header">Training</div>
+      <div class="sc prime"><div class="sc-name">Plan Overview</div><div class="sc-desc">Active plan · Week view · Cycle-adjusted load</div></div>
+      <div class="sc"><div class="sc-name">Session Detail</div><div class="sc-desc">Today's workout breakdown</div></div>
+      <div class="sc new-flag">
+        <div class="sc-name">Activity Timeline</div>
+        <div class="sc-desc">Chronological log of all activities. Aggregated insights pinned to top: streak, total distance, avg pace trend.</div>
+        <span class="sc-badge badge-new">Updated</span>
+      </div>
+      <div class="sc"><div class="sc-name">Plan Selection</div><div class="sc-desc">Browse + start a plan</div></div>
+
+      <!-- Insight split for Training -->
+      <div class="insight-split">
+        <div class="is-box is-local"><div class="is-label">On-device</div><div class="is-items">Streak · Distance totals · Adherence % · Phase avg pace</div></div>
+        <div class="is-box is-ai"><div class="is-label">Haiku</div><div class="is-items">Weekly narrative insight · Anomaly detection</div></div>
+      </div>
+    </div>
+
+    <!-- Nutrition -->
+    <div class="app-col">
+      <div class="col-header">Nutrition</div>
+      <div class="sc prime new-flag">
+        <div class="sc-name">Daily Log</div>
+        <div class="sc-desc">Targets from cycle phase + training load combined. Rest day luteal ≠ long run day luteal.</div>
+        <span class="sc-badge badge-new">Cycle × Training</span>
+      </div>
+      <div class="sc"><div class="sc-name">Meal Detail</div><div class="sc-desc">Entries per meal · Edit / delete</div></div>
+      <div class="sc"><div class="sc-name">Nutrition History</div><div class="sc-desc">7-day consistency view</div></div>
+      <!-- Nutrition insight split -->
+      <div class="insight-split">
+        <div class="is-box is-local"><div class="is-label">On-device</div><div class="is-items">Macro targets · Consistency score · Phase × session matrix</div></div>
+        <div class="is-box is-ai"><div class="is-label">Haiku</div><div class="is-items">Monthly nutrition narrative · Fuelling pattern insights</div></div>
+      </div>
+    </div>
+
+    <!-- Library (new tab) -->
+    <div class="app-col">
+      <div class="col-header">Library (was Profile tab)</div>
+      <div class="sc prime"><div class="sc-name">Education Hub</div><div class="sc-desc">Browse articles by topic: cycle phases, fuelling, RED-S, perimenopause, iron</div></div>
+      <div class="sc"><div class="sc-name">Article Viewer</div><div class="sc-desc">Full article · Contextual links to Training + Nutrition</div></div>
+      <div class="sc"><div class="sc-name">Saved Articles</div><div class="sc-desc">Bookmarked reading list</div></div>
+    </div>
+  </div>
+
+  <!-- Profile Drawer -->
+  <div class="profile-drawer">
+    <div class="drawer-label">⊙ Profile drawer (top-right button — accessible from Dashboard)</div>
+    <div class="drawer-items">
+      <div class="di"><div class="di-name">Your Profile</div><div class="di-desc">Fitness assessment · History of updates + celebrations</div></div>
+      <div class="di"><div class="di-name">Cycle Settings</div><div class="di-desc">Update period date · Cycle length</div></div>
+      <div class="di"><div class="di-name">Subscription</div><div class="di-desc">Trial status · Trial-end date · Manage / cancel</div></div>
+      <div class="di"><div class="di-name">Notifications</div><div class="di-desc">Training reminders · Phase alerts · Trial reminders</div></div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- MODALS -->
+<div class="section-label" style="color:var(--heat)">③ Global Modals</div>
+<div class="modals-grid">
+  <div class="mc"><div class="mc-name">Run Tracker</div><div class="mc-desc">Live GPS. Pace, HR, distance. Writes to activities + run_details + HealthKit.</div><div class="mc-from">From: Dashboard · Training</div></div>
+  <div class="mc"><div class="mc-name">Activity Log</div><div class="mc-desc">Manual entry. Any type: run, swim, strength, yoga, other.</div><div class="mc-from">From: Training · Dashboard</div></div>
+  <div class="mc"><div class="mc-name">Food Entry</div><div class="mc-desc">Nutritionix search · Barcode scan · Recent foods.</div><div class="mc-from">From: Nutrition</div></div>
+  <div class="mc"><div class="mc-name">Daily Check-in</div><div class="mc-desc">Energy · Mood · Sleep · Symptoms. Feeds training load.</div><div class="mc-from">From: Dashboard · push notification</div></div>
+  <div class="mc"><div class="mc-name">Fitness Update</div><div class="mc-desc">Triggered automatically when data outpaces stated level. Celebrate + confirm new baseline.</div><div class="mc-from">Triggered by engine</div></div>
+</div>
+
+</body>
+</html>

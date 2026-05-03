@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --pink: #FF3D6E; --lime: #C8F04A; --bone: #F5F2ED;
+    --ink: #1A1A1A; --ink-light: #3a3a3a; --muted: #888;
+    --border: rgba(26,26,26,0.08);
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bone); color: var(--ink); padding: 0; }
+  .header { background: var(--ink); padding: 32px 40px 28px; position: relative; }
+  .header::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 4px; background: var(--lime); }
+  .wordmark { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; color: var(--pink); letter-spacing: 0.04em; text-shadow: 3px 3px 0 var(--lime); }
+  .header-sub { font-size: 12px; color: rgba(255,255,255,0.5); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 6px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 32px 60px; }
+  .north-star { background: var(--pink); color: white; border-radius: 16px; padding: 24px 28px; margin-bottom: 36px; }
+  .north-star h3 { font-family: 'Syne', sans-serif; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.8; margin-bottom: 8px; }
+  .north-star p { font-size: 15px; line-height: 1.6; }
+  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 36px; }
+  .stat-card { background: white; border-radius: 12px; padding: 20px; border: 1.5px solid var(--border); text-align: center; }
+  .stat-number { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 32px; line-height: 1; margin-bottom: 4px; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .stat-must .stat-number { color: var(--pink); }
+  .stat-should .stat-number { color: #8aaa00; }
+  .stat-phase2 .stat-number { color: var(--ink); }
+  .section { margin-bottom: 32px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .section-badge { padding: 5px 14px; border-radius: 100px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .badge-must { background: var(--pink); color: white; }
+  .badge-should { background: var(--lime); color: var(--ink); }
+  .badge-phase2 { background: var(--ink); color: white; }
+  .section-desc { font-size: 12px; color: var(--muted); }
+  .features-grid { display: grid; gap: 10px; }
+  .feature-card { background: white; border-radius: 12px; padding: 18px 20px; border: 1.5px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
+  .feature-card.phase2 { opacity: 0.75; background: var(--bone); }
+  .feature-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+  .feature-desc { font-size: 13px; color: var(--ink-light); line-height: 1.5; }
+  .feature-why { margin-top: 8px; font-size: 12px; color: var(--muted); font-style: italic; line-height: 1.4; }
+  .feature-tags { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .tag { font-size: 10px; font-weight: 500; padding: 3px 10px; border-radius: 100px; white-space: nowrap; letter-spacing: 0.05em; text-transform: uppercase; }
+  .tag-virra { background: rgba(255,61,110,0.1); color: var(--pink); }
+  .tag-table-stakes { background: rgba(26,26,26,0.07); color: var(--ink); }
+  .tag-revenue { background: rgba(200,240,74,0.3); color: #5a7000; }
+  .tag-tech { background: rgba(100,100,255,0.1); color: #4040cc; }
+  .tech-note { background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-top: 36px; }
+  .tech-note h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+  .tech-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .tech-row:last-child { border-bottom: none; }
+  .tech-item { color: var(--ink-light); }
+  .tech-rec { color: var(--ink); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="wordmark">VIRRA</div>
+  <div class="header-sub">MVP Feature Strategy — v1.0</div>
+</div>
+<div class="container">
+
+  <div class="north-star">
+    <h3>The one-line MVP brief</h3>
+    <p>A subscription app that replaces <strong>Runna + MyFitnessPal + a cycle tracker</strong> for women runners — with female health woven through every feature, not bolted on.</p>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-card stat-must"><div class="stat-number">8</div><div class="stat-label">Must-have</div></div>
+    <div class="stat-card stat-should"><div class="stat-number">5</div><div class="stat-label">Should-have</div></div>
+    <div class="stat-card stat-phase2"><div class="stat-number">6</div><div class="stat-label">Phase 2</div></div>
+  </div>
+
+  <!-- MUST HAVE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-badge badge-must">Must-have</span>
+      <span class="section-desc">Ship without these and VIRRA isn't viable</span>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Cycle phase tracking & integration</div>
+          <div class="feature-desc">User logs period start date. App maps her to a cycle phase (menstrual, follicular, ovulatory, luteal) and uses this to inform training load, nutrition guidance, and recovery cues throughout the app.</div>
+          <div class="feature-why">★ This is the VIRRA moat. Without it, you're just another Runna clone. Every competitor ignores this.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-virra">VIRRA-only</span><span class="tag tag-revenue">Core value prop</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Adaptive training plans</div>
+          <div class="feature-desc">Structured running plans (5K through marathon) that adjust based on cycle phase, not just pace/fitness. Plans built by you — delivered by the platform. Users select a goal and get a dynamic week-by-week plan.</div>
+          <div class="feature-why">This is the primary reason someone pays a subscription. It replaces Runna.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-table-stakes">Core</span><span class="tag tag-revenue">Subscription driver</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Run logging & GPS tracking</div>
+          <div class="feature-desc">In-app run tracking with GPS, pace, distance, heart rate (via phone/watch). Post-run manual logging option. Replaces Strava for basic run capture.</div>
+          <div class="feature-why">Table stakes for any running app. Users won't leave Strava unless you capture this.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-table-stakes">Table stakes</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Nutrition tracking (female-first)</div>
+          <div class="feature-desc">Food logging with macro tracking. Crucially: targets shift with cycle phase (e.g. higher carbs in luteal phase). No calorie-restriction framing — fuelling language only. Replaces MyFitnessPal without the diet culture.</div>
+          <div class="feature-why">★ Second VIRRA moat. MFP is diet-culture hell. Cycle-synced nutrition targets exist nowhere else.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-virra">VIRRA-only</span><span class="tag tag-revenue">Retention driver</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Daily dashboard</div>
+          <div class="feature-desc">Home screen showing: today's training, current cycle phase, top fuelling cue for the day, last run summary, weekly progress ring. The "one screen to rule them all" that replaces app-switching.</div>
+          <div class="feature-why">The dashboard IS the product promise — everything in one place, built for her.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-table-stakes">Core UX</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Female health education library</div>
+          <div class="feature-desc">Short-form articles and explainers: cycle phases & performance, fuelling for women, perimenopause & running, RED-S, iron deficiency, hormones & training. Written by you. Searchable. Linked contextually from training and nutrition features.</div>
+          <div class="feature-why">Builds trust, reduces churn, differentiates from every competitor. Your PT quals make this credible.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-virra">VIRRA-only</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Subscription & payments</div>
+          <div class="feature-desc">Monthly and annual tiers via RevenueCat (handles App Store + Play Store). Simple paywall — free trial (7 or 14 days), then paid. No free tier at launch.</div>
+          <div class="feature-why">No subscription = no business. Must ship day one.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-revenue">Revenue</span><span class="tag tag-tech">RevenueCat</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">User profile & onboarding flow</div>
+          <div class="feature-desc">Onboarding capturing: fitness level, running goal, cycle data (period date, avg length), dietary preferences. Personalises plans and nutrition targets from day one.</div>
+          <div class="feature-why">Personalisation makes the product feel built for her. Critical for day-1 retention.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-table-stakes">Core</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOULD HAVE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-badge badge-should">Should-have</span>
+      <span class="section-desc">Strong MVP includes these — cut only under time pressure</span>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Wearable sync (Garmin / Apple Watch / Wahoo)</div>
+          <div class="feature-desc">Pull run data automatically from connected devices. Users should not have to log manually if they run with a watch.</div>
+          <div class="feature-why">Without this, tech-savvy runners feel the friction immediately. High retention impact.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-tech">API integration</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Progress & insights view</div>
+          <div class="feature-desc">Monthly view of: miles run, training plan adherence, nutrition consistency, cycle phase correlation with performance. Helps users see the VIRRA effect over time.</div>
+          <div class="feature-why">Users who see progress data churn at much lower rates.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-revenue">Retention</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Push notifications & training reminders</div>
+          <div class="feature-desc">Smart reminders for: today's run, cycle phase shifts, fuelling reminders on long run days. Personalised, not spammy.</div>
+          <div class="feature-why">Drives daily active use — critical for subscription retention metrics.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-table-stakes">Engagement</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Food database & barcode scanning</div>
+          <div class="feature-desc">Integrated food database with barcode scanning. Use an existing API (Nutritionix or Open Food Facts) — don't build from scratch.</div>
+          <div class="feature-why">Nutrition logging without a food database is unusable. Non-negotiable for that feature to work.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-tech">3rd party API</span></div>
+      </div>
+      <div class="feature-card">
+        <div>
+          <div class="feature-name">Symptom & wellbeing logging</div>
+          <div class="feature-desc">Quick daily check-in: energy, mood, sleep, symptoms. Feeds back into training load suggestions. Makes the cycle-performance connection tangible and personal.</div>
+          <div class="feature-why">High perceived value, relatively low build complexity.</div>
+        </div>
+        <div class="feature-tags"><span class="tag tag-virra">VIRRA-only</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-badge badge-phase2">Phase 2</span>
+      <span class="section-desc">Post-launch — build when you have users and revenue</span>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card phase2">
+        <div><div class="feature-name">Community & social features</div><div class="feature-desc">Group challenges, community feed, follow other runners. Build when you have enough users to make it feel alive.</div></div>
+        <div class="feature-tags"><span class="tag tag-table-stakes">Phase 2</span></div>
+      </div>
+      <div class="feature-card phase2">
+        <div><div class="feature-name">Route planning & mapping</div><div class="feature-desc">Discover and save running routes. Low differentiation vs Strava — deprioritise until core product is strong.</div></div>
+        <div class="feature-tags"><span class="tag tag-table-stakes">Phase 2</span></div>
+      </div>
+      <div class="feature-card phase2">
+        <div><div class="feature-name">Coach-to-client portal</div><div class="feature-desc">Allows you (or future VIRRA coaches) to assign custom plans to individual clients. The Trainerize replacement. Build once consumer side is validated.</div></div>
+        <div class="feature-tags"><span class="tag tag-virra">Future moat</span></div>
+      </div>
+      <div class="feature-card phase2">
+        <div><div class="feature-name">Perimenopause & menopause track</div><div class="feature-desc">Dedicated track for runners in peri/menopause with adapted training and nutrition guidance. Massive underserved market — needs its own content investment.</div></div>
+        <div class="feature-tags"><span class="tag tag-virra">VIRRA-only</span></div>
+      </div>
+      <div class="feature-card phase2">
+        <div><div class="feature-name">Race day planning tool</div><div class="feature-desc">Pre-race fuelling plan, taper guidance, cycle-phase-aware race day strategy. High value for race-focused users.</div></div>
+        <div class="feature-tags"><span class="tag tag-revenue">Upsell potential</span></div>
+      </div>
+      <div class="feature-card phase2">
+        <div><div class="feature-name">Strava integration</div><div class="feature-desc">Two-way sync with Strava. Reduces acquisition friction — VIRRA becomes the brain, Strava the social layer.</div></div>
+        <div class="feature-tags"><span class="tag tag-tech">API integration</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tech-note">
+    <h3>Tech stack recommendations for your developer</h3>
+    <div class="tech-row"><span class="tech-item">Mobile framework</span><span class="tech-rec">React Native — ships iOS + Android from one codebase</span></div>
+    <div class="tech-row"><span class="tech-item">Backend / database</span><span class="tech-rec">Supabase — Postgres + auth + storage, fast to build on</span></div>
+    <div class="tech-row"><span class="tech-item">Payments / subscriptions</span><span class="tech-rec">RevenueCat — handles App Store + Play Store cleanly</span></div>
+    <div class="tech-row"><span class="tech-item">Food database</span><span class="tech-rec">Nutritionix API or Open Food Facts (free, open source)</span></div>
+    <div class="tech-row"><span class="tech-item">Wearable sync</span><span class="tech-rec">Garmin Connect IQ + Apple HealthKit + Wahoo API</span></div>
+    <div class="tech-row"><span class="tech-item">GPS / background tracking</span><span class="tech-rec">React Native background geolocation library</span></div>
+  </div>
+
+</div>
+</body>
+</html>

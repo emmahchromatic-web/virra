@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virra — HealthKit-first + Smart Notifications</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+  :root{--pulse:#D4FF26;--heat:#FF2E7E;--mile:#0A0A0F;--breath:#F4EDE0;--dawn:#FF6B3D;--mist:#1C1C24;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--mile);color:var(--breath);font-family:'Inter',sans-serif;padding:36px 44px 60px;}
+
+  .page-title{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:38px;letter-spacing:-0.02em;text-transform:uppercase;color:var(--pulse);margin-bottom:4px;}
+  .page-sub{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(244,237,224,0.35);margin-bottom:36px;}
+  .section-label{font-family:'Space Mono',monospace;font-size:8.5px;letter-spacing:0.2em;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid rgba(244,237,224,0.07);margin-bottom:18px;}
+  hr{border:none;border-top:1px solid rgba(244,237,224,0.06);margin:28px 0;}
+
+  /* ---- HEALTHKIT FLOW ---- */
+  .hk-flow{display:flex;flex-direction:column;gap:10px;}
+
+  .flow-row{display:flex;align-items:stretch;gap:0;}
+  .flow-node{border-radius:10px;padding:13px 16px;flex:1;}
+  .flow-arrow{display:flex;align-items:center;justify-content:center;padding:0 10px;color:rgba(244,237,224,0.2);font-size:20px;flex-shrink:0;}
+  .flow-arrow.down{writing-mode:vertical-rl;padding:8px 0;font-size:16px;}
+
+  .n-source{background:rgba(255,46,126,0.07);border:1.5px solid rgba(255,46,126,0.3);}
+  .n-source .n-name{color:var(--heat);}
+  .n-observer{background:rgba(212,255,38,0.05);border:1.5px solid rgba(212,255,38,0.35);}
+  .n-observer .n-name{color:var(--pulse);}
+  .n-process{background:var(--mist);border:1px solid rgba(244,237,224,0.12);}
+  .n-process .n-name{color:var(--breath);}
+  .n-surface{background:var(--mist);border:1px solid rgba(212,255,38,0.2);}
+  .n-surface .n-name{color:var(--pulse);}
+  .n-manual{background:var(--mist);border:1px dashed rgba(244,237,224,0.15);}
+  .n-manual .n-name{color:rgba(244,237,224,0.45);}
+  .n-cancel{background:rgba(255,107,61,0.06);border:1px solid rgba(255,107,61,0.3);}
+  .n-cancel .n-name{color:var(--dawn);}
+
+  .n-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;margin-bottom:4px;line-height:1;}
+  .n-desc{font-size:10.5px;line-height:1.5;color:rgba(244,237,224,0.55);}
+  .n-tag{display:inline-block;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 8px;border-radius:100px;margin-top:6px;}
+  .tag-hk{background:rgba(255,46,126,0.15);color:var(--heat);}
+  .tag-auto{background:rgba(212,255,38,0.15);color:var(--pulse);}
+  .tag-fall{background:rgba(244,237,224,0.07);color:rgba(244,237,224,0.4);}
+  .tag-cancel{background:rgba(255,107,61,0.15);color:var(--dawn);}
+
+  /* sources grid */
+  .sources-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;}
+  .source-card{border-radius:9px;padding:11px 13px;}
+  .sc-hk{background:rgba(255,46,126,0.07);border:1.5px solid rgba(255,46,126,0.3);}
+  .sc-watch{background:rgba(255,46,126,0.05);border:1px solid rgba(255,46,126,0.2);}
+  .sc-third{background:var(--mist);border:1px solid rgba(244,237,224,0.1);}
+  .sc-manual{background:var(--mist);border:1px dashed rgba(244,237,224,0.12);}
+  .source-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px;}
+  .sc-hk .source-label,.sc-watch .source-label{color:var(--heat);}
+  .sc-third .source-label{color:rgba(244,237,224,0.45);}
+  .sc-manual .source-label{color:rgba(244,237,224,0.25);}
+  .source-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:15px;text-transform:uppercase;margin-bottom:3px;}
+  .sc-hk .source-name,.sc-watch .source-name{color:var(--heat);}
+  .sc-third .source-name{color:rgba(244,237,224,0.7);}
+  .sc-manual .source-name{color:rgba(244,237,224,0.35);}
+  .source-desc{font-size:10px;line-height:1.45;color:rgba(244,237,224,0.45);}
+  .sc-manual .source-desc{color:rgba(244,237,224,0.25);}
+  .priority-badge{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 8px;border-radius:100px;display:inline-block;margin-top:6px;}
+  .pb-primary{background:rgba(255,46,126,0.2);color:var(--heat);}
+  .pb-secondary{background:rgba(244,237,224,0.06);color:rgba(244,237,224,0.4);}
+  .pb-fallback{background:rgba(244,237,224,0.04);color:rgba(244,237,224,0.25);}
+
+  /* Pipeline */
+  .pipeline{display:flex;gap:0;align-items:stretch;margin-bottom:10px;}
+  .pipe-step{flex:1;background:var(--mist);border:1px solid rgba(244,237,224,0.08);border-radius:9px;padding:12px 13px;position:relative;}
+  .pipe-step.highlight{border-color:rgba(212,255,38,0.3);background:rgba(212,255,38,0.04);}
+  .pipe-step.action{border-color:rgba(255,107,61,0.3);background:rgba(255,107,61,0.04);}
+  .pipe-arrow{display:flex;align-items:center;color:rgba(244,237,224,0.15);font-size:16px;padding:0 4px;flex-shrink:0;}
+  .pipe-num{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(244,237,224,0.25);margin-bottom:4px;}
+  .pipe-name{font-family:'Inter',sans-serif;font-weight:600;font-size:11px;color:rgba(244,237,224,0.85);margin-bottom:3px;}
+  .pipe-step.highlight .pipe-name{color:var(--pulse);}
+  .pipe-step.action .pipe-name{color:var(--dawn);}
+  .pipe-desc{font-size:9.5px;line-height:1.4;color:rgba(244,237,224,0.4);}
+
+  /* ---- NOTIFICATIONS ---- */
+  .notif-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .notif-card{border-radius:10px;padding:14px 15px;}
+  .nc-smart{background:rgba(212,255,38,0.05);border:1.5px solid rgba(212,255,38,0.25);}
+  .nc-dumb{background:rgba(255,46,126,0.05);border:1px solid rgba(255,46,126,0.2);opacity:0.6;}
+
+  .nc-context{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(244,237,224,0.3);margin-bottom:5px;}
+  .nc-smart .nc-context{color:rgba(212,255,38,0.5);}
+  .nc-dumb .nc-context{color:rgba(255,46,126,0.5);}
+
+  .nc-title{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;margin-bottom:4px;}
+  .nc-smart .nc-title{color:var(--pulse);}
+  .nc-dumb .nc-title{color:var(--heat);}
+
+  .notif-preview{background:rgba(244,237,224,0.05);border-radius:7px;padding:9px 11px;margin:8px 0;border-left:3px solid;}
+  .nc-smart .notif-preview{border-color:var(--pulse);}
+  .nc-dumb .notif-preview{border-color:var(--heat);}
+  .np-app{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(244,237,224,0.35);margin-bottom:3px;}
+  .np-text{font-size:11px;color:rgba(244,237,224,0.7);line-height:1.4;}
+
+  .nc-logic{font-size:9.5px;line-height:1.5;color:rgba(244,237,224,0.45);}
+  .nc-smart .nc-logic{color:rgba(244,237,224,0.55);}
+  .nc-logic strong{color:rgba(244,237,224,0.8);}
+  .nc-smart .nc-logic strong{color:var(--pulse);}
+
+  .cross{font-size:18px;margin-right:4px;color:var(--heat);}
+  .check{font-size:14px;margin-right:4px;color:var(--pulse);}
+
+  .section-intro{font-size:12px;line-height:1.65;color:rgba(244,237,224,0.55);margin-bottom:18px;max-width:700px;}
+  .section-intro strong{color:rgba(244,237,224,0.85);}
+
+  .cancel-flow{background:rgba(255,107,61,0.05);border:1px solid rgba(255,107,61,0.2);border-radius:10px;padding:14px 16px;margin-top:14px;}
+  .cf-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--dawn);margin-bottom:10px;}
+  .cf-rows{display:flex;flex-direction:column;gap:6px;}
+  .cf-row{display:grid;grid-template-columns:160px 28px 1fr;align-items:center;gap:0;}
+  .cf-trigger{font-size:10.5px;color:rgba(244,237,224,0.65);padding:4px 10px;background:var(--mist);border-radius:5px;}
+  .cf-arr{text-align:center;color:rgba(244,237,224,0.2);font-size:14px;}
+  .cf-action{font-size:10.5px;color:rgba(255,107,61,0.85);padding:4px 10px;}
+</style>
+</head>
+<body>
+
+<div class="page-title">HealthKit-first + Smart Notifications</div>
+<div class="page-sub">Virra MVP · Activity import hierarchy + notification intelligence · Design Section 03</div>
+
+<!-- ACTIVITY SOURCES -->
+<div class="section-label" style="color:var(--heat)">① Activity data sources — priority order</div>
+<div class="section-intro">Manual logging is the <strong>last resort</strong>, not the default. The app passively collects from HealthKit in the background — users only interact when there's genuinely no data.</div>
+
+<div class="sources-grid">
+  <div class="source-card sc-hk">
+    <div class="source-label">Primary</div>
+    <div class="source-name">Apple Watch</div>
+    <div class="source-desc">Workouts auto-sync to HealthKit the moment they complete. HKObserverQuery fires in background. App imports silently — GPS trace, HR, pace, splits, calories.</div>
+    <span class="priority-badge pb-primary">Auto · background</span>
+  </div>
+  <div class="source-card sc-hk">
+    <div class="source-label">Primary</div>
+    <div class="source-name">iPhone GPS</div>
+    <div class="source-desc">In-app GPS run tracker (for users without Watch). Records live, writes to HealthKit on save — same observer picks it up, no double-import.</div>
+    <span class="priority-badge pb-primary">In-app · auto-saved</span>
+  </div>
+  <div class="source-card sc-third">
+    <div class="source-label">Secondary</div>
+    <div class="source-name">Garmin / Wahoo</div>
+    <div class="source-desc">Third-party devices that write to Apple Health (via their own apps). HKObserverQuery catches these too — no additional integration needed at MVP.</div>
+    <span class="priority-badge pb-secondary">Via HealthKit bridge</span>
+  </div>
+  <div class="source-card sc-manual">
+    <div class="source-label">Fallback only</div>
+    <div class="source-name">Manual Log</div>
+    <div class="source-desc">Pool swim, gym session, travel run without phone. User enters type, duration, distance, perceived effort. Clearly positioned as "didn't have your watch?" flow.</div>
+    <span class="priority-badge pb-fallback">Explicit fallback</span>
+  </div>
+</div>
+
+<!-- IMPORT PIPELINE -->
+<div class="section-label" style="color:var(--pulse);margin-top:6px;">② Background import pipeline</div>
+<div class="pipeline">
+  <div class="pipe-step highlight">
+    <div class="pipe-num">01</div>
+    <div class="pipe-name">HKObserverQuery</div>
+    <div class="pipe-desc">Background delivery enabled. iOS wakes app when new HKWorkout, HKQuantitySample (weight, HR) added to Health.</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step highlight">
+    <div class="pipe-num">02</div>
+    <div class="pipe-name">HKAnchoredObjectQuery</div>
+    <div class="pipe-desc">Incremental fetch — only pulls data added since last anchor. Efficient, no duplicate imports.</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step">
+    <div class="pipe-num">03</div>
+    <div class="pipe-name">Dedup + map</div>
+    <div class="pipe-desc">Check UUID against existing activities. Map HKWorkout → activities row + run_details if GPS present.</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step">
+    <div class="pipe-num">04</div>
+    <div class="pipe-name">Link to plan</div>
+    <div class="pipe-desc">If a planned session exists for today and workout type matches — auto-mark session complete.</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step action">
+    <div class="pipe-num">05</div>
+    <div class="pipe-name">Cancel notification</div>
+    <div class="pipe-desc">Cancel pending training reminder for this activity. User never sees a stale prompt.</div>
+  </div>
+  <div class="pipe-arrow">→</div>
+  <div class="pipe-step highlight">
+    <div class="pipe-num">06</div>
+    <div class="pipe-name">Surface to Dashboard</div>
+    <div class="pipe-desc">"Nice work — we got your 5.2km run" card. One tap to add notes or link to cycle phase.</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- SMART NOTIFICATIONS -->
+<div class="section-label" style="color:var(--pulse)">③ Smart notifications — state-aware before every delivery</div>
+<div class="section-intro">Every notification checks current state before it reaches the user. <strong>If the action is already done, the notification is cancelled</strong> — not just hidden, permanently removed from the queue.</div>
+
+<div class="notif-grid">
+
+  <div class="notif-card nc-smart">
+    <div class="nc-context">Training reminder</div>
+    <div class="nc-title">Run Reminder</div>
+    <div class="notif-preview">
+      <div class="np-app">VIRRA · 6:30pm</div>
+      <div class="np-text">Your easy 5K is on the plan today — good time to head out 🌙</div>
+    </div>
+    <div class="nc-logic">
+      <span class="check">✓</span><strong>Fires</strong> if no matching workout in HealthKit today<br>
+      <span class="cross">✕</span><strong>Cancelled</strong> the moment HKObserver detects a completed run — even if the observer fires after the notification was scheduled
+    </div>
+  </div>
+
+  <div class="notif-card nc-smart">
+    <div class="nc-context">Nutrition</div>
+    <div class="nc-title">Lunch Log</div>
+    <div class="notif-preview">
+      <div class="np-app">VIRRA · 1:00pm</div>
+      <div class="np-text">Luteal phase today — higher carbs help. Log your lunch to hit your targets.</div>
+    </div>
+    <div class="nc-logic">
+      <span class="check">✓</span><strong>Fires</strong> if lunch meal log is empty<br>
+      <span class="cross">✕</span><strong>Cancelled</strong> when first food entry is added to that meal slot<br>
+      <span class="check">✓</span><strong>Adapts</strong> message to current cycle phase at send time
+    </div>
+  </div>
+
+  <div class="notif-card nc-smart">
+    <div class="nc-context">Cycle / Wellbeing</div>
+    <div class="nc-title">Daily Check-in</div>
+    <div class="notif-preview">
+      <div class="np-app">VIRRA · 8:00am</div>
+      <div class="np-text">Day 2 of luteal phase. How are you feeling today?</div>
+    </div>
+    <div class="nc-logic">
+      <span class="check">✓</span><strong>Fires</strong> if no check-in submitted today<br>
+      <span class="cross">✕</span><strong>Cancelled</strong> when check-in is saved<br>
+      <span class="check">✓</span><strong>Phase-aware message</strong> generated at send time, not schedule time
+    </div>
+  </div>
+
+  <div class="notif-card nc-smart">
+    <div class="nc-context">Subscription</div>
+    <div class="nc-title">Trial Ending</div>
+    <div class="notif-preview">
+      <div class="np-app">VIRRA · Day 11</div>
+      <div class="np-text">3 days left in your trial — you've logged 4 runs and hit your targets 6/7 days.</div>
+    </div>
+    <div class="nc-logic">
+      <span class="check">✓</span><strong>Fires</strong> day 11 + day 13 of trial<br>
+      <span class="cross">✕</span><strong>Cancelled</strong> if subscription already activated via RevenueCat webhook<br>
+      <span class="check">✓</span><strong>Personalised</strong> with actual usage stats, not generic copy
+    </div>
+  </div>
+
+  <div class="notif-card nc-smart">
+    <div class="nc-context">Fitness assessment</div>
+    <div class="nc-title">New Baseline</div>
+    <div class="notif-preview">
+      <div class="np-app">VIRRA</div>
+      <div class="np-text">You've been consistently running faster than your stated baseline — you're stronger than you think. Update your profile?</div>
+    </div>
+    <div class="nc-logic">
+      <span class="check">✓</span><strong>Triggers</strong> after 3+ runs exceed stated baseline<br>
+      <span class="cross">✕</span><strong>Cancelled</strong> if user already updated via in-app prompt<br>
+      <span class="check">✓</span><strong>Once per baseline</strong> — never repeats for same threshold
+    </div>
+  </div>
+
+  <div class="notif-card nc-dumb" style="position:relative;">
+    <div style="position:absolute;top:10px;right:10px;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;color:var(--heat);background:rgba(255,46,126,0.15);padding:2px 8px;border-radius:100px;">Anti-pattern — avoided</div>
+    <div class="nc-context">The Renpho problem</div>
+    <div class="nc-title">Blind reminder</div>
+    <div class="notif-preview">
+      <div class="np-app">RENPHO · 8:00am</div>
+      <div class="np-text">Time to weigh yourself!</div>
+    </div>
+    <div class="nc-logic">
+      <span class="cross">✕</span> Fires every day regardless of whether you've already weighed<br>
+      <span class="cross">✕</span> No state check, no cancellation logic<br>
+      <span class="cross">✕</span> Trains users to dismiss all notifications — including ones that matter
+    </div>
+  </div>
+
+</div>
+
+<!-- Cancellation map -->
+<div class="cancel-flow">
+  <div class="cf-label">Cancellation trigger map — what cancels what</div>
+  <div class="cf-rows">
+    <div class="cf-row"><div class="cf-trigger">HealthKit workout detected</div><div class="cf-arr">→</div><div class="cf-action">Cancel: training reminder for that day</div></div>
+    <div class="cf-row"><div class="cf-trigger">Food entry added (any meal)</div><div class="cf-arr">→</div><div class="cf-action">Cancel: nutrition reminder for that meal slot</div></div>
+    <div class="cf-row"><div class="cf-trigger">Daily check-in submitted</div><div class="cf-arr">→</div><div class="cf-action">Cancel: check-in reminder for today</div></div>
+    <div class="cf-row"><div class="cf-trigger">RevenueCat subscription active</div><div class="cf-arr">→</div><div class="cf-action">Cancel: all trial-end reminders</div></div>
+    <div class="cf-row"><div class="cf-trigger">Fitness profile updated</div><div class="cf-arr">→</div><div class="cf-action">Cancel: pending baseline update notification</div></div>
+  </div>
+</div>
+
+</body>
+</html>

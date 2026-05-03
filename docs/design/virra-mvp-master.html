@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Virra MVP — Master Design Reference</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,600&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+  :root{--pulse:#D4FF26;--heat:#FF2E7E;--mile:#0A0A0F;--breath:#F4EDE0;--dawn:#FF6B3D;--mist:#1C1C24;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--mile);color:var(--breath);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+
+  /* NAV */
+  .doc-nav{position:sticky;top:0;z-index:100;background:rgba(10,10,15,0.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(244,237,224,0.06);padding:0 44px;display:flex;align-items:center;gap:0;}
+  .doc-nav .wordmark{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:18px;text-transform:uppercase;color:var(--pulse);letter-spacing:-0.01em;padding:12px 20px 12px 0;border-right:1px solid rgba(244,237,224,0.08);margin-right:16px;}
+  .doc-nav a{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(244,237,224,0.4);text-decoration:none;padding:14px 14px;transition:color 0.15s;}
+  .doc-nav a:hover{color:var(--pulse);}
+
+  /* LAYOUT */
+  .doc-body{max-width:1100px;margin:0 auto;padding:52px 44px 100px;}
+
+  /* COVER */
+  .cover{margin-bottom:60px;padding-bottom:40px;border-bottom:1px solid rgba(244,237,224,0.06);}
+  .cover-kicker{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--heat);margin-bottom:12px;}
+  .cover-title{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:72px;line-height:0.88;letter-spacing:-0.03em;text-transform:uppercase;color:var(--pulse);margin-bottom:16px;}
+  .cover-sub{font-family:'Fraunces',serif;font-style:italic;font-size:22px;line-height:1.3;color:rgba(244,237,224,0.75);max-width:680px;margin-bottom:28px;}
+  .cover-meta{display:flex;gap:24px;flex-wrap:wrap;}
+  .cover-pill{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.14em;text-transform:uppercase;padding:5px 14px;border-radius:100px;}
+  .cp-pulse{background:rgba(212,255,38,0.12);color:var(--pulse);}
+  .cp-heat{background:rgba(255,46,126,0.12);color:var(--heat);}
+  .cp-muted{background:rgba(244,237,224,0.06);color:rgba(244,237,224,0.45);}
+
+  /* SECTION */
+  .section{margin-bottom:56px;}
+  .section-anchor{display:block;height:80px;margin-top:-80px;visibility:hidden;}
+  .section-header{display:flex;align-items:baseline;gap:14px;margin-bottom:24px;padding-bottom:10px;border-bottom:1px solid rgba(244,237,224,0.07);}
+  .section-num{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--heat);}
+  .section-title{font-family:'Big Shoulders Display',sans-serif;font-weight:900;font-size:32px;text-transform:uppercase;letter-spacing:-0.015em;color:var(--breath);}
+  .section-desc{font-family:'Fraunces',serif;font-style:italic;font-size:14px;color:rgba(244,237,224,0.5);margin-left:auto;}
+
+  /* SHARED COMPONENTS */
+  .label{font-family:'Space Mono',monospace;font-size:8.5px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(244,237,224,0.35);margin-bottom:10px;display:block;}
+  .label.pulse{color:rgba(212,255,38,0.6);}
+  .label.heat{color:rgba(255,46,126,0.6);}
+  .label.dawn{color:rgba(255,107,61,0.6);}
+  .tag{display:inline-block;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.1em;text-transform:uppercase;padding:2px 9px;border-radius:100px;}
+  .t-pulse{background:rgba(212,255,38,0.14);color:var(--pulse);}
+  .t-heat{background:rgba(255,46,126,0.14);color:var(--heat);}
+  .t-dawn{background:rgba(255,107,61,0.15);color:var(--dawn);}
+  .t-muted{background:rgba(244,237,224,0.06);color:rgba(244,237,224,0.4);}
+  .t-new{background:rgba(255,107,61,0.18);color:var(--dawn);}
+  hr.div{border:none;border-top:1px solid rgba(244,237,224,0.06);margin:20px 0;}
+
+  /* 1. BRIEF */
+  .brief-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .brief-card{background:var(--mist);border-radius:10px;padding:16px 18px;border:1px solid rgba(244,237,224,0.07);}
+  .brief-card.accent{background:rgba(212,255,38,0.05);border-color:rgba(212,255,38,0.2);}
+  .bc-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(244,237,224,0.3);margin-bottom:6px;}
+  .bc-label.pulse{color:rgba(212,255,38,0.5);}
+  .bc-value{font-size:13px;line-height:1.55;color:rgba(244,237,224,0.8);}
+  .bc-value strong{color:var(--breath);}
+  .stack-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(244,237,224,0.06);font-size:12px;}
+  .stack-row:last-child{border:none;}
+  .stack-item{color:rgba(244,237,224,0.45);}
+  .stack-val{color:rgba(244,237,224,0.8);font-weight:500;}
+
+  /* 2. ARCHITECTURE */
+  .arch-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;}
+  .arch-col{background:var(--mist);border-radius:10px;padding:16px;}
+  .arch-col-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(244,237,224,0.3);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(244,237,224,0.06);}
+  .ab{border-radius:8px;padding:11px 13px;margin-bottom:8px;}
+  .ab-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;margin-bottom:3px;}
+  .ab-desc{font-size:10px;line-height:1.45;color:rgba(244,237,224,0.5);}
+  .ab.core{background:rgba(212,255,38,0.07);border:1.5px solid var(--pulse);}
+  .ab.core .ab-name{color:var(--pulse);}
+  .ab.std{background:rgba(244,237,224,0.03);border:1px solid rgba(244,237,224,0.08);}
+  .ab.std .ab-name{color:rgba(244,237,224,0.8);}
+  .ab.rev{background:rgba(255,107,61,0.06);border:1px solid rgba(255,107,61,0.3);}
+  .ab.rev .ab-name{color:var(--dawn);}
+  .ab.hk{background:rgba(255,46,126,0.05);border:1px solid rgba(255,46,126,0.25);}
+  .ab.hk .ab-name{color:var(--heat);}
+  .ab.ghost{background:transparent;border:1px dashed rgba(244,237,224,0.08);}
+  .ab.ghost .ab-name{color:rgba(244,237,224,0.3);}
+  .ab.ghost .ab-desc{color:rgba(244,237,224,0.2);}
+
+  /* Schema */
+  .schema-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+  .sg{background:var(--mist);border-radius:8px;padding:12px 14px;border:1px solid rgba(244,237,224,0.06);}
+  .sg-label{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.16em;text-transform:uppercase;color:var(--pulse);margin-bottom:7px;}
+  .st{font-size:9.5px;line-height:1.5;color:rgba(244,237,224,0.55);padding:4px 0;border-bottom:1px solid rgba(244,237,224,0.05);}
+  .st:last-child{border:none;}
+  .st strong{color:rgba(244,237,224,0.8);font-weight:500;font-family:'Space Mono',monospace;font-size:9px;}
+  .st em{color:rgba(244,237,224,0.35);font-style:normal;}
+
+  /* 3. ONBOARDING */
+  .onboard-steps{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+  .os{border-radius:8px;padding:11px 12px;}
+  .os-std{background:var(--mist);border:1px solid rgba(244,237,224,0.08);}
+  .os-pulse{background:rgba(212,255,38,0.05);border:1.5px solid rgba(212,255,38,0.3);}
+  .os-dawn{background:rgba(255,107,61,0.05);border:1.5px solid rgba(255,107,61,0.35);}
+  .os-rev{background:rgba(255,107,61,0.08);border:1.5px solid rgba(255,107,61,0.45);}
+  .os-num{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.12em;color:rgba(244,237,224,0.25);margin-bottom:5px;}
+  .os-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;margin-bottom:4px;line-height:1.1;}
+  .os-std .os-name{color:rgba(244,237,224,0.75);}
+  .os-pulse .os-name{color:var(--pulse);}
+  .os-dawn .os-name{color:var(--dawn);}
+  .os-rev .os-name{color:var(--dawn);}
+  .os-desc{font-size:9.5px;line-height:1.4;color:rgba(244,237,224,0.4);}
+  .os-items{margin-top:6px;display:flex;flex-direction:column;gap:2px;}
+  .os-item{font-size:9px;color:rgba(244,237,224,0.4);padding-left:7px;border-left:2px solid rgba(244,237,224,0.1);line-height:1.3;}
+  .os-dawn .os-item{border-color:rgba(255,107,61,0.25);}
+
+  /* Fitness assessment callout */
+  .fa-callout{background:rgba(212,255,38,0.04);border:1px solid rgba(212,255,38,0.18);border-radius:9px;padding:14px 16px;margin-top:12px;}
+  .fa-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--pulse);margin-bottom:8px;}
+  .fa-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+  .fa-item{font-size:10px;color:rgba(244,237,224,0.55);line-height:1.45;}
+  .fa-item strong{color:rgba(244,237,224,0.85);display:block;margin-bottom:2px;}
+
+  /* 4. NAVIGATION */
+  .tabs-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px;}
+  .tab-card{border-radius:8px;padding:10px 12px;text-align:center;}
+  .tc-pulse{background:rgba(212,255,38,0.08);border:1.5px solid var(--pulse);}
+  .tc-std{background:var(--mist);border:1px solid rgba(244,237,224,0.08);}
+  .tab-icon{font-size:18px;margin-bottom:3px;}
+  .tab-name{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;}
+  .tc-pulse .tab-name{color:var(--pulse);}
+  .tc-std .tab-name{color:rgba(244,237,224,0.45);}
+
+  .screens-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;}
+  .sc-col{display:flex;flex-direction:column;gap:5px;}
+  .sc{background:var(--mist);border:1px solid rgba(244,237,224,0.07);border-radius:7px;padding:9px 11px;}
+  .sc.prime{background:rgba(212,255,38,0.03);border-color:rgba(212,255,38,0.2);}
+  .sc.updated{border-color:rgba(255,107,61,0.25);}
+  .sc-name{font-size:11px;font-weight:500;margin-bottom:2px;}
+  .sc.prime .sc-name{color:var(--pulse);}
+  .sc.updated .sc-name{color:var(--dawn);}
+  .sc-desc{font-size:9.5px;line-height:1.4;color:rgba(244,237,224,0.38);}
+
+  /* Insight split */
+  .isplit{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:5px;}
+  .ib{border-radius:6px;padding:7px 9px;}
+  .ib-local{background:rgba(244,237,224,0.03);border:1px solid rgba(244,237,224,0.07);}
+  .ib-ai{background:rgba(212,255,38,0.04);border:1px solid rgba(212,255,38,0.18);}
+  .ib-label{font-family:'Space Mono',monospace;font-size:7px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:4px;}
+  .ib-local .ib-label{color:rgba(244,237,224,0.3);}
+  .ib-ai .ib-label{color:var(--pulse);}
+  .ib-content{font-size:9px;line-height:1.5;color:rgba(244,237,224,0.4);}
+  .ib-ai .ib-content{color:rgba(212,255,38,0.65);}
+
+  /* Profile drawer */
+  .profile-drawer{background:rgba(244,237,224,0.02);border:1px solid rgba(244,237,224,0.07);border-radius:9px;padding:14px 16px;}
+  .pd-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+  .pd-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:rgba(244,237,224,0.3);}
+  .pd-note{font-size:10px;color:rgba(244,237,224,0.35);font-style:italic;}
+  .pd-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+  .pd-item{background:var(--mist);border-radius:7px;padding:9px 11px;border:1px solid rgba(244,237,224,0.06);}
+  .pd-name{font-size:11px;font-weight:500;color:rgba(244,237,224,0.75);margin-bottom:2px;}
+  .pd-desc{font-size:9.5px;color:rgba(244,237,224,0.35);line-height:1.35;}
+
+  /* Modals */
+  .modals-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;}
+  .mc{background:rgba(255,46,126,0.05);border:1px solid rgba(255,46,126,0.2);border-radius:8px;padding:10px 11px;}
+  .mc-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:13px;text-transform:uppercase;color:var(--heat);margin-bottom:3px;}
+  .mc-desc{font-size:9.5px;line-height:1.4;color:rgba(244,237,224,0.4);}
+  .mc-from{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,46,126,0.45);margin-top:5px;}
+
+  /* 5. HEALTHKIT */
+  .hk-sources{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+  .hk-card{border-radius:9px;padding:13px 14px;}
+  .hk-primary{background:rgba(255,46,126,0.07);border:1.5px solid rgba(255,46,126,0.3);}
+  .hk-secondary{background:var(--mist);border:1px solid rgba(244,237,224,0.1);}
+  .hk-fallback{background:var(--mist);border:1px dashed rgba(244,237,224,0.12);}
+  .hk-priority{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px;}
+  .hk-primary .hk-priority{color:var(--heat);}
+  .hk-secondary .hk-priority{color:rgba(244,237,224,0.4);}
+  .hk-fallback .hk-priority{color:rgba(244,237,224,0.2);}
+  .hk-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:15px;text-transform:uppercase;margin-bottom:4px;}
+  .hk-primary .hk-name{color:var(--heat);}
+  .hk-secondary .hk-name{color:rgba(244,237,224,0.7);}
+  .hk-fallback .hk-name{color:rgba(244,237,224,0.3);}
+  .hk-desc{font-size:10px;line-height:1.45;color:rgba(244,237,224,0.45);}
+  .hk-fallback .hk-desc{color:rgba(244,237,224,0.2);}
+
+  .pipeline{display:flex;align-items:stretch;gap:0;margin-bottom:10px;}
+  .pipe{flex:1;border-radius:8px;padding:11px 12px;}
+  .pipe-std{background:var(--mist);border:1px solid rgba(244,237,224,0.08);}
+  .pipe-pulse{background:rgba(212,255,38,0.04);border:1px solid rgba(212,255,38,0.25);}
+  .pipe-dawn{background:rgba(255,107,61,0.05);border:1px solid rgba(255,107,61,0.25);}
+  .pipe-arr{display:flex;align-items:center;color:rgba(244,237,224,0.15);font-size:14px;padding:0 4px;flex-shrink:0;}
+  .pipe-num{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.12em;color:rgba(244,237,224,0.25);margin-bottom:3px;}
+  .pipe-name{font-size:11px;font-weight:600;margin-bottom:3px;}
+  .pipe-std .pipe-name{color:rgba(244,237,224,0.8);}
+  .pipe-pulse .pipe-name{color:var(--pulse);}
+  .pipe-dawn .pipe-name{color:var(--dawn);}
+  .pipe-desc{font-size:9.5px;line-height:1.4;color:rgba(244,237,224,0.38);}
+
+  /* 6. NOTIFICATIONS */
+  .notif-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+  .nc{border-radius:9px;padding:13px 14px;}
+  .nc-smart{background:rgba(212,255,38,0.04);border:1.5px solid rgba(212,255,38,0.22);}
+  .nc-anti{background:rgba(255,46,126,0.04);border:1px solid rgba(255,46,126,0.18);opacity:0.6;}
+  .nc-ctx{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px;}
+  .nc-smart .nc-ctx{color:rgba(212,255,38,0.5);}
+  .nc-anti .nc-ctx{color:rgba(255,46,126,0.5);}
+  .nc-title{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;margin-bottom:7px;}
+  .nc-smart .nc-title{color:var(--pulse);}
+  .nc-anti .nc-title{color:var(--heat);}
+  .notif-bubble{background:rgba(244,237,224,0.05);border-radius:7px;padding:8px 10px;margin-bottom:7px;border-left:3px solid;}
+  .nc-smart .notif-bubble{border-color:var(--pulse);}
+  .nc-anti .notif-bubble{border-color:var(--heat);}
+  .nb-app{font-family:'Space Mono',monospace;font-size:7.5px;letter-spacing:0.1em;text-transform:uppercase;color:rgba(244,237,224,0.3);margin-bottom:2px;}
+  .nb-text{font-size:11px;color:rgba(244,237,224,0.7);line-height:1.4;}
+  .nc-logic{font-size:9.5px;line-height:1.6;color:rgba(244,237,224,0.45);}
+  .nc-smart .nc-logic{color:rgba(244,237,224,0.55);}
+  .c{color:var(--pulse);}
+  .x{color:var(--heat);}
+
+  .cancel-map{background:rgba(255,107,61,0.04);border:1px solid rgba(255,107,61,0.18);border-radius:9px;padding:14px 16px;}
+  .cm-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;color:var(--dawn);margin-bottom:10px;}
+  .cm-rows{display:flex;flex-direction:column;gap:5px;}
+  .cm-row{display:grid;grid-template-columns:200px 20px 1fr;align-items:center;gap:4px;}
+  .cm-trigger{font-size:10.5px;color:rgba(244,237,224,0.6);background:var(--mist);padding:4px 10px;border-radius:5px;}
+  .cm-arrow{text-align:center;color:rgba(244,237,224,0.2);font-size:12px;}
+  .cm-action{font-size:10.5px;color:rgba(255,107,61,0.8);}
+
+  /* 7. NUTRITION */
+  .nutri-matrix{display:grid;grid-template-columns:120px repeat(4,1fr);gap:0;border:1px solid rgba(244,237,224,0.08);border-radius:9px;overflow:hidden;margin-bottom:14px;}
+  .nm-header{background:rgba(244,237,224,0.04);padding:8px 10px;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.14em;text-transform:uppercase;color:rgba(244,237,224,0.4);border-bottom:1px solid rgba(244,237,224,0.07);}
+  .nm-phase{background:rgba(244,237,224,0.03);padding:8px 10px;font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.12em;text-transform:uppercase;color:rgba(244,237,224,0.6);border-bottom:1px solid rgba(244,237,224,0.06);border-right:1px solid rgba(244,237,224,0.07);}
+  .nm-cell{background:var(--mist);padding:8px 10px;border-bottom:1px solid rgba(244,237,224,0.05);border-right:1px solid rgba(244,237,224,0.05);font-size:9.5px;line-height:1.4;color:rgba(244,237,224,0.55);}
+  .nm-cell strong{color:rgba(244,237,224,0.85);display:block;font-size:10px;}
+  .nm-cell.high{background:rgba(212,255,38,0.04);}
+  .nm-cell.high strong{color:var(--pulse);}
+  .nm-cell.mod{background:rgba(244,237,224,0.02);}
+  .nm-cell:last-child,.nm-phase:last-child{border-bottom:none;}
+
+  /* 8. INSIGHTS */
+  .insights-split{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+  .is-box{border-radius:9px;padding:14px 16px;}
+  .is-local{background:var(--mist);border:1px solid rgba(244,237,224,0.08);}
+  .is-haiku{background:rgba(212,255,38,0.05);border:1.5px solid rgba(212,255,38,0.25);}
+  .is-apple{background:var(--mist);border:1px solid rgba(244,237,224,0.08);}
+  .is-label{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;margin-bottom:5px;}
+  .is-local .is-label{color:rgba(244,237,224,0.35);}
+  .is-haiku .is-label{color:var(--pulse);}
+  .is-apple .is-label{color:rgba(244,237,224,0.35);}
+  .is-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:16px;text-transform:uppercase;margin-bottom:8px;}
+  .is-local .is-name{color:rgba(244,237,224,0.7);}
+  .is-haiku .is-name{color:var(--pulse);}
+  .is-apple .is-name{color:rgba(244,237,224,0.5);}
+  .is-items{display:flex;flex-direction:column;gap:5px;}
+  .is-item{font-size:10px;line-height:1.4;color:rgba(244,237,224,0.45);padding-left:10px;border-left:2px solid;}
+  .is-local .is-item{border-color:rgba(244,237,224,0.1);}
+  .is-haiku .is-item{border-color:rgba(212,255,38,0.3);color:rgba(212,255,38,0.7);}
+  .is-apple .is-item{border-color:rgba(244,237,224,0.1);}
+  .is-note{margin-top:10px;font-size:9.5px;color:rgba(244,237,224,0.35);font-style:italic;line-height:1.45;}
+  .is-haiku .is-note{color:rgba(212,255,38,0.45);}
+
+  /* 9. PHASE 2 */
+  .p2-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+  .p2-card{background:var(--mist);border:1px dashed rgba(244,237,224,0.1);border-radius:9px;padding:13px 15px;opacity:0.7;}
+  .p2-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:14px;text-transform:uppercase;color:rgba(244,237,224,0.5);margin-bottom:3px;}
+  .p2-desc{font-size:10px;line-height:1.4;color:rgba(244,237,224,0.3);}
+
+  /* 10. BUILD SEQUENCE */
+  .build-phases{display:flex;flex-direction:column;gap:10px;}
+  .bp{border-radius:9px;padding:14px 16px;}
+  .bp-scaffold{background:rgba(212,255,38,0.05);border:1.5px solid rgba(212,255,38,0.3);}
+  .bp-core{background:var(--mist);border:1px solid rgba(244,237,224,0.1);}
+  .bp-hk{background:rgba(255,46,126,0.04);border:1px solid rgba(255,46,126,0.18);}
+  .bp-pay{background:rgba(255,107,61,0.05);border:1px solid rgba(255,107,61,0.25);}
+  .bp-header{display:flex;align-items:baseline;gap:10px;margin-bottom:8px;}
+  .bp-phase{font-family:'Space Mono',monospace;font-size:8px;letter-spacing:0.16em;text-transform:uppercase;}
+  .bp-scaffold .bp-phase{color:var(--pulse);}
+  .bp-core .bp-phase{color:rgba(244,237,224,0.4);}
+  .bp-hk .bp-phase{color:var(--heat);}
+  .bp-pay .bp-phase{color:var(--dawn);}
+  .bp-name{font-family:'Big Shoulders Display',sans-serif;font-weight:700;font-size:18px;text-transform:uppercase;}
+  .bp-scaffold .bp-name{color:var(--pulse);}
+  .bp-core .bp-name,.bp-hk .bp-name,.bp-pay .bp-name{color:var(--breath);}
+  .bp-tasks{display:flex;flex-wrap:wrap;gap:5px;}
+  .bp-task{font-size:10px;padding:3px 10px;border-radius:100px;background:rgba(244,237,224,0.05);color:rgba(244,237,224,0.55);font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.05em;}
+  .bp-scaffold .bp-task{background:rgba(212,255,38,0.1);color:rgba(212,255,38,0.8);}
+</style>
+</head>
+<body>
+
+<!-- STICKY NAV -->
+<nav class="doc-nav">
+  <div class="wordmark">VIRRA</div>
+  <a href="#brief">Brief</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#onboarding">Onboarding</a>
+  <a href="#navigation">Navigation</a>
+  <a href="#healthkit">HealthKit</a>
+  <a href="#notifications">Notifications</a>
+  <a href="#nutrition">Nutrition</a>
+  <a href="#insights">Insights</a>
+  <a href="#phase2">Phase 2</a>
+  <a href="#build">Build Sequence</a>
+</nav>
+
+<div class="doc-body">
+
+<!-- COVER -->
+<div class="cover">
+  <div class="cover-kicker">MVP Master Design Reference · v1.0 · May 2026</div>
+  <div class="cover-title">VIRRA</div>
+  <div class="cover-sub">A subscription app that replaces Runna + MyFitnessPal + a cycle tracker for women runners — with female health woven through every feature, not bolted on.</div>
+  <div class="cover-meta">
+    <span class="cover-pill cp-pulse">React Native · iOS first</span>
+    <span class="cover-pill cp-heat">Expo + expo-router</span>
+    <span class="cover-pill cp-muted">Supabase · RevenueCat · Nutritionix · HealthKit</span>
+    <span class="cover-pill cp-muted">Built with Claude Code</span>
+  </div>
+</div>
+
+<!-- ① BRIEF -->
+<div class="section">
+  <a class="section-anchor" id="brief"></a>
+  <div class="section-header">
+    <span class="section-num">01</span>
+    <span class="section-title">Brief & Stack</span>
+    <span class="section-desc">Decisions locked in</span>
+  </div>
+  <div class="brief-grid">
+    <div class="brief-card accent">
+      <div class="bc-label pulse">The VIRRA moats</div>
+      <div class="bc-value"><strong>Cycle phase engine:</strong> Every feature — training load, nutrition targets, recovery cues, insights — is informed by cycle phase. Not bolted on. This is what no competitor does.<br><br><strong>Fuelling language:</strong> No calorie restriction, no diet culture. Cycle-synced macro targets with "fuelling" framing throughout.</div>
+    </div>
+    <div class="brief-card">
+      <div class="bc-label">Tech stack</div>
+      <div class="stack-row"><span class="stack-item">Mobile framework</span><span class="stack-val">Expo + expo-router (iOS first, Android post-launch)</span></div>
+      <div class="stack-row"><span class="stack-item">Backend / auth / DB</span><span class="stack-val">Supabase (Postgres + RLS + Storage)</span></div>
+      <div class="stack-row"><span class="stack-item">Subscriptions</span><span class="stack-val">RevenueCat → 14-day trial → paid (15% Apple SBP)</span></div>
+      <div class="stack-row"><span class="stack-item">Food database</span><span class="stack-val">Nutritionix API (800k+ foods, barcode scan)</span></div>
+      <div class="stack-row"><span class="stack-item">Health data</span><span class="stack-val">Apple HealthKit via react-native-health</span></div>
+      <div class="stack-row"><span class="stack-item">State</span><span class="stack-val">Zustand (local, synced to Supabase)</span></div>
+      <div class="stack-row"><span class="stack-item">Notifications</span><span class="stack-val">Expo Notifications + APNs</span></div>
+      <div class="stack-row"><span class="stack-item">Insights AI</span><span class="stack-val">Haiku (narrative, cached) + on-device (metrics)</span></div>
+      <div class="stack-row"><span class="stack-item">Build approach</span><span class="stack-val">Scaffold-first — foundation before features</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ② ARCHITECTURE -->
+<div class="section">
+  <a class="section-anchor" id="architecture"></a>
+  <div class="section-header">
+    <span class="section-num">02</span>
+    <span class="section-title">System Architecture</span>
+    <span class="section-desc">3-layer: mobile · backend · external</span>
+  </div>
+  <div class="arch-grid">
+    <div class="arch-col">
+      <div class="arch-col-label">Mobile app · Expo + expo-router</div>
+      <div class="ab core">
+        <div class="ab-name">Cycle Phase Engine</div>
+        <div class="ab-desc">On-device, offline. Period date + cycle length + today → phase (menstrual / follicular / ovulatory / luteal). Pure deterministic math. No network round trip. Feeds all features.</div>
+      </div>
+      <div class="ab std" style="border-color:rgba(212,255,38,0.2)">
+        <div class="ab-name" style="color:rgba(212,255,38,0.8)">Training & Activity Framework</div>
+        <div class="ab-desc"><strong style="color:rgba(212,255,38,0.7)">MVP:</strong> Structured running plans (5K → marathon), cycle-adjusted weekly load, GPS run tracking.<br><strong style="color:rgba(244,237,224,0.45)">Framework:</strong> Generic activity log — type field accepts run / swim / strength / yoga / other. Multi-sport plans added post-MVP without schema changes.</div>
+      </div>
+      <div class="ab hk">
+        <div class="ab-name">Design System</div>
+        <div class="ab-desc">Vol. 02 tokens: Big Shoulders Display, Fraunces, Inter, Space Mono. Pulse (#D4FF26), Heat (#FF2E7E), Mile (#0A0A0F), Breath (#F4EDE0), Dawn (#FF6B3D).</div>
+      </div>
+      <div class="ab std">
+        <div class="ab-name">State · Zustand</div>
+        <div class="ab-desc">Local state for cycle phase, today's session, nutrition log. Synced to Supabase. Core features work offline.</div>
+      </div>
+    </div>
+    <div class="arch-col">
+      <div class="arch-col-label">Backend · Supabase</div>
+      <div class="ab core" style="border-color:rgba(212,255,38,0.25)">
+        <div class="ab-name" style="color:rgba(212,255,38,0.8)">Auth + Database</div>
+        <div class="ab-desc">Postgres. Row-level security per user. Email + Apple Sign-In. All user data scoped by RLS policy.</div>
+      </div>
+      <div class="ab std" style="border-color:rgba(212,255,38,0.15)">
+        <div class="ab-name" style="color:rgba(212,255,38,0.7)">Training Store</div>
+        <div class="ab-desc">Plan templates (sport_type extensible). User active plan instance. Planned sessions with cycle-phase load overrides. Activities table (generic type field). run_details child table for GPS/HR/splits.</div>
+      </div>
+      <div class="ab rev">
+        <div class="ab-name">RevenueCat</div>
+        <div class="ab-desc">Entitlement management. Validates App Store receipts. Webhook → Supabase subscriptions table. Trial-end reminders triggered via webhook at day 11 + day 13.</div>
+      </div>
+      <div class="ab std">
+        <div class="ab-name">Push · Expo + APNs</div>
+        <div class="ab-desc">State-aware. Notifications cancelled when their trigger action is completed. Never fires if action already done.</div>
+      </div>
+      <div class="ab std">
+        <div class="ab-name">Storage</div>
+        <div class="ab-desc">Article images, user avatars. CDN-backed Supabase Storage.</div>
+      </div>
+    </div>
+    <div class="arch-col">
+      <div class="arch-col-label">External services</div>
+      <div class="ab hk">
+        <div class="ab-name">Apple HealthKit</div>
+        <div class="ab-desc">Primary activity source. HKObserverQuery with background delivery. HKAnchoredObjectQuery for incremental imports. Reads: workouts, HR, steps, weight. Writes: completed workouts back to Health app. Auto-imports Apple Watch + Garmin/Wahoo via HealthKit bridge.</div>
+      </div>
+      <div class="ab std">
+        <div class="ab-name">Nutritionix API</div>
+        <div class="ab-desc">Food database + barcode scanning. Natural language search. Free tier sufficient for MVP volume.</div>
+      </div>
+      <div class="ab std" style="border-color:rgba(212,255,38,0.18)">
+        <div class="ab-name" style="color:rgba(212,255,38,0.65)">Claude Haiku</div>
+        <div class="ab-desc">Weekly/monthly narrative insights. Synthesises cycle phase + nutrition + training signals into non-repetitive, personalised copy. Response cached — not regenerated every session.</div>
+      </div>
+      <div class="ab ghost">
+        <div class="ab-name">Astro site (existing)</div>
+        <div class="ab-desc">virra.app — marketing + blog. Completely independent. No shared code.</div>
+      </div>
+    </div>
+  </div>
+  <span class="label pulse">Key Supabase tables</span>
+  <div class="schema-grid">
+    <div class="sg">
+      <div class="sg-label">Cycle</div>
+      <div class="st"><strong>cycle_logs</strong> <em>period_start, cycle_length, phase_overrides</em></div>
+      <div class="st"><strong>symptom_logs</strong> <em>date, energy, mood, sleep, symptoms[]</em></div>
+    </div>
+    <div class="sg">
+      <div class="sg-label">Training · extensible</div>
+      <div class="st"><strong>plan_templates</strong> <em>sport_type, weeks, sessions_json</em></div>
+      <div class="st"><strong>user_plans</strong> <em>template_id, start_date, goal_date</em></div>
+      <div class="st"><strong>activities</strong> <em>type: run|swim|strength|yoga|other · duration, distance, notes, phase_at_time, hk_uuid</em></div>
+      <div class="st"><strong>run_details</strong> <em>activity_id, gps_trace, avg_pace, splits, hr_avg</em></div>
+    </div>
+    <div class="sg">
+      <div class="sg-label">Nutrition</div>
+      <div class="st"><strong>nutrition_logs</strong> <em>date, phase_at_time, training_load, targets_json</em></div>
+      <div class="st"><strong>food_entries</strong> <em>log_id, meal_type, nutritionix_id, qty, macros</em></div>
+    </div>
+    <div class="sg">
+      <div class="sg-label">Content + Auth</div>
+      <div class="st"><strong>articles</strong> <em>title, body_md, tags[], linked_feature</em></div>
+      <div class="st"><strong>user_profiles</strong> <em>fitness_level, goal, dietary_prefs, baseline_pace, assessment_history[]</em></div>
+      <div class="st"><strong>fitness_assessments</strong> <em>date, stated_level, actual_pace, trigger, celebrated_at</em></div>
+      <div class="st"><strong>subscriptions</strong> <em>rc_customer_id, status, trial_end, activated_at</em></div>
+    </div>
+  </div>
+</div>
+
+<!-- ③ ONBOARDING -->
+<div class="section">
+  <a class="section-anchor" id="onboarding"></a>
+  <div class="section-header">
+    <span class="section-num">03</span>
+    <span class="section-title">Onboarding Flow</span>
+    <span class="section-desc">7 steps · new users only</span>
+  </div>
+  <div class="onboard-steps">
+    <div class="os os-std">
+      <div class="os-num">01</div>
+      <div class="os-name">Welcome</div>
+      <div class="os-desc">Value prop. What VIRRA is and why it's different from every other fitness app.</div>
+    </div>
+    <div class="os os-pulse">
+      <div class="os-num">02</div>
+      <div class="os-name">Fitness Assessment</div>
+      <div class="os-desc">Self-reported baseline. Dynamically revised against actual logged data over time.</div>
+      <div class="os-items">
+        <div class="os-item">Fitness level (beginner → advanced)</div>
+        <div class="os-item">Weekly mileage</div>
+        <div class="os-item">Recent race times</div>
+        <div class="os-item">Stored as baseline in profile</div>
+      </div>
+    </div>
+    <div class="os os-std">
+      <div class="os-num">03</div>
+      <div class="os-name">Running Goal</div>
+      <div class="os-desc">5K → marathon. Sets active training plan type from day one.</div>
+    </div>
+    <div class="os os-std">
+      <div class="os-num">04</div>
+      <div class="os-name">Cycle Data</div>
+      <div class="os-desc">Period start date, average cycle length, any irregularities noted. Activates the cycle phase engine immediately.</div>
+    </div>
+    <div class="os os-std">
+      <div class="os-num">05</div>
+      <div class="os-name">Dietary Prefs</div>
+      <div class="os-desc">Vegan, vegetarian, gluten-free, etc. Shapes nutrition guidance and food suggestions.</div>
+    </div>
+    <div class="os os-dawn">
+      <div class="os-num">06</div>
+      <div class="os-name">Permissions</div>
+      <div class="os-desc">Each explained with why before the iOS dialog fires. Never surprise-request.</div>
+      <div class="os-items">
+        <div class="os-item">Location / GPS — live run tracking</div>
+        <div class="os-item">HealthKit — HR, Watch sync, write workouts</div>
+        <div class="os-item">Notifications — reminders + trial alerts</div>
+        <div class="os-item">Camera — barcode scanning (food log)</div>
+      </div>
+    </div>
+    <div class="os os-rev">
+      <div class="os-num">07</div>
+      <div class="os-name">Paywall</div>
+      <div class="os-desc">14-day free trial. No charge without explicit opt-in action. Trial-end reminders at day 11 + 13. Monthly + annual tiers via RevenueCat.</div>
+    </div>
+  </div>
+  <div class="fa-callout">
+    <div class="fa-label">Fitness assessment — dynamic revision logic</div>
+    <div class="fa-grid">
+      <div class="fa-item"><strong>Initial state</strong>Self-reported (e.g. "45 min 5K, running 3× per week")</div>
+      <div class="fa-item"><strong>Trigger</strong>3+ logged activities consistently faster / more than stated baseline</div>
+      <div class="fa-item"><strong>Action</strong>Fitness Update modal fires — prompt to confirm new baseline + celebrate the improvement</div>
+      <div class="fa-item"><strong>History</strong>All assessment updates stored in fitness_assessments — plans adapt in real-time, history visible in Profile</div>
+    </div>
+  </div>
+</div>
+
+<!-- ④ NAVIGATION -->
+<div class="section">
+  <a class="section-anchor" id="navigation"></a>
+  <div class="section-header">
+    <span class="section-num">04</span>
+    <span class="section-title">Navigation & Screens</span>
+    <span class="section-desc">4 tabs + Profile drawer + 5 global modals</span>
+  </div>
+  <div class="tabs-row">
+    <div class="tab-card tc-pulse"><div class="tab-icon">⌂</div><div class="tab-name">Dashboard</div></div>
+    <div class="tab-card tc-std"><div class="tab-icon">⚡</div><div class="tab-name">Training</div></div>
+    <div class="tab-card tc-std"><div class="tab-icon">◎</div><div class="tab-name">Nutrition</div></div>
+    <div class="tab-card tc-std"><div class="tab-icon">▦</div><div class="tab-name">Library</div></div>
+  </div>
+  <div class="screens-grid">
+    <div class="sc-col">
+      <div class="sc prime"><div class="sc-name">Home Dashboard</div><div class="sc-desc">Today's session · Cycle phase indicator · Top fuelling cue for the day · Last run summary · Weekly progress ring</div></div>
+    </div>
+    <div class="sc-col">
+      <div class="sc prime"><div class="sc-name">Plan Overview</div><div class="sc-desc">Active plan · Week view · Cycle-adjusted load for each session</div></div>
+      <div class="sc"><div class="sc-name">Session Detail</div><div class="sc-desc">Today's workout — warm-up, main set, cool-down with cycle-phase notes</div></div>
+      <div class="sc updated"><div class="sc-name">Activity Timeline</div><div class="sc-desc">Chronological log of all activities (all types). Aggregated insights pinned to top: streak, total distance, avg pace trend, phase correlation</div><span class="tag t-new" style="margin-top:5px;display:inline-block">Updated</span></div>
+      <div class="sc"><div class="sc-name">Plan Selection</div><div class="sc-desc">Browse + start a new training plan</div></div>
+      <div class="isplit">
+        <div class="ib ib-local"><div class="ib-label">On-device</div><div class="ib-content">Streak · Distance totals · Adherence % · Phase avg pace</div></div>
+        <div class="ib ib-ai"><div class="ib-label">Haiku</div><div class="ib-content">Weekly narrative · Anomaly detection · Cached</div></div>
+      </div>
+    </div>
+    <div class="sc-col">
+      <div class="sc prime updated"><div class="sc-name">Daily Log</div><div class="sc-desc">Targets from <strong style="color:var(--dawn)">cycle phase × training load</strong> combined. Rest day luteal ≠ long run day luteal. Fuelling language only — no restriction framing.</div><span class="tag t-new" style="margin-top:5px;display:inline-block">Cycle × Training</span></div>
+      <div class="sc"><div class="sc-name">Meal Detail</div><div class="sc-desc">Entries per meal (breakfast / lunch / dinner / snacks) · Edit · Delete</div></div>
+      <div class="sc"><div class="sc-name">Nutrition History</div><div class="sc-desc">7-day consistency view with phase overlay</div></div>
+      <div class="isplit">
+        <div class="ib ib-local"><div class="ib-label">On-device</div><div class="ib-content">Targets matrix · Consistency score · Macro rings</div></div>
+        <div class="ib ib-ai"><div class="ib-label">Haiku</div><div class="ib-content">Monthly fuelling narrative · Pattern insights</div></div>
+      </div>
+    </div>
+    <div class="sc-col">
+      <div class="sc prime"><div class="sc-name">Education Hub</div><div class="sc-desc">Browse articles by topic: cycle phases & performance, fuelling for women, RED-S, perimenopause, iron deficiency, hormones & training</div></div>
+      <div class="sc"><div class="sc-name">Article Viewer</div><div class="sc-desc">Full article. Contextually linked from Training + Nutrition features throughout the app.</div></div>
+      <div class="sc"><div class="sc-name">Saved Articles</div><div class="sc-desc">User's bookmarked reading list</div></div>
+    </div>
+  </div>
+  <div class="profile-drawer">
+    <div class="pd-header">
+      <div class="pd-label">⊙ Profile drawer — top-right button on Dashboard</div>
+      <div class="pd-note">Not a tab — keeps tab bar focused on core features</div>
+    </div>
+    <div class="pd-grid">
+      <div class="pd-item"><div class="pd-name">Your Profile</div><div class="pd-desc">Fitness assessment · History of baseline updates + celebrations · Running goal</div></div>
+      <div class="pd-item"><div class="pd-name">Cycle Settings</div><div class="pd-desc">Update period start date · Average cycle length · Irregularity notes</div></div>
+      <div class="pd-item"><div class="pd-name">Subscription</div><div class="pd-desc">Trial status · Trial end date · Monthly vs annual · Manage / cancel link</div></div>
+      <div class="pd-item"><div class="pd-name">Notifications</div><div class="pd-desc">Training reminders · Phase shift alerts · Fuelling cues · Trial-end reminders — all individually toggleable</div></div>
+    </div>
+  </div>
+  <hr class="div">
+  <span class="label heat">Global modals — accessible from multiple tabs</span>
+  <div class="modals-grid">
+    <div class="mc"><div class="mc-name">Run Tracker</div><div class="mc-desc">Live GPS. Pace, distance, HR, elapsed time. Pause / stop / save. Writes to activities + run_details + HealthKit on completion.</div><div class="mc-from">From: Dashboard · Training</div></div>
+    <div class="mc"><div class="mc-name">Manual Activity</div><div class="mc-desc">Fallback only. Type selector (run, swim, strength, yoga, other), duration, distance, perceived effort. For when Watch / iPhone GPS unavailable.</div><div class="mc-from">From: Training · fallback prompt</div></div>
+    <div class="mc"><div class="mc-name">Food Entry</div><div class="mc-desc">Nutritionix search · Barcode camera scan · Recent foods list. Adds to today's meal log. Cancels pending nutrition reminder on save.</div><div class="mc-from">From: Nutrition tab</div></div>
+    <div class="mc"><div class="mc-name">Daily Check-in</div><div class="mc-desc">Quick wellbeing log: energy, mood, sleep, symptoms. Feeds training load adjustments. Cancels check-in notification on submit.</div><div class="mc-from">From: Dashboard · push notification</div></div>
+    <div class="mc"><div class="mc-name">Fitness Update</div><div class="mc-desc">Engine-triggered when actual data consistently outpaces stated baseline. Celebrate improvement · Confirm new baseline · Update plan intensity.</div><div class="mc-from">Auto-triggered by engine</div></div>
+  </div>
+</div>
+
+<!-- ⑤ HEALTHKIT -->
+<div class="section">
+  <a class="section-anchor" id="healthkit"></a>
+  <div class="section-header">
+    <span class="section-num">05</span>
+    <span class="section-title">HealthKit-first Activity Import</span>
+    <span class="section-desc">Passive collection · manual is last resort</span>
+  </div>
+  <div class="hk-sources">
+    <div class="hk-card hk-primary">
+      <div class="hk-priority">Primary · auto</div>
+      <div class="hk-name">Apple Watch</div>
+      <div class="hk-desc">Workouts sync to HealthKit on completion. HKObserverQuery fires in background — app imports silently. GPS trace, HR, pace, splits, calories. Zero user action required.</div>
+      <span class="tag t-heat" style="margin-top:8px;display:inline-block">Background · silent</span>
+    </div>
+    <div class="hk-card hk-primary">
+      <div class="hk-priority">Primary · in-app</div>
+      <div class="hk-name">iPhone GPS</div>
+      <div class="hk-desc">In-app GPS run tracker for users without Watch. Records live session, writes to HealthKit on save. Same observer picks it up — no double import.</div>
+      <span class="tag t-heat" style="margin-top:8px;display:inline-block">In-app · auto-saved</span>
+    </div>
+    <div class="hk-card hk-secondary">
+      <div class="hk-priority">Secondary · bridge</div>
+      <div class="hk-name">Garmin / Wahoo</div>
+      <div class="hk-desc">Third-party devices that write to Apple Health via their own apps. HKObserverQuery catches these too. No additional Virra integration needed at MVP.</div>
+      <span class="tag t-muted" style="margin-top:8px;display:inline-block">Via HealthKit bridge</span>
+    </div>
+    <div class="hk-card hk-fallback">
+      <div class="hk-priority">Fallback only</div>
+      <div class="hk-name">Manual Log</div>
+      <div class="hk-desc">Pool swim, gym without phone, travel. Explicitly positioned as "didn't have your watch?" Not surfaced as a primary CTA.</div>
+      <span class="tag t-muted" style="margin-top:8px;display:inline-block;opacity:0.5">Explicit fallback</span>
+    </div>
+  </div>
+  <span class="label pulse">Background import pipeline</span>
+  <div class="pipeline">
+    <div class="pipe pipe-pulse"><div class="pipe-num">01</div><div class="pipe-name">HKObserverQuery</div><div class="pipe-desc">Background delivery enabled. iOS wakes app on new HKWorkout / weight / HR sample.</div></div>
+    <div class="pipe-arr">→</div>
+    <div class="pipe pipe-pulse"><div class="pipe-num">02</div><div class="pipe-name">HKAnchoredObjectQuery</div><div class="pipe-desc">Incremental fetch. Only pulls data added since last anchor. No duplicates.</div></div>
+    <div class="pipe-arr">→</div>
+    <div class="pipe pipe-std"><div class="pipe-num">03</div><div class="pipe-name">Dedup + map</div><div class="pipe-desc">Check hk_uuid against existing activities. Map HKWorkout → activities + run_details rows.</div></div>
+    <div class="pipe-arr">→</div>
+    <div class="pipe pipe-std"><div class="pipe-num">04</div><div class="pipe-name">Link to plan</div><div class="pipe-desc">If planned session exists for today and type matches — auto-mark session complete.</div></div>
+    <div class="pipe-arr">→</div>
+    <div class="pipe pipe-dawn"><div class="pipe-num">05</div><div class="pipe-name">Cancel notification</div><div class="pipe-desc">Cancel pending training reminder. User never sees a stale prompt for a completed action.</div></div>
+    <div class="pipe-arr">→</div>
+    <div class="pipe pipe-pulse"><div class="pipe-num">06</div><div class="pipe-name">Surface to Dashboard</div><div class="pipe-desc">"We got your 5.2km run" confirmation card. One tap to add notes or view cycle context.</div></div>
+  </div>
+</div>
+
+<!-- ⑥ NOTIFICATIONS -->
+<div class="section">
+  <a class="section-anchor" id="notifications"></a>
+  <div class="section-header">
+    <span class="section-num">06</span>
+    <span class="section-title">Smart Notifications</span>
+    <span class="section-desc">State-aware · cancelled when action completed</span>
+  </div>
+  <div class="notif-grid">
+    <div class="nc nc-smart">
+      <div class="nc-ctx">Training</div>
+      <div class="nc-title">Run Reminder</div>
+      <div class="notif-bubble"><div class="nb-app">VIRRA · 6:30pm</div><div class="nb-text">Your easy 5K is on the plan today — good time to head out.</div></div>
+      <div class="nc-logic"><span class="c">✓</span> Fires if no matching workout in HealthKit today<br><span class="x">✕</span> Cancelled the moment HKObserver detects completed run<br><span class="c">✓</span> Time personalised to user's typical run window</div>
+    </div>
+    <div class="nc nc-smart">
+      <div class="nc-ctx">Nutrition</div>
+      <div class="nc-title">Meal Log</div>
+      <div class="notif-bubble"><div class="nb-app">VIRRA · 1:00pm</div><div class="nb-text">Luteal phase today — higher carbs help. Log your lunch to hit your targets.</div></div>
+      <div class="nc-logic"><span class="c">✓</span> Fires if that meal slot has no entries<br><span class="x">✕</span> Cancelled when first food entry saved<br><span class="c">✓</span> Message adapts to current cycle phase at send time</div>
+    </div>
+    <div class="nc nc-smart">
+      <div class="nc-ctx">Wellbeing</div>
+      <div class="nc-title">Daily Check-in</div>
+      <div class="notif-bubble"><div class="nb-app">VIRRA · 8:00am</div><div class="nb-text">Day 2 of luteal phase. How are you feeling today?</div></div>
+      <div class="nc-logic"><span class="c">✓</span> Fires if no check-in submitted today<br><span class="x">✕</span> Cancelled when check-in saved<br><span class="c">✓</span> Phase-aware copy generated at send time</div>
+    </div>
+    <div class="nc nc-smart">
+      <div class="nc-ctx">Subscription</div>
+      <div class="nc-title">Trial Ending</div>
+      <div class="notif-bubble"><div class="nb-app">VIRRA · Day 11 of trial</div><div class="nb-text">3 days left — you've logged 4 runs and hit your targets 6/7 days.</div></div>
+      <div class="nc-logic"><span class="c">✓</span> Fires day 11 + day 13 of trial<br><span class="x">✕</span> Cancelled if subscription already activated<br><span class="c">✓</span> Personalised with actual usage stats, not generic copy</div>
+    </div>
+    <div class="nc nc-smart">
+      <div class="nc-ctx">Fitness assessment</div>
+      <div class="nc-title">New Baseline</div>
+      <div class="notif-bubble"><div class="nb-app">VIRRA</div><div class="nb-text">You've been consistently running faster than your stated baseline — you're stronger than you think.</div></div>
+      <div class="nc-logic"><span class="c">✓</span> Triggers after 3+ runs exceed stated baseline<br><span class="x">✕</span> Cancelled if profile already updated<br><span class="c">✓</span> Once per threshold — never repeats</div>
+    </div>
+    <div class="nc nc-anti">
+      <div class="nc-ctx" style="display:flex;justify-content:space-between"><span>Anti-pattern — explicitly avoided</span></div>
+      <div class="nc-title">Blind Reminder</div>
+      <div class="notif-bubble"><div class="nb-app">RENPHO · 8:00am</div><div class="nb-text">Time to weigh yourself!</div></div>
+      <div class="nc-logic"><span class="x">✕</span> Fires daily regardless of whether already done<br><span class="x">✕</span> No state check, no cancellation logic<br><span class="x">✕</span> Trains users to dismiss everything</div>
+    </div>
+  </div>
+  <div class="cancel-map">
+    <div class="cm-label">Cancellation trigger map</div>
+    <div class="cm-rows">
+      <div class="cm-row"><div class="cm-trigger">HealthKit workout detected</div><div class="cm-arrow">→</div><div class="cm-action">Cancel: training reminder for that day</div></div>
+      <div class="cm-row"><div class="cm-trigger">Food entry added (any meal)</div><div class="cm-arrow">→</div><div class="cm-action">Cancel: nutrition reminder for that meal slot</div></div>
+      <div class="cm-row"><div class="cm-trigger">Daily check-in submitted</div><div class="cm-arrow">→</div><div class="cm-action">Cancel: check-in reminder for today</div></div>
+      <div class="cm-row"><div class="cm-trigger">RevenueCat subscription active</div><div class="cm-arrow">→</div><div class="cm-action">Cancel: all pending trial-end reminders</div></div>
+      <div class="cm-row"><div class="cm-trigger">Fitness profile updated</div><div class="cm-arrow">→</div><div class="cm-action">Cancel: pending baseline update notification</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ⑦ NUTRITION -->
+<div class="section">
+  <a class="section-anchor" id="nutrition"></a>
+  <div class="section-header">
+    <span class="section-num">07</span>
+    <span class="section-title">Nutrition Logic</span>
+    <span class="section-desc">Cycle phase × training load · fuelling language only</span>
+  </div>
+  <span class="label pulse">Target matrix — cycle phase × session type determines daily macro targets</span>
+  <div class="nutri-matrix">
+    <div class="nm-header"></div>
+    <div class="nm-header">Rest day</div>
+    <div class="nm-header">Easy run</div>
+    <div class="nm-header">Long run</div>
+    <div class="nm-header">Intervals</div>
+
+    <div class="nm-phase">Menstrual</div>
+    <div class="nm-cell"><strong>Baseline</strong>Iron-rich foods flagged · gentle fuelling cues</div>
+    <div class="nm-cell"><strong>Moderate carbs</strong>Energy support · anti-inflammatory focus</div>
+    <div class="nm-cell"><strong>Higher carbs</strong>Fuel the effort despite low energy phase</div>
+    <div class="nm-cell"><strong>Higher carbs + protein</strong>Recovery emphasis</div>
+
+    <div class="nm-phase">Follicular</div>
+    <div class="nm-cell"><strong>Standard</strong>Building phase — balanced macros</div>
+    <div class="nm-cell nm-cell mod"><strong>Moderate carbs</strong>Energy is rising — lighter fuelling fine</div>
+    <div class="nm-cell nm-cell high"><strong>Higher carbs</strong>Peak adaptation window — fuel it well</div>
+    <div class="nm-cell nm-cell high"><strong>High carbs + protein</strong>Best gains here — prioritise recovery</div>
+
+    <div class="nm-phase">Ovulatory</div>
+    <div class="nm-cell"><strong>Standard</strong>Protein emphasis for muscle support</div>
+    <div class="nm-cell nm-cell mod"><strong>Moderate carbs</strong>Energy peak — body efficient here</div>
+    <div class="nm-cell nm-cell high"><strong>Higher carbs</strong>Top performance window</div>
+    <div class="nm-cell nm-cell high"><strong>High carbs + protein</strong>Maximise the peak</div>
+
+    <div class="nm-phase" style="border-bottom:none">Luteal</div>
+    <div class="nm-cell" style="border-bottom:none"><strong>Higher carbs</strong>Cravings are real — honour them with quality fuel</div>
+    <div class="nm-cell" style="border-bottom:none"><strong>Higher carbs</strong>More effort feels harder — support it</div>
+    <div class="nm-cell nm-cell high" style="border-bottom:none"><strong>Highest carbs</strong>Biggest fuelling need of the cycle</div>
+    <div class="nm-cell nm-cell high" style="border-bottom:none"><strong>High carbs + protein</strong>Recovery takes longer — fuel accordingly</div>
+  </div>
+</div>
+
+<!-- ⑧ INSIGHTS -->
+<div class="section">
+  <a class="section-anchor" id="insights"></a>
+  <div class="section-header">
+    <span class="section-num">08</span>
+    <span class="section-title">Insights Intelligence</span>
+    <span class="section-desc">On-device metrics · Haiku narratives · Apple Intelligence surface</span>
+  </div>
+  <div class="insights-split">
+    <div class="is-box is-local">
+      <div class="is-label">On-device · free · offline · instant</div>
+      <div class="is-name">Local Engine</div>
+      <div class="is-items">
+        <div class="is-item">Training streak calculations</div>
+        <div class="is-item">Phase-by-phase pace averages</div>
+        <div class="is-item">Plan adherence percentage</div>
+        <div class="is-item">Nutrition consistency scores</div>
+        <div class="is-item">Weekly / monthly distance totals</div>
+        <div class="is-item">Cycle × performance correlation (simple)</div>
+        <div class="is-item">Fitness baseline comparison logic</div>
+      </div>
+      <div class="is-note">All deterministic math. No AI needed. No latency.</div>
+    </div>
+    <div class="is-box is-haiku">
+      <div class="is-label">Claude Haiku · ~$0.25 / 1M tokens · cached</div>
+      <div class="is-name">Narrative Insights</div>
+      <div class="is-items">
+        <div class="is-item">Weekly narrative: synthesises cycle + nutrition + training into non-repetitive, personalised copy</div>
+        <div class="is-item">Monthly summary: what worked, what didn't, what's changing</div>
+        <div class="is-item">Anomaly detection with explanation ("your sleep dipped, your pace followed — they're connected")</div>
+        <div class="is-item">Personalised fuelling recommendations connecting multiple signals</div>
+        <div class="is-item">Fitness baseline celebration copy</div>
+      </div>
+      <div class="is-note">Generated weekly/monthly. Response cached — not regenerated every session. Negligible cost at MVP scale.</div>
+    </div>
+    <div class="is-box is-apple">
+      <div class="is-label">Apple Intelligence · iOS 18.1+ · on-device · no cost</div>
+      <div class="is-name">Enhancement Layer</div>
+      <div class="is-items">
+        <div class="is-item">Notification summarisation (iOS handles)</div>
+        <div class="is-item">Siri integration — "what's my workout today?"</div>
+        <div class="is-item">On-device article summarisation</div>
+        <div class="is-item">Writing tools on user-entered notes</div>
+      </div>
+      <div class="is-note">Treat as a bonus — Apple controls scope. Don't architect core features around it.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ⑨ PHASE 2 -->
+<div class="section">
+  <a class="section-anchor" id="phase2"></a>
+  <div class="section-header">
+    <span class="section-num">09</span>
+    <span class="section-title">Phase 2</span>
+    <span class="section-desc">Post-launch — build when you have users and revenue</span>
+  </div>
+  <div class="p2-grid">
+    <div class="p2-card"><div class="p2-name">Multi-sport Structured Plans</div><div class="p2-desc">Swim, strength, cycling plans. Schema already supports it — sport_type field on plan_templates. Just needs plan content + UI.</div></div>
+    <div class="p2-card"><div class="p2-name">Community & Social</div><div class="p2-desc">Group challenges, community feed, follow other runners. Build when you have enough users to feel alive.</div></div>
+    <div class="p2-card"><div class="p2-name">Route Planning</div><div class="p2-desc">Discover and save running routes. Low differentiation vs Strava — deprioritise until core is strong.</div></div>
+    <div class="p2-card"><div class="p2-name">Coach-to-Client Portal</div><div class="p2-desc">Assign custom plans to individual clients. Trainerize replacement. Build once consumer side is validated.</div></div>
+    <div class="p2-card"><div class="p2-name">Perimenopause Track</div><div class="p2-desc">Dedicated track with adapted training + nutrition. Massive underserved market. Needs its own content investment.</div></div>
+    <div class="p2-card"><div class="p2-name">Strava Integration</div><div class="p2-desc">Two-way sync. VIRRA becomes the brain, Strava the social layer. Reduces acquisition friction.</div></div>
+    <div class="p2-card"><div class="p2-name">Race Day Planning</div><div class="p2-desc">Pre-race fuelling plan, taper guidance, cycle-phase-aware race day strategy.</div></div>
+    <div class="p2-card"><div class="p2-name">Android</div><div class="p2-desc">React Native already supports it. Launch 2-3 months post iOS once product is stable.</div></div>
+    <div class="p2-card"><div class="p2-name">Wearable Expansion</div><div class="p2-desc">Direct Garmin Connect IQ + Wahoo API integration beyond the HealthKit bridge.</div></div>
+  </div>
+</div>
+
+<!-- ⑩ BUILD SEQUENCE -->
+<div class="section">
+  <a class="section-anchor" id="build"></a>
+  <div class="section-header">
+    <span class="section-num">10</span>
+    <span class="section-title">Build Sequence</span>
+    <span class="section-desc">Scaffold-first · foundation before features</span>
+  </div>
+  <div class="build-phases">
+    <div class="bp bp-scaffold">
+      <div class="bp-header">
+        <span class="bp-phase">Phase A · Foundation</span>
+        <span class="bp-name">Scaffold</span>
+      </div>
+      <div class="bp-tasks">
+        <span class="bp-task">Expo + expo-router init</span>
+        <span class="bp-task">Supabase project + all schema tables</span>
+        <span class="bp-task">Design system tokens + component library</span>
+        <span class="bp-task">Auth flow (email + Apple Sign-In)</span>
+        <span class="bp-task">Navigation shell (4 tabs + Profile drawer)</span>
+        <span class="bp-task">RevenueCat paywall integration</span>
+        <span class="bp-task">Zustand store setup</span>
+        <span class="bp-task">HealthKit permissions + observer setup</span>
+      </div>
+    </div>
+    <div class="bp bp-core">
+      <div class="bp-header">
+        <span class="bp-phase">Phase B · Core features</span>
+        <span class="bp-name">VIRRA Moats</span>
+      </div>
+      <div class="bp-tasks">
+        <span class="bp-task">Cycle phase engine (on-device)</span>
+        <span class="bp-task">Onboarding flow (all 7 steps)</span>
+        <span class="bp-task">Dashboard home screen</span>
+        <span class="bp-task">Training plan templates + active plan view</span>
+        <span class="bp-task">Nutrition daily log (cycle × training matrix)</span>
+        <span class="bp-task">Education Library + Article viewer</span>
+        <span class="bp-task">Daily check-in modal</span>
+        <span class="bp-task">Fitness assessment dynamic logic</span>
+      </div>
+    </div>
+    <div class="bp bp-hk">
+      <div class="bp-header">
+        <span class="bp-phase">Phase C · Data collection</span>
+        <span class="bp-name">Activity + Food</span>
+      </div>
+      <div class="bp-tasks">
+        <span class="bp-task">HealthKit background import pipeline</span>
+        <span class="bp-task">GPS run tracker (in-app)</span>
+        <span class="bp-task">Activity Timeline screen</span>
+        <span class="bp-task">Nutritionix food search + barcode scan</span>
+        <span class="bp-task">Manual activity log (fallback)</span>
+        <span class="bp-task">Smart notification cancellation logic</span>
+      </div>
+    </div>
+    <div class="bp bp-pay">
+      <div class="bp-header">
+        <span class="bp-phase">Phase D · Intelligence + Polish</span>
+        <span class="bp-name">Insights + Ship</span>
+      </div>
+      <div class="bp-tasks">
+        <span class="bp-task">On-device insight metrics</span>
+        <span class="bp-task">Haiku narrative insights (weekly + monthly)</span>
+        <span class="bp-task">Progress / Insights screen</span>
+        <span class="bp-task">Push notification scheduling</span>
+        <span class="bp-task">Profile + subscription management</span>
+        <span class="bp-task">App Store submission prep</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end doc-body -->
+</body>
+</html>
