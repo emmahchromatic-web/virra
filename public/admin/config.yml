@@ -3,7 +3,7 @@ backend:
   repo: emmahchromatic-web/virra
   branch: main
   auth_type: pkce
-  app_id: YOUR_OAUTH_CLIENT_ID
+  app_id: Ov23lisoRa0e0hpNNvgu
 
 publish_mode: editorial_workflow
 
