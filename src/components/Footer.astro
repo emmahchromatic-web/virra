@@ -1,0 +1,41 @@
+---
+const year = new Date().getFullYear();
+---
+<footer class="site-footer">
+  <div class="f-wrap">
+    <span class="cp">&copy; {year} Virra. All rights reserved.</span>
+    <div class="pl">
+      <span>iOS</span>
+      <span>&mdash;</span>
+      <span>Android</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    padding: 30px 0;
+    border-top: 1px solid var(--border);
+  }
+  .f-wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 52px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cp { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.06em; }
+  .pl {
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(235,230,218,0.22);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  @media (max-width: 680px) {
+    .f-wrap { padding: 0 28px; flex-direction: column; gap: 14px; }
+  }
+</style>

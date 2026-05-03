@@ -1,0 +1,56 @@
+:root {
+  --lime: #C8FF45;
+  --pink: #FF3575;
+  --bg: #09090A;
+  --text: #EBE6DA;
+  --muted: rgba(235,230,218,0.35);
+  --border: rgba(235,230,218,0.08);
+  --font-display: 'Cormorant', serif;
+  --font-body: 'Outfit', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-weight: 300;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grain overlay — applied once globally */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 999;
+}
+
+/* Prose styles — used inside .prose wrapper in BlogPostLayout */
+.prose h2 { font-family: var(--font-display); font-size: 2rem; font-weight: 400; color: var(--text); margin: 2.5rem 0 1rem; line-height: 1.1; }
+.prose h3 { font-family: var(--font-display); font-size: 1.5rem; font-weight: 400; color: var(--text); margin: 2rem 0 0.75rem; line-height: 1.1; }
+.prose p { font-size: 1.05rem; line-height: 1.82; color: rgba(235,230,218,0.72); margin-bottom: 1.5rem; }
+.prose a { color: var(--lime); text-decoration: underline; text-underline-offset: 3px; }
+.prose strong { color: var(--text); font-weight: 500; }
+.prose em { font-style: italic; }
+.prose ul, .prose ol { padding-left: 1.5rem; margin-bottom: 1.5rem; }
+.prose li { font-size: 1.05rem; line-height: 1.8; color: rgba(235,230,218,0.72); margin-bottom: 0.5rem; }
+.prose blockquote {
+  border-left: 2px solid var(--lime);
+  padding-left: 1.5rem;
+  margin: 2rem 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.4rem;
+  font-weight: 300;
+  color: var(--text);
+  line-height: 1.5;
+}
+.prose img { width: 100%; border-radius: 4px; margin: 2rem 0; }
+.prose hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }

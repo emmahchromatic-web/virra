@@ -1,0 +1,50 @@
+---
+---
+<header class="site-header">
+  <div class="h-wrap">
+    <a href="/" class="logo">VIRRA<em>.</em></a>
+    <nav>
+      <a href="/blog">Journal</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .site-header {
+    padding: 36px 0;
+    position: relative;
+    z-index: 10;
+    animation: hdrUp 0.7s ease 0.1s both;
+  }
+  .h-wrap {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 0 52px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .logo {
+    font-family: 'Cormorant', serif;
+    font-weight: 600;
+    font-size: 1.7rem;
+    letter-spacing: 0.28em;
+    color: var(--text);
+    text-decoration: none;
+  }
+  .logo em { color: var(--lime); font-style: normal; }
+  nav a {
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  nav a:hover { color: var(--text); }
+  @keyframes hdrUp {
+    from { opacity: 0; transform: translateY(-12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @media (max-width: 680px) { .h-wrap { padding: 0 28px; } }
+</style>

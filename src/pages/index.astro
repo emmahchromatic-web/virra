@@ -1,3 +1,197 @@
 ---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
 ---
-<html lang="en"><body><p>placeholder</p></body></html>
+<BaseLayout
+  title="Virra — Coming Soon"
+  description="The first premium health and fitness platform built for women. Train, nourish, and thrive — all in one app."
+>
+  <div class="glow-lime" aria-hidden="true"></div>
+  <div class="glow-pink" aria-hidden="true"></div>
+  <div class="side-label" aria-hidden="true">Health &bull; Nutrition &bull; Performance</div>
+
+  <Header />
+
+  <main>
+    <div class="wrap">
+      <section class="hero">
+        <p class="eyebrow">Your whole health, unified</p>
+
+        <h1>
+          <span class="lw"><span class="li">Train.</span></span>
+          <span class="lw"><span class="li it cl">Nourish.</span></span>
+          <span class="lw"><span class="li">Thrive.</span></span>
+        </h1>
+
+        <span class="rule" aria-hidden="true"></span>
+
+        <p class="sub">
+          The first premium platform built for women who want it all &mdash; workouts,
+          nutrition, and progress tracking unified in one beautifully crafted app.
+        </p>
+
+        <div class="tags" aria-label="Supported disciplines">
+          <span class="tag">Running</span>
+          <span class="tag">Cycling</span>
+          <span class="tag">Strength</span>
+          <span class="tag">Yoga</span>
+          <span class="tag">Pilates</span>
+          <span class="tag">Nutrition</span>
+          <span class="tag">Progress</span>
+        </div>
+      </section>
+
+      <section class="signup" aria-labelledby="waitlist-label">
+        <label id="waitlist-label" class="signup-lbl">Join the waitlist</label>
+        <form
+          class="form"
+          id="frm"
+          action="https://formspree.io/f/YOUR_FORMSPREE_ID"
+          method="POST"
+        >
+          <input
+            type="email"
+            name="email"
+            placeholder="your@email.com"
+            autocomplete="email"
+            required
+          >
+          <button type="submit">Get Early Access</button>
+        </form>
+        <p class="ok" id="ok" hidden>You&rsquo;re on the list &mdash; we&rsquo;ll be in touch soon.</p>
+        <p class="note">No spam, ever. Unsubscribe at any time.</p>
+      </section>
+    </div>
+  </main>
+
+  <Footer />
+</BaseLayout>
+
+<style>
+  .glow-lime {
+    position: fixed; top: -280px; left: -180px;
+    width: 650px; height: 650px;
+    background: radial-gradient(circle, rgba(200,255,69,0.13) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .glow-pink {
+    position: fixed; bottom: -280px; right: -180px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(255,53,117,0.10) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .side-label {
+    position: fixed; right: 28px; top: 50%;
+    transform: rotate(90deg) translateX(-50%);
+    transform-origin: right;
+    font-size: 0.58rem; letter-spacing: 0.35em; text-transform: uppercase;
+    color: rgba(200,255,69,0.2); white-space: nowrap;
+    animation: fade 1.5s ease 1.8s both;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 52px; }
+
+  /* Hero */
+  .hero { padding: 96px 0 72px; }
+  .eyebrow {
+    font-size: 0.7rem; font-weight: 400; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--lime); margin-bottom: 44px;
+    animation: up 0.7s ease 0.4s both;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .eyebrow::after { content: ''; width: 38px; height: 1px; background: currentColor; opacity: 0.5; display: block; }
+  h1 {
+    font-family: 'Cormorant', serif;
+    font-size: clamp(5.5rem, 13vw, 10.5rem);
+    font-weight: 300; line-height: 0.88;
+    letter-spacing: -0.01em; margin-bottom: 52px;
+  }
+  .lw { display: block; overflow: hidden; }
+  .li { display: block; transform: translateY(110%); opacity: 0; }
+  .lw:nth-child(1) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.5s forwards; }
+  .lw:nth-child(2) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.64s forwards; }
+  .lw:nth-child(3) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.78s forwards; }
+  .it { font-style: italic; }
+  .cl { color: var(--lime); }
+  .rule {
+    display: block; width: 0; height: 1px;
+    background: linear-gradient(90deg, var(--lime), transparent);
+    margin-bottom: 32px;
+    animation: widen 0.9s ease 1.1s forwards; opacity: 0;
+  }
+  .sub {
+    font-size: 1.05rem; font-weight: 300; line-height: 1.78;
+    color: rgba(235,230,218,0.5); max-width: 450px;
+    animation: up 0.7s ease 1.0s both;
+  }
+  .tags {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px;
+    animation: up 0.7s ease 1.15s both;
+  }
+  .tag {
+    font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
+    border: 1px solid rgba(200,255,69,0.18); color: rgba(200,255,69,0.58);
+    padding: 5px 13px; border-radius: 2px;
+  }
+
+  /* Signup */
+  .signup { padding: 60px 0; border-top: 1px solid var(--border); animation: up 0.7s ease 1.3s both; }
+  .signup-lbl {
+    font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 20px; display: block;
+  }
+  .form { display: flex; gap: 10px; max-width: 460px; }
+  .form input[type=email] {
+    flex: 1; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.9rem;
+    font-weight: 300; padding: 14px 20px; border-radius: 3px; outline: none;
+    transition: border-color 0.25s, background 0.25s;
+  }
+  .form input[type=email]::placeholder { color: var(--muted); }
+  .form input[type=email]:focus {
+    border-color: rgba(200,255,69,0.38);
+    background: rgba(200,255,69,0.03);
+  }
+  .form button {
+    background: var(--lime); color: #09090A; border: none;
+    font-family: 'Outfit', sans-serif; font-size: 0.72rem; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    padding: 14px 26px; border-radius: 3px; cursor: pointer;
+    transition: background 0.2s, transform 0.15s; white-space: nowrap;
+  }
+  .form button:hover { background: #d6ff5e; transform: translateY(-1px); }
+  .form button:active { transform: translateY(0); }
+  .ok { color: var(--lime); font-size: 0.92rem; padding: 14px 0; }
+  .note { margin-top: 14px; font-size: 0.68rem; color: var(--muted); }
+
+  @keyframes up { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fade { from { opacity:0; } to { opacity:1; } }
+  @keyframes slide { to { transform:translateY(0); opacity:1; } }
+  @keyframes widen { from { width:0; opacity:0; } to { width:80px; opacity:1; } }
+
+  @media (max-width: 680px) {
+    .wrap { padding: 0 28px; }
+    h1 { font-size: clamp(4rem, 15vw, 6rem); }
+    .form { flex-direction: column; }
+    .side-label { display: none; }
+  }
+</style>
+
+<script>
+  const form = document.getElementById('frm') as HTMLFormElement;
+  const ok = document.getElementById('ok') as HTMLElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = new FormData(form);
+    const res = await fetch(form.action, {
+      method: 'POST',
+      body: data,
+      headers: { Accept: 'application/json' },
+    });
+    if (res.ok) {
+      form.hidden = true;
+      ok.hidden = false;
+    }
+  });
+</script>
