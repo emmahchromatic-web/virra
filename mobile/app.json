@@ -1,35 +1,53 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Virra",
+    "slug": "virra",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "scheme": "virra",
+    "platforms": ["ios"],
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+      "bundleIdentifier": "app.virra.mobile",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "Virra uses HealthKit to sync your workouts and heart rate data to personalise your training and nutrition.",
+        "NSHealthUpdateUsageDescription": "Virra writes completed workouts to Apple Health.",
+        "NSLocationWhenInUseUsageDescription": "Virra uses your location to track your runs.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Virra uses your location to track runs in the background.",
+        "NSCameraUsageDescription": "Virra uses the camera to scan food barcodes for your nutrition log.",
+        "ITSAppUsesNonExemptEncryption": false
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
+      "entitlements": {
+        "com.apple.developer.healthkit": true,
+        "com.apple.developer.healthkit.background-delivery": true
+      }
     },
     "plugins": [
       "expo-router",
       "expo-font",
-      "react-native-health"
-    ]
+      "expo-apple-authentication",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Virra uses your location to track your runs."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Virra uses the camera to scan food barcodes."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
