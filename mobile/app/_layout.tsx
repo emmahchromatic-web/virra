@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Stack, router } from 'expo-router';
+import type { Session } from '@supabase/supabase-js';
 import { useFonts } from 'expo-font';
 import {
   BigShouldersDisplay_700Bold,
@@ -25,6 +26,8 @@ import { colors } from '@/constants/theme';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
+  // undefined = not yet loaded; null = no session; Session = authenticated
+  const [initialSession, setInitialSession] = useState<Session | null | undefined>(undefined);
 
   const [fontsLoaded] = useFonts({
     BigShouldersDisplay_700Bold,
@@ -38,40 +41,44 @@ export default function RootLayout() {
     SpaceMono_700Bold,
   });
 
+  // Step 1: load session, independent of fonts
   useEffect(() => {
-    // Determine initial route on every app start — ignores persisted nav state.
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-
-      if (!session) {
-        router.replace('/(auth)');
-      } else {
-        const { data } = await supabase
-          .from('user_profiles')
-          .select('user_id')
-          .eq('user_id', session.user.id)
-          .maybeSingle();
-        router.replace(data ? '/(app)' : '/(onboarding)/welcome');
-      }
-
+      setInitialSession(session ?? null);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
+      (_event, session) => { setSession(session); }
     );
-
     return () => subscription.unsubscribe();
   }, []);
 
+  // Step 2: route once fonts AND session are both ready (Stack is mounted by then)
   useEffect(() => {
-    if (user?.id) {
-      configureRevenueCat(user.id);
+    if (!fontsLoaded || initialSession === undefined) return;
+
+    if (!initialSession) {
+      router.replace('/(auth)');
+      return;
     }
+
+    supabase
+      .from('user_profiles')
+      .select('user_id')
+      .eq('user_id', initialSession.user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        router.replace(data ? '/(app)' : '/(onboarding)/welcome');
+      });
+  }, [fontsLoaded, initialSession]);
+
+  useEffect(() => {
+    if (user?.id) configureRevenueCat(user.id);
   }, [user?.id]);
 
-  if (!fontsLoaded) return null;
+  // Hold render until we know where to route — prevents flash of wrong screen
+  if (!fontsLoaded || initialSession === undefined) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
