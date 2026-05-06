@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { useFonts } from 'expo-font';
 import {
@@ -25,7 +25,6 @@ import { colors } from '@/constants/theme';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
-  const [ready, setReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     BigShouldersDisplay_700Bold,
@@ -55,7 +54,6 @@ export default function RootLayout() {
         router.replace(data ? '/(app)' : '/(onboarding)/welcome');
       }
 
-      setReady(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -73,7 +71,7 @@ export default function RootLayout() {
     }
   }, [user?.id]);
 
-  if (!fontsLoaded || !ready) return null;
+  if (!fontsLoaded) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
