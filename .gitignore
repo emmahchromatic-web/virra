@@ -12,3 +12,6 @@ mobile/.env*.local
 **/.DS_Store
 Simulator\ Screenshot*.png
 Simulator\ Screenshot\ *.png
+*.pptx
+*.icon/
+ViRRA.png
