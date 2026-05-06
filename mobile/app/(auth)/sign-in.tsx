@@ -7,6 +7,15 @@ import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 
+async function routeAfterSignIn(userId: string) {
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('user_id')
+    .eq('user_id', userId)
+    .maybeSingle();
+  router.replace(data ? '/(app)' : '/(onboarding)/welcome');
+}
+
 export default function SignInScreen() {
   const [email,     setEmail]     = useState('');
   const [password,  setPassword]  = useState('');
@@ -22,12 +31,12 @@ export default function SignInScreen() {
         ],
       });
       if (credential.identityToken) {
-        const { error } = await supabase.auth.signInWithIdToken({
+        const { data, error } = await supabase.auth.signInWithIdToken({
           provider: 'apple',
           token: credential.identityToken,
         });
         if (error) Alert.alert('Apple sign in failed', error.message);
-        else router.replace('/(auth)');
+        else if (data.user) await routeAfterSignIn(data.user.id);
       }
     } catch (e: any) {
       if (e.code !== 'ERR_REQUEST_CANCELED') {
@@ -40,12 +49,12 @@ export default function SignInScreen() {
   async function handleEmailSignIn() {
     if (!email || !password) return;
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
       Alert.alert('Sign in failed', error.message);
-    } else {
-      router.replace('/(auth)');
+    } else if (data.user) {
+      await routeAfterSignIn(data.user.id);
     }
   }
 
@@ -113,9 +122,9 @@ export default function SignInScreen() {
             label="[DEV] Skip auth"
             variant="ghost"
             onPress={async () => {
-              const { error } = await supabase.auth.signInAnonymously();
+              const { data, error } = await supabase.auth.signInAnonymously();
               if (error) Alert.alert('DEV bypass failed', error.message);
-              else router.replace('/(auth)');
+              else if (data.user) await routeAfterSignIn(data.user.id);
             }}
             style={{ marginTop: spacing.lg, opacity: 0.4 }}
           />
