@@ -58,25 +58,29 @@ export async function fetchHKFitnessData(): Promise<HKFitnessData> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const AppleHealthKit = require('react-native-health').default;
+    if (!AppleHealthKit?.getAnchoredWorkouts) return empty;
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     return new Promise((resolve) => {
-      AppleHealthKit.getSamples(
-        { type: 'Running', startDate: ninetyDaysAgo.toISOString(), ascending: false },
-        (err: Error | null, results: any[]) => {
-          if (err || !results?.length) return resolve(empty);
-          const withDistance = results.filter(r => r.distance > 0);
-          const avgPace = withDistance.length
-            ? withDistance.reduce((s, r) => s + (r.duration / 60) / (r.distance / 1000), 0)
-              / withDistance.length * 60
-            : null;
+      AppleHealthKit.getAnchoredWorkouts(
+        { startDate: ninetyDaysAgo.toISOString(), ascending: false },
+        (err: any, results: { anchor: string; data: any[] }) => {
+          if (err || !results?.data?.length) return resolve(empty);
+          const runs = results.data.filter(
+            (r) => r.activityName === AppleHealthKit.Constants.Activities.Running && r.distance > 0
+          );
+          if (!runs.length) return resolve(empty);
+          // Pace: duration (seconds) / distance (miles → km)
+          const avgPace = runs.reduce((s, r) => s + r.duration / (r.distance * 1.60934), 0) / runs.length;
+          // Weekly km over last 8 weeks
           const eightWeeksAgo = Date.now() - 56 * 24 * 60 * 60 * 1000;
-          const recentRuns = results.filter(r => new Date(r.startDate).getTime() > eightWeeksAgo);
-          const totalKm = recentRuns.reduce((s, r) => s + (r.distance ?? 0) / 1000, 0);
+          const recentRuns = runs.filter((r) => new Date(r.start).getTime() > eightWeeksAgo);
+          const totalKm = recentRuns.reduce((s, r) => s + r.distance * 1.60934, 0);
           const weeklyKm = recentRuns.length ? totalKm / 8 : null;
-          const nearFiveK = results.filter(r => r.distance >= 4800 && r.distance <= 5200);
-          const best5k = nearFiveK.length ? Math.min(...nearFiveK.map(r => r.duration)) : null;
+          // Best 5K: runs within 5K distance range (2.9–3.3 miles)
+          const nearFiveK = runs.filter((r) => r.distance >= 2.9 && r.distance <= 3.3);
+          const best5k = nearFiveK.length ? Math.min(...nearFiveK.map((r) => r.duration)) : null;
           resolve({
-            avgPaceSeconds: avgPace ? Math.round(avgPace) : null,
+            avgPaceSeconds: Math.round(avgPace),
             weeklyKm:       weeklyKm ? Math.round(weeklyKm * 10) / 10 : null,
             best5kSeconds:  best5k ? Math.round(best5k) : null,
           });
@@ -90,28 +94,30 @@ export async function fetchHKFitnessData(): Promise<HKFitnessData> {
 
 export async function fetchHKGoalData(): Promise<HKGoalData> {
   const empty: HKGoalData = {
-    best5kSeconds: null,
-    best10kSeconds: null,
-    bestHalfSeconds: null,
-    bestMarathonSeconds: null,
+    best5kSeconds: null, best10kSeconds: null, bestHalfSeconds: null, bestMarathonSeconds: null,
   };
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const AppleHealthKit = require('react-native-health').default;
+    if (!AppleHealthKit?.getAnchoredWorkouts) return empty;
     return new Promise((resolve) => {
-      AppleHealthKit.getSamples(
-        { type: 'Running', startDate: new Date(0).toISOString(), ascending: false },
-        (err: Error | null, results: any[]) => {
-          if (err || !results?.length) return resolve(empty);
-          const best = (min: number, max: number) => {
-            const m = results.filter(r => r.distance >= min && r.distance <= max);
-            return m.length ? Math.min(...m.map(r => r.duration)) : null;
+      AppleHealthKit.getAnchoredWorkouts(
+        { startDate: new Date(0).toISOString(), ascending: false },
+        (err: any, results: { anchor: string; data: any[] }) => {
+          if (err || !results?.data?.length) return resolve(empty);
+          const runs = results.data.filter(
+            (r) => r.activityName === AppleHealthKit.Constants.Activities.Running && r.distance > 0
+          );
+          // Distance ranges in miles (with generous GPS tolerance)
+          const best = (minMi: number, maxMi: number) => {
+            const m = runs.filter((r) => r.distance >= minMi && r.distance <= maxMi);
+            return m.length ? Math.min(...m.map((r) => r.duration)) : null;
           };
           resolve({
-            best5kSeconds:       best(4800, 5200),
-            best10kSeconds:      best(9800, 10200),
-            bestHalfSeconds:     best(21000, 21200),
-            bestMarathonSeconds: best(42100, 42300),
+            best5kSeconds:       best(2.9, 3.3),
+            best10kSeconds:      best(5.8, 6.6),
+            bestHalfSeconds:     best(12.5, 13.7),
+            bestMarathonSeconds: best(25.0, 27.5),
           });
         }
       );
@@ -121,28 +127,8 @@ export async function fetchHKGoalData(): Promise<HKGoalData> {
   }
 }
 
+// react-native-health v1.19 does not expose menstrual flow data.
+// Cycle pre-fill from HealthKit is not available — users enter this manually.
 export async function fetchHKCycleData(): Promise<HKCycleData> {
-  const empty: HKCycleData = { lastPeriodStart: null, estimatedCycleLength: null };
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const AppleHealthKit = require('react-native-health').default;
-    return new Promise((resolve) => {
-      AppleHealthKit.getMenstrualFlowSamples(
-        { startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(), ascending: false },
-        (err: Error | null, results: any[]) => {
-          if (err || !results?.length) return resolve(empty);
-          const startDates = results
-            .filter((r) => r.value === 1)
-            .map((r) => new Date(r.startDate))
-            .sort((a, b) => b.getTime() - a.getTime());
-          resolve({
-            lastPeriodStart:      startDates[0] ?? null,
-            estimatedCycleLength: estimateCycleLength(startDates),
-          });
-        }
-      );
-    });
-  } catch {
-    return empty;
-  }
+  return { lastPeriodStart: null, estimatedCycleLength: null };
 }
