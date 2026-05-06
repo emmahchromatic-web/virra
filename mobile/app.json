@@ -9,9 +9,13 @@
       "ios"
     ],
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.pauldickenson.virra.app",
       "supportsTablet": false,
+      "icon": "./assets/icon.png",
+      "darkIcon": "./assets/icon-dark.png",
+      "tintedIcon": "./assets/icon-tint.png",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Virra uses HealthKit to sync your workouts and heart rate data to personalise your training and nutrition.",
         "NSHealthUpdateUsageDescription": "Virra writes completed workouts to Apple Health.",

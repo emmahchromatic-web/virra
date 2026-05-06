@@ -10,4 +10,5 @@ mobile/.env.local
 mobile/.env*.local
 .DS_Store
 **/.DS_Store
-*.png
+Simulator\ Screenshot*.png
+Simulator\ Screenshot\ *.png
