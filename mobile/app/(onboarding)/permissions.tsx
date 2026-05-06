@@ -61,7 +61,6 @@ async function requestPermission(id: string): Promise<void> {
                   AppleHealthKit.Constants.Permissions.HeartRate,
                   AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
                   AppleHealthKit.Constants.Permissions.DistanceWalkingRunning,
-                  AppleHealthKit.Constants.Permissions.MenstrualFlow,
                   AppleHealthKit.Constants.Permissions.Workout,
                 ],
                 write: [AppleHealthKit.Constants.Permissions.Workout],
