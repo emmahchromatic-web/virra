@@ -4,23 +4,8 @@ import { router } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { useAuthStore } from '@/store/auth';
-import { supabase } from '@/lib/supabase';
 
 export default function WelcomeScreen() {
-  const { session } = useAuthStore();
-
-  React.useEffect(() => {
-    if (!session) return;
-    supabase
-      .from('user_profiles')
-      .select('user_id')
-      .eq('user_id', session.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        router.replace(data ? '/(app)' : '/(onboarding)/welcome');
-      });
-  }, [session]);
 
   return (
     <SafeAreaView style={styles.safe}>

@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Stack, router } from 'expo-router';
 import { useFonts } from 'expo-font';
 import {
   BigShouldersDisplay_700Bold,
@@ -25,6 +25,7 @@ import { colors } from '@/constants/theme';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
+  const [ready, setReady] = useState(false);
 
   const [fontsLoaded] = useFonts({
     BigShouldersDisplay_700Bold,
@@ -39,8 +40,22 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Determine initial route on every app start — ignores persisted nav state.
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
+
+      if (!session) {
+        router.replace('/(auth)');
+      } else {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('user_id')
+          .eq('user_id', session.user.id)
+          .maybeSingle();
+        router.replace(data ? '/(app)' : '/(onboarding)/welcome');
+      }
+
+      setReady(true);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -58,11 +73,12 @@ export default function RootLayout() {
     }
   }, [user?.id]);
 
-  if (!fontsLoaded) return null;
+  if (!fontsLoaded || !ready) return null;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
       <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(onboarding)" />
       <Stack.Screen name="(app)" />
     </Stack>
   );
