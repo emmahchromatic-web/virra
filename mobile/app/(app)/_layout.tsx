@@ -8,7 +8,7 @@ import { colors } from '@/constants/theme';
 
 export default function AppLayout() {
   const { session, isLoading } = useAuthStore();
-  const { setStatus }          = useSubscriptionStore();
+  const { setStatus, isActive } = useSubscriptionStore();
 
   useEffect(() => {
     if (!isLoading && !session) {
@@ -17,12 +17,12 @@ export default function AppLayout() {
   }, [session, isLoading]);
 
   useEffect(() => {
-    if (!session) return;
+    if (!session || isActive) return;
     getActiveEntitlement().then((active) => {
       setStatus(active ? 'active' : 'expired');
       if (!active) router.replace('/(auth)/paywall');
     });
-  }, [session]);
+  }, [session, isActive]);
 
   return (
     <Tabs

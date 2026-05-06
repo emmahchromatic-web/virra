@@ -110,6 +110,15 @@ export default function PaywallScreen() {
           variant="ghost"
           onPress={handleRestore}
         />
+
+        {__DEV__ && (
+          <VirraButton
+            label="[DEV] Skip paywall"
+            variant="ghost"
+            onPress={() => { setStatus('trial'); router.replace('/(app)'); }}
+            style={{ marginTop: spacing.lg, opacity: 0.5 }}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

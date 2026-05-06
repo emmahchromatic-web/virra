@@ -5,10 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "virra",
-    "platforms": ["ios"],
+    "platforms": [
+      "ios"
+    ],
     "newArchEnabled": true,
     "ios": {
-      "bundleIdentifier": "app.virra.mobile",
+      "bundleIdentifier": "com.pauldickenson.virra.app",
       "supportsTablet": false,
       "infoPlist": {
         "NSHealthShareUsageDescription": "Virra uses HealthKit to sync your workouts and heart rate data to personalise your training and nutrition.",
@@ -16,11 +18,13 @@
         "NSLocationWhenInUseUsageDescription": "Virra uses your location to track your runs.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Virra uses your location to track runs in the background.",
         "NSCameraUsageDescription": "Virra uses the camera to scan food barcodes for your nutrition log.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["location"]
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,
-        "com.apple.developer.healthkit.background-delivery": true
+        "com.apple.developer.healthkit.background-delivery": true,
+        "com.apple.developer.applesignin": ["Default"]
       }
     },
     "plugins": [
@@ -48,6 +52,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a994fa57-3e88-49ee-a230-fed5460fe405"
+      }
+    },
+    "owner": "paul-dickenson"
   }
 }

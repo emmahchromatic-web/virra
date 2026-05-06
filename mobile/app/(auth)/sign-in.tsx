@@ -8,17 +8,10 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 
 export default function SignInScreen() {
-  const [email,    setEmail]    = useState('');
-  const [password, setPassword] = useState('');
-  const [loading,  setLoading]  = useState(false);
-
-  async function handleEmailSignIn() {
-    if (!email || !password) return;
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) Alert.alert('Sign in failed', error.message);
-  }
+  const [email,     setEmail]     = useState('');
+  const [password,  setPassword]  = useState('');
+  const [loading,   setLoading]   = useState(false);
+  const [showEmail, setShowEmail] = useState(false);
 
   async function handleAppleSignIn() {
     try {
@@ -34,11 +27,25 @@ export default function SignInScreen() {
           token: credential.identityToken,
         });
         if (error) Alert.alert('Apple sign in failed', error.message);
+        else router.replace('/(app)');
       }
     } catch (e: any) {
       if (e.code !== 'ERR_REQUEST_CANCELED') {
-        Alert.alert('Apple sign in failed', e.message);
+        const msg = e.message || `Error ${e.code ?? 'unknown'}`;
+        Alert.alert('Apple sign in failed', msg);
       }
+    }
+  }
+
+  async function handleEmailSignIn() {
+    if (!email || !password) return;
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (error) {
+      Alert.alert('Sign in failed', error.message);
+    } else {
+      router.replace('/(app)');
     }
   }
 
@@ -57,36 +64,42 @@ export default function SignInScreen() {
           onPress={handleAppleSignIn}
         />
 
-        <VirraText variant="label" color={colors.muted} style={styles.divider}>
-          or continue with email
-        </VirraText>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor={colors.muted}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={colors.muted}
-          secureTextEntry
-          autoComplete="current-password"
-          value={password}
-          onChangeText={setPassword}
-        />
-
-        <VirraButton
-          label="Sign in"
-          onPress={handleEmailSignIn}
-          loading={loading}
-          style={styles.btn}
-        />
+        {showEmail ? (
+          <>
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              placeholderTextColor={colors.muted}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={colors.muted}
+              secureTextEntry
+              autoComplete="current-password"
+              value={password}
+              onChangeText={setPassword}
+            />
+            <VirraButton
+              label="Sign in"
+              onPress={handleEmailSignIn}
+              loading={loading}
+              style={styles.btn}
+            />
+          </>
+        ) : (
+          <VirraButton
+            label="Sign in with email instead"
+            variant="ghost"
+            onPress={() => setShowEmail(true)}
+            style={styles.emailToggle}
+          />
+        )}
 
         <VirraButton
           label="Don't have an account? Sign up"
@@ -94,17 +107,30 @@ export default function SignInScreen() {
           onPress={() => router.replace('/(auth)/sign-up')}
           style={styles.link}
         />
+
+        {__DEV__ && (
+          <VirraButton
+            label="[DEV] Skip auth"
+            variant="ghost"
+            onPress={async () => {
+              const { error } = await supabase.auth.signInAnonymously();
+              if (error) Alert.alert('DEV bypass failed', error.message);
+              else router.replace('/(auth)/paywall');
+            }}
+            style={{ marginTop: spacing.lg, opacity: 0.4 }}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: colors.mile },
-  container: { flex: 1, padding: spacing.lg, justifyContent: 'center', gap: spacing.sm },
-  title:     { marginBottom: spacing.lg },
-  appleBtn:  { height: 52, width: '100%' },
-  divider:   { textAlign: 'center', marginVertical: spacing.sm },
+  safe:        { flex: 1, backgroundColor: colors.mile },
+  container:   { flex: 1, padding: spacing.lg, justifyContent: 'center', gap: spacing.sm },
+  title:       { marginBottom: spacing.lg },
+  appleBtn:    { height: 52, width: '100%' },
+  emailToggle: { marginTop: spacing.xs },
   input: {
     backgroundColor: colors.mist,
     borderWidth: 1,
