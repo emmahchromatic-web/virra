@@ -66,7 +66,7 @@ export async function fetchHKFitnessData(): Promise<HKFitnessData> {
         (err: any, results: { anchor: string; data: any[] }) => {
           if (err || !results?.data?.length) return resolve(empty);
           const runs = results.data.filter(
-            (r) => r.activityName === AppleHealthKit.Constants.Activities.Running && r.distance > 0
+            (r) => r.activityName === AppleHealthKit.Constants.Activities.Running && r.distance > 0 && r.duration > 0
           );
           if (!runs.length) return resolve(empty);
           // Pace: duration (seconds) / distance (miles → km)

@@ -27,7 +27,7 @@ export default function SignInScreen() {
           token: credential.identityToken,
         });
         if (error) Alert.alert('Apple sign in failed', error.message);
-        else router.replace('/(app)');
+        else router.replace('/(auth)');
       }
     } catch (e: any) {
       if (e.code !== 'ERR_REQUEST_CANCELED') {
@@ -45,7 +45,7 @@ export default function SignInScreen() {
     if (error) {
       Alert.alert('Sign in failed', error.message);
     } else {
-      router.replace('/(app)');
+      router.replace('/(auth)');
     }
   }
 
@@ -115,7 +115,7 @@ export default function SignInScreen() {
             onPress={async () => {
               const { error } = await supabase.auth.signInAnonymously();
               if (error) Alert.alert('DEV bypass failed', error.message);
-              else router.replace('/(auth)/paywall');
+              else router.replace('/(auth)');
             }}
             style={{ marginTop: spacing.lg, opacity: 0.4 }}
           />

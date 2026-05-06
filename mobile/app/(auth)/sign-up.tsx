@@ -27,7 +27,7 @@ export default function SignUpScreen() {
           token: credential.identityToken,
         });
         if (error) Alert.alert('Sign up failed', error.message);
-        else router.replace('/(auth)/paywall');
+        else router.replace('/(auth)');
       }
     } catch (e: any) {
       if (e.code !== 'ERR_REQUEST_CANCELED') {
@@ -45,7 +45,7 @@ export default function SignUpScreen() {
     if (error) {
       Alert.alert('Sign up failed', error.message);
     } else {
-      router.replace('/(auth)/paywall');
+      router.replace('/(auth)');
     }
   }
 

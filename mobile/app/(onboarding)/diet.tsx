@@ -38,41 +38,52 @@ export default function DietScreen() {
     });
   }
 
+  function parseFiveKToPaceSecPerKm(fiveKTime: string): number | null {
+    const parts = fiveKTime.split(':');
+    if (parts.length !== 2) return null;
+    const mm = parseInt(parts[0], 10);
+    const ss = parseInt(parts[1], 10);
+    if (isNaN(mm) || isNaN(ss)) return null;
+    return Math.round((mm * 60 + ss) / 5);
+  }
+
   async function handleContinue() {
     if (!session) return;
     setSaving(true);
     const userId = session.user.id;
     const today  = new Date().toISOString().split('T')[0];
 
-    const [profileResult] = await Promise.all([
-      supabase.from('user_profiles').upsert({
-        user_id:       userId,
-        fitness_level: data.fitnessLevel,
-        goal:          data.runningGoal,
-        dietary_prefs: Array.from(selected),
-      }),
-      data.fitnessLevel
-        ? supabase.from('fitness_assessments').insert({
-            user_id:      userId,
-            date:         today,
-            stated_level: data.fitnessLevel,
-            actual_pace:  null,
-            trigger:      'onboarding',
-          })
-        : Promise.resolve(),
-      data.periodStart
-        ? supabase.from('cycle_logs').insert({
-            user_id:      userId,
-            period_start: data.periodStart.toISOString().split('T')[0],
-            cycle_length: data.cycleLength,
-          })
-        : Promise.resolve(),
-    ]);
+    const { error: profileError } = await supabase.from('user_profiles').upsert({
+      user_id:       userId,
+      fitness_level: data.fitnessLevel,
+      goal:          data.runningGoal,
+      dietary_prefs: Array.from(selected),
+    });
 
-    if (profileResult.error) {
-      Alert.alert('Something went wrong', profileResult.error.message);
+    if (profileError) {
+      Alert.alert('Something went wrong', profileError.message);
       setSaving(false);
       return;
+    }
+
+    if (data.fitnessLevel) {
+      const { error } = await supabase.from('fitness_assessments').insert({
+        user_id:      userId,
+        date:         today,
+        stated_level: data.fitnessLevel,
+        actual_pace:  parseFiveKToPaceSecPerKm(data.fiveKTime),
+        trigger:      'onboarding',
+      });
+      if (error) console.error('[diet] fitness_assessments insert failed:', error);
+    }
+
+    if (data.periodStart) {
+      const { error } = await supabase.from('cycle_logs').insert({
+        user_id:      userId,
+        period_start: data.periodStart.toISOString().split('T')[0],
+        cycle_length: data.cycleLength,
+      });
+      if (error) console.error('[diet] cycle_logs insert failed:', error);
     }
 
     if (data.periodStart) {
