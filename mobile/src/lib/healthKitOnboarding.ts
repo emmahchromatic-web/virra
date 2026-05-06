@@ -57,16 +57,19 @@ export async function fetchHKFitnessData(): Promise<HKFitnessData> {
   const empty: HKFitnessData = { avgPaceSeconds: null, weeklyKm: null, best5kSeconds: null };
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const AppleHealthKit = require('react-native-health');
-    if (!AppleHealthKit?.getAnchoredWorkouts) return empty;
+    const { NativeModules } = require('react-native');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Constants } = require('react-native-health');
+    const HK = NativeModules.AppleHealthKit;
+    if (!HK?.getAnchoredWorkouts) return empty;
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     return new Promise((resolve) => {
-      AppleHealthKit.getAnchoredWorkouts(
+      HK.getAnchoredWorkouts(
         { startDate: ninetyDaysAgo.toISOString(), ascending: false },
         (err: any, results: { anchor: string; data: any[] }) => {
           if (err || !results?.data?.length) return resolve(empty);
           const runs = results.data.filter(
-            (r) => r.activityName === AppleHealthKit.Constants.Activities.Running && r.distance > 0 && r.duration > 0
+            (r) => r.activityName === Constants.Activities.Running && r.distance > 0 && r.duration > 0
           );
           if (!runs.length) return resolve(empty);
           // Pace: duration (seconds) / distance (miles → km)
@@ -98,15 +101,18 @@ export async function fetchHKGoalData(): Promise<HKGoalData> {
   };
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const AppleHealthKit = require('react-native-health');
-    if (!AppleHealthKit?.getAnchoredWorkouts) return empty;
+    const { NativeModules } = require('react-native');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { Constants } = require('react-native-health');
+    const HK = NativeModules.AppleHealthKit;
+    if (!HK?.getAnchoredWorkouts) return empty;
     return new Promise((resolve) => {
-      AppleHealthKit.getAnchoredWorkouts(
+      HK.getAnchoredWorkouts(
         { startDate: new Date(0).toISOString(), ascending: false },
         (err: any, results: { anchor: string; data: any[] }) => {
           if (err || !results?.data?.length) return resolve(empty);
           const runs = results.data.filter(
-            (r) => r.activityName === AppleHealthKit.Constants.Activities.Running && r.distance > 0
+            (r) => r.activityName === Constants.Activities.Running && r.distance > 0
           );
           // Distance ranges in miles (with generous GPS tolerance)
           const best = (minMi: number, maxMi: number) => {

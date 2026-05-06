@@ -51,26 +51,28 @@ async function requestPermission(id: string): Promise<void> {
     case 'health': {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const AppleHealthKit = require('react-native-health');
-        if (!AppleHealthKit?.initHealthKit) { console.log('[HK] initHealthKit not available'); return; }
-        console.log('[HK] calling initHealthKit...');
+        const { NativeModules } = require('react-native');
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { Constants } = require('react-native-health');
+        const HK = NativeModules.AppleHealthKit;
+        if (!HK?.initHealthKit) return;
         await new Promise<void>((resolve) => {
-          AppleHealthKit.initHealthKit(
+          HK.initHealthKit(
             {
               permissions: {
                 read: [
-                  AppleHealthKit.Constants.Permissions.HeartRate,
-                  AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
-                  AppleHealthKit.Constants.Permissions.DistanceWalkingRunning,
-                  AppleHealthKit.Constants.Permissions.Workout,
+                  Constants.Permissions.HeartRate,
+                  Constants.Permissions.ActiveEnergyBurned,
+                  Constants.Permissions.DistanceWalkingRunning,
+                  Constants.Permissions.Workout,
                 ],
-                write: [AppleHealthKit.Constants.Permissions.Workout],
+                write: [Constants.Permissions.Workout],
               },
             },
-            (err: any) => { console.log('[HK] initHealthKit callback', err ?? 'ok'); resolve(); }
+            () => resolve()
           );
         });
-      } catch (e) { console.log('[HK] initHealthKit threw', e); }
+      } catch { /* HK unavailable */ }
       break;
     }
     case 'location':
