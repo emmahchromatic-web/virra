@@ -57,7 +57,7 @@ export async function fetchHKFitnessData(): Promise<HKFitnessData> {
   const empty: HKFitnessData = { avgPaceSeconds: null, weeklyKm: null, best5kSeconds: null };
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const AppleHealthKit = require('react-native-health').default;
+    const AppleHealthKit = require('react-native-health');
     if (!AppleHealthKit?.getAnchoredWorkouts) return empty;
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
     return new Promise((resolve) => {
@@ -98,7 +98,7 @@ export async function fetchHKGoalData(): Promise<HKGoalData> {
   };
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const AppleHealthKit = require('react-native-health').default;
+    const AppleHealthKit = require('react-native-health');
     if (!AppleHealthKit?.getAnchoredWorkouts) return empty;
     return new Promise((resolve) => {
       AppleHealthKit.getAnchoredWorkouts(

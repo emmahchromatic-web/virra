@@ -51,8 +51,9 @@ async function requestPermission(id: string): Promise<void> {
     case 'health': {
       try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const AppleHealthKit = require('react-native-health').default;
-        if (!AppleHealthKit?.initHealthKit) return;
+        const AppleHealthKit = require('react-native-health');
+        if (!AppleHealthKit?.initHealthKit) { console.log('[HK] initHealthKit not available'); return; }
+        console.log('[HK] calling initHealthKit...');
         await new Promise<void>((resolve) => {
           AppleHealthKit.initHealthKit(
             {
@@ -66,10 +67,10 @@ async function requestPermission(id: string): Promise<void> {
                 write: [AppleHealthKit.Constants.Permissions.Workout],
               },
             },
-            () => resolve()
+            (err: any) => { console.log('[HK] initHealthKit callback', err ?? 'ok'); resolve(); }
           );
         });
-      } catch { /* HK unavailable on simulator */ }
+      } catch (e) { console.log('[HK] initHealthKit threw', e); }
       break;
     }
     case 'location':
