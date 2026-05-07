@@ -57,12 +57,16 @@ export default function DietScreen() {
     let avatarUrl: string | undefined;
     if (data.localAvatarUri) {
       try {
-        const response = await fetch(data.localAvatarUri);
-        const blob     = await response.blob();
         const path     = `${userId}/avatar.jpg`;
+        const formData = new FormData();
+        formData.append('file', {
+          uri:  data.localAvatarUri,
+          name: 'avatar.jpg',
+          type: 'image/jpeg',
+        } as any);
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+          .upload(path, formData, { contentType: 'multipart/form-data', upsert: true });
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
           avatarUrl = urlData.publicUrl;
