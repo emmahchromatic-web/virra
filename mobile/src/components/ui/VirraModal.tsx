@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Modal, Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { View, Modal, Pressable, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -9,7 +9,7 @@ interface Props {
   onClose:     () => void;
   title?:      string;
   children:    React.ReactNode;
-  style?:      ViewStyle;
+  style?:      StyleProp<ViewStyle>;
 }
 
 export function VirraModal({ visible, onClose, title, children, style }: Props) {
@@ -22,7 +22,7 @@ export function VirraModal({ visible, onClose, title, children, style }: Props) 
       statusBarTranslucent
     >
       <BlurView intensity={50} tint="dark" style={styles.backdrop}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Pressable style={[StyleSheet.absoluteFill, { zIndex: 0 }]} onPress={onClose} />
         <View style={[styles.card, style]}>
           {title && (
             <VirraText variant="mono" size={10} color={colors.pulse} style={styles.title}>
@@ -42,6 +42,7 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     justifyContent:    'center',
     paddingHorizontal: spacing.lg,
+    position:          'relative',
   },
   card: {
     width:           '100%',
