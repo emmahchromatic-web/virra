@@ -31,12 +31,49 @@ interface UserPlan {
   template:    PlanTemplate;
 }
 
+const PHASE_WHY: Record<string, string> = {
+  menstrual:  'Estrogen and progesterone are at their lowest. Your body is in repair mode — forcing intensity now delays recovery and increases injury risk.',
+  follicular: 'Rising estrogen improves insulin sensitivity and muscle repair. This is your highest-adaptation window; hard work compounds here.',
+  ovulatory:  'Estrogen peaks alongside a testosterone surge. Neuromuscular recruitment is at its highest — power and speed respond best in this short window.',
+  luteal:     'Progesterone rises, core temperature is elevated, and perceived effort increases for the same output. Training smart here preserves the gains made earlier.',
+};
+
 const PHASE_LOAD: Record<string, { intensity: string; note: string }> = {
   menstrual:  { intensity: 'Easy',     note: 'Keep effort light — rest is training too.' },
   follicular: { intensity: 'Build',    note: 'Ramp up. Your body adapts faster now.' },
   ovulatory:  { intensity: 'Peak',     note: 'Hardest sessions belong here.' },
   luteal:     { intensity: 'Maintain', note: 'Hold the work, honour fatigue.' },
 };
+
+function WhyCard({ body }: { body: string }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <Pressable onPress={() => setOpen((v) => !v)} style={why.wrap} accessibilityRole="button">
+      <View style={why.row}>
+        <VirraText variant="mono" size={9} color="rgba(244,237,224,0.35)" style={why.label}>
+          WHY?
+        </VirraText>
+        <SymbolView
+          name={open ? 'chevron.up' : 'chevron.down'}
+          size={10}
+          tintColor="rgba(244,237,224,0.35)"
+        />
+      </View>
+      {open && (
+        <VirraText variant="body" size={13} color="rgba(244,237,224,0.55)" style={why.body}>
+          {body}
+        </VirraText>
+      )}
+    </Pressable>
+  );
+}
+
+const why = StyleSheet.create({
+  wrap:  { paddingTop: spacing.xs },
+  row:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  label: { letterSpacing: 1.5 },
+  body:  { lineHeight: 20, marginTop: spacing.xs },
+});
 
 export default function TrainingScreen() {
   const { session }    = useAuthStore();
@@ -91,16 +128,17 @@ export default function TrainingScreen() {
         {phaseLoad && cycleInfo && (
           <VirraCard style={styles.phaseBanner}>
             <View style={styles.phaseRow}>
-              <VirraText variant="mono" size={9} color={colors.pulse} style={styles.phaseLabel}>
-                {cycleInfo.phase.toUpperCase()} · DAY {cycleInfo.dayOfCycle}
-              </VirraText>
               <VirraText variant="display" size={20} color={colors.breath}>
                 {phaseLoad.intensity}
+              </VirraText>
+              <VirraText variant="mono" size={9} color={colors.pulse} style={styles.phaseLabel}>
+                TODAY
               </VirraText>
             </View>
             <VirraText variant="body" size={13} color="rgba(244,237,224,0.6)" style={styles.phaseNote}>
               {phaseLoad.note}
             </VirraText>
+            <WhyCard body={PHASE_WHY[cycleInfo.phase]} />
           </VirraCard>
         )}
 
