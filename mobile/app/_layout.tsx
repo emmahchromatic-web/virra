@@ -65,8 +65,8 @@ export default function RootLayout() {
 
     supabase
       .from('user_profiles')
-      .select('user_id')
-      .eq('user_id', initialSession.user.id)
+      .select('id')
+      .eq('id', initialSession.user.id)
       .maybeSingle()
       .then(({ data }) => {
         router.replace(data ? '/(app)' : '/(onboarding)/welcome');

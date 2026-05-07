@@ -10,8 +10,8 @@ import { VirraButton } from '@/components/ui/VirraButton';
 async function routeAfterSignIn(userId: string) {
   const { data } = await supabase
     .from('user_profiles')
-    .select('user_id')
-    .eq('user_id', userId)
+    .select('id')
+    .eq('id', userId)
     .maybeSingle();
   router.replace(data ? '/(app)' : '/(onboarding)/welcome');
 }

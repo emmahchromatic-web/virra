@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { FitnessLevel, WeeklyMileageBracket } from '@/lib/healthKitOnboarding';
 
-export type RunningGoal = '5k' | '10k' | 'half' | 'marathon' | 'general';
+export type RunningGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'general';
 
 interface OnboardingData {
   fitnessLevel:  FitnessLevel | null;

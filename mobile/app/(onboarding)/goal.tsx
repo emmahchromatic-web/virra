@@ -12,14 +12,14 @@ import { fetchHKGoalData } from '@/lib/healthKitOnboarding';
 const GOAL_OPTIONS: { value: RunningGoal; label: string; sub: string }[] = [
   { value: '5k',       label: '5K',             sub: 'Build your base' },
   { value: '10k',      label: '10K',            sub: 'Push your limits' },
-  { value: 'half',     label: 'Half Marathon',  sub: 'Go the distance' },
+  { value: 'half_marathon', label: 'Half Marathon',  sub: 'Go the distance' },
   { value: 'marathon', label: 'Marathon',       sub: 'The ultimate goal' },
   { value: 'general',  label: 'General Fitness', sub: 'Stay healthy, stay strong' },
 ];
 
 function deriveGoal(hk: Awaited<ReturnType<typeof fetchHKGoalData>>): RunningGoal | null {
   if (hk.bestMarathonSeconds) return 'marathon';
-  if (hk.bestHalfSeconds)     return 'half';
+  if (hk.bestHalfSeconds)     return 'half_marathon';
   if (hk.best10kSeconds)      return '10k';
   if (hk.best5kSeconds)       return '5k';
   return null;

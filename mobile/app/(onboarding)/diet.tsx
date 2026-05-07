@@ -54,10 +54,11 @@ export default function DietScreen() {
     const today  = new Date().toISOString().split('T')[0];
 
     const { error: profileError } = await supabase.from('user_profiles').upsert({
-      user_id:       userId,
-      fitness_level: data.fitnessLevel,
-      goal:          data.runningGoal,
-      dietary_prefs: Array.from(selected),
+      id:                  userId,
+      fitness_level:       data.fitnessLevel,
+      running_goal:        data.runningGoal,
+      dietary_prefs:       Array.from(selected),
+      onboarding_complete: true,
     });
 
     if (profileError) {
@@ -68,20 +69,20 @@ export default function DietScreen() {
 
     if (data.fitnessLevel) {
       const { error } = await supabase.from('fitness_assessments').insert({
-        user_id:      userId,
-        date:         today,
-        stated_level: data.fitnessLevel,
-        actual_pace:  parseFiveKToPaceSecPerKm(data.fiveKTime),
-        trigger:      'onboarding',
+        user_id:                    userId,
+        assessed_on:                today,
+        stated_level:               data.fitnessLevel,
+        actual_pace_seconds_per_km: parseFiveKToPaceSecPerKm(data.fiveKTime),
+        trigger_description:        'onboarding',
       });
       if (error) console.error('[diet] fitness_assessments insert failed:', error);
     }
 
     if (data.periodStart) {
       const { error } = await supabase.from('cycle_logs').insert({
-        user_id:      userId,
-        period_start: data.periodStart.toISOString().split('T')[0],
-        cycle_length: data.cycleLength,
+        user_id:            userId,
+        period_start:       data.periodStart.toISOString().split('T')[0],
+        cycle_length_days:  data.cycleLength,
       });
       if (error) console.error('[diet] cycle_logs insert failed:', error);
     }
