@@ -48,7 +48,7 @@ function NarrativeCard({ title, narrative, loading }: {
         </VirraText>
       ) : (
         <VirraText variant="body" size={13} color={colors.muted} style={{ lineHeight: 20 }}>
-          Log a few more activities to unlock your narrative insight.
+          Generating your first insight…
         </VirraText>
       )}
     </VirraCard>
@@ -88,7 +88,8 @@ export default function InsightsScreen() {
     setMetrics(m);
     setLoadingMetrics(false);
 
-    if (m.totalKm < 1) return;
+    const signupDate      = session.user.created_at ? new Date(session.user.created_at) : new Date();
+    const daysSinceSignup = Math.floor((Date.now() - signupDate.getTime()) / (1000 * 60 * 60 * 24));
 
     const { weekKey, monthKey } = currentPeriodKeys();
 
@@ -117,8 +118,9 @@ export default function InsightsScreen() {
             phasePaces:         m.phasePaces,
             activitiesThisWeek: m.activitiesThisWeek,
           },
-          phase:        cycleInfo?.phase,
-          day_of_cycle: cycleInfo?.dayOfCycle,
+          phase:             cycleInfo?.phase,
+          day_of_cycle:      cycleInfo?.dayOfCycle,
+          days_since_signup: daysSinceSignup,
         },
       });
       if (error) return null;
