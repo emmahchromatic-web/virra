@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system';
 import { SymbolView } from 'expo-symbols';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
@@ -71,6 +72,7 @@ export default function ProfileScreen() {
   const [cycleLengthModalVisible, setCycleLengthModalVisible] = useState(false);
   const [cycleLengthInput, setCycleLengthInput] = useState('');
   const [subModalVisible, setSubModalVisible] = useState(false);
+  const [cycleLengthError, setCycleLengthError] = useState('');
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
     training: true, breakfast: true, lunch: true, dinner: true, checkin: true,
   });
@@ -94,16 +96,18 @@ export default function ProfileScreen() {
 
     setUploadingAvatar(true);
     try {
-      const uri      = result.assets[0].uri;
-      const path     = `${session.user.id}/avatar.jpg`;
-      const formData = new FormData();
-      formData.append('file', { uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
+      const uri     = result.assets[0].uri;
+      const path    = `${session.user.id}/avatar.jpg`;
+      const base64  = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      const binary  = atob(base64);
+      const bytes   = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(path, formData, { contentType: 'multipart/form-data', upsert: true });
+        .upload(path, bytes.buffer, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-      await saveProfile(session.user.id, { avatarUrl: urlData.publicUrl });
+      await saveProfile(session.user.id, { avatarUrl: `${urlData.publicUrl}?t=${Date.now()}` });
     } catch (e) {
       Alert.alert('Could not update photo', (e as Error).message);
     } finally {
@@ -138,9 +142,10 @@ export default function ProfileScreen() {
   async function handleCycleLengthSave() {
     const days = parseInt(cycleLengthInput, 10);
     if (isNaN(days) || days < 21 || days > 40) {
-      Alert.alert('Invalid value', 'Enter a number between 21 and 40.');
+      setCycleLengthError('Enter a number between 21 and 40.');
       return;
     }
+    setCycleLengthError('');
     setCycleLengthModalVisible(false);
     await updateCycleLength(days);
   }
@@ -266,7 +271,7 @@ export default function ProfileScreen() {
       {/* Cycle length modal */}
       <VirraModal
         visible={cycleLengthModalVisible}
-        onClose={() => setCycleLengthModalVisible(false)}
+        onClose={() => { setCycleLengthModalVisible(false); setCycleLengthError(''); }}
         title="Cycle Length"
       >
         <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
@@ -277,11 +282,14 @@ export default function ProfileScreen() {
           onChangeText={setCycleLengthInput}
           keyboardType="number-pad"
           maxLength={2}
-          autoFocus
-          selectTextOnFocus
           style={styles.modalInput}
           placeholderTextColor="rgba(244,237,224,0.3)"
         />
+        {cycleLengthError ? (
+          <VirraText variant="mono" size={10} color={colors.heat} style={{ letterSpacing: 1 }}>
+            {cycleLengthError.toUpperCase()}
+          </VirraText>
+        ) : null}
         <VirraButton label="SAVE" onPress={handleCycleLengthSave} loading={saving} />
       </VirraModal>
 

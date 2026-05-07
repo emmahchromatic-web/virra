@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Modal, Pressable, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { View, Modal, Pressable, StyleSheet, StyleProp, ViewStyle, KeyboardAvoidingView, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -23,14 +23,16 @@ export function VirraModal({ visible, onClose, title, children, style }: Props) 
     >
       <BlurView intensity={50} tint="dark" style={styles.backdrop}>
         <Pressable style={[StyleSheet.absoluteFill, { zIndex: 0 }]} onPress={onClose} />
-        <View style={[styles.card, style]}>
-          {title && (
-            <VirraText variant="mono" size={10} color={colors.pulse} style={styles.title}>
-              {title.toUpperCase()}
-            </VirraText>
-          )}
-          {children}
-        </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.card, style]}>
+            {title && (
+              <VirraText variant="mono" size={10} color={colors.pulse} style={styles.title}>
+                {title.toUpperCase()}
+              </VirraText>
+            )}
+            {children}
+          </View>
+        </KeyboardAvoidingView>
       </BlurView>
     </Modal>
   );

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import * as FileSystem from 'expo-file-system';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
@@ -57,19 +58,17 @@ export default function DietScreen() {
     let avatarUrl: string | undefined;
     if (data.localAvatarUri) {
       try {
-        const path     = `${userId}/avatar.jpg`;
-        const formData = new FormData();
-        formData.append('file', {
-          uri:  data.localAvatarUri,
-          name: 'avatar.jpg',
-          type: 'image/jpeg',
-        } as any);
+        const path    = `${userId}/avatar.jpg`;
+        const base64  = await FileSystem.readAsStringAsync(data.localAvatarUri, { encoding: 'base64' });
+        const binary  = atob(base64);
+        const bytes   = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(path, formData, { contentType: 'multipart/form-data', upsert: true });
+          .upload(path, bytes.buffer, { contentType: 'image/jpeg', upsert: true });
         if (!uploadError) {
           const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
-          avatarUrl = urlData.publicUrl;
+          avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
         }
       } catch (e) {
         console.error('[diet] avatar upload failed:', e);
