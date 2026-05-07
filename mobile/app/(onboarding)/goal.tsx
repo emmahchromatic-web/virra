@@ -27,7 +27,7 @@ function deriveGoal(hk: Awaited<ReturnType<typeof fetchHKGoalData>>): RunningGoa
 
 export default function GoalScreen() {
   const { setStep, setData } = useOnboarding();
-  useFocusEffect(React.useCallback(() => { setStep(4); }, []));
+  useFocusEffect(React.useCallback(() => { setStep(5); }, [setStep]));
 
   const [goal, setGoal]               = useState<RunningGoal | null>(null);
   const [hkSuggested, setHkSuggested] = useState(false);

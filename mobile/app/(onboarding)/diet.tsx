@@ -23,7 +23,7 @@ const DIET_OPTIONS: { value: DietaryPref; label: string }[] = [
 
 export default function DietScreen() {
   const { setStep, data }   = useOnboarding();
-  useFocusEffect(React.useCallback(() => { setStep(6); }, []));
+  useFocusEffect(React.useCallback(() => { setStep(7); }, [setStep]));
 
   const { session }         = useAuthStore();
   const { setPeriodStart }  = useCycleStore();
@@ -53,8 +53,30 @@ export default function DietScreen() {
     const userId = session.user.id;
     const today  = new Date().toISOString().split('T')[0];
 
+    // Upload avatar if one was chosen during onboarding
+    let avatarUrl: string | undefined;
+    if (data.localAvatarUri) {
+      try {
+        const response = await fetch(data.localAvatarUri);
+        const blob     = await response.blob();
+        const path     = `${userId}/avatar.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+          avatarUrl = urlData.publicUrl;
+        }
+      } catch (e) {
+        console.error('[diet] avatar upload failed:', e);
+      }
+    }
+
     const { error: profileError } = await supabase.from('user_profiles').upsert({
       id:                  userId,
+      first_name:          data.firstName   || null,
+      last_name:           data.lastName    || null,
+      ...(avatarUrl != null && { avatar_url: avatarUrl }),
       fitness_level:       data.fitnessLevel,
       running_goal:        data.runningGoal,
       dietary_prefs:       Array.from(selected),

@@ -8,7 +8,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 
 export default function WelcomeScreen() {
   const { setStep } = useOnboarding();
-  useFocusEffect(React.useCallback(() => { setStep(1); }, []));
+  useFocusEffect(React.useCallback(() => { setStep(1); }, [setStep]));
 
   return (
     <View style={styles.container}>
@@ -37,7 +37,7 @@ export default function WelcomeScreen() {
       <View style={styles.footer}>
         <VirraButton
           label="GET STARTED"
-          onPress={() => router.push('/(onboarding)/permissions')}
+          onPress={() => router.push('/(onboarding)/profile')}
         />
       </View>
     </View>

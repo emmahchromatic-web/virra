@@ -26,7 +26,7 @@ const MILEAGE_OPTIONS: WeeklyMileageBracket[] = ['<5', '5-15', '15-30', '30+'];
 
 export default function FitnessScreen() {
   const { setStep, setData } = useOnboarding();
-  useFocusEffect(React.useCallback(() => { setStep(3); }, []));
+  useFocusEffect(React.useCallback(() => { setStep(4); }, [setStep]));
 
   const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(null);
   const [mileage, setMileage]           = useState<WeeklyMileageBracket | null>(null);

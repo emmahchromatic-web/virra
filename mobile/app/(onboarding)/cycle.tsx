@@ -21,7 +21,7 @@ function formatDate(d: Date) {
 
 export default function CycleScreen() {
   const { setStep, setData } = useOnboarding();
-  useFocusEffect(React.useCallback(() => { setStep(5); }, []));
+  useFocusEffect(React.useCallback(() => { setStep(6); }, [setStep]));
 
   const [periodStart, setPeriodStart] = useState<Date>(defaultPeriodStart);
   const [cycleLength, setCycleLength] = useState(DEFAULT_CYCLE);

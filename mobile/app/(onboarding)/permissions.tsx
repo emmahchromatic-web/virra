@@ -89,7 +89,7 @@ async function requestPermission(id: string): Promise<void> {
 
 export default function PermissionsScreen() {
   const { setStep } = useOnboarding();
-  useFocusEffect(React.useCallback(() => { setStep(2); }, []));
+  useFocusEffect(React.useCallback(() => { setStep(3); }, [setStep]));
 
   const [permIndex, setPermIndex] = useState(0);
   const [loading, setLoading]     = useState(false);
