@@ -50,7 +50,7 @@ export function VirraButton({ label, onPress, variant = 'primary', disabled, loa
 }
 
 const styles = StyleSheet.create({
-  base:     { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' },
+  base:     { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.45 },
   pressed:  { opacity: 0.82 },
 });

@@ -69,7 +69,7 @@ export default function RootLayout() {
       .eq('id', initialSession.user.id)
       .maybeSingle()
       .then(({ data }) => {
-        router.replace(data ? '/(app)' : '/(onboarding)/welcome');
+        router.replace(data ? '/(app)/(tabs)' : '/(onboarding)/welcome');
       });
   }, [fontsLoaded, initialSession]);
 

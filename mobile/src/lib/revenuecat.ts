@@ -27,12 +27,14 @@ export async function getOfferings(): Promise<PurchasesPackage[]> {
   }
 }
 
-export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
+export async function purchasePackage(pkg: PurchasesPackage): Promise<{ success: boolean; error?: string }> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
-    return !!customerInfo.entitlements.active[ENTITLEMENT_ID];
-  } catch {
-    return false;
+    return { success: !!customerInfo.entitlements.active[ENTITLEMENT_ID] };
+  } catch (e: any) {
+    const msg = e?.userInfo?.readableErrorCode ?? e?.message ?? String(e);
+    console.error('[revenuecat] purchasePackage failed:', e);
+    return { success: false, error: msg };
   }
 }
 

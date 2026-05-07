@@ -3,6 +3,7 @@ import { View, TextInput, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '@/lib/supabase';
+import { useCycleStore } from '@/store/cycle';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
@@ -13,7 +14,7 @@ async function routeAfterSignIn(userId: string) {
     .select('id')
     .eq('id', userId)
     .maybeSingle();
-  router.replace(data ? '/(app)' : '/(onboarding)/welcome');
+  router.replace(data ? '/(app)/(tabs)' : '/(onboarding)/welcome');
 }
 
 export default function SignInScreen() {
@@ -123,8 +124,14 @@ export default function SignInScreen() {
             variant="ghost"
             onPress={async () => {
               const { data, error } = await supabase.auth.signInAnonymously();
-              if (error) Alert.alert('DEV bypass failed', error.message);
-              else if (data.user) await routeAfterSignIn(data.user.id);
+              if (error) { Alert.alert('DEV bypass failed', error.message); return; }
+              if (data.user) {
+                // Seed cycle store so the dashboard phase card renders
+                useCycleStore.getState().setPeriodStart(
+                  new Date(Date.now() - 13 * 24 * 60 * 60 * 1000), // day 14 → ovulatory
+                );
+                await routeAfterSignIn(data.user.id);
+              }
             }}
             style={{ marginTop: spacing.lg, opacity: 0.4 }}
           />

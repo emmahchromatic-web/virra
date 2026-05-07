@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 
@@ -17,12 +18,12 @@ export function AppHeader({ title, showProfile }: AppHeaderProps) {
       </VirraText>
       {showProfile && (
         <Pressable
-          onPress={() => router.push('/(app)/profile')}
+          onPress={() => router.push('/(app)/(tabs)/profile')}
           style={styles.profileBtn}
           accessibilityLabel="Open profile"
           accessibilityRole="button"
         >
-          <VirraText variant="mono" color={colors.pulse} size={18}>⊙</VirraText>
+          <SymbolView name="person.circle" size={24} tintColor={colors.pulse} />
         </Pressable>
       )}
     </View>
@@ -30,6 +31,6 @@ export function AppHeader({ title, showProfile }: AppHeaderProps) {
 }
 
 const styles = StyleSheet.create({
-  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, backgroundColor: colors.mile },
+  header:     { height: 52, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, backgroundColor: colors.mile },
   profileBtn: { padding: spacing.sm },
 });

@@ -1,19 +1,22 @@
-import React, { useEffect } from 'react';
-import { Tabs, router } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
+import { AppState, AppStateStatus } from 'react-native';
+import { Stack, router } from 'expo-router';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
+import { useCycleStore } from '@/store/cycle';
 import { getActiveEntitlement } from '@/lib/revenuecat';
-import { AppTabBar } from '@/components/layout/AppTabBar';
+import { importNewWorkouts } from '@/lib/healthKitImport';
+import { scheduleDailyReminders, cancelTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
 
 export default function AppLayout() {
   const { session, isLoading } = useAuthStore();
-  const { setStatus, isActive } = useSubscriptionStore();
+  const { setStatus, isActive, status: subStatus, trialEnd } = useSubscriptionStore();
+  const { loadFromSupabase, periodStart, cycleLength } = useCycleStore();
+  const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
-    if (!isLoading && !session) {
-      router.replace('/(auth)');
-    }
+    if (!isLoading && !session) router.replace('/(auth)');
   }, [session, isLoading]);
 
   useEffect(() => {
@@ -24,19 +27,52 @@ export default function AppLayout() {
     });
   }, [session, isActive]);
 
+  useEffect(() => {
+    if (session?.user.id) loadFromSupabase(session.user.id);
+  }, [session?.user.id]);
+
+  // Cancel trial reminders once subscription is active
+  useEffect(() => {
+    if (subStatus === 'active') cancelTrialReminders();
+  }, [subStatus]);
+
+  // Run HealthKit import on foreground — fires on mount and every app resume
+  useEffect(() => {
+    if (!session?.user.id) return;
+
+    function runImport() {
+      importNewWorkouts({
+        userId:      session!.user.id,
+        periodStart: periodStart ?? null,
+        cycleLength: cycleLength ?? 28,
+      });
+    }
+
+    runImport();
+    scheduleDailyReminders();
+
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appState.current.match(/inactive|background/) && next === 'active') {
+        runImport();
+        scheduleDailyReminders();
+      }
+      appState.current = next;
+    });
+
+    return () => sub.remove();
+  }, [session?.user.id, periodStart, cycleLength]);
+
   return (
-    <Tabs
-      tabBar={(props) => <AppTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-        sceneStyle:  { backgroundColor: colors.mile },
-      }}
-    >
-      <Tabs.Screen name="index"    />
-      <Tabs.Screen name="training" />
-      <Tabs.Screen name="nutrition"/>
-      <Tabs.Screen name="library"  />
-      <Tabs.Screen name="profile" options={{ href: null }} />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="checkin"         options={{ presentation: 'modal' }} />
+      <Stack.Screen name="library/[slug]"  options={{ presentation: 'card'  }} />
+      <Stack.Screen name="plan/[id]"       options={{ presentation: 'card'  }} />
+      <Stack.Screen name="run"             options={{ presentation: 'modal' }} />
+      <Stack.Screen name="timeline"        options={{ presentation: 'card'  }} />
+      <Stack.Screen name="insights"        options={{ presentation: 'card'  }} />
+      <Stack.Screen name="food-search"      options={{ presentation: 'modal' }} />
+      <Stack.Screen name="manual-activity" options={{ presentation: 'modal' }} />
+    </Stack>
   );
 }
