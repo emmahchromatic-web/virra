@@ -4,6 +4,7 @@ import { Stack, router } from 'expo-router';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore } from '@/store/cycle';
+import { useProfileStore } from '@/store/profile';
 import { getActiveEntitlement } from '@/lib/revenuecat';
 import { importNewWorkouts } from '@/lib/healthKitImport';
 import { scheduleDailyReminders, cancelTrialReminders } from '@/lib/notifications';
@@ -13,6 +14,7 @@ export default function AppLayout() {
   const { session, isLoading } = useAuthStore();
   const { setStatus, isActive, status: subStatus, trialEnd } = useSubscriptionStore();
   const { loadFromSupabase, periodStart, cycleLength } = useCycleStore();
+  const { load: loadProfile } = useProfileStore();
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
@@ -29,6 +31,10 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (session?.user.id) loadFromSupabase(session.user.id);
+  }, [session?.user.id]);
+
+  useEffect(() => {
+    if (session?.user.id) loadProfile(session.user.id);
   }, [session?.user.id]);
 
   // Cancel trial reminders once subscription is active
