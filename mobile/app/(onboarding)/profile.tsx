@@ -10,7 +10,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 
 export default function ProfileOnboardingScreen() {
   const { setStep, setData } = useOnboarding();
-  useFocusEffect(React.useCallback(() => { setStep(2); }, []));
+  useFocusEffect(React.useCallback(() => { setStep(2); }, [setStep]));
 
   const [firstName, setFirstName] = useState('');
   const [lastName,  setLastName]  = useState('');
@@ -18,7 +18,7 @@ export default function ProfileOnboardingScreen() {
 
   async function pickAvatar() {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.7,
@@ -74,6 +74,7 @@ export default function ProfileOnboardingScreen() {
             autoCapitalize="words"
             autoCorrect={false}
             returnKeyType="next"
+            accessibilityLabel="First name"
           />
         </View>
         <View style={styles.inputWrap}>
@@ -87,6 +88,7 @@ export default function ProfileOnboardingScreen() {
             autoCapitalize="words"
             autoCorrect={false}
             returnKeyType="done"
+            accessibilityLabel="Last name"
           />
         </View>
       </View>
