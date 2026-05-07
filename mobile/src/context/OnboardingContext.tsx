@@ -4,6 +4,9 @@ import type { FitnessLevel, WeeklyMileageBracket } from '@/lib/healthKitOnboardi
 export type RunningGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'general';
 
 interface OnboardingData {
+  firstName:      string;
+  lastName:       string;
+  localAvatarUri: string | null;
   fitnessLevel:  FitnessLevel | null;
   weeklyMileage: WeeklyMileageBracket | null;
   fiveKTime:     string;
@@ -20,6 +23,9 @@ interface OnboardingContextValue {
 }
 
 const defaultData: OnboardingData = {
+  firstName:      '',
+  lastName:       '',
+  localAvatarUri: null,
   fitnessLevel:  null,
   weeklyMileage: null,
   fiveKTime:     '',
