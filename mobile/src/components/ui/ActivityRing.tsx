@@ -45,7 +45,7 @@ export function ActivityRing({ value, max, color, size = 56, label, valueText }:
           strokeDashoffset={dashOffset}
           strokeLinecap="round"
           rotation={-90}
-          origin={`${center}, ${center}`}
+          origin={`${center} ${center}`}
         />
       </Svg>
       <VirraText variant="display" size={11} color={colors.breath} style={styles.value}>
