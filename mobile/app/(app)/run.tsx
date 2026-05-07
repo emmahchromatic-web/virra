@@ -287,11 +287,6 @@ export default function RunTrackerScreen() {
            runState === 'paused'   ? 'PAUSED' :
                                     'RUN COMPLETE'}
         </VirraText>
-        {cycleInfo && runState === 'idle' && (
-          <VirraText variant="mono" size={9} color={colors.muted}>
-            {cycleInfo.phase.toUpperCase()} · DAY {cycleInfo.dayOfCycle}
-          </VirraText>
-        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
