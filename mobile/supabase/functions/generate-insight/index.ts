@@ -23,11 +23,12 @@ interface MetricsPayload {
 }
 
 interface RequestPayload {
-  period_type:   PeriodType;
-  period_key:    string;
-  metrics:       MetricsPayload;
-  phase?:        CyclePhase;
-  day_of_cycle?: number;
+  period_type:        PeriodType;
+  period_key:         string;
+  metrics:            MetricsPayload;
+  phase?:             CyclePhase;
+  day_of_cycle?:      number;
+  days_since_signup?: number;
 }
 
 const VALID_PHASES   = new Set<string>(["menstrual", "follicular", "ovulatory", "luteal"]);
@@ -92,7 +93,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return errResponse("Invalid JSON body", 400);
   }
 
-  const { period_type, period_key, metrics, phase, day_of_cycle } = body;
+  const { period_type, period_key, metrics, phase, day_of_cycle, days_since_signup } = body;
 
   // Validate inputs before touching DB
   if (period_type !== "weekly" && period_type !== "monthly") {
@@ -131,6 +132,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const activitiesThisWeek = safeNum(metrics.activitiesThisWeek);
   const phasePaces         = safePhasePaces(metrics.phasePaces);
 
+  const safeDaysSince = Math.max(0, Math.round(safeNum(days_since_signup, 0)));
+  const isNewUser     = safeDaysSince < 14 && safeNum(metrics.totalKm) < 5;
+
   const periodLabel = period_type === "weekly" ? "this week" : "this month";
 
   const phasePaceLines = phasePaces.length > 0
@@ -141,7 +145,17 @@ Deno.serve(async (req: Request): Promise<Response> => {
         .join("\n")
     : "  - No data yet";
 
-  const prompt = `You are a supportive running coach for a women's fitness app called Virra. The user's current cycle phase is ${safePhase ?? "unknown"}${day_of_cycle ? ` (day ${Math.max(1, Math.min(40, Math.round(Number(day_of_cycle) || 1)))})` : ""}.
+  const prompt = isNewUser
+    ? `You are a supportive running coach for a women's fitness app called Virra. A new user signed up ${safeDaysSince === 0 ? 'today' : `${safeDaysSince} day${safeDaysSince === 1 ? '' : 's'} ago`}. Their current cycle phase is ${safePhase ?? 'unknown'}${day_of_cycle ? ` (day ${Math.max(1, Math.min(40, Math.round(Number(day_of_cycle) || 1)))})` : ''}.
+
+Write a 2–3 sentence welcome message that:
+1. Acknowledges this is the start of their journey with Virra
+2. Gives one phase-aware tip they can use right now — today, based on where they are in their cycle
+3. Sets a warm expectation for what insights will show as they log more runs
+
+Tone: warm, direct, expert — like a coach who's glad you showed up. Never salesy.
+Do not use emojis or bullet points. Plain prose only.`
+    : `You are a supportive running coach for a women's fitness app called Virra. The user's current cycle phase is ${safePhase ?? "unknown"}${day_of_cycle ? ` (day ${Math.max(1, Math.min(40, Math.round(Number(day_of_cycle) || 1)))})` : ""}.
 
 ${period_type === "weekly" ? "Weekly" : "Monthly"} summary:
 - Streak: ${streakDays} consecutive active days
