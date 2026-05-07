@@ -54,6 +54,43 @@ const macro = StyleSheet.create({
   value: { width: 72, textAlign: 'right', letterSpacing: 0.5 },
 });
 
+const NUTRITION_WHY: Record<string, string> = {
+  menstrual:  'Iron and magnesium losses during menstruation elevate protein and fat needs. Carb targets are moderate — your body is prioritising repair over performance.',
+  follicular: 'Estrogen improves carbohydrate storage efficiency. Higher carb targets here fuel the harder sessions your body is primed to handle.',
+  ovulatory:  'Peak metabolic demand. High carbs replenish glycogen rapidly and support the intensity your muscles can output right now.',
+  luteal:     'Progesterone increases carb cravings for real physiological reasons — your body is burning slightly more at rest. Higher carb targets support mood, sleep, and preventing energy crashes.',
+};
+
+function WhyCard({ body }: { body: string }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <Pressable onPress={() => setOpen((v) => !v)} style={why.wrap} accessibilityRole="button">
+      <View style={why.row}>
+        <VirraText variant="mono" size={9} color="rgba(244,237,224,0.35)" style={why.label}>
+          WHY?
+        </VirraText>
+        <SymbolView
+          name={open ? 'chevron.up' : 'chevron.down'}
+          size={10}
+          tintColor="rgba(244,237,224,0.35)"
+        />
+      </View>
+      {open && (
+        <VirraText variant="body" size={13} color="rgba(244,237,224,0.55)" style={why.body}>
+          {body}
+        </VirraText>
+      )}
+    </Pressable>
+  );
+}
+
+const why = StyleSheet.create({
+  wrap:  { paddingTop: spacing.xs },
+  row:   { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  label: { letterSpacing: 1.5 },
+  body:  { lineHeight: 20, marginTop: spacing.xs },
+});
+
 export default function NutritionScreen() {
   const { session } = useAuthStore();
   const { cycleInfo } = useCycleStore();
@@ -158,17 +195,13 @@ export default function NutritionScreen() {
                   OF {targets.calories} KCAL
                 </VirraText>
               </View>
-              {cycleInfo && (
-                <VirraText variant="mono" size={9} color="rgba(244,237,224,0.3)" style={styles.phaseTag}>
-                  {cycleInfo.phase.toUpperCase()}
-                </VirraText>
-              )}
             </View>
             <View style={styles.macros}>
               <MacroBar label="CARBS"   actual={totals.carbs_g}   target={targets.carbs_g}   color={colors.pulse} />
               <MacroBar label="PROTEIN" actual={totals.protein_g} target={targets.protein_g} color={colors.dawn}  />
               <MacroBar label="FAT"     actual={totals.fat_g}     target={targets.fat_g}     color={colors.heat}  />
             </View>
+            {cycleInfo && <WhyCard body={NUTRITION_WHY[cycleInfo.phase]} />}
           </VirraCard>
         )}
 
@@ -220,7 +253,6 @@ const styles = StyleSheet.create({
   loadActive:   { backgroundColor: colors.pulse, borderColor: colors.pulse },
   targetsCard:  { gap: spacing.md },
   calRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  phaseTag:     { letterSpacing: 1.5, marginTop: spacing.xs },
   macros:       { gap: spacing.sm },
   mealSection:  { gap: spacing.sm },
   mealHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
