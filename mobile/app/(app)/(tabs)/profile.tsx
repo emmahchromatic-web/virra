@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, Alert, Switch } from 'react-native';
+import {
+  View, ScrollView, StyleSheet, SafeAreaView,
+  Pressable, Alert, Switch, TextInput, Image,
+} from 'react-native';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { SymbolView } from 'expo-symbols';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore } from '@/store/cycle';
+import { useProfileStore } from '@/store/profile';
 import { supabase } from '@/lib/supabase';
 import {
   loadNotificationPreferences,
@@ -16,6 +21,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { VirraModal } from '@/components/ui/VirraModal';
 
 function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
@@ -58,7 +64,13 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart } = useCycleStore();
+  const { firstName, lastName, avatarUrl, save: saveProfile } = useProfileStore();
+
   const [saving,  setSaving]  = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [cycleLengthModalVisible, setCycleLengthModalVisible] = useState(false);
+  const [cycleLengthInput, setCycleLengthInput] = useState('');
+  const [subModalVisible, setSubModalVisible] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
     training: true, breakfast: true, lunch: true, dinner: true, checkin: true,
   });
@@ -66,6 +78,38 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadNotificationPreferences().then(setNotifPrefs);
   }, []);
+
+  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Runner';
+  const initials    = [firstName?.[0], lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+
+  async function handlePickAvatar() {
+    if (!session) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes:    'images',
+      allowsEditing: true,
+      aspect:        [1, 1],
+      quality:       0.7,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    setUploadingAvatar(true);
+    try {
+      const uri      = result.assets[0].uri;
+      const path     = `${session.user.id}/avatar.jpg`;
+      const formData = new FormData();
+      formData.append('file', { uri, name: 'avatar.jpg', type: 'image/jpeg' } as any);
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, formData, { contentType: 'multipart/form-data', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+      await saveProfile(session.user.id, { avatarUrl: urlData.publicUrl });
+    } catch (e) {
+      Alert.alert('Could not update photo', (e as Error).message);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
 
   async function handleNotifToggle(slot: NotifSlot, enabled: boolean) {
     setNotifPrefs((p) => ({ ...p, [slot]: enabled }));
@@ -91,21 +135,14 @@ export default function ProfileScreen() {
     if (error) Alert.alert('Could not update', error.message);
   }
 
-  function showCycleLengthPicker() {
-    Alert.prompt(
-      'Cycle length',
-      'Enter your average cycle length in days (21–40)',
-      (input) => {
-        const days = parseInt(input, 10);
-        if (!isNaN(days) && days >= 21 && days <= 40) {
-          updateCycleLength(days);
-        } else {
-          Alert.alert('Invalid value', 'Enter a number between 21 and 40.');
-        }
-      },
-      'plain-text',
-      String(cycleLength),
-    );
+  async function handleCycleLengthSave() {
+    const days = parseInt(cycleLengthInput, 10);
+    if (isNaN(days) || days < 21 || days > 40) {
+      Alert.alert('Invalid value', 'Enter a number between 21 and 40.');
+      return;
+    }
+    setCycleLengthModalVisible(false);
+    await updateCycleLength(days);
   }
 
   const subLabel: Record<string, string> = {
@@ -126,6 +163,32 @@ export default function ProfileScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
+        {/* Identity */}
+        <VirraCard style={styles.card}>
+          <View style={styles.identityRow}>
+            <Pressable onPress={handlePickAvatar} style={styles.avatarWrap}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatarImg} />
+              ) : (
+                <View style={[styles.avatarImg, styles.avatarPlaceholder]}>
+                  <VirraText variant="mono" size={20} color={colors.pulse}>{initials}</VirraText>
+                </View>
+              )}
+              <View style={styles.cameraBadge}>
+                <SymbolView name="camera.fill" size={10} tintColor={colors.mile} />
+              </View>
+            </Pressable>
+            <View style={styles.identityText}>
+              <VirraText variant="display" size={18} color={colors.breath}>{displayName}</VirraText>
+              {uploadingAvatar && (
+                <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1, marginTop: 2 }}>
+                  UPDATING PHOTO…
+                </VirraText>
+              )}
+            </View>
+          </View>
+        </VirraCard>
+
         <VirraCard style={styles.card}>
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>ACCOUNT</VirraText>
           <Row label="EMAIL" value={session?.user.email ?? '—'} />
@@ -134,7 +197,7 @@ export default function ProfileScreen() {
         <VirraCard style={styles.card}>
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>SUBSCRIPTION</VirraText>
           <Row label="STATUS" value={subLabel[status] ?? status} />
-          <Row label="MANAGE" value="Settings → Subscriptions" onPress={() => Alert.alert('Open Settings → Subscriptions to manage your plan.')} />
+          <Row label="MANAGE" value="Settings → Subscriptions" onPress={() => setSubModalVisible(true)} />
         </VirraCard>
 
         <VirraCard style={styles.card}>
@@ -150,7 +213,7 @@ export default function ProfileScreen() {
           <Row
             label="CYCLE LENGTH"
             value={`${cycleLength} days`}
-            onPress={showCycleLengthPicker}
+            onPress={() => { setCycleLengthInput(String(cycleLength)); setCycleLengthModalVisible(true); }}
           />
         </VirraCard>
 
@@ -199,16 +262,57 @@ export default function ProfileScreen() {
           style={styles.signout}
         />
       </ScrollView>
+
+      {/* Cycle length modal */}
+      <VirraModal
+        visible={cycleLengthModalVisible}
+        onClose={() => setCycleLengthModalVisible(false)}
+        title="Cycle Length"
+      >
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
+          Enter your average cycle length in days (21–40)
+        </VirraText>
+        <TextInput
+          value={cycleLengthInput}
+          onChangeText={setCycleLengthInput}
+          keyboardType="number-pad"
+          maxLength={2}
+          autoFocus
+          selectTextOnFocus
+          style={styles.modalInput}
+          placeholderTextColor="rgba(244,237,224,0.3)"
+        />
+        <VirraButton label="SAVE" onPress={handleCycleLengthSave} loading={saving} />
+      </VirraModal>
+
+      {/* Subscription modal */}
+      <VirraModal
+        visible={subModalVisible}
+        onClose={() => setSubModalVisible(false)}
+        title="Manage Subscription"
+      >
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.7)">
+          Open Settings → Subscriptions to manage your plan.
+        </VirraText>
+        <VirraButton label="OK" variant="ghost" onPress={() => setSubModalVisible(false)} />
+      </VirraModal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe:      { flex: 1, backgroundColor: colors.mile },
-  header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, height: 52 },
-  scroll:    { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  card:      { gap: spacing.xs },
-  cardLabel: { letterSpacing: 1.5, marginBottom: spacing.xs },
-  divider:   { height: 1, backgroundColor: colors.border, marginVertical: 2 },
-  signout:   { marginTop: spacing.md },
+  safe:              { flex: 1, backgroundColor: colors.mile },
+  header:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, height: 52 },
+  scroll:            { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
+  card:              { gap: spacing.xs },
+  cardLabel:         { letterSpacing: 1.5, marginBottom: spacing.xs },
+  divider:           { height: 1, backgroundColor: colors.border, marginVertical: 2 },
+  signout:           { marginTop: spacing.md },
+  identityRow:       { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  avatarWrap:        { position: 'relative' },
+  avatarImg:         { width: 64, height: 64, borderRadius: 32 },
+  avatarPlaceholder: { backgroundColor: colors.mile, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  cameraBadge:       { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.pulse, alignItems: 'center', justifyContent: 'center' },
+  identityText:      { flex: 1 },
+  modalInput:        { backgroundColor: colors.mile, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.breath, fontFamily: 'SpaceMono_400Regular', fontSize: 24, textAlign: 'center', paddingVertical: spacing.md },
 });
