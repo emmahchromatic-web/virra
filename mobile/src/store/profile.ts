@@ -7,7 +7,7 @@ interface ProfileState {
   avatarUrl:  string | null;
   isLoaded:   boolean;
   load:       (userId: string) => Promise<void>;
-  save:       (userId: string, patch: { firstName?: string; lastName?: string; avatarUrl?: string }) => Promise<void>;
+  save:       (userId: string, patch: { firstName?: string; lastName?: string; avatarUrl?: string | null }) => Promise<void>;
   setLocal:   (patch: { firstName?: string; lastName?: string; avatarUrl?: string | null }) => void;
 }
 
@@ -41,16 +41,18 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     if (patch.lastName  !== undefined) update.last_name  = patch.lastName;
     if (patch.avatarUrl !== undefined) update.avatar_url = patch.avatarUrl;
 
-    await supabase
+    const { error } = await supabase
       .from('user_profiles')
       .update(update)
       .eq('id', userId);
 
-    set({
-      firstName: patch.firstName ?? get().firstName,
-      lastName:  patch.lastName  ?? get().lastName,
-      avatarUrl: patch.avatarUrl !== undefined ? patch.avatarUrl : get().avatarUrl,
-    });
+    if (error) throw new Error(error.message);
+
+    set((s) => ({
+      firstName: patch.firstName ?? s.firstName,
+      lastName:  patch.lastName  ?? s.lastName,
+      avatarUrl: patch.avatarUrl !== undefined ? patch.avatarUrl : s.avatarUrl,
+    }));
   },
 
   setLocal: (patch) => set((s) => ({
