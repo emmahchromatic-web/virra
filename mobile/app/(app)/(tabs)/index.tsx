@@ -1,6 +1,8 @@
-import React from 'react';
-import { View, ScrollView, StyleSheet, SafeAreaView, Pressable } from 'react-native';
+import React, { useRef, useEffect, useState } from 'react';
+import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, AppState, AppStateStatus } from 'react-native';
 import { router } from 'expo-router';
+import { getDailyStats } from '@/lib/healthKitDaily';
+import { ActivityRings } from '@/components/ui/ActivityRing';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
@@ -95,6 +97,30 @@ export default function DashboardScreen() {
   const { cycleInfo } = useCycleStore();
   const meta = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
 
+  const appState        = useRef<AppStateStatus>(AppState.currentState);
+  const [steps,        setSteps]        = useState(0);
+  const [exerciseMins, setExerciseMins] = useState(0);
+
+  useEffect(() => {
+    function load() {
+      getDailyStats().then(({ steps, exerciseMins }) => {
+        setSteps(steps);
+        setExerciseMins(exerciseMins);
+      });
+    }
+
+    load();
+
+    const sub = AppState.addEventListener('change', (next) => {
+      if (appState.current.match(/inactive|background/) && next === 'active') {
+        load();
+      }
+      appState.current = next;
+    });
+
+    return () => sub.remove();
+  }, []);
+
   return (
     <SafeAreaView style={styles.safe}>
       <AppHeader title="VIRRA" showProfile />
@@ -109,7 +135,8 @@ export default function DashboardScreen() {
               </VirraText>
             </View>
 
-            <VirraCard style={styles.heroCard}>
+            <View style={styles.heroRow}>
+            <VirraCard style={[styles.heroCard, { flex: 1 }]}>
               <VirraText variant="serif" size={22} color={colors.breath} style={styles.tagline}>
                 {meta.tagline}
               </VirraText>
@@ -135,6 +162,8 @@ export default function DashboardScreen() {
                 </View>
               </View>
             </VirraCard>
+              <ActivityRings steps={steps} exerciseMins={exerciseMins} />
+            </View>
 
             <GuidanceCard title="Training"  body={meta.training}  accentColor={meta.color} />
             <GuidanceCard title="Nutrition" body={meta.nutrition} accentColor={meta.color} />
@@ -166,6 +195,7 @@ const styles = StyleSheet.create({
   scroll:      { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   phasePill:   { flexDirection: 'row' },
   pillText:    { letterSpacing: 2 },
+  heroRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   heroCard:    { gap: 0 },
   tagline:     { lineHeight: 30 },
   statsRow:    { flexDirection: 'row', marginTop: spacing.lg },
