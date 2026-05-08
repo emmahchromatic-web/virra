@@ -8,6 +8,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { getActiveBlocks, addBlock, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
 
 interface WeekSession {
   week:     number;
@@ -88,6 +89,7 @@ export default function PlanDetailScreen() {
   const [weekActualKm,  setWeekActualKm]  = useState(0);
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
+  const [existingBlocks, setExistingBlocks] = useState<TrainingBlock[]>([]);
   const [raceOpen,      setRaceOpen]      = useState(false);
   const [raceName,      setRaceName]      = useState('');
   const [raceDate,      setRaceDate]      = useState('');
@@ -108,11 +110,13 @@ export default function PlanDetailScreen() {
         .eq('template_id', id)
         .eq('is_active', true)
         .maybeSingle(),
-    ]).then(async ([templateRes, planRes]) => {
+      getActiveBlocks(session.user.id),
+    ]).then(async ([templateRes, planRes, blocks]) => {
       const t = templateRes.data as PlanTemplate;
       const p = planRes.data as UserPlan | null;
       setPlan(t);
       setUserPlan(p);
+      setExistingBlocks(blocks);
 
       if (p) {
         const planStart  = new Date(p.start_date);
@@ -177,8 +181,39 @@ export default function PlanDetailScreen() {
     if (error) {
       Alert.alert('Could not start plan', error.message);
     } else {
+      await addBlock(session!.user.id, {
+        templateId:   plan.id,
+        modality:     inferModality(plan.sport_type),
+        startsOn:     planStart,
+        endsOn:       goalDate,
+        loadModifier: 1.0,
+        isPrimary:    true,
+      });
       router.replace('/(app)/(tabs)/training');
     }
+  }
+
+  async function handleAddSupplementary() {
+    if (!session || !plan) return;
+    setSaving(true);
+    const today  = new Date().toISOString().split('T')[0];
+    const endsOn = plan.duration_weeks > 0
+      ? new Date(Date.now() + plan.duration_weeks * 7 * 86400000).toISOString().split('T')[0]
+      : null;
+    const id = await addBlock(session.user.id, {
+      templateId:   plan.id,
+      modality:     inferModality(plan.sport_type),
+      startsOn:     today,
+      endsOn,
+      loadModifier: 0.5,
+      isPrimary:    false,
+    });
+    setSaving(false);
+    if (!id) {
+      Alert.alert('Could not add block', 'Please try again.');
+      return;
+    }
+    router.replace('/(app)/(tabs)/training');
   }
 
   const weeks         = (plan?.sessions_json ?? []) as WeekSession[];
@@ -458,6 +493,15 @@ export default function PlanDetailScreen() {
               loading={saving}
               style={styles.cta}
             />
+            {existingBlocks.length > 0 && (
+              <VirraButton
+                label="Add to stack as supplementary"
+                variant="ghost"
+                onPress={handleAddSupplementary}
+                loading={saving}
+                style={{ marginTop: spacing.xs }}
+              />
+            )}
           </>
         )}
 
