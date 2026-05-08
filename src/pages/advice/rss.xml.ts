@@ -16,7 +16,7 @@ export const GET: APIRoute = async () => {
       <link>https://virra.app/advice/${article.slug}</link>
       <guid>https://virra.app/advice/${article.slug}</guid>
       <pubDate>${pubDate}</pubDate>
-      ${article.dek ? `<description><![CDATA[${article.dek}]]></description>` : ''}
+      <description><![CDATA[${article.dek || article.title}]]></description>
     </item>`;
     })
     .join('');
