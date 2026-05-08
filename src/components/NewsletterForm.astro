@@ -1,0 +1,107 @@
+---
+interface Props {
+  source: 'footer' | 'hero' | 'advice' | 'calculator';
+  label?: string;
+}
+const { source, label = 'Run Hot — sent to The Pack.' } = Astro.props;
+const formId = `nl-${source}`;
+---
+<div class="nl-wrap" data-source={source}>
+  <p class="nl-label">{label}</p>
+  <form class="nl-form" id={formId} novalidate>
+    <input
+      type="email"
+      name="email"
+      placeholder="your@email.com"
+      autocomplete="email"
+      required
+      aria-label="Email address"
+    />
+    <button type="submit">Subscribe</button>
+    <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
+  </form>
+  <p class="nl-ok" id={`${formId}-ok`} hidden>You're in — welcome to The Pack.</p>
+  <p class="nl-err" id={`${formId}-err`} hidden>Something went wrong. Try again.</p>
+  <p class="nl-note">No spam, ever. Unsubscribe anytime.</p>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLDivElement>('.nl-wrap').forEach((wrap) => {
+    const source = wrap.dataset.source!;
+    const form = wrap.querySelector<HTMLFormElement>('.nl-form')!;
+    const ok = wrap.querySelector<HTMLParagraphElement>('.nl-ok')!;
+    const err = wrap.querySelector<HTMLParagraphElement>('.nl-err')!;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+      const hp = (form.elements.namedItem('_hp') as HTMLInputElement).value;
+      const btn = form.querySelector('button')!;
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      const res = await fetch('/api/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, source, _hp: hp }),
+      });
+
+      if (res.ok) {
+        form.hidden = true;
+        ok.hidden = false;
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Subscribe';
+        err.hidden = false;
+      }
+    });
+  });
+</script>
+
+<style>
+  .nl-wrap { display: flex; flex-direction: column; gap: 10px; }
+  .nl-label {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .nl-form { display: flex; gap: 8px; max-width: 420px; }
+  .nl-form input[type=email] {
+    flex: 1;
+    background: rgba(244,237,224,0.04);
+    border: 1px solid var(--border-strong);
+    color: var(--breath);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 300;
+    padding: 12px 18px;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .nl-form input[type=email]:focus { border-color: var(--pulse); }
+  .nl-form input[type=email]::placeholder { color: var(--muted); }
+  .nl-form button {
+    background: var(--pulse);
+    color: var(--mile);
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 12px 22px;
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .nl-form button:hover { background: #c8f020; }
+  .nl-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .nl-ok { color: var(--pulse); font-size: 0.9rem; }
+  .nl-err { color: var(--dawn); font-size: 0.85rem; }
+  .nl-note { font-size: 0.65rem; color: var(--muted); }
+  @media (max-width: 480px) { .nl-form { flex-direction: column; } }
+</style>
