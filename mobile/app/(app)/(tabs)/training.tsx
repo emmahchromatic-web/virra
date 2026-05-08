@@ -12,6 +12,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
+import { getActiveBlocks, computeBlockLoad, type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
 
 interface PlanTemplate {
   id:             string;
@@ -43,6 +44,22 @@ const PHASE_LOAD: Record<string, { intensity: string; note: string }> = {
   follicular: { intensity: 'Build',    note: 'Ramp up. Your body adapts faster now.' },
   ovulatory:  { intensity: 'Peak',     note: 'Hardest sessions belong here.' },
   luteal:     { intensity: 'Maintain', note: 'Hold the work, honour fatigue.' },
+};
+
+const MODALITY_ICON: Record<string, string> = {
+  run:      'figure.run',
+  strength: 'dumbbell',
+  swim:     'figure.pool.swim',
+  yoga:     'figure.yoga',
+  other:    'figure.walk',
+};
+
+const MODALITY_COLOR: Record<string, string> = {
+  run:      colors.pulse,
+  strength: colors.dawn,
+  swim:     colors.breath,
+  yoga:     colors.breath,
+  other:    colors.muted,
 };
 
 function WhyCard({ body }: { body: string }) {
@@ -84,6 +101,7 @@ export default function TrainingScreen() {
   const [recentActivities,  setRecentActivities]   = useState<Activity[]>([]);
   const [view,              setView]               = useState<'plan' | 'browse'>('plan');
   const [loading,           setLoading]            = useState(true);
+  const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -93,7 +111,8 @@ export default function TrainingScreen() {
 
   async function loadData() {
     setLoading(true);
-    const [planRes, templateRes, activityRes] = await Promise.all([
+    const [blocks, planRes, templateRes, activityRes] = await Promise.all([
+      getActiveBlocks(session!.user.id),
       supabase
         .from('user_plans')
         .select('id, template_id, start_date, goal_date, template:plan_templates(id, name, sport_type, distance_goal, duration_weeks, description, tagline)')
@@ -111,6 +130,7 @@ export default function TrainingScreen() {
         .order('started_at', { ascending: false })
         .limit(5),
     ]);
+    setActiveBlocks(blocks);
     setActivePlan(planRes.data as UserPlan | null);
     setTemplates((templateRes.data ?? []) as PlanTemplate[]);
     setRecentActivities((activityRes.data ?? []) as Activity[]);
@@ -154,8 +174,14 @@ export default function TrainingScreen() {
 
         {view === 'plan' ? (
           <>
-            {/* Active plan */}
-            {activePlan ? (
+            {/* Active plan / block stack */}
+            {activeBlocks.length > 0 ? (
+              <BlockStack
+                blocks={activeBlocks}
+                cyclePhase={cycleInfo?.phase ?? null}
+                onAddBlock={() => setView('browse')}
+              />
+            ) : activePlan ? (
               <ActivePlanCard plan={activePlan} onBrowse={() => setView('browse')} />
             ) : (
               <VirraCard style={styles.emptyCard}>
@@ -219,6 +245,59 @@ export default function TrainingScreen() {
     </SafeAreaView>
   );
 }
+
+// ---- Block stack ----
+
+function BlockStack({ blocks, cyclePhase, onAddBlock }: {
+  blocks: TrainingBlock[]; cyclePhase: string | null; onAddBlock: () => void;
+}) {
+  const computed = (cyclePhase
+    ? computeBlockLoad(blocks, cyclePhase)
+    : blocks.map((b) => ({ ...b, effective_load: b.load_modifier }))
+  ) as ComputedBlock[];
+  return (
+    <View style={stack.container}>
+      <VirraText variant="mono" size={9} color={colors.pulse} style={stack.title}>MY STACK</VirraText>
+      {computed.map((b) => (
+        <Pressable key={b.id} onPress={() => b.template_id && router.push(`/(app)/plan/${b.template_id}` as any)} accessibilityRole="button">
+          <VirraCard style={stack.blockRow}>
+            <View style={stack.iconWrap}>
+              <SymbolView name={(MODALITY_ICON[b.modality] ?? 'figure.walk') as any} size={18} tintColor={MODALITY_COLOR[b.modality] ?? colors.muted} />
+            </View>
+            <View style={stack.blockBody}>
+              <View style={stack.titleRow}>
+                <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>{b.template?.name ?? b.modality}</VirraText>
+                {b.is_primary && (<VirraText variant="mono" size={8} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
+              </View>
+              <View style={stack.loadTrack}>
+                <View style={[stack.loadFill, { width: `${Math.round(b.effective_load * 100)}%` as any, backgroundColor: MODALITY_COLOR[b.modality] ?? colors.pulse }]} />
+              </View>
+              <VirraText variant="mono" size={8} color={colors.muted}>
+                {Math.round(b.effective_load * 100)}% load{b.effective_load < b.load_modifier ? ' · adjusted for stack' : ''}
+              </VirraText>
+            </View>
+          </VirraCard>
+        </Pressable>
+      ))}
+      <Pressable onPress={onAddBlock} style={stack.addRow} accessibilityRole="button">
+        <SymbolView name="plus" size={11} tintColor={colors.muted} />
+        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>ADD SUPPLEMENTARY BLOCK</VirraText>
+      </Pressable>
+    </View>
+  );
+}
+const stack = StyleSheet.create({
+  container:  { gap: spacing.sm },
+  title:      { letterSpacing: 1.5 },
+  blockRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, paddingVertical: spacing.sm },
+  iconWrap:   { width: 28, alignItems: 'center', paddingTop: 2 },
+  blockBody:  { flex: 1, gap: spacing.xs },
+  titleRow:   { flexDirection: 'row', alignItems: 'center' },
+  primaryTag: { letterSpacing: 1, marginLeft: spacing.sm },
+  loadTrack:  { height: 3, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden' },
+  loadFill:   { height: '100%', borderRadius: radius.full },
+  addRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm, paddingLeft: spacing.xs },
+});
 
 // ---- Active plan card ----
 
