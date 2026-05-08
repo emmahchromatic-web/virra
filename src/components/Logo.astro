@@ -1,0 +1,30 @@
+---
+interface Props {
+  class?: string;
+}
+const { class: className = '' } = Astro.props;
+---
+<a href="/" class:list={['logo', className]} aria-label="VIRRA home">
+  <span class="v">V</span><span class="i">i</span><span class="rra">RRA</span>
+</a>
+
+<style>
+  .logo {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.6rem;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    text-decoration: none;
+    line-height: 1;
+    display: inline-block;
+  }
+  .i {
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-weight: 800;
+    color: var(--heat);
+    text-transform: none;
+  }
+</style>
