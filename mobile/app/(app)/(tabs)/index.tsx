@@ -8,7 +8,7 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { useCycleStore, type CyclePhase } from '@/store/cycle';
+import { useCycleStore, type CyclePhase, type CycleProfile } from '@/store/cycle';
 
 const PHASE_META: Record<CyclePhase, {
   label:     string;
@@ -80,17 +80,20 @@ const guide = StyleSheet.create({
   body:  { lineHeight: 21, marginTop: spacing.xs },
 });
 
-function EmptyState({ cycleProfile }: { cycleProfile: string }) {
+function EmptyState({ cycleProfile }: { cycleProfile: CycleProfile }) {
+  const showCycleHint = cycleProfile === 'natural' || cycleProfile === 'irregular';
   return (
     <VirraCard style={styles.emptyCard}>
       <VirraText variant="serif" size={17} color={colors.breath} style={{ lineHeight: 26 }}>
-        {cycleProfile === 'natural' || cycleProfile === 'irregular'
+        {showCycleHint
           ? 'Add your cycle data to unlock phase-aware training and nutrition guidance.'
           : 'Training and nutrition targets are personalised to your training load.'}
       </VirraText>
-      <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: spacing.sm, letterSpacing: 1.5 }}>
-        GO TO PROFILE → CYCLE SETTINGS
-      </VirraText>
+      {showCycleHint && (
+        <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: spacing.sm, letterSpacing: 1.5 }}>
+          GO TO PROFILE → CYCLE SETTINGS
+        </VirraText>
+      )}
     </VirraCard>
   );
 }
