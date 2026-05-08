@@ -4,16 +4,14 @@ const OFF_BASE = 'https://world.openfoodfacts.org/api/v2/product';
 const OFF_FIELDS = 'product_name,product_name_en,brands,nutriments';
 const USER_AGENT = 'Virra-iOS/1.0 (food logger; hello@virra.app)';
 
+// Throws on network failure (caller can distinguish offline vs not-found).
+// Returns null when barcode exists in OFF but has insufficient data.
 export async function lookupBarcode(barcode: string): Promise<VirraFood | null> {
-  try {
-    const res = await fetch(`${OFF_BASE}/${barcode}.json?fields=${OFF_FIELDS}`, {
-      headers: { 'User-Agent': USER_AGENT },
-    });
-    if (!res.ok) return null;
-    return parseOFFProduct(await res.json(), barcode);
-  } catch {
-    return null;
-  }
+  const res = await fetch(`${OFF_BASE}/${barcode}.json?fields=${OFF_FIELDS}`, {
+    headers: { 'User-Agent': USER_AGENT },
+  });
+  if (!res.ok) return null;
+  return parseOFFProduct(await res.json(), barcode);
 }
 
 export function parseOFFProduct(data: unknown, barcode: string): VirraFood | null {

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView,
-  Alert, KeyboardAvoidingView, Platform,
+  Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -190,7 +190,8 @@ export default function FoodSearchScreen() {
   const [selected, setSelected] = useState<VirraFood | null>(null);
   const [manual,   setManual]   = useState(false);
   const [adding,   setAdding]   = useState(false);
-  const [scanning,  setScanning]  = useState(false);
+  const [scanning,    setScanning]    = useState(false);
+  const [identifying, setIdentifying] = useState(false);
   const scannedRef = useRef(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
@@ -247,13 +248,23 @@ export default function FoodSearchScreen() {
     if (scannedRef.current) return;
     scannedRef.current = true;
     setScanning(false);
-    const food = await lookupBarcode(data);
+    setIdentifying(true);
+    let food: VirraFood | null = null;
+    let networkError = false;
+    try {
+      food = await lookupBarcode(data);
+    } catch {
+      networkError = true;
+    }
+    setIdentifying(false);
     if (food) {
       setSelected(food);
     } else {
       Alert.alert(
-        'Not found',
-        'This barcode wasn\'t recognised by Open Food Facts. Try searching by name or log manually.',
+        networkError ? 'No connection' : 'Not found',
+        networkError
+          ? 'Check your internet connection and try again.'
+          : 'This barcode wasn\'t recognised by Open Food Facts. Try searching by name or log manually.',
       );
       scannedRef.current = false;
     }
@@ -289,6 +300,17 @@ export default function FoodSearchScreen() {
             ALIGN BARCODE WITHIN FRAME
           </VirraText>
         </SafeAreaView>
+      </View>
+    );
+  }
+
+  if (identifying) {
+    return (
+      <View style={scan.identifyingScreen}>
+        <ActivityIndicator size="large" color={colors.pulse} />
+        <VirraText variant="mono" size={11} color="rgba(255,255,255,0.7)" style={scan.identifyingLabel}>
+          IDENTIFYING...
+        </VirraText>
       </View>
     );
   }
@@ -386,10 +408,12 @@ export default function FoodSearchScreen() {
 }
 
 const scan = StyleSheet.create({
-  overlay:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
-  closeBtn: { position: 'absolute', top: 56, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
-  frame:    { width: 260, height: 160, borderWidth: 2, borderColor: 'rgba(212,255,38,0.8)', borderRadius: 12 },
-  hint:     { marginTop: 20, letterSpacing: 1.5 },
+  overlay:          { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  closeBtn:         { position: 'absolute', top: 56, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  frame:            { width: 260, height: 160, borderWidth: 2, borderColor: 'rgba(212,255,38,0.8)', borderRadius: 12 },
+  hint:             { marginTop: 20, letterSpacing: 1.5 },
+  identifyingScreen: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
+  identifyingLabel:  { marginTop: spacing.md, letterSpacing: 2 },
 });
 
 const styles = StyleSheet.create({
