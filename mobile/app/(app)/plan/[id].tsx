@@ -181,7 +181,7 @@ export default function PlanDetailScreen() {
     if (error) {
       Alert.alert('Could not start plan', error.message);
     } else {
-      await addBlock(session!.user.id, {
+      const blockId = await addBlock(session!.user.id, {
         templateId:   plan.id,
         modality:     inferModality(plan.sport_type),
         startsOn:     planStart,
@@ -189,6 +189,7 @@ export default function PlanDetailScreen() {
         loadModifier: 1.0,
         isPrimary:    true,
       });
+      if (!blockId) console.warn('training_block creation failed — plan started but stack not updated');
       router.replace('/(app)/(tabs)/training');
     }
   }
