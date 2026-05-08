@@ -1,41 +1,40 @@
 ---
-import '../styles/global.css';
-
 interface Props {
   title: string;
-  description: string;
+  description?: string;
   ogImage?: string;
+  ogType?: 'website' | 'article';
 }
-
-const { title, description, ogImage } = Astro.props;
-const siteUrl = 'https://virra.app';
-const canonical = Astro.url.href;
-const fullOgImage = ogImage
-  ? (ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage}`)
-  : `${siteUrl}/og-default.jpg`;
+const {
+  title,
+  description = 'Female-first running. Cycle-aware training, nutrition and performance — all in one place.',
+  ogImage = '/og-default.png',
+  ogType = 'website',
+} = Astro.props;
+const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 ---
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{title}</title>
-  <meta name="description" content={description}>
-  <link rel="canonical" href={canonical}>
-  <meta property="og:title" content={title}>
-  <meta property="og:description" content={description}>
-  <meta property="og:image" content={fullOgImage}>
-  <meta property="og:url" content={canonical}>
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Virra">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content={title}>
-  <meta name="twitter:description" content={description}>
-  <meta name="twitter:image" content={fullOgImage}>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="sitemap" href="/sitemap-index.xml" />
+  <link rel="canonical" href={canonicalURL} />
 
+  <title>{title}</title>
+  <meta name="description" content={description} />
+
+  <meta property="og:type" content={ogType} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:image" content={new URL(ogImage, Astro.site)} />
+  <meta property="og:url" content={canonicalURL} />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
 </head>
 <body>
   <slot />
