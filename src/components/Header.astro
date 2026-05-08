@@ -1,50 +1,129 @@
 ---
+import Logo from './Logo.astro';
+const navLinks = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/coaching', label: 'Coaching' },
+  { href: '/advice', label: 'Advice' },
+  { href: '/pace-calculator', label: 'Pace Calculator' },
+];
+const current = Astro.url.pathname;
 ---
 <header class="site-header">
-  <div class="h-wrap">
-    <a href="/" class="logo">VIRRA<em>.</em></a>
-    <nav>
-      <a href="/blog">Journal</a>
+  <div class="h-inner">
+    <Logo />
+    <button class="burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-menu">
+      <span></span><span></span><span></span>
+    </button>
+    <nav id="nav-menu" aria-label="Main navigation">
+      {navLinks.map((link) => (
+        <a
+          href={link.href}
+          class:list={['nav-link', { active: current === link.href || (link.href !== '/' && current.startsWith(link.href)) }]}
+          aria-current={current === link.href ? 'page' : undefined}
+        >
+          {link.label}
+        </a>
+      ))}
+      <a href="#newsletter" class="nav-cta">Subscribe</a>
     </nav>
   </div>
 </header>
 
+<script>
+  const burger = document.querySelector<HTMLButtonElement>('.burger')!;
+  const nav = document.querySelector<HTMLElement>('#nav-menu')!;
+
+  burger.addEventListener('click', () => {
+    const open = burger.getAttribute('aria-expanded') === 'true';
+    burger.setAttribute('aria-expanded', String(!open));
+    nav.classList.toggle('open', !open);
+  });
+</script>
+
 <style>
   .site-header {
-    padding: 36px 0;
-    position: relative;
-    z-index: 10;
-    animation: hdrUp 0.7s ease 0.1s both;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,10,15,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
   }
-  .h-wrap {
-    max-width: 1140px;
+  .h-inner {
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 0 52px;
+    padding: 0 48px;
+    height: 64px;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 40px;
   }
-  .logo {
-    font-family: 'Cormorant', serif;
-    font-weight: 600;
-    font-size: 1.7rem;
-    letter-spacing: 0.28em;
-    color: var(--text);
-    text-decoration: none;
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-left: auto;
   }
-  .logo em { color: var(--lime); font-style: normal; }
-  nav a {
-    font-size: 0.72rem;
+  .nav-link {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--muted);
     text-decoration: none;
     transition: color 0.2s;
   }
-  nav a:hover { color: var(--text); }
-  @keyframes hdrUp {
-    from { opacity: 0; transform: translateY(-12px); }
-    to { opacity: 1; transform: translateY(0); }
+  .nav-link:hover, .nav-link.active { color: var(--breath); }
+  .nav-cta {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    background: var(--heat);
+    color: var(--breath);
+    padding: 8px 18px;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: background 0.2s;
+    white-space: nowrap;
   }
-  @media (max-width: 680px) { .h-wrap { padding: 0 28px; } }
+  .nav-cta:hover { background: #ff4d94; }
+  .burger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    margin-left: auto;
+  }
+  .burger span {
+    display: block;
+    width: 22px;
+    height: 1px;
+    background: var(--breath);
+  }
+  @media (max-width: 768px) {
+    .h-inner { padding: 0 24px; }
+    .burger { display: flex; }
+    nav {
+      display: none;
+      position: absolute;
+      top: 64px;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0;
+      background: var(--mist);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px 24px;
+      margin-left: 0;
+    }
+    nav.open { display: flex; }
+    .nav-link { padding: 12px 0; width: 100%; border-bottom: 1px solid var(--border); }
+    .nav-cta { margin-top: 16px; align-self: flex-start; }
+  }
 </style>
