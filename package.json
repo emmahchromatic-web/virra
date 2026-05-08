@@ -21,6 +21,7 @@
     "@sanity/client": "^7.22.0",
     "@sanity/image-url": "^2.1.1",
     "astro": "^6.2.1",
+    "astro-portabletext": "^0.13.0",
     "googleapis": "^171.4.0",
     "resend": "^6.12.3"
   },

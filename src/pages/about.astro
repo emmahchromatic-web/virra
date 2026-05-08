@@ -1,0 +1,229 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import { client, urlFor } from '../lib/sanity';
+import { ABOUT_QUERY } from '../lib/queries';
+import { PortableText } from 'astro-portabletext';
+
+const about = await client.fetch(ABOUT_QUERY).catch(() => null);
+---
+<BaseLayout
+  title="About Emma — VIRRA"
+  description="Emma built VIRRA because women's physiology deserves to be at the centre of every training and nutrition decision — not an afterthought."
+>
+  <Header />
+  <main>
+
+    <!-- HERO -->
+    <section class="about-hero">
+      <div class="wrap">
+        <div class="hero-inner">
+          <div class="hero-img">
+            {about?.portrait
+              ? <img
+                  src={urlFor(about.portrait).width(560).height(700).url()}
+                  alt="Emma — founder of VIRRA"
+                  width="560"
+                  height="700"
+                />
+              : <div class="hero-placeholder" aria-hidden="true" />
+            }
+          </div>
+          <div class="hero-copy">
+            <SectionLabel text="The founder" />
+            <h1>Emma.</h1>
+            {about?.heroTagline && (
+              <p class="hero-tagline">{about.heroTagline}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOUNDER STORY -->
+    {about?.founderStory && (
+      <section class="story">
+        <div class="wrap story-inner">
+          <div class="prose">
+            <PortableText value={about.founderStory} />
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- QUALIFICATIONS -->
+    {about?.qualifications?.length > 0 && (
+      <section class="quals">
+        <div class="wrap">
+          <SectionLabel text="Qualifications" />
+          <ul class="quals-list">
+            {about.qualifications.map((q: string) => (
+              <li>{q}</li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    )}
+
+    <!-- WHY VIRRA -->
+    {about?.whyVirra && (
+      <section class="why">
+        <div class="wrap">
+          <SectionLabel text="Why VIRRA" />
+          <div class="prose">
+            <PortableText value={about.whyVirra} />
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- PRESS STRIP -->
+    {about?.pressItems?.length > 0 && (
+      <section class="press">
+        <div class="wrap">
+          <SectionLabel text="Press" />
+          <div class="press-strip">
+            {about.pressItems.map((item: any) => (
+              <a href={item.url} target="_blank" rel="noopener noreferrer" class="press-item">
+                {item.outlet}
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- CROSS CTAs -->
+    <section class="ctas">
+      <div class="wrap ctas-inner">
+        <a href="/coaching" class="cta-card">
+          <span class="cta-label">Coaching</span>
+          <span class="cta-arrow">→</span>
+        </a>
+        <a href="#newsletter" class="cta-card">
+          <span class="cta-label">Subscribe to Run Hot</span>
+          <span class="cta-arrow">→</span>
+        </a>
+        <a href="https://instagram.com/emmasrunlife" target="_blank" rel="noopener noreferrer" class="cta-card">
+          <span class="cta-label">@emmasrunlife</span>
+          <span class="cta-arrow">↗</span>
+        </a>
+      </div>
+    </section>
+
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+
+  /* HERO */
+  .about-hero { padding: 80px 0; }
+  .hero-inner { display: grid; grid-template-columns: 420px 1fr; gap: 80px; align-items: end; }
+  .hero-img img { width: 100%; border-radius: 2px; display: block; }
+  .hero-placeholder { width: 100%; aspect-ratio: 4/5; background: var(--mist); border-radius: 2px; }
+  .hero-copy h1 {
+    font-family: var(--font-display);
+    font-size: clamp(5rem, 14vw, 12rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.04em;
+    line-height: 0.82;
+    color: var(--breath);
+    margin: 12px 0 24px;
+  }
+  .hero-tagline {
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    line-height: 1.3;
+    color: rgba(244,237,224,0.75);
+    letter-spacing: -0.015em;
+  }
+
+  /* STORY */
+  .story { padding: 80px 0; border-top: 1px solid var(--border); }
+  .story-inner { max-width: 720px; }
+
+  /* QUALS */
+  .quals { padding: 60px 0; border-top: 1px solid var(--border); }
+  .quals-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .quals-list li {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--breath);
+    padding-left: 20px;
+    position: relative;
+  }
+  .quals-list li::before {
+    content: '—';
+    position: absolute;
+    left: 0;
+    color: var(--heat);
+  }
+
+  /* WHY */
+  .why { padding: 60px 0; border-top: 1px solid var(--border); }
+  .why .wrap { max-width: 720px; }
+
+  /* PRESS */
+  .press { padding: 60px 0; border-top: 1px solid var(--border); }
+  .press-strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+  .press-item {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 8px 16px;
+    border-radius: 2px;
+    text-decoration: none;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .press-item:hover { color: var(--breath); border-color: var(--breath); }
+
+  /* CTAS */
+  .ctas { padding: 80px 0; border-top: 1px solid var(--border); }
+  .ctas-inner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .cta-card {
+    background: var(--mist);
+    border: 1px solid var(--border);
+    padding: 28px 24px;
+    border-radius: 2px;
+    text-decoration: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: border-color 0.2s;
+  }
+  .cta-card:hover { border-color: var(--pulse); }
+  .cta-label {
+    font-family: var(--font-display);
+    font-size: 1.2rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    color: var(--breath);
+  }
+  .cta-arrow { font-size: 1.4rem; color: var(--pulse); }
+
+  @media (max-width: 900px) {
+    .hero-inner { grid-template-columns: 1fr; gap: 32px; }
+    .hero-img img { max-width: 360px; }
+    .ctas-inner { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) { .wrap { padding: 0 24px; } }
+</style>
