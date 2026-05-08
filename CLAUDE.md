@@ -31,7 +31,7 @@ Full design reference: `docs/design/virra-mvp-master.html` (open in browser).
 | Mobile framework | Expo + expo-router | File-based routing, EAS Build for App Store |
 | Backend / DB / auth | Supabase (Postgres + RLS) | Row-level security scoped per user |
 | Subscriptions | RevenueCat | 14-day trial → paid. Apple SBP = 15% cut |
-| Food database | Nutritionix API | 800k+ foods, barcode scan, natural language |
+| Food database | Open Food Facts API (future phase) | Free, open source, strong UK/global coverage. Barcode scan + food search deferred until post-launch revenue. Manual macro entry + bundled common-foods list in MVP. |
 | Health data | Apple HealthKit (`react-native-health`) | Primary activity source |
 | State | Zustand | Local, synced to Supabase |
 | Notifications | Expo Notifications + APNs | State-aware — cancelled when action completed |
@@ -138,25 +138,34 @@ Targets are the product of **cycle phase × training load** — not cycle phase 
 
 ```sql
 -- Cycle
-cycle_logs          (user_id, period_start, cycle_length, phase_overrides)
-symptom_logs        (user_id, date, energy, mood, sleep, symptoms[])
+cycle_logs          (id, user_id, period_start, cycle_length_days, phase_overrides)
+symptom_logs        (id, user_id, recorded_on, energy, mood, sleep_quality, symptoms[])
 
 -- Training — generic activity type supports multi-sport from day one
-plan_templates      (sport_type, weeks, sessions_json)   -- sport_type extensible
-user_plans          (user_id, template_id, start_date, goal_date)
-activities          (user_id, type, duration, distance, notes, phase_at_time, hk_uuid)
-                    -- type: run | swim | strength | yoga | other
-run_details         (activity_id, gps_trace, avg_pace, splits, hr_avg)
+plan_templates      (id, name, sport_type, distance_goal, duration_weeks, sessions_json)
+user_plans          (id, user_id, template_id, start_date, goal_date, is_active)
+activities          (id, user_id, activity_type, started_at, duration_seconds, distance_meters,
+                     notes, phase_at_time, hk_uuid, planned_session_id)
+                    -- activity_type: run | swim | strength | yoga | other
+run_details         (id, activity_id, avg_pace_seconds_per_km, splits_json, hr_avg, hr_max,
+                     elevation_gain_meters, gps_trace)
 
 -- Nutrition
-nutrition_logs      (user_id, date, phase_at_time, training_load, targets_json)
-food_entries        (log_id, meal_type, nutritionix_id, qty, macros)
+nutrition_logs      (id, user_id, recorded_on, phase_at_time, training_load, targets_json)
+food_entries        (id, log_id, meal_type, nutritionix_id, food_name, quantity_g,
+                     carbs_g, protein_g, fat_g, calories)
 
 -- Content + Auth
-articles            (title, body_md, tags[], linked_feature)
-user_profiles       (user_id, fitness_level, goal, dietary_prefs, baseline_pace, assessment_history[])
-fitness_assessments (user_id, date, stated_level, actual_pace, trigger, celebrated_at)
-subscriptions       (user_id, rc_customer_id, status, trial_end, activated_at)
+articles            (id, title, slug, body_md, tags[], linked_feature, published_at)
+user_profiles       (id [FK→auth.users], fitness_level, running_goal, dietary_prefs,
+                     baseline_pace_seconds_per_km, weekly_mileage_km,
+                     assessment_history, onboarding_complete)
+                    -- fitness_level: beginner | recreational | intermediate | advanced
+                    -- running_goal: 5k | 10k | half_marathon | marathon | general
+fitness_assessments (id, user_id, assessed_on, stated_level, actual_pace_seconds_per_km,
+                     trigger_description, celebrated_at)
+subscriptions       (id, user_id, rc_customer_id, sub_status, trial_end, activated_at)
+                    -- sub_status: trial | active | expired | cancelled
 ```
 
 ---
@@ -187,7 +196,7 @@ subscriptions       (user_id, rc_customer_id, status, trial_end, activated_at)
 - HealthKit background import pipeline (HKObserverQuery + HKAnchoredObjectQuery)
 - GPS run tracker (in-app)
 - Activity Timeline screen
-- Nutritionix food search + barcode scan
+- ~~Nutritionix food search + barcode scan~~ — deferred (see Phase 2)
 - Manual activity log (fallback)
 - Smart notification cancellation logic
 
@@ -199,19 +208,42 @@ subscriptions       (user_id, rc_customer_id, status, trial_end, activated_at)
 - Profile + subscription management screens
 - App Store submission prep
 
+### Phase E — Dynamic Planning Engine (post-launch v2)
+Requires Phase A–D stable. Full architectural planning session required before any implementation.
+
+**Plan stacking (cross-sport)**
+- Users combine a running plan with supplementary modalities (e.g. gym 2×/wk)
+- Run volume auto-adjusts to accommodate total load — not additive, redistributed
+- Cycle phase governs combined demand: a heavy strength day in luteal is treated differently to follicular
+- New schema layer needed: `training_blocks` (replaces single active `user_plans` row with overlapping blocks + load-balancing logic)
+
+**Multi-event progressive planning**
+- Users enter multiple upcoming events with dates (e.g. Marathon June → 100km Trail July → …)
+- Engine builds a single continuous timeline treating each race as a milestone, not a fresh plan start
+- Plans bridge between events: taper → recover → rebuild → peak, driven by the gap between events and the user's current fitness
+- Key retention mechanic: users with a stacked season stay subscribed across the full arc, not just one race block
+
+**Schema changes required (design before implementation)**
+```sql
+training_blocks   (id, user_id, template_id, starts_on, ends_on, load_modifier, modality, event_id)
+user_events       (id, user_id, name, event_date, distance_goal, priority)
+-- user_plans kept for backwards compatibility but superseded by training_blocks for Phase E users
+```
+
 ---
 
 ## Phase 2 (post-launch — not in scope for MVP)
 
 - Multi-sport structured plans (schema already ready — just needs plan content)
 - Community & social features
-- Route planning & mapping
+- Route planning & mapping — BRouter (open-source, offline-capable routing engine) for pre-run route planning; saved routes stored in a `routes` table (user_id, name, distance_meters, gps_polyline, elevation_json, created_at); Phase C GPS tracker lays the foundation by recording `gps_trace` on every run
 - Coach-to-client portal
 - Perimenopause & menopause track
 - Strava integration
 - Race day planning tool
 - Android (React Native supports it — launch 2-3 months post iOS)
 - Wearable expansion (direct Garmin Connect IQ + Wahoo API beyond HealthKit bridge)
+- **Food database — Open Food Facts integration:** barcode scanning + food search via the free OFF API. Strong UK/global coverage. Replace the MVP manual-entry + common-foods approach. Schema already uses `food_name`, `quantity_g`, macro fields — `nutritionix_id` column can be repurposed as `off_barcode`. Build once there's post-launch revenue to absorb any API changes.
 
 ---
 
