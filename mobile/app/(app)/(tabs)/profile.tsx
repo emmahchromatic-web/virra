@@ -9,7 +9,7 @@ import * as FileSystem from 'expo-file-system';
 import { SymbolView } from 'expo-symbols';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
-import { useCycleStore } from '@/store/cycle';
+import { useCycleStore, type CycleProfile } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { supabase } from '@/lib/supabase';
 import {
@@ -61,10 +61,18 @@ const row = StyleSheet.create({
   label: { letterSpacing: 1.5 },
 });
 
+const CYCLE_PROFILE_LABEL: Record<CycleProfile, string> = {
+  natural:       'Regular cycle',
+  hormonal:      'Hormonal contraception',
+  irregular:     'Irregular cycle',
+  perimenopause: 'Perimenopause',
+  menopause:     'Menopause',
+};
+
 export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
-  const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart } = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
   const { firstName, lastName, avatarUrl, save: saveProfile } = useProfileStore();
 
   const [saving,  setSaving]  = useState(false);
@@ -81,8 +89,9 @@ export default function ProfileScreen() {
     loadNotificationPreferences().then(setNotifPrefs);
   }, []);
 
-  const displayName = [firstName, lastName].filter(Boolean).join(' ') || 'Runner';
-  const initials    = [firstName?.[0], lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+  const displayName      = [firstName, lastName].filter(Boolean).join(' ') || 'Runner';
+  const initials         = [firstName?.[0], lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+  const showCycleDetails = cycleProfile === 'natural' || cycleProfile === 'irregular';
 
   async function handlePickAvatar() {
     if (!session) return;
@@ -208,18 +217,27 @@ export default function ProfileScreen() {
         <VirraCard style={styles.card}>
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>CYCLE</VirraText>
           <Row
-            label="CURRENT PHASE"
-            value={cycleInfo ? `${cycleInfo.phase.charAt(0).toUpperCase() + cycleInfo.phase.slice(1)} · Day ${cycleInfo.dayOfCycle}` : 'Not set'}
+            label="CYCLE PROFILE"
+            value={CYCLE_PROFILE_LABEL[cycleProfile]}
+            onPress={() => router.push('/(app)/cycle-settings')}
           />
-          <Row
-            label="LAST PERIOD"
-            value={periodStart ? periodStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Not set'}
-          />
-          <Row
-            label="CYCLE LENGTH"
-            value={`${cycleLength} days`}
-            onPress={() => { setCycleLengthInput(String(cycleLength)); setCycleLengthModalVisible(true); }}
-          />
+          {showCycleDetails && (
+            <>
+              <Row
+                label="CURRENT PHASE"
+                value={cycleInfo ? `${cycleInfo.phase.charAt(0).toUpperCase() + cycleInfo.phase.slice(1)} · Day ${cycleInfo.dayOfCycle}` : 'Not set'}
+              />
+              <Row
+                label="LAST PERIOD"
+                value={periodStart ? periodStart.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Not set'}
+              />
+              <Row
+                label="CYCLE LENGTH"
+                value={`${cycleLength} days`}
+                onPress={() => { setCycleLengthInput(String(cycleLength)); setCycleLengthModalVisible(true); }}
+              />
+            </>
+          )}
         </VirraCard>
 
         <VirraCard style={styles.card}>

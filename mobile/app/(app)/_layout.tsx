@@ -79,6 +79,7 @@ export default function AppLayout() {
       <Stack.Screen name="insights"        options={{ presentation: 'card'  }} />
       <Stack.Screen name="food-search"      options={{ presentation: 'modal' }} />
       <Stack.Screen name="manual-activity" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="cycle-settings"  options={{ presentation: 'card'  }} />
     </Stack>
   );
 }
