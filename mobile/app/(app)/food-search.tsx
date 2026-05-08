@@ -94,6 +94,7 @@ function AddPanel({
             { label: 'CARBS',   value: scaled.carbs_g },
             { label: 'PROTEIN', value: scaled.protein_g },
             { label: 'FAT',     value: scaled.fat_g },
+            { label: 'FIBRE',   value: scaled.fibre_g },
           ] as const).map(({ label, value }) => (
             <View key={label} style={panel.macroItem}>
               <VirraText variant="display" size={16} color={colors.breath}>{formatMacro(value)}</VirraText>
@@ -119,6 +120,7 @@ interface ManualMacros {
   carbs_g:    string;
   protein_g:  string;
   fat_g:      string;
+  fibre_g:    string;
 }
 
 function ManualEntry({ onAdd, onCancel, adding }: {
@@ -126,7 +128,7 @@ function ManualEntry({ onAdd, onCancel, adding }: {
   onCancel: () => void;
   adding:   boolean;
 }) {
-  const [v, setV] = useState<ManualMacros>({ food_name: '', calories: '', carbs_g: '', protein_g: '', fat_g: '' });
+  const [v, setV] = useState<ManualMacros>({ food_name: '', calories: '', carbs_g: '', protein_g: '', fat_g: '', fibre_g: '' });
   const set = (key: keyof ManualMacros) => (val: string) => setV((prev) => ({ ...prev, [key]: val }));
   const canAdd = v.food_name.trim().length > 0 && parseFloat(v.calories) > 0;
 
@@ -136,6 +138,7 @@ function ManualEntry({ onAdd, onCancel, adding }: {
     { key: 'carbs_g',    label: 'CARBS g',   placeholder: '0' },
     { key: 'protein_g',  label: 'PROTEIN g', placeholder: '0' },
     { key: 'fat_g',      label: 'FAT g',     placeholder: '0' },
+    { key: 'fibre_g',    label: 'FIBRE g',   placeholder: '0' },
   ];
 
   return (
