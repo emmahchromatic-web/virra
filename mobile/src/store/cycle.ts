@@ -1,11 +1,13 @@
 import { create } from 'zustand';
-import { getCycleInfo, type CyclePhase, type CycleInfo } from '@/lib/cycleEngine';
+import { getCycleInfo, type CyclePhase, type CycleInfo, type CycleProfile } from '@/lib/cycleEngine';
 import { supabase } from '@/lib/supabase';
 
 interface CycleState {
+  cycleProfile: CycleProfile;
   periodStart:  Date | null;
   cycleLength:  number;
   cycleInfo:    CycleInfo | null;
+  setCycleProfile:   (profile: CycleProfile) => void;
   setPeriodStart:    (date: Date, today?: Date) => void;
   setCycleLength:    (length: number, today?: Date) => void;
   refreshPhase:      (today?: Date) => void;
@@ -22,9 +24,13 @@ function compute(
 }
 
 export const useCycleStore = create<CycleState>((set, get) => ({
-  periodStart: null,
-  cycleLength: 28,
-  cycleInfo:   null,
+  cycleProfile: 'natural',
+  periodStart:  null,
+  cycleLength:  28,
+  cycleInfo:    null,
+
+  setCycleProfile: (profile) =>
+    set({ cycleProfile: profile }),
 
   setPeriodStart: (date, today = new Date()) =>
     set((s) => ({
@@ -44,19 +50,32 @@ export const useCycleStore = create<CycleState>((set, get) => ({
     })),
 
   loadFromSupabase: async (userId, today = new Date()) => {
-    const { data } = await supabase
-      .from('cycle_logs')
-      .select('period_start, cycle_length_days')
-      .eq('user_id', userId)
-      .order('period_start', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const [cycleRes, profileRes] = await Promise.all([
+      supabase
+        .from('cycle_logs')
+        .select('period_start, cycle_length_days')
+        .eq('user_id', userId)
+        .order('period_start', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('user_profiles')
+        .select('cycle_profile')
+        .eq('id', userId)
+        .maybeSingle(),
+    ]);
 
-    if (!data) return;
+    const cycleProfile = (profileRes.data?.cycle_profile as CycleProfile | undefined) ?? 'natural';
 
-    const periodStart = new Date(data.period_start);
-    const cycleLength = data.cycle_length_days ?? 28;
+    if (!cycleRes.data) {
+      set({ cycleProfile });
+      return;
+    }
+
+    const periodStart = new Date(cycleRes.data.period_start);
+    const cycleLength = cycleRes.data.cycle_length_days ?? 28;
     set({
+      cycleProfile,
       periodStart,
       cycleLength,
       cycleInfo: compute(periodStart, cycleLength, today),
@@ -64,5 +83,5 @@ export const useCycleStore = create<CycleState>((set, get) => ({
   },
 }));
 
-// Re-export CyclePhase so consumers can import from one place
-export type { CyclePhase, CycleInfo };
+// Re-export types so consumers can import from one place
+export type { CyclePhase, CycleInfo, CycleProfile };
