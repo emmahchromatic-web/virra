@@ -3,7 +3,11 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 
 export const POST: APIRoute = async ({ request }) => {
-  const { email, source } = await request.json() as { email: string; source: string };
+  const { email, source, _hp } = await request.json() as { email: string; source: string; _hp?: string };
+
+  if (_hp) {
+    return new Response(JSON.stringify({ success: true }), { status: 200 });
+  }
 
   if (!email || !email.includes('@')) {
     return new Response(JSON.stringify({ error: 'Invalid email' }), { status: 400 });
