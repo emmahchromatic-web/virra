@@ -205,6 +205,7 @@ export default function FoodSearchScreen() {
       carbs_g:   macros.carbs_g,
       protein_g: macros.protein_g,
       fat_g:     macros.fat_g,
+      fibre_g:   macros.fibre_g,
     });
     setAdding(false);
     if (error) { Alert.alert('Could not add food', error.message); return; }
@@ -227,6 +228,7 @@ export default function FoodSearchScreen() {
       carbs_g:   parseFloat(m.carbs_g)    || 0,
       protein_g: parseFloat(m.protein_g)  || 0,
       fat_g:     parseFloat(m.fat_g)      || 0,
+      fibre_g:   parseFloat(m.fibre_g)    || 0,
     });
     setAdding(false);
     if (error) { Alert.alert('Could not add food', error.message); return; }
