@@ -1,0 +1,64 @@
+---
+import { urlFor } from '../lib/sanity';
+interface Props {
+  title: string;
+  slug: { current: string };
+  dek?: string;
+  category: string;
+  publishedDate: string;
+  heroImage?: any;
+}
+const { title, slug, dek, category, publishedDate, heroImage } = Astro.props;
+const date = new Date(publishedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+const imageUrl = heroImage ? urlFor(heroImage).width(640).height(360).url() : null;
+---
+<a href={`/advice/${slug.current}`} class="article-card">
+  <div class="ac-image" style={imageUrl ? `background-image:url(${imageUrl})` : ''} aria-hidden="true">
+    {!imageUrl && <div class="ac-placeholder" />}
+  </div>
+  <div class="ac-body">
+    <span class="ac-cat">{category}</span>
+    <h3 class="ac-title">{title}</h3>
+    {dek && <p class="ac-dek">{dek}</p>}
+    <span class="ac-date">{date}</span>
+  </div>
+</a>
+
+<style>
+  .article-card {
+    display: block;
+    text-decoration: none;
+    background: var(--mist);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .article-card:hover { border-color: var(--pulse); }
+  .ac-image {
+    height: 200px;
+    background: var(--mile);
+    background-size: cover;
+    background-position: center;
+  }
+  .ac-placeholder { height: 100%; background: linear-gradient(135deg, var(--mist) 0%, var(--mile) 100%); }
+  .ac-body { padding: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .ac-cat {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--heat);
+  }
+  .ac-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 0.95;
+    color: var(--breath);
+  }
+  .ac-dek { font-size: 0.88rem; line-height: 1.6; color: var(--muted); }
+  .ac-date { font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+</style>

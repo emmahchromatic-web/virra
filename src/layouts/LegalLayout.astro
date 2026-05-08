@@ -1,0 +1,35 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+interface Props { title: string; }
+const { title } = Astro.props;
+---
+<BaseLayout title={`${title} — VIRRA`}>
+  <Header />
+  <main class="legal-main">
+    <div class="legal-wrap">
+      <h1 class="legal-title">{title}</h1>
+      <div class="prose">
+        <slot />
+      </div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .legal-main { padding: 80px 0; }
+  .legal-wrap { max-width: 760px; margin: 0 auto; padding: 0 48px; }
+  .legal-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.88;
+    margin-bottom: 48px;
+    color: var(--breath);
+  }
+  @media (max-width: 640px) { .legal-wrap { padding: 0 24px; } }
+</style>
