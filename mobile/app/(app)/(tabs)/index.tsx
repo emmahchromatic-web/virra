@@ -162,7 +162,9 @@ export default function DashboardScreen() {
                 </View>
               </View>
             </VirraCard>
-              <ActivityRings steps={steps} exerciseMins={exerciseMins} />
+              <VirraCard style={styles.ringsCard}>
+                <ActivityRings steps={steps} exerciseMins={exerciseMins} />
+              </VirraCard>
             </View>
 
             <GuidanceCard title="Training"  body={meta.training}  accentColor={meta.color} />
@@ -202,6 +204,7 @@ const styles = StyleSheet.create({
   stat:        { flex: 1, alignItems: 'center', gap: 4 },
   statLabel:   { letterSpacing: 1, textAlign: 'center' },
   statDivider: { width: 1, backgroundColor: colors.border, marginHorizontal: spacing.sm },
+  ringsCard:   { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md },
   emptyCard:   { gap: spacing.sm },
   insightLink: { alignItems: 'center', paddingVertical: spacing.xs },
 });
