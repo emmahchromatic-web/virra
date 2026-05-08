@@ -52,6 +52,7 @@ import SectionLabel from '../components/SectionLabel.astro';
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!form.reportValidity()) return;
     const btn = form.querySelector<HTMLButtonElement>('button')!;
     btn.disabled = true;
     const fd = new FormData(form);

@@ -18,12 +18,12 @@
     banner.hidden = false;
   }
 
-  document.getElementById('cb-accept')!.addEventListener('click', () => {
+  document.getElementById('cb-accept')?.addEventListener('click', () => {
     localStorage.setItem(PREF_KEY, 'accepted');
     banner.hidden = true;
   });
 
-  document.getElementById('cb-reject')!.addEventListener('click', () => {
+  document.getElementById('cb-reject')?.addEventListener('click', () => {
     localStorage.setItem(PREF_KEY, 'rejected');
     banner.hidden = true;
   });
