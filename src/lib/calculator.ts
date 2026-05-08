@@ -33,6 +33,7 @@ export interface PhaseInfo {
 // --- UTILS ---
 
 export function secsToHMS(secs: number): string {
+  if (!isFinite(secs) || secs < 0) return '--:--';
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   const s = Math.round(secs % 60);
@@ -41,14 +42,18 @@ export function secsToHMS(secs: number): string {
 }
 
 export function secsToMMSS(secs: number): string {
+  if (!isFinite(secs) || secs < 0) return '--:--';
   const m = Math.floor(secs / 60);
   const s = Math.round(secs % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 export function parseHMS(input: string): number {
-  const parts = input.trim().split(':').map(Number);
+  const trimmed = input.trim();
+  if (!trimmed || trimmed === ':' || trimmed === '::') throw new Error('Invalid time format');
+  const parts = trimmed.split(':').map(Number);
   if (parts.some(Number.isNaN)) throw new Error('Invalid time format');
+  if (parts.some(p => p < 0)) throw new Error('Invalid time format');
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   if (parts.length === 1) return parts[0] * 60;
@@ -76,10 +81,12 @@ export function calcTime(distanceKm: number, paceSecsPerKm: number): number {
 }
 
 export function calcPace(distanceKm: number, totalSecs: number): number {
+  if (distanceKm === 0) throw new Error('Distance cannot be zero');
   return totalSecs / distanceKm;
 }
 
 export function calcDistance(totalSecs: number, paceSecsPerKm: number): number {
+  if (paceSecsPerKm === 0) throw new Error('Pace cannot be zero');
   return totalSecs / paceSecsPerKm;
 }
 

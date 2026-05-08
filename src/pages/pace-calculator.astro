@@ -301,7 +301,12 @@ const copy = {
   });
 
   // --- TAB 3: CYCLE-AWARE ---
-  const cyclePhaseData = JSON.parse(document.getElementById('cycle-copy-data')!.textContent!);
+  let cyclePhaseData: Record<string, { guidance: string; why: string }> = {};
+  try {
+    cyclePhaseData = JSON.parse(document.getElementById('cycle-copy-data')?.textContent ?? '{}');
+  } catch {
+    // falls back to empty object; phaseCopy.guidance ?? '' handles it below
+  }
 
   document.getElementById('cyc-calc')!.addEventListener('click', () => {
     const dateInput = (document.getElementById('cyc-date') as HTMLInputElement).value;
@@ -362,6 +367,8 @@ const copy = {
     const unit = (sp.get('unit') ?? 'km') as 'km' | 'mi';
     (document.getElementById('ptd-distance') as HTMLInputElement).value = unit === 'km' ? String(dist) : String(dist / 1.60934);
     (document.getElementById('ptd-time') as HTMLInputElement).value = secsToHMS(time);
+    const unitRadio = document.querySelector<HTMLInputElement>(`input[name="unit-pace"][value="${unit}"]`);
+    if (unitRadio) unitRadio.checked = true;
     document.getElementById('ptd-calc')!.dispatchEvent(new Event('click'));
   }
   if (sp.get('d1') && sp.get('t1') && sp.get('d2')) {
