@@ -1,0 +1,235 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { PortableText } from 'astro-portabletext';
+import SectionLabel from '../../components/SectionLabel.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { client, urlFor } from '../../lib/sanity';
+import { ARTICLE_BY_SLUG_QUERY, RELATED_ARTICLES_QUERY } from '../../lib/queries';
+
+const { slug } = Astro.params;
+const article = await client.fetch(ARTICLE_BY_SLUG_QUERY, { slug }).catch(() => null);
+
+if (!article) {
+  return Astro.redirect('/advice');
+}
+
+const related = await client.fetch(RELATED_ARTICLES_QUERY, {
+  category: article.category,
+  slug: slug,
+}).catch(() => []);
+
+function wordCount(blocks: any[]): number {
+  if (!blocks) return 0;
+  return blocks.reduce((count: number, block: any) => {
+    if (block._type !== 'block' || !block.children) return count;
+    return count + block.children.reduce((c: number, child: any) => {
+      return c + (child.text ? child.text.split(/\s+/).filter(Boolean).length : 0);
+    }, 0);
+  }, 0);
+}
+
+const readTime = Math.max(1, Math.ceil(wordCount(article.body) / 200));
+const publishedDate = article.publishedDate ? new Date(article.publishedDate) : null;
+const publishedISO = publishedDate ? publishedDate.toISOString() : '';
+const publishedFormatted = publishedDate
+  ? publishedDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  : '';
+
+const ogImage = article.ogImage
+  ? urlFor(article.ogImage).width(1200).height(630).url()
+  : article.heroImage
+    ? urlFor(article.heroImage).width(1200).height(630).url()
+    : '';
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: article.title,
+  description: article.dek || '',
+  image: ogImage || undefined,
+  datePublished: publishedISO,
+  author: { '@type': 'Person', name: 'Virginia Rickards' },
+  publisher: { '@type': 'Organization', name: 'VIRRA', url: 'https://virra.app' },
+};
+---
+<BaseLayout
+  title={`${article.title} — VIRRA`}
+  description={article.seoDescription || article.dek || ''}
+  ogImage={ogImage || undefined}
+  ogType="article"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+
+  <Header />
+  <main>
+    <article class="article-page">
+      <header class="article-header">
+        {article.category && <SectionLabel text={article.category.toUpperCase()} />}
+        <h1>{article.title}</h1>
+        {article.dek && <p class="excerpt">{article.dek}</p>}
+        <div class="meta">
+          {publishedFormatted && <time datetime={publishedISO}>{publishedFormatted}</time>}
+          <span class="read-time">{readTime} min read</span>
+        </div>
+      </header>
+
+      {article.heroImage && (
+        <div class="cover-image">
+          <img
+            src={urlFor(article.heroImage).width(1200).height(600).url()}
+            alt={article.heroImage.alt || article.title}
+            width="1200"
+            height="600"
+            loading="eager"
+          />
+        </div>
+      )}
+
+      <div class="article-body prose">
+        {article.body && <PortableText value={article.body} />}
+      </div>
+    </article>
+
+    {related.length > 0 && (
+      <section class="related">
+        <div class="related-wrap">
+          <SectionLabel text="KEEP READING" />
+          <div class="related-grid">
+            {related.map((a: any) => (
+              <ArticleCard
+                title={a.title}
+                slug={a.slug}
+                dek={a.dek}
+                category={a.category}
+                publishedDate={a.publishedDate}
+                heroImage={a.heroImage}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .article-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 4rem 48px 5rem;
+  }
+  .article-header {
+    margin-bottom: 3rem;
+  }
+  .article-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--breath);
+    line-height: 0.95;
+    margin: 1rem 0;
+  }
+  .excerpt {
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: 1.2rem;
+    color: color-mix(in srgb, var(--breath) 80%, transparent);
+    margin: 1.5rem 0;
+    line-height: 1.6;
+  }
+  .meta {
+    display: flex;
+    gap: 1.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: color-mix(in srgb, var(--breath) 50%, transparent);
+    margin-top: 1rem;
+  }
+  .cover-image {
+    margin: 0 calc(-1 * 48px);
+    margin-bottom: 3rem;
+  }
+  .cover-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .article-body.prose {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    line-height: 1.75;
+    color: color-mix(in srgb, var(--breath) 85%, transparent);
+  }
+  .article-body.prose :global(h2) {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--breath);
+    margin: 3rem 0 1rem;
+    line-height: 0.95;
+  }
+  .article-body.prose :global(h3) {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--breath);
+    margin: 2rem 0 0.75rem;
+  }
+  .article-body.prose :global(p) {
+    margin: 1.25rem 0;
+  }
+  .article-body.prose :global(a) {
+    color: var(--pulse);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .article-body.prose :global(strong) {
+    color: var(--breath);
+    font-weight: 600;
+  }
+  .article-body.prose :global(ul),
+  .article-body.prose :global(ol) {
+    padding-left: 1.5rem;
+    margin: 1.25rem 0;
+  }
+  .article-body.prose :global(li) {
+    margin: 0.5rem 0;
+  }
+  .article-body.prose :global(blockquote) {
+    border-left: 3px solid var(--pulse);
+    margin: 2rem 0;
+    padding: 0.5rem 0 0.5rem 1.5rem;
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: 1.15rem;
+    color: color-mix(in srgb, var(--breath) 90%, transparent);
+  }
+  .related {
+    border-top: 1px solid var(--border);
+    padding: 4rem 0 5rem;
+  }
+  .related-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+  .related-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+  }
+  @media (max-width: 640px) {
+    .article-page { padding: 2rem 24px 3rem; }
+    .cover-image { margin: 0 -24px 2rem; }
+    .related-wrap { padding: 0 24px; }
+  }
+</style>

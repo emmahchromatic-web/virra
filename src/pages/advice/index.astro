@@ -1,0 +1,232 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleCard from '../../components/ArticleCard.astro';
+import NewsletterForm from '../../components/NewsletterForm.astro';
+import SectionLabel from '../../components/SectionLabel.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { client } from '../../lib/sanity';
+import { ALL_ARTICLES_QUERY, FEATURED_ARTICLE_QUERY } from '../../lib/queries';
+
+const CATEGORIES = ['All', 'Training', 'Nutrition', 'Cycle & Hormones', 'Mindset', 'Race Day'];
+const PAGE_SIZE = 12;
+
+const url = Astro.url;
+const selectedCategory = url.searchParams.get('category') || 'All';
+const page = parseInt(url.searchParams.get('page') || '1', 10);
+
+const allArticles = await client.fetch(ALL_ARTICLES_QUERY).catch(() => []);
+const featuredArticle = await client.fetch(FEATURED_ARTICLE_QUERY).catch(() => null);
+
+const filtered = selectedCategory === 'All'
+  ? allArticles
+  : allArticles.filter((a: any) => a.category === selectedCategory);
+
+const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+---
+<BaseLayout title="Advice — VIRRA" description="Training, nutrition and cycle-aware advice for women runners.">
+  <Header />
+  <main>
+    <section class="advice-hero">
+      <SectionLabel text="THE KNOWLEDGE" />
+      <h1>Run Smarter</h1>
+      <p class="subtitle">Evidence-based training, nutrition and cycle guidance for women who run.</p>
+    </section>
+
+    {featuredArticle && (
+      <section class="featured">
+        <div class="wrap">
+          <SectionLabel text="FEATURED" />
+          <ArticleCard
+            title={featuredArticle.title}
+            slug={featuredArticle.slug}
+            dek={featuredArticle.dek}
+            category={featuredArticle.category}
+            publishedDate={featuredArticle.publishedDate}
+            heroImage={featuredArticle.heroImage}
+          />
+        </div>
+      </section>
+    )}
+
+    <section class="category-filter">
+      <div class="wrap">
+        <nav aria-label="Filter by category">
+          {CATEGORIES.map(cat => {
+            const params = new URLSearchParams();
+            if (cat !== 'All') params.set('category', cat);
+            return (
+              <a
+                href={`/advice${cat === 'All' ? '' : '?' + params.toString()}`}
+                class:list={['filter-chip', { active: cat === selectedCategory }]}
+              >
+                {cat}
+              </a>
+            );
+          })}
+        </nav>
+      </div>
+    </section>
+
+    <section class="article-grid">
+      <div class="wrap">
+        {paged.length > 0 ? (
+          <div class="grid">
+            {paged.map((article: any) => (
+              <ArticleCard
+                title={article.title}
+                slug={article.slug}
+                dek={article.dek}
+                category={article.category}
+                publishedDate={article.publishedDate}
+                heroImage={article.heroImage}
+              />
+            ))}
+          </div>
+        ) : (
+          <p class="empty">No articles yet in this category.</p>
+        )}
+      </div>
+    </section>
+
+    {totalPages > 1 && (
+      <nav class="pagination" aria-label="Pagination">
+        {page > 1 && (
+          <a
+            href={`/advice?${new URLSearchParams({ ...(selectedCategory !== 'All' && { category: selectedCategory }), page: String(page - 1) })}`}
+            class="page-link"
+          >
+            ← Previous
+          </a>
+        )}
+        <span class="page-info">Page {page} of {totalPages}</span>
+        {page < totalPages && (
+          <a
+            href={`/advice?${new URLSearchParams({ ...(selectedCategory !== 'All' && { category: selectedCategory }), page: String(page + 1) })}`}
+            class="page-link"
+          >
+            Next →
+          </a>
+        )}
+      </nav>
+    )}
+
+    <section class="newsletter-block" id="newsletter">
+      <SectionLabel text="STAY IN THE LOOP" />
+      <h2>Advice in your inbox</h2>
+      <NewsletterForm source="advice" />
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .advice-hero {
+    padding: 5rem 48px 3rem;
+    text-align: center;
+  }
+  .advice-hero h1 {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 8vw, 7rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--breath);
+    line-height: 0.9;
+    margin: 1rem 0;
+  }
+  .advice-hero .subtitle {
+    font-family: var(--font-body);
+    font-weight: 300;
+    color: color-mix(in srgb, var(--breath) 70%, transparent);
+    font-size: 1.1rem;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+  }
+  .featured {
+    padding-bottom: 3rem;
+  }
+  .category-filter {
+    padding: 2rem 0;
+  }
+  .category-filter nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .filter-chip {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.5rem 1rem;
+    border: 1px solid color-mix(in srgb, var(--breath) 20%, transparent);
+    border-radius: 100px;
+    color: color-mix(in srgb, var(--breath) 70%, transparent);
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .filter-chip:hover, .filter-chip.active {
+    background: var(--pulse);
+    border-color: var(--pulse);
+    color: var(--mile);
+  }
+  .article-grid {
+    padding-bottom: 4rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+  .empty {
+    font-family: var(--font-body);
+    color: color-mix(in srgb, var(--breath) 50%, transparent);
+    text-align: center;
+    padding: 4rem 0;
+  }
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    padding: 2rem 48px 4rem;
+  }
+  .page-link {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--pulse);
+    text-decoration: none;
+  }
+  .page-info {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: color-mix(in srgb, var(--breath) 50%, transparent);
+  }
+  .newsletter-block {
+    padding: 5rem 48px;
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .newsletter-block h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--breath);
+    margin: 1rem 0;
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 24px; }
+    .advice-hero { padding: 3rem 24px 2rem; }
+    .pagination { padding: 2rem 24px 3rem; }
+    .newsletter-block { padding: 3rem 24px; }
+  }
+</style>
