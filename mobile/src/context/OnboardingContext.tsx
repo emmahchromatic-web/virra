@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { FitnessLevel, WeeklyMileageBracket } from '@/lib/healthKitOnboarding';
+import type { CycleProfile } from '@/store/cycle';
 
 export type RunningGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'general';
 
@@ -7,12 +8,13 @@ interface OnboardingData {
   firstName:      string;
   lastName:       string;
   localAvatarUri: string | null;
-  fitnessLevel:  FitnessLevel | null;
-  weeklyMileage: WeeklyMileageBracket | null;
-  fiveKTime:     string;
-  runningGoal:   RunningGoal | null;
-  periodStart:   Date | null;
-  cycleLength:   number;
+  fitnessLevel:   FitnessLevel | null;
+  weeklyMileage:  WeeklyMileageBracket | null;
+  fiveKTime:      string;
+  runningGoal:    RunningGoal | null;
+  cycleProfile:   CycleProfile;
+  periodStart:    Date | null;
+  cycleLength:    number;
 }
 
 interface OnboardingContextValue {
@@ -26,12 +28,13 @@ const defaultData: OnboardingData = {
   firstName:      '',
   lastName:       '',
   localAvatarUri: null,
-  fitnessLevel:  null,
-  weeklyMileage: null,
-  fiveKTime:     '',
-  runningGoal:   null,
-  periodStart:   null,
-  cycleLength:   28,
+  fitnessLevel:   null,
+  weeklyMileage:  null,
+  fiveKTime:      '',
+  runningGoal:    null,
+  cycleProfile:   'natural',
+  periodStart:    null,
+  cycleLength:    28,
 };
 
 const OnboardingContext = createContext<OnboardingContextValue>({

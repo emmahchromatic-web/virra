@@ -27,7 +27,6 @@ export default function DietScreen() {
   useFocusEffect(React.useCallback(() => { setStep(7); }, [setStep]));
 
   const { session }         = useAuthStore();
-  const { setPeriodStart }  = useCycleStore();
   const [selected, setSelected] = useState<Set<DietaryPref>>(new Set());
   const [saving, setSaving]     = useState(false);
 
@@ -83,6 +82,7 @@ export default function DietScreen() {
       fitness_level:       data.fitnessLevel,
       running_goal:        data.runningGoal,
       dietary_prefs:       Array.from(selected),
+      cycle_profile:       data.cycleProfile,
       onboarding_complete: true,
     });
 
@@ -112,6 +112,8 @@ export default function DietScreen() {
       if (error) console.error('[diet] cycle_logs insert failed:', error);
     }
 
+    const { setCycleProfile, setPeriodStart } = useCycleStore.getState();
+    setCycleProfile(data.cycleProfile);
     if (data.periodStart) {
       setPeriodStart(data.periodStart);
     }

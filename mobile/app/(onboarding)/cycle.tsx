@@ -1,4 +1,3 @@
-// mobile/app/(onboarding)/cycle.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -7,6 +6,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { fetchHKCycleData } from '@/lib/healthKitOnboarding';
+import type { CycleProfile } from '@/store/cycle';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_CYCLE = 28;
@@ -19,13 +19,30 @@ function formatDate(d: Date) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+const CYCLE_PROFILES: { value: CycleProfile; label: string; sub: string }[] = [
+  { value: 'natural',       label: 'Regular cycle',           sub: 'I can roughly predict it'           },
+  { value: 'hormonal',      label: 'Hormonal contraception',  sub: 'Pill, IUD, implant or patch'        },
+  { value: 'irregular',     label: 'Irregular cycle',         sub: 'Unpredictable or recently changed'  },
+  { value: 'perimenopause', label: 'Perimenopause',           sub: 'Cycles changing or stopping'        },
+  { value: 'menopause',     label: 'Menopause',               sub: 'No period for 12+ months'           },
+];
+
+const NON_NATURAL_NOTE: Partial<Record<CycleProfile, string>> = {
+  hormonal:     'Your targets are based on training load — the same science, without cycle phase modulation.',
+  perimenopause:'Your targets are based on training load. Symptom logging is available throughout.',
+  menopause:    'Your targets are based on training load. Symptom logging is available throughout.',
+};
+
 export default function CycleScreen() {
   const { setStep, setData } = useOnboarding();
   useFocusEffect(React.useCallback(() => { setStep(6); }, [setStep]));
 
-  const [periodStart, setPeriodStart] = useState<Date>(defaultPeriodStart);
-  const [cycleLength, setCycleLength] = useState(DEFAULT_CYCLE);
-  const [hkBadges, setHkBadges]       = useState<Set<string>>(new Set());
+  const [cycleProfile, setCycleProfile] = useState<CycleProfile>('natural');
+  const [periodStart, setPeriodStart]   = useState<Date>(defaultPeriodStart);
+  const [cycleLength, setCycleLength]   = useState(DEFAULT_CYCLE);
+  const [hkBadges, setHkBadges]         = useState<Set<string>>(new Set());
+
+  const showDatePickers = cycleProfile === 'natural' || cycleProfile === 'irregular';
 
   useEffect(() => {
     fetchHKCycleData().then((hk) => {
@@ -44,80 +61,119 @@ export default function CycleScreen() {
   }
 
   function handleContinue() {
-    setData({ periodStart, cycleLength });
+    setData({
+      cycleProfile,
+      periodStart: showDatePickers ? periodStart : null,
+      cycleLength: showDatePickers ? cycleLength : DEFAULT_CYCLE,
+    });
     router.push('/(onboarding)/diet');
   }
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
       <VirraText variant="display" size={28} color={colors.breath} style={styles.title}>
-        When did your last period start?
+        Tell us about your cycle
       </VirraText>
       <VirraText variant="body" color="rgba(244,237,224,0.6)" style={styles.sub}>
-        This activates your cycle phase engine right away.
+        This personalises your training and nutrition targets.
       </VirraText>
 
-      {/* Period start */}
+      {/* Profile selector */}
       <View style={styles.section}>
-        <View style={styles.fieldRow}>
-          <VirraText variant="mono" size={10} color={colors.pulse} style={styles.fieldLabel}>
-            LAST PERIOD START
-          </VirraText>
-          {hkBadges.has('date') && (
-            <VirraText variant="mono" size={10} color="rgba(212,255,38,0.5)">
-              {' '}· From Apple Health
-            </VirraText>
-          )}
-        </View>
-        <View style={styles.datePicker}>
-          <Pressable onPress={() => shiftDate(-1)} style={styles.dateBtn} hitSlop={12}>
-            <VirraText variant="display" size={22} color={colors.breath}>←</VirraText>
-          </Pressable>
-          <VirraText variant="bodyMedium" size={16} color={colors.breath} style={styles.dateText}>
-            {formatDate(periodStart)}
-          </VirraText>
-          <Pressable onPress={() => shiftDate(1)} style={styles.dateBtn} hitSlop={12}>
-            <VirraText variant="display" size={22} color={colors.breath}>→</VirraText>
-          </Pressable>
-        </View>
+        {CYCLE_PROFILES.map((opt) => {
+          const active = cycleProfile === opt.value;
+          return (
+            <Pressable
+              key={opt.value}
+              onPress={() => setCycleProfile(opt.value)}
+              style={[styles.profileOption, active && styles.profileOptionActive]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+            >
+              <VirraText variant="bodyMedium" size={15} color={active ? colors.mile : colors.breath}>
+                {opt.label}
+              </VirraText>
+              <VirraText variant="body" size={12} color={active ? 'rgba(10,10,15,0.6)' : 'rgba(244,237,224,0.45)'}>
+                {opt.sub}
+              </VirraText>
+            </Pressable>
+          );
+        })}
       </View>
 
-      {/* Cycle length */}
-      <View style={styles.section}>
-        <View style={styles.fieldRow}>
-          <VirraText variant="mono" size={10} color={colors.pulse} style={styles.fieldLabel}>
-            AVERAGE CYCLE LENGTH
-          </VirraText>
-          {hkBadges.has('length') && (
-            <VirraText variant="mono" size={10} color="rgba(212,255,38,0.5)">
-              {' '}· From Apple Health
-            </VirraText>
-          )}
-        </View>
-        <View style={styles.stepper}>
-          <Pressable
-            onPress={() => setCycleLength((n) => Math.max(21, n - 1))}
-            style={styles.stepBtn}
-            hitSlop={12}
-          >
-            <VirraText variant="display" size={28} color={colors.breath}>−</VirraText>
-          </Pressable>
-          <View style={styles.stepCenter}>
-            <VirraText variant="display" size={36} color={colors.pulse}>{cycleLength}</VirraText>
-            <VirraText variant="mono" size={10} color="rgba(244,237,224,0.4)">days</VirraText>
+      {/* Date pickers — natural and irregular only */}
+      {showDatePickers && (
+        <>
+          <View style={styles.section}>
+            <View style={styles.fieldRow}>
+              <VirraText variant="mono" size={10} color={colors.pulse} style={styles.fieldLabel}>
+                {cycleProfile === 'irregular' ? 'ROUGHLY WHEN DID YOUR LAST PERIOD START?' : 'LAST PERIOD START'}
+              </VirraText>
+              {hkBadges.has('date') && (
+                <VirraText variant="mono" size={10} color="rgba(212,255,38,0.5)">
+                  {' '}· From Apple Health
+                </VirraText>
+              )}
+            </View>
+            <View style={styles.datePicker}>
+              <Pressable onPress={() => shiftDate(-1)} style={styles.dateBtn} hitSlop={12}>
+                <VirraText variant="display" size={22} color={colors.breath}>←</VirraText>
+              </Pressable>
+              <VirraText variant="bodyMedium" size={16} color={colors.breath} style={styles.dateText}>
+                {formatDate(periodStart)}
+              </VirraText>
+              <Pressable onPress={() => shiftDate(1)} style={styles.dateBtn} hitSlop={12}>
+                <VirraText variant="display" size={22} color={colors.breath}>→</VirraText>
+              </Pressable>
+            </View>
           </View>
-          <Pressable
-            onPress={() => setCycleLength((n) => Math.min(40, n + 1))}
-            style={styles.stepBtn}
-            hitSlop={12}
-          >
-            <VirraText variant="display" size={28} color={colors.breath}>+</VirraText>
-          </Pressable>
+
+          <View style={styles.section}>
+            <View style={styles.fieldRow}>
+              <VirraText variant="mono" size={10} color={colors.pulse} style={styles.fieldLabel}>
+                AVERAGE CYCLE LENGTH
+              </VirraText>
+              {hkBadges.has('length') && (
+                <VirraText variant="mono" size={10} color="rgba(212,255,38,0.5)">
+                  {' '}· From Apple Health
+                </VirraText>
+              )}
+            </View>
+            <View style={styles.stepper}>
+              <Pressable
+                onPress={() => setCycleLength((n) => Math.max(21, n - 1))}
+                style={styles.stepBtn}
+                hitSlop={12}
+              >
+                <VirraText variant="display" size={28} color={colors.breath}>−</VirraText>
+              </Pressable>
+              <View style={styles.stepCenter}>
+                <VirraText variant="display" size={36} color={colors.pulse}>{cycleLength}</VirraText>
+                <VirraText variant="mono" size={10} color="rgba(244,237,224,0.4)">days</VirraText>
+              </View>
+              <Pressable
+                onPress={() => setCycleLength((n) => Math.min(40, n + 1))}
+                style={styles.stepBtn}
+                hitSlop={12}
+              >
+                <VirraText variant="display" size={28} color={colors.breath}>+</VirraText>
+              </Pressable>
+            </View>
+            <VirraText variant="body" size={12} color="rgba(244,237,224,0.4)" style={styles.stepHint}>
+              Range: 21–40 days
+            </VirraText>
+          </View>
+        </>
+      )}
+
+      {/* Contextual note for non-natural profiles */}
+      {!showDatePickers && NON_NATURAL_NOTE[cycleProfile] && (
+        <View style={styles.note}>
+          <VirraText variant="body" size={14} color="rgba(244,237,224,0.55)" style={styles.noteText}>
+            {NON_NATURAL_NOTE[cycleProfile]}
+          </VirraText>
         </View>
-        <VirraText variant="body" size={12} color="rgba(244,237,224,0.4)" style={styles.stepHint}>
-          Range: 21–40 days
-        </VirraText>
-      </View>
+      )}
 
       <VirraButton label="CONTINUE" onPress={handleContinue} style={styles.cta} />
     </ScrollView>
@@ -125,19 +181,23 @@ export default function CycleScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll:      { flex: 1 },
-  container:   { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  title:       { lineHeight: 34 },
-  sub:         { lineHeight: 22, marginTop: -spacing.md },
-  section:     { gap: spacing.sm },
-  fieldRow:    { flexDirection: 'row', alignItems: 'center' },
-  fieldLabel:  { letterSpacing: 2 },
-  datePicker:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  dateBtn:     { width: 36, alignItems: 'center' },
-  dateText:    { flex: 1, textAlign: 'center' },
-  stepper:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  stepBtn:     { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  stepCenter:  { alignItems: 'center', gap: 2 },
-  stepHint:    { textAlign: 'center' },
-  cta:         { marginTop: spacing.sm },
+  scroll:               { flex: 1 },
+  container:            { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
+  title:                { lineHeight: 34 },
+  sub:                  { lineHeight: 22, marginTop: -spacing.md },
+  section:              { gap: spacing.sm },
+  profileOption:        { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist, gap: 3 },
+  profileOptionActive:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  fieldRow:             { flexDirection: 'row', alignItems: 'center' },
+  fieldLabel:           { letterSpacing: 2 },
+  datePicker:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  dateBtn:              { width: 36, alignItems: 'center' },
+  dateText:             { flex: 1, textAlign: 'center' },
+  stepper:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  stepBtn:              { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  stepCenter:           { alignItems: 'center', gap: 2 },
+  stepHint:             { textAlign: 'center' },
+  note:                 { backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  noteText:             { lineHeight: 22 },
+  cta:                  { marginTop: spacing.sm },
 });
