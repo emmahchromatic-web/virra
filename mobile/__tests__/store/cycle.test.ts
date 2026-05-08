@@ -115,3 +115,45 @@ describe('useCycleStore', () => {
     expect(result.current.cycleInfo?.dayOfCycle).toBe(1);
   });
 });
+
+import type { CycleInfo } from '@/store/cycle';
+
+const mockCycleInfo: CycleInfo = {
+  phase: 'follicular',
+  dayOfCycle: 7,
+  daysUntilNextPeriod: 21,
+  cycleLength: 28,
+};
+
+describe('useCycleStore — setCycleProfile', () => {
+  it('clears cycleInfo when switching to hormonal', () => {
+    useCycleStore.setState({ cycleProfile: 'natural', cycleInfo: mockCycleInfo });
+    useCycleStore.getState().setCycleProfile('hormonal');
+    expect(useCycleStore.getState().cycleInfo).toBeNull();
+    expect(useCycleStore.getState().cycleProfile).toBe('hormonal');
+  });
+
+  it('clears cycleInfo when switching to perimenopause', () => {
+    useCycleStore.setState({ cycleProfile: 'natural', cycleInfo: mockCycleInfo });
+    useCycleStore.getState().setCycleProfile('perimenopause');
+    expect(useCycleStore.getState().cycleInfo).toBeNull();
+  });
+
+  it('clears cycleInfo when switching to menopause', () => {
+    useCycleStore.setState({ cycleProfile: 'natural', cycleInfo: mockCycleInfo });
+    useCycleStore.getState().setCycleProfile('menopause');
+    expect(useCycleStore.getState().cycleInfo).toBeNull();
+  });
+
+  it('preserves cycleInfo when switching to natural', () => {
+    useCycleStore.setState({ cycleProfile: 'irregular', cycleInfo: mockCycleInfo });
+    useCycleStore.getState().setCycleProfile('natural');
+    expect(useCycleStore.getState().cycleInfo).toEqual(mockCycleInfo);
+  });
+
+  it('preserves cycleInfo when switching to irregular', () => {
+    useCycleStore.setState({ cycleProfile: 'natural', cycleInfo: mockCycleInfo });
+    useCycleStore.getState().setCycleProfile('irregular');
+    expect(useCycleStore.getState().cycleInfo).toEqual(mockCycleInfo);
+  });
+});

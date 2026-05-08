@@ -30,7 +30,10 @@ export const useCycleStore = create<CycleState>((set, get) => ({
   cycleInfo:    null,
 
   setCycleProfile: (profile) =>
-    set({ cycleProfile: profile }),
+    set((s) => ({
+      cycleProfile: profile,
+      cycleInfo: (profile === 'natural' || profile === 'irregular') ? s.cycleInfo : null,
+    })),
 
   setPeriodStart: (date, today = new Date()) =>
     set((s) => ({
