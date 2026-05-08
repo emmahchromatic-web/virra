@@ -28,13 +28,13 @@ interface PlanTemplate {
 }
 
 const PHASE_COLOR: Record<string, string> = {
-  Base:        colors.muted,
-  Steady:      colors.muted,
-  Build:       colors.dawn,
-  Peak:        colors.pulse,
-  Recovery:    'rgba(244,237,224,0.35)',
-  Taper:       `${colors.dawn}99`,
-  'Race week': colors.heat,
+  Recovery:    '#9DB8AC', // Hush — muted sage-teal
+  Base:        '#94B062', // Foundation — pulse lime desaturated
+  Steady:      '#C9B68F', // Even — breath bone warmed
+  Taper:       '#F5A077', // Glow — dawn coral softened
+  Build:       '#D4521F', // Ember — dawn coral deepened
+  Peak:        '#D4FF26', // Pulse Lime at full
+  'Race week': '#FF2E7E', // Heat Magenta at full
 };
 
 const SESSION_LABEL: Record<string, string> = {
@@ -43,6 +43,8 @@ const SESSION_LABEL: Record<string, string> = {
   threshold: 'Threshold',
   long:      'Long run',
   strength:  'Strength',
+  lower:     'Lower body',
+  upper:     'Upper body',
   rest:      'Rest',
   race:      'Race',
 };
@@ -219,6 +221,7 @@ export default function PlanDetailScreen() {
 
   const weeks         = (plan?.sessions_json ?? []) as WeekSession[];
   const peakKm        = weeks.length ? Math.max(...weeks.map((w) => w.km)) : 0;
+  const isStrength    = plan?.sport_type === 'strength';
   const sessionsPerWk = weeks[0]?.sessions.length ?? 0;
   const ctaLabel      = raceOpen && raceName.trim()
     ? `Start training for ${raceName.trim()}`
@@ -240,6 +243,7 @@ export default function PlanDetailScreen() {
   const expectedByNow  = currentWeek ? currentWeek.km * (dayInWeek + 1) / 7 : 0;
   const onTrackStatus  = planComplete             ? 'PLAN COMPLETE'
     : !currentWeek                                ? null
+    : isStrength                                  ? null
     : weekActualKm >= currentWeek.km              ? 'WEEK DONE'
     : weekActualKm >= expectedByNow * 0.8         ? 'ON TRACK'
     :                                               'BEHIND';
@@ -309,7 +313,7 @@ export default function PlanDetailScreen() {
           <View style={styles.statsRow}>
             <StatPill label="DURATION"   value={plan.duration_weeks > 0 ? `${plan.duration_weeks}w` : '∞'} />
             <StatPill label="SESSIONS"   value={`${sessionsPerWk}/wk`} />
-            <StatPill label="PEAK WEEK"  value={`${peakKm}km`} />
+            <StatPill label="PEAK WEEK"  value={isStrength ? `${peakKm} sessions` : `${peakKm}km`} />
           </View>
         )}
 
@@ -332,31 +336,35 @@ export default function PlanDetailScreen() {
               )}
             </View>
 
-            {/* km progress */}
-            <View style={styles.kmProgress}>
-              <View style={styles.kmProgressTrack}>
-                <View style={[styles.kmProgressFill, {
-                  width: `${Math.min(weekActualKm / currentWeek.km, 1) * 100}%` as any,
-                  backgroundColor: onTrackColor,
-                }]} />
-              </View>
-              <View style={styles.kmProgressLabels}>
-                <VirraText variant="mono" size={9} color={colors.breath}>
-                  {weekActualKm.toFixed(1)} km done
-                </VirraText>
-                <VirraText variant="mono" size={9} color={colors.muted}>
-                  {currentWeek.km} km planned
-                </VirraText>
-              </View>
-            </View>
+            {!isStrength && (
+              <>
+                {/* km progress */}
+                <View style={styles.kmProgress}>
+                  <View style={styles.kmProgressTrack}>
+                    <View style={[styles.kmProgressFill, {
+                      width: `${Math.min(weekActualKm / currentWeek.km, 1) * 100}%` as any,
+                      backgroundColor: onTrackColor,
+                    }]} />
+                  </View>
+                  <View style={styles.kmProgressLabels}>
+                    <VirraText variant="mono" size={9} color={colors.breath}>
+                      {weekActualKm.toFixed(1)} km done
+                    </VirraText>
+                    <VirraText variant="mono" size={9} color={colors.muted}>
+                      {currentWeek.km} km planned
+                    </VirraText>
+                  </View>
+                </View>
 
-            {/* Day hint */}
-            <VirraText variant="mono" size={9} color={colors.muted}>
-              Day {dayInWeek + 1} of 7
-              {expectedByNow > 0 && weekActualKm < currentWeek.km
-                ? `  ·  ${expectedByNow.toFixed(1)} km expected by now`
-                : ''}
-            </VirraText>
+                {/* Day hint */}
+                <VirraText variant="mono" size={9} color={colors.muted}>
+                  Day {dayInWeek + 1} of 7
+                  {expectedByNow > 0 && weekActualKm < currentWeek.km
+                    ? `  ·  ${expectedByNow.toFixed(1)} km expected by now`
+                    : ''}
+                </VirraText>
+              </>
+            )}
 
             {/* Session chips */}
             <View style={styles.chips}>
@@ -416,10 +424,12 @@ export default function PlanDetailScreen() {
                       {w.label}
                     </VirraText>
                   </View>
-                  <View style={styles.kmBadge}>
-                    <VirraText variant="display" size={22} color={colors.breath}>{w.km}</VirraText>
-                    <VirraText variant="mono" size={9} color={colors.muted} style={{ alignSelf: 'flex-end', marginBottom: 2 }}>km</VirraText>
-                  </View>
+                  {!isStrength && (
+                    <View style={styles.kmBadge}>
+                      <VirraText variant="display" size={22} color={colors.breath}>{w.km}</VirraText>
+                      <VirraText variant="mono" size={9} color={colors.muted} style={{ alignSelf: 'flex-end', marginBottom: 2 }}>km</VirraText>
+                    </View>
+                  )}
                 </View>
                 <View style={styles.chips}>
                   {w.sessions.map((s, i) => (
