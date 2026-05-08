@@ -2,196 +2,330 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import Logo from '../components/Logo.astro';
+import NewsletterForm from '../components/NewsletterForm.astro';
+import ArticleCard from '../components/ArticleCard.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import { client, urlFor } from '../lib/sanity';
+import {
+  HOMEPAGE_QUERY,
+  LATEST_ARTICLES_QUERY,
+} from '../lib/queries';
+
+const home = await client.fetch(HOMEPAGE_QUERY).catch(() => null);
+const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => []);
 ---
 <BaseLayout
-  title="Virra — Coming Soon"
-  description="The first premium health and fitness platform built for women. Train, nourish, and thrive — all in one app."
+  title="VIRRA — Female-first running"
+  description="Cycle-aware training, nutrition and performance — all in one place."
 >
-  <div class="glow-lime" aria-hidden="true"></div>
-  <div class="glow-pink" aria-hidden="true"></div>
-  <div class="side-label" aria-hidden="true">Health &bull; Nutrition &bull; Performance</div>
-
   <Header />
-
   <main>
-    <div class="wrap">
-      <section class="hero">
-        <p class="eyebrow">Your whole health, unified</p>
 
+    <!-- HERO -->
+    <section class="hero">
+      <div class="wrap">
+        <p class="eyebrow">Female-first running</p>
         <h1>
-          <span class="lw"><span class="li">Train.</span></span>
-          <span class="lw"><span class="li it cl">Nourish.</span></span>
-          <span class="lw"><span class="li">Thrive.</span></span>
+          {home?.heroHeadline ?? 'Run Hot.'}
         </h1>
+        {home?.heroSubline && (
+          <p class="hero-sub">{home.heroSubline}</p>
+        )}
+        <div class="hero-nl">
+          <NewsletterForm source="hero" />
+        </div>
+      </div>
+    </section>
 
-        <span class="rule" aria-hidden="true"></span>
-
-        <p class="sub">
-          The first premium platform built for women who want it all &mdash; workouts,
-          nutrition, and progress tracking unified in one beautifully crafted app.
-        </p>
-
-        <div class="tags" aria-label="Supported disciplines">
-          <span class="tag">Running</span>
-          <span class="tag">Cycling</span>
-          <span class="tag">Strength</span>
-          <span class="tag">Yoga</span>
-          <span class="tag">Pilates</span>
-          <span class="tag">Nutrition</span>
-          <span class="tag">Progress</span>
+    <!-- PILLARS -->
+    {home?.pillars?.length > 0 && (
+      <section class="pillars">
+        <div class="wrap">
+          <SectionLabel text="What VIRRA is" />
+          <div class="pillars-grid">
+            {home.pillars.map((p: any, i: number) => (
+              <div class:list={['pillar', { featured: i === 1 }]}>
+                <h3 class="pillar-name">{p.name}</h3>
+                <p class="pillar-body">{p.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
+    )}
 
-      <section class="signup" aria-labelledby="waitlist-label">
-        <label id="waitlist-label" class="signup-lbl">Join the waitlist</label>
-        <form
-          class="form"
-          id="frm"
-          action="https://formspree.io/f/mzdodqdd"
-          method="POST"
-        >
-          <input
-            type="email"
-            name="email"
-            placeholder="your@email.com"
-            autocomplete="email"
-            required
-          >
-          <button type="submit">Get Early Access</button>
-        </form>
-        <p class="ok" id="ok" hidden>You&rsquo;re on the list &mdash; we&rsquo;ll be in touch soon.</p>
-        <p class="note">No spam, ever. Unsubscribe at any time.</p>
+    <!-- FOUNDER -->
+    <section class="founder">
+      <div class="wrap founder-inner">
+        <div class="founder-img">
+          {home?.founderPortrait
+            ? <img
+                src={urlFor(home.founderPortrait).width(480).height(600).url()}
+                alt={`${home?.founderName ?? 'Emma'} — founder of VIRRA`}
+                width="480"
+                height="600"
+              />
+            : <div class="founder-placeholder" aria-hidden="true" />
+          }
+        </div>
+        <div class="founder-copy">
+          <SectionLabel text="The founder" />
+          <h2>{home?.founderName ?? 'Emma'}</h2>
+          <p class="founder-bio">{home?.founderBio ?? 'Placeholder founder bio — update in Sanity.'}</p>
+          <a href="/about" class="founder-link">Read Emma's story →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- LATEST FROM RUN HOT -->
+    {latestArticles?.length > 0 && (
+      <section class="latest">
+        <div class="wrap">
+          <SectionLabel text="Latest from Run Hot" />
+          <div class="articles-grid">
+            {latestArticles.map((a: any) => (
+              <ArticleCard
+                title={a.title}
+                slug={a.slug}
+                dek={a.dek}
+                category={a.category}
+                publishedDate={a.publishedDate}
+                heroImage={a.heroImage}
+              />
+            ))}
+          </div>
+          <a href="/advice" class="see-all">All articles →</a>
+        </div>
       </section>
-    </div>
-  </main>
+    )}
 
+    <!-- COACHING TEASER -->
+    <section class="coaching-teaser">
+      <div class="wrap coaching-inner">
+        <div class="ct-copy">
+          <SectionLabel text="1:1 Coaching" />
+          <h2>Train with Emma.</h2>
+          <p class="ct-body">{home?.coachingTeaser ?? '1:1 coaching for women runners — bespoke programmes, cycle-aware training, and real accountability.'}</p>
+          <a href="/coaching" class="cta-btn">See coaching options →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- CALCULATOR TEASER -->
+    <section class="calc-teaser">
+      <div class="wrap">
+        <div class="ct2-inner">
+          <SectionLabel text="Free tool" />
+          <h2>Pace Calculator.</h2>
+          <p class="ct2-sub">{home?.calculatorTeaser ?? 'Pace, time, distance, race predictions — and cycle-aware training paces. All client-side, all free.'}</p>
+          <a href="/pace-calculator" class="cta-btn-outline">Try the calculator →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- NEWSLETTER BLOCK -->
+    <section class="nl-block">
+      <div class="wrap">
+        <SectionLabel text="Run Hot" />
+        <h2>{home?.newsletterHeadline ?? 'Join The Pack.'}</h2>
+        {home?.newsletterSubline && <p class="nl-block-sub">{home.newsletterSubline}</p>}
+        <NewsletterForm source="hero" />
+      </div>
+    </section>
+
+  </main>
   <Footer />
 </BaseLayout>
 
 <style>
-  .glow-lime {
-    position: fixed; top: -280px; left: -180px;
-    width: 650px; height: 650px;
-    background: radial-gradient(circle, rgba(200,255,69,0.13) 0%, transparent 65%);
-    pointer-events: none;
-  }
-  .glow-pink {
-    position: fixed; bottom: -280px; right: -180px;
-    width: 600px; height: 600px;
-    background: radial-gradient(circle, rgba(255,53,117,0.10) 0%, transparent 65%);
-    pointer-events: none;
-  }
-  .side-label {
-    position: fixed; right: 28px; top: 50%;
-    transform: rotate(90deg) translateX(-50%);
-    transform-origin: right;
-    font-size: 0.58rem; letter-spacing: 0.35em; text-transform: uppercase;
-    color: rgba(200,255,69,0.2); white-space: nowrap;
-    animation: fade 1.5s ease 1.8s both;
-  }
-  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 52px; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
 
-  /* Hero */
-  .hero { padding: 96px 0 72px; }
+  /* HERO */
+  .hero { padding: 100px 0 80px; }
   .eyebrow {
-    font-size: 0.7rem; font-weight: 400; letter-spacing: 0.3em; text-transform: uppercase;
-    color: var(--lime); margin-bottom: 44px;
-    animation: up 0.7s ease 0.4s both;
-    display: flex; align-items: center; gap: 14px;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
-  .eyebrow::after { content: ''; width: 38px; height: 1px; background: currentColor; opacity: 0.5; display: block; }
+  .eyebrow::after { content: ''; width: 32px; height: 1px; background: currentColor; opacity: 0.5; display: block; }
   h1 {
-    font-family: 'Cormorant', serif;
-    font-size: clamp(5.5rem, 13vw, 10.5rem);
-    font-weight: 300; line-height: 0.88;
-    letter-spacing: -0.01em; margin-bottom: 52px;
-  }
-  .lw { display: block; overflow: hidden; }
-  .li { display: block; transform: translateY(110%); opacity: 0; }
-  .lw:nth-child(1) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.5s forwards; }
-  .lw:nth-child(2) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.64s forwards; }
-  .lw:nth-child(3) .li { animation: slide 1s cubic-bezier(0.16,1,0.3,1) 0.78s forwards; }
-  .it { font-style: italic; }
-  .cl { color: var(--lime); }
-  .rule {
-    display: block; width: 0; height: 1px;
-    background: linear-gradient(90deg, var(--lime), transparent);
+    font-family: var(--font-display);
+    font-size: clamp(4.5rem, 12vw, 9rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.04em;
+    line-height: 0.86;
     margin-bottom: 32px;
-    animation: widen 0.9s ease 1.1s forwards; opacity: 0;
+    color: var(--breath);
   }
-  .sub {
-    font-size: 1.05rem; font-weight: 300; line-height: 1.78;
-    color: rgba(235,230,218,0.5); max-width: 450px;
-    animation: up 0.7s ease 1.0s both;
+  .hero-sub {
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    line-height: 1.3;
+    color: rgba(244,237,224,0.75);
+    max-width: 520px;
+    margin-bottom: 40px;
+    letter-spacing: -0.015em;
   }
-  .tags {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px;
-    animation: up 0.7s ease 1.15s both;
-  }
-  .tag {
-    font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase;
-    border: 1px solid rgba(200,255,69,0.18); color: rgba(200,255,69,0.58);
-    padding: 5px 13px; border-radius: 2px;
-  }
+  .hero-nl { max-width: 440px; }
 
-  /* Signup */
-  .signup { padding: 60px 0; border-top: 1px solid var(--border); animation: up 0.7s ease 1.3s both; }
-  .signup-lbl {
-    font-size: 0.68rem; letter-spacing: 0.25em; text-transform: uppercase;
-    color: var(--muted); margin-bottom: 20px; display: block;
+  /* PILLARS */
+  .pillars { padding: 80px 0; border-top: 1px solid var(--border); }
+  .pillars-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+  .pillar {
+    background: var(--mist);
+    border: 1px solid var(--border);
+    padding: 28px 24px;
+    border-radius: 2px;
   }
-  .form { display: flex; gap: 10px; max-width: 460px; }
-  .form input[type=email] {
-    flex: 1; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
-    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 0.9rem;
-    font-weight: 300; padding: 14px 20px; border-radius: 3px; outline: none;
-    transition: border-color 0.25s, background 0.25s;
+  .pillar.featured { background: var(--heat); border-color: var(--heat); }
+  .pillar.featured .pillar-name { color: var(--breath); }
+  .pillar.featured .pillar-body { color: rgba(244,237,224,0.85); }
+  .pillar-name {
+    font-family: var(--font-display);
+    font-size: 1.8rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    line-height: 0.9;
+    color: var(--pulse);
+    margin-bottom: 12px;
   }
-  .form input[type=email]::placeholder { color: var(--muted); }
-  .form input[type=email]:focus {
-    border-color: rgba(200,255,69,0.38);
-    background: rgba(200,255,69,0.03);
-  }
-  .form button {
-    background: var(--lime); color: #09090A; border: none;
-    font-family: 'Outfit', sans-serif; font-size: 0.72rem; font-weight: 600;
-    letter-spacing: 0.15em; text-transform: uppercase;
-    padding: 14px 26px; border-radius: 3px; cursor: pointer;
-    transition: background 0.2s, transform 0.15s; white-space: nowrap;
-  }
-  .form button:hover { background: #d6ff5e; transform: translateY(-1px); }
-  .form button:active { transform: translateY(0); }
-  .ok { color: var(--lime); font-size: 0.92rem; padding: 14px 0; }
-  .note { margin-top: 14px; font-size: 0.68rem; color: var(--muted); }
+  .pillar-body { font-size: 0.9rem; line-height: 1.65; color: rgba(244,237,224,0.7); }
 
-  @keyframes up { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-  @keyframes fade { from { opacity:0; } to { opacity:1; } }
-  @keyframes slide { to { transform:translateY(0); opacity:1; } }
-  @keyframes widen { from { width:0; opacity:0; } to { width:80px; opacity:1; } }
+  /* FOUNDER */
+  .founder { padding: 80px 0; border-top: 1px solid var(--border); }
+  .founder-inner { display: grid; grid-template-columns: 320px 1fr; gap: 64px; align-items: center; }
+  .founder-img img, .founder-placeholder {
+    width: 100%;
+    aspect-ratio: 4/5;
+    object-fit: cover;
+    border-radius: 2px;
+    display: block;
+  }
+  .founder-placeholder { background: var(--mist); }
+  .founder-copy h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    margin: 8px 0 20px;
+  }
+  .founder-bio { font-size: 1rem; line-height: 1.75; color: rgba(244,237,224,0.72); margin-bottom: 24px; }
+  .founder-link {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    text-decoration: none;
+  }
+  .founder-link:hover { text-decoration: underline; }
 
-  @media (max-width: 680px) {
-    .wrap { padding: 0 28px; }
-    h1 { font-size: clamp(4rem, 15vw, 6rem); }
-    .form { flex-direction: column; }
-    .side-label { display: none; }
+  /* LATEST */
+  .latest { padding: 80px 0; border-top: 1px solid var(--border); }
+  .articles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+  .see-all {
+    display: inline-block;
+    margin-top: 32px;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    text-decoration: none;
+  }
+  .see-all:hover { text-decoration: underline; }
+
+  /* COACHING TEASER */
+  .coaching-teaser { padding: 80px 0; border-top: 1px solid var(--border); background: var(--mist); }
+  .coaching-inner { max-width: 680px; }
+  .coaching-teaser h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    margin: 8px 0 20px;
+  }
+  .ct-body { font-size: 1rem; line-height: 1.75; color: rgba(244,237,224,0.72); margin-bottom: 28px; }
+  .cta-btn {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    background: var(--pulse);
+    color: var(--mile);
+    padding: 14px 28px;
+    border-radius: 2px;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+  .cta-btn:hover { background: #c8f020; }
+
+  /* CALCULATOR TEASER */
+  .calc-teaser { padding: 80px 0; border-top: 1px solid var(--border); }
+  .ct2-inner { max-width: 600px; }
+  .calc-teaser h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 4.5rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    margin: 8px 0 20px;
+  }
+  .ct2-sub { font-size: 1rem; line-height: 1.75; color: rgba(244,237,224,0.72); margin-bottom: 28px; }
+  .cta-btn-outline {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: 1px solid var(--pulse);
+    color: var(--pulse);
+    padding: 14px 28px;
+    border-radius: 2px;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+  .cta-btn-outline:hover { background: var(--pulse); color: var(--mile); }
+
+  /* NEWSLETTER BLOCK */
+  .nl-block { padding: 80px 0; background: var(--heat); border-top: 1px solid var(--border); }
+  .nl-block :global(.section-label) { color: var(--pulse); }
+  .nl-block h2 {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 7vw, 6rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.04em;
+    line-height: 0.86;
+    color: var(--breath);
+    margin: 8px 0 20px;
+  }
+  .nl-block-sub { font-size: 1.05rem; color: rgba(244,237,224,0.85); margin-bottom: 28px; }
+
+  @media (max-width: 900px) {
+    .pillars-grid { grid-template-columns: 1fr; }
+    .articles-grid { grid-template-columns: 1fr 1fr; }
+    .founder-inner { grid-template-columns: 1fr; gap: 32px; }
+    .founder-img img, .founder-placeholder { max-width: 320px; }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 24px; }
+    .articles-grid { grid-template-columns: 1fr; }
   }
 </style>
-
-<script>
-  const form = document.getElementById('frm') as HTMLFormElement;
-  const ok = document.getElementById('ok') as HTMLElement;
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = new FormData(form);
-    const res = await fetch(form.action, {
-      method: 'POST',
-      body: data,
-      headers: { Accept: 'application/json' },
-    });
-    if (res.ok) {
-      form.hidden = true;
-      ok.hidden = false;
-    }
-  });
-</script>
