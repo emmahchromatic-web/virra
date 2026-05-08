@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView,
   Alert, KeyboardAvoidingView, Platform,
@@ -8,6 +8,8 @@ import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { searchCommonFoods, scaleFood, type VirraFood } from '@/lib/commonFoods';
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { lookupBarcode } from '@/lib/openFoodFacts';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -188,6 +190,9 @@ export default function FoodSearchScreen() {
   const [selected, setSelected] = useState<VirraFood | null>(null);
   const [manual,   setManual]   = useState(false);
   const [adding,   setAdding]   = useState(false);
+  const [scanning,  setScanning]  = useState(false);
+  const scannedRef = useRef(false);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   const results = searchCommonFoods(query);
 
@@ -238,6 +243,56 @@ export default function FoodSearchScreen() {
     router.back();
   }
 
+  async function handleBarcodeScanned({ data }: { data: string }) {
+    if (scannedRef.current) return;
+    scannedRef.current = true;
+    setScanning(false);
+    const food = await lookupBarcode(data);
+    if (food) {
+      setSelected(food);
+    } else {
+      Alert.alert(
+        'Not found',
+        'This barcode wasn\'t recognised by Open Food Facts. Try searching by name or log manually.',
+      );
+      scannedRef.current = false;
+    }
+  }
+
+  async function handleOpenScanner() {
+    if (!cameraPermission?.granted) {
+      const { granted } = await requestCameraPermission();
+      if (!granted) {
+        Alert.alert('Camera needed', 'Enable camera access in Settings to scan barcodes.');
+        return;
+      }
+    }
+    scannedRef.current = false;
+    setScanning(true);
+  }
+
+  if (scanning) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#000' }}>
+        <CameraView
+          style={{ flex: 1 }}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128'] }}
+          onBarcodeScanned={handleBarcodeScanned}
+        />
+        <SafeAreaView style={scan.overlay}>
+          <Pressable onPress={() => setScanning(false)} style={scan.closeBtn} accessibilityRole="button" accessibilityLabel="Close scanner">
+            <SymbolView name="xmark" size={20} tintColor="#fff" />
+          </Pressable>
+          <View style={scan.frame} />
+          <VirraText variant="mono" size={10} color="rgba(255,255,255,0.7)" style={scan.hint}>
+            ALIGN BARCODE WITHIN FRAME
+          </VirraText>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
@@ -271,6 +326,9 @@ export default function FoodSearchScreen() {
               autoCapitalize="none"
             />
           </View>
+          <Pressable onPress={handleOpenScanner} style={styles.barcodeBtn} accessibilityRole="button" accessibilityLabel="Scan barcode">
+            <SymbolView name="barcode.viewfinder" size={22} tintColor={colors.pulse} />
+          </Pressable>
         </View>
 
         <ScrollView
@@ -327,6 +385,13 @@ export default function FoodSearchScreen() {
   );
 }
 
+const scan = StyleSheet.create({
+  overlay:  { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' },
+  closeBtn: { position: 'absolute', top: 56, right: 20, width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  frame:    { width: 260, height: 160, borderWidth: 2, borderColor: 'rgba(212,255,38,0.8)', borderRadius: 12 },
+  hint:     { marginTop: 20, letterSpacing: 1.5 },
+});
+
 const styles = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: colors.mile },
   header:      { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
@@ -339,4 +404,5 @@ const styles = StyleSheet.create({
   divider:     { height: 1, backgroundColor: colors.border },
   empty:       { textAlign: 'center', paddingVertical: spacing.md },
   manualLink:  { alignItems: 'center', paddingVertical: spacing.xs },
+  barcodeBtn:  { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 });
