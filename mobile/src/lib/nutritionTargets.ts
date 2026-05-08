@@ -3,10 +3,10 @@ import type { CyclePhase } from '@/store/cycle';
 export type TrainingLoad = 'rest' | 'easy' | 'moderate' | 'hard';
 
 export interface NutritionTargets {
-  calories: number;
-  carbs_g:  number;
+  calories:  number;
+  carbs_g:   number;
   protein_g: number;
-  fat_g:    number;
+  fat_g:     number;
 }
 
 // Science-based targets for a recreational female runner (~60kg, 40–60km/week)
@@ -38,7 +38,17 @@ const TARGETS: Record<CyclePhase, Record<TrainingLoad, NutritionTargets>> = {
   },
 };
 
-export function getNutritionTargets(phase: CyclePhase, load: TrainingLoad): NutritionTargets {
+// Flat load-based targets for users without cycle phase data.
+// Values are the arithmetic mean across all four phases, rounded to sensible numbers.
+const FLAT_TARGETS: Record<TrainingLoad, NutritionTargets> = {
+  rest:     { calories: 1825, carbs_g: 192, protein_g: 105, fat_g: 67 },
+  easy:     { calories: 2050, carbs_g: 226, protein_g: 118, fat_g: 69 },
+  moderate: { calories: 2300, carbs_g: 264, protein_g: 133, fat_g: 70 },
+  hard:     { calories: 2563, carbs_g: 305, protein_g: 147, fat_g: 71 },
+};
+
+export function getNutritionTargets(phase: CyclePhase | null, load: TrainingLoad): NutritionTargets {
+  if (!phase) return FLAT_TARGETS[load];
   return TARGETS[phase][load];
 }
 

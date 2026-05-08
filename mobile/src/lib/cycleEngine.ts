@@ -1,4 +1,5 @@
 export type CyclePhase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
+export type CycleProfile = 'natural' | 'hormonal' | 'irregular' | 'perimenopause' | 'menopause';
 
 export interface CycleInfo {
   phase:               CyclePhase;
