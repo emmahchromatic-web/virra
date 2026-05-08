@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   scroll:      { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   phasePill:   { flexDirection: 'row' },
   pillText:    { letterSpacing: 2 },
-  heroRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  heroRow:     { flexDirection: 'row', alignItems: 'stretch', gap: spacing.md },
   heroCard:    { gap: 0 },
   tagline:     { lineHeight: 30 },
   statsRow:    { flexDirection: 'row', marginTop: spacing.lg },
