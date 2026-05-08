@@ -309,7 +309,7 @@ export default function FoodSearchScreen() {
       <View style={scan.identifyingScreen}>
         <ActivityIndicator size="large" color={colors.pulse} />
         <VirraText variant="mono" size={11} color="rgba(255,255,255,0.7)" style={scan.identifyingLabel}>
-          IDENTIFYING...
+          Identifying...
         </VirraText>
       </View>
     );
@@ -413,7 +413,7 @@ const scan = StyleSheet.create({
   frame:            { width: 260, height: 160, borderWidth: 2, borderColor: 'rgba(212,255,38,0.8)', borderRadius: 12 },
   hint:             { marginTop: 20, letterSpacing: 1.5 },
   identifyingScreen: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
-  identifyingLabel:  { marginTop: spacing.md, letterSpacing: 2 },
+  identifyingLabel:  { marginTop: spacing.md },
 });
 
 const styles = StyleSheet.create({
