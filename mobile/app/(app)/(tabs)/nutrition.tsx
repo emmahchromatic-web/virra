@@ -101,7 +101,7 @@ export default function NutritionScreen() {
   const [loading, setLoading] = useState(true);
 
   const today   = new Date().toISOString().split('T')[0];
-  const targets = cycleInfo ? getNutritionTargets(cycleInfo.phase, load) : null;
+  const targets = getNutritionTargets(cycleInfo?.phase ?? null, load);
 
   const totals = entries.reduce(
     (acc, e) => ({
@@ -184,26 +184,24 @@ export default function NutritionScreen() {
         </View>
 
         {/* Targets + progress */}
-        {targets && (
-          <VirraCard style={styles.targetsCard}>
-            <View style={styles.calRow}>
-              <View>
-                <VirraText variant="display" size={36} color={colors.pulse}>
-                  {Math.round(totals.calories)}
-                </VirraText>
-                <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-                  OF {targets.calories} KCAL
-                </VirraText>
-              </View>
+        <VirraCard style={styles.targetsCard}>
+          <View style={styles.calRow}>
+            <View>
+              <VirraText variant="display" size={36} color={colors.pulse}>
+                {Math.round(totals.calories)}
+              </VirraText>
+              <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+                OF {targets.calories} KCAL
+              </VirraText>
             </View>
-            <View style={styles.macros}>
-              <MacroBar label="CARBS"   actual={totals.carbs_g}   target={targets.carbs_g}   color={colors.pulse} />
-              <MacroBar label="PROTEIN" actual={totals.protein_g} target={targets.protein_g} color={colors.dawn}  />
-              <MacroBar label="FAT"     actual={totals.fat_g}     target={targets.fat_g}     color={colors.heat}  />
-            </View>
-            {cycleInfo && <WhyCard body={NUTRITION_WHY[cycleInfo.phase]} />}
-          </VirraCard>
-        )}
+          </View>
+          <View style={styles.macros}>
+            <MacroBar label="CARBS"   actual={totals.carbs_g}   target={targets.carbs_g}   color={colors.pulse} />
+            <MacroBar label="PROTEIN" actual={totals.protein_g} target={targets.protein_g} color={colors.dawn}  />
+            <MacroBar label="FAT"     actual={totals.fat_g}     target={targets.fat_g}     color={colors.heat}  />
+          </View>
+          {cycleInfo && <WhyCard body={NUTRITION_WHY[cycleInfo.phase]} />}
+        </VirraCard>
 
         {/* Meal sections */}
         {MEAL_TYPES.map((meal) => (

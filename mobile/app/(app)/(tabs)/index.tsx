@@ -80,11 +80,13 @@ const guide = StyleSheet.create({
   body:  { lineHeight: 21, marginTop: spacing.xs },
 });
 
-function EmptyState() {
+function EmptyState({ cycleProfile }: { cycleProfile: string }) {
   return (
     <VirraCard style={styles.emptyCard}>
       <VirraText variant="serif" size={17} color={colors.breath} style={{ lineHeight: 26 }}>
-        Add your cycle data to unlock phase-aware training and nutrition guidance.
+        {cycleProfile === 'natural' || cycleProfile === 'irregular'
+          ? 'Add your cycle data to unlock phase-aware training and nutrition guidance.'
+          : 'Training and nutrition targets are personalised to your training load.'}
       </VirraText>
       <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: spacing.sm, letterSpacing: 1.5 }}>
         GO TO PROFILE → CYCLE SETTINGS
@@ -94,7 +96,7 @@ function EmptyState() {
 }
 
 export default function DashboardScreen() {
-  const { cycleInfo } = useCycleStore();
+  const { cycleInfo, cycleProfile } = useCycleStore();
   const meta = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
 
   const appState        = useRef<AppStateStatus>(AppState.currentState);
@@ -126,7 +128,7 @@ export default function DashboardScreen() {
       <AppHeader title="VIRRA" showProfile />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {!cycleInfo || !meta ? (
-          <EmptyState />
+          <EmptyState cycleProfile={cycleProfile} />
         ) : (
           <>
             <View style={styles.phasePill}>
