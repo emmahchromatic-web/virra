@@ -95,7 +95,12 @@ const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
       <nav class="pagination" aria-label="Pagination">
         {page > 1 && (
           <a
-            href={`/advice?${new URLSearchParams({ ...(selectedCategory !== 'All' && { category: selectedCategory }), page: String(page - 1) })}`}
+            href={(() => {
+              const prevPage = page - 1;
+              if (prevPage === 1 && selectedCategory === 'All') return '/advice';
+              const params = new URLSearchParams({ ...(selectedCategory !== 'All' && { category: selectedCategory }), page: String(prevPage) });
+              return `/advice?${params}`;
+            })()}
             class="page-link"
           >
             ← Previous

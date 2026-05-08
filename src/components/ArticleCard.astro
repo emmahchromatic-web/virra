@@ -5,11 +5,11 @@ interface Props {
   slug: { current: string };
   dek?: string;
   category: string;
-  publishedDate: string;
+  publishedDate?: string;
   heroImage?: any;
 }
 const { title, slug, dek, category, publishedDate, heroImage } = Astro.props;
-const date = new Date(publishedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+const date = publishedDate ? new Date(publishedDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : null;
 const imageUrl = heroImage ? urlFor(heroImage).width(640).height(360).url() : null;
 ---
 <a href={`/advice/${slug.current}`} class="article-card">
@@ -20,7 +20,7 @@ const imageUrl = heroImage ? urlFor(heroImage).width(640).height(360).url() : nu
     <span class="ac-cat">{category}</span>
     <h3 class="ac-title">{title}</h3>
     {dek && <p class="ac-dek">{dek}</p>}
-    <span class="ac-date">{date}</span>
+    {date && <span class="ac-date">{date}</span>}
   </div>
 </a>
 

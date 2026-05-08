@@ -5,11 +5,10 @@ import { ALL_ARTICLES_FOR_RSS_QUERY } from '../../lib/queries';
 export const GET: APIRoute = async () => {
   const articles = await client.fetch(ALL_ARTICLES_FOR_RSS_QUERY).catch(() => []);
 
-  const items = articles
+  const publishedArticles = articles.filter((a: any) => a.publishedDate);
+  const items = publishedArticles
     .map((article: any) => {
-      const pubDate = article.publishedDate
-        ? new Date(article.publishedDate).toUTCString()
-        : new Date().toUTCString();
+      const pubDate = new Date(article.publishedDate).toUTCString();
       return `
     <item>
       <title><![CDATA[${article.title}]]></title>

@@ -12,7 +12,7 @@ const { slug } = Astro.params;
 const article = await client.fetch(ARTICLE_BY_SLUG_QUERY, { slug }).catch(() => null);
 
 if (!article) {
-  return Astro.redirect('/advice');
+  return Astro.redirect('/advice', 307);
 }
 
 const related = await client.fetch(RELATED_ARTICLES_QUERY, {
@@ -30,7 +30,7 @@ function wordCount(blocks: any[]): number {
   }, 0);
 }
 
-const readTime = Math.max(1, Math.ceil(wordCount(article.body) / 200));
+const readTime = Math.max(1, Math.ceil(wordCount(article.body) / 238));
 const publishedDate = article.publishedDate ? new Date(article.publishedDate) : null;
 const publishedISO = publishedDate ? publishedDate.toISOString() : '';
 const publishedFormatted = publishedDate
