@@ -1,0 +1,14 @@
+---
+import LegalLayout from '../layouts/LegalLayout.astro';
+import { PortableText } from 'astro-portabletext';
+import { client } from '../lib/sanity';
+import { LEGAL_BY_SLUG_QUERY } from '../lib/queries';
+
+const page = await client.fetch(LEGAL_BY_SLUG_QUERY, { slug: 'terms' }).catch(() => null);
+---
+<LegalLayout title="Terms & Conditions">
+  {page?.body
+    ? <PortableText value={page.body} />
+    : <p style="color:var(--muted)">Terms and conditions coming soon.</p>
+  }
+</LegalLayout>

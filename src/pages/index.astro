@@ -135,6 +135,14 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
 
   </main>
   <Footer />
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "VIRRA",
+    "url": "https://virra.app",
+    "sameAs": ["https://instagram.com/virrarun"],
+    "description": "Female-first running platform. Cycle-aware training, nutrition and performance.",
+  })} />
 </BaseLayout>
 
 <style>

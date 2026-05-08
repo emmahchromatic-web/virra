@@ -1,0 +1,14 @@
+---
+import LegalLayout from '../layouts/LegalLayout.astro';
+import { PortableText } from 'astro-portabletext';
+import { client } from '../lib/sanity';
+import { LEGAL_BY_SLUG_QUERY } from '../lib/queries';
+
+const page = await client.fetch(LEGAL_BY_SLUG_QUERY, { slug: 'privacy' }).catch(() => null);
+---
+<LegalLayout title="Privacy Policy">
+  {page?.body
+    ? <PortableText value={page.body} />
+    : <p style="color:var(--muted)">Privacy policy coming soon. For questions, email <a href="mailto:hello@virra.app">hello@virra.app</a>.</p>
+  }
+</LegalLayout>
