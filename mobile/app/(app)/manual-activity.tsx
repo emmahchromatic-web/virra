@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo } from '@/lib/cycleEngine';
 import { cancelTrainingReminderToday } from '@/lib/notifications';
+import { linkActivityToSession } from '@/lib/scheduleGenerator';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
@@ -204,6 +205,20 @@ export default function ManualActivityScreen() {
       if (detailError) {
         Alert.alert('Activity saved, but exercises could not be recorded', detailError.message);
       }
+    }
+
+    try {
+      if (act?.id) {
+        await linkActivityToSession(
+          act.id,
+          session.user.id,
+          date,
+          type,
+          type === 'strength' ? sessionType : undefined,
+        );
+      }
+    } catch {
+      // no matching planned session — that's fine
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
