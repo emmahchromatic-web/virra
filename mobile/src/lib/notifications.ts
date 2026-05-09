@@ -115,7 +115,7 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
   const [date, prefs] = [today(), await loadNotificationPreferences()];
 
   if (prefs.training) {
-    const { data: sessions } = await supabase
+    const { data: sessions, error: sessionsError } = await supabase
       .from('planned_sessions')
       .select('id')
       .eq('user_id', userId)
@@ -123,8 +123,9 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
       .eq('status', 'planned')
       .limit(1);
 
-    if (sessions && sessions.length > 0) {
-      const hour = await inferTrainingHour(userId);
+    const hasSession = sessionsError ? true : (sessions && sessions.length > 0);
+    if (hasSession) {
+      const hour = sessionsError ? 9 : await inferTrainingHour(userId);
       await scheduleOnce(
         storageKey('training', date),
         'Time to move',
