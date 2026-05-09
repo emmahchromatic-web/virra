@@ -131,8 +131,9 @@ const PHASE_GUIDANCE: Record<string, string> = {
 // ---- Helpers (exported for tests) ----
 
 export function formatPace(secondsPerKm: number): string {
-  const mins = Math.floor(secondsPerKm / 60);
-  const secs = Math.round(secondsPerKm % 60);
+  const total = Math.round(secondsPerKm);
+  const mins  = Math.floor(total / 60);
+  const secs  = total % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}/km`;
 }
 
@@ -224,6 +225,7 @@ export function distributeWeeklyKm(
 export async function getGoalPace(
   userId:  string,
   blockId: string,
+  // phase is reserved for future cycle-adjusted goal pacing — not yet applied
   phase:   CyclePhase | null,
 ): Promise<GoalPace> {
   const DEFAULT_PACE = 360; // 6:00/km fallback
@@ -240,6 +242,9 @@ export async function getGoalPace(
       .eq('id', userId)
       .single(),
   ]);
+
+  if (blockRes.error) console.error('[volumePlan] getGoalPace training_blocks fetch:', blockRes.error.message);
+  if (profileRes.error) console.error('[volumePlan] getGoalPace user_profiles fetch:', profileRes.error.message);
 
   const block    = blockRes.data;
   const baseline = profileRes.data?.baseline_pace_seconds_per_km ?? DEFAULT_PACE;
@@ -265,32 +270,36 @@ export async function getGoalPace(
   }
 
   // Source 2: split-calibrated from ≥3 completed run sessions in this block
-  const { data: completedSessions } = await supabase
+  const { data: completedSessions, error: sessionsErr } = await supabase
     .from('planned_sessions')
     .select('id, session_label')
     .eq('block_id', blockId)
     .eq('status', 'completed')
     .eq('modality', 'run');
 
+  if (sessionsErr) console.error('[volumePlan] getGoalPace planned_sessions fetch:', sessionsErr.message);
+
   if ((completedSessions?.length ?? 0) >= 3) {
     const sessionIds = completedSessions!.map((s) => s.id);
-    const { data: runData } = await supabase
+    const { data: runData, error: runDataErr } = await supabase
       .from('activities')
       .select('planned_session_id, run_details(avg_pace_seconds_per_km)')
       .in('planned_session_id', sessionIds);
+
+    if (runDataErr) console.error('[volumePlan] getGoalPace activities fetch:', runDataErr.message);
 
     const labelMap = Object.fromEntries(
       (completedSessions ?? []).map((s) => [s.id, s.session_label])
     );
 
     const validRuns = (runData ?? []).filter(
-      (r: any) => r.run_details?.avg_pace_seconds_per_km
+      (r: any) => r.run_details?.[0]?.avg_pace_seconds_per_km
     );
 
     if (validRuns.length >= 3) {
       const estimates = validRuns.map((r: any) => {
         const modifier = TYPE_INVERSE_MODIFIER[labelMap[r.planned_session_id]] ?? 1.0;
-        return (r.run_details.avg_pace_seconds_per_km as number) / modifier;
+        return (r.run_details[0].avg_pace_seconds_per_km as number) / modifier;
       });
       const avg = estimates.reduce((a: number, b: number) => a + b, 0) / estimates.length;
       if (baseline > 0 && Math.abs(avg - baseline) / baseline > 0.05) {
@@ -327,13 +336,15 @@ export async function getWeeklyVolumePlan(
   };
 
   // Fetch block + template + sessions_json
-  const { data: block } = await supabase
+  const { data: block, error: blockErr } = await supabase
     .from('training_blocks')
     .select('starts_on, event_id, template:plan_templates(sessions_json, distance_goal)')
     .eq('id', blockId)
     .single();
 
+  if (blockErr) console.error('[volumePlan] getWeeklyVolumePlan training_blocks fetch:', blockErr.message);
   if (!block) return EMPTY;
+  if (!block.starts_on) return EMPTY;
 
   const sessionsJson: Array<{ week: number; km: number }> =
     (block.template as any)?.sessions_json ?? [];
@@ -342,20 +353,23 @@ export async function getWeeklyVolumePlan(
   const total_km = sessionsJson.reduce((sum, w) => sum + (w.km ?? 0), 0);
 
   // Completed km from linked activities
-  const { data: completedLinks } = await supabase
+  const { data: completedLinks, error: linksErr } = await supabase
     .from('planned_sessions')
     .select('activity_id')
     .eq('block_id', blockId)
     .eq('status', 'completed')
     .not('activity_id', 'is', null);
 
+  if (linksErr) console.error('[volumePlan] getWeeklyVolumePlan completedLinks fetch:', linksErr.message);
+
   let completed_km = 0;
   const actIds = (completedLinks ?? []).map((r: any) => r.activity_id).filter(Boolean);
   if (actIds.length > 0) {
-    const { data: acts } = await supabase
+    const { data: acts, error: actsErr } = await supabase
       .from('activities')
       .select('distance_meters')
       .in('id', actIds);
+    if (actsErr) console.error('[volumePlan] getWeeklyVolumePlan activities fetch:', actsErr.message);
     completed_km = (acts ?? []).reduce(
       (sum: number, a: any) => sum + (a.distance_meters ?? 0) / 1000,
       0,
@@ -438,19 +452,23 @@ export async function getDaySessionDetail(
   };
 
   // Fetch planned sessions for this date
-  const { data: daySessions } = await supabase
+  const { data: daySessions, error: daySessionsErr } = await supabase
     .from('planned_sessions')
     .select('id, session_label, modality, status, week_number, block_id, activity_id')
     .eq('user_id', userId)
     .eq('scheduled_date', dateISO)
     .neq('status', 'moved');
 
+  if (daySessionsErr) console.error('[volumePlan] getDaySessionDetail planned_sessions fetch:', daySessionsErr.message);
+
   // Fetch events on this date
-  const { data: events } = await supabase
+  const { data: events, error: eventsErr } = await supabase
     .from('user_events')
     .select('id, name, event_date, priority, target_finish_time')
     .eq('user_id', userId)
     .eq('event_date', dateISO);
+
+  if (eventsErr) console.error('[volumePlan] getDaySessionDetail user_events fetch:', eventsErr.message);
 
   if (!daySessions?.length) {
     return {
@@ -492,13 +510,15 @@ export async function getDaySessionDetail(
       const weekAdjKm  = weekPlan?.adjusted_km ?? 0;
 
       // Get all active run sessions in this week for this block (for km distribution)
-      const { data: weekSessions } = await supabase
+      const { data: weekSessions, error: weekSessionsErr } = await supabase
         .from('planned_sessions')
         .select('id, session_label')
         .eq('block_id', blockId)
         .eq('week_number', weekNumber)
         .eq('modality', 'run')
         .in('status', ['planned', 'completed']);
+
+      if (weekSessionsErr) console.error('[volumePlan] getDaySessionDetail weekSessions fetch:', weekSessionsErr.message);
 
       const distMap = distributeWeeklyKm(weekSessions ?? [], weekAdjKm);
 

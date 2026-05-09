@@ -112,3 +112,7 @@ test('formatPace 323 s/km → 5:23/km', () => {
 test('formatPace 60 s/km → 1:00/km', () => {
   expect(formatPace(60)).toBe('1:00/km');
 });
+
+test('formatPace 59.5 s/km rounds to 1:00/km, not 0:60/km', () => {
+  expect(formatPace(59.5)).toBe('1:00/km');
+});
