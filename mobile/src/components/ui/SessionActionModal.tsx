@@ -35,6 +35,11 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
   const [busy, setBusy] = useState(false);
   const [noFreeDay, setNoFreeDay] = useState<Record<string, boolean>>({});
 
+  function handleClose() {
+    setNoFreeDay({});
+    onClose();
+  }
+
   async function handleDrop(s: CalendarSession) {
     setBusy(true);
     try { await dropSession(s.id); onMutate(); }
@@ -46,31 +51,36 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
   }
 
   async function handleMoveThisWeek(s: CalendarSession) {
-    const monday    = mondayOfISO(date);
-    const jsDay     = new Date(`${date}T00:00:00Z`).getUTCDay();
-    const dayIdx    = jsDay === 0 ? 6 : jsDay - 1;
-    const weekDates = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
-
-    const { data: occupied } = await supabase
-      .from('planned_sessions')
-      .select('scheduled_date')
-      .eq('user_id', userId)
-      .eq('modality', s.modality)
-      .eq('session_label', s.session_label)
-      .in('status', ['planned', 'completed'])
-      .in('scheduled_date', weekDates);
-
-    const occupiedSet = new Set((occupied ?? []).map((r: any) => r.scheduled_date));
-    occupiedSet.add(date);
-
-    const freeDay = weekDates.slice(dayIdx + 1).find((d) => !occupiedSet.has(d));
-    if (!freeDay) {
-      setNoFreeDay((prev) => ({ ...prev, [s.id]: true }));
-      return;
-    }
-
     setBusy(true);
     try {
+      const monday    = mondayOfISO(date);
+      const jsDay     = new Date(`${date}T00:00:00Z`).getUTCDay();
+      const dayIdx    = jsDay === 0 ? 6 : jsDay - 1;
+      const weekDates = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+
+      const { data: occupied, error: queryErr } = await supabase
+        .from('planned_sessions')
+        .select('scheduled_date')
+        .eq('user_id', userId)
+        .eq('modality', s.modality)
+        .eq('session_label', s.session_label)
+        .in('status', ['planned', 'completed'])
+        .in('scheduled_date', weekDates);
+
+      if (queryErr) {
+        Alert.alert('Could not check availability', queryErr.message);
+        return;
+      }
+
+      const occupiedSet = new Set((occupied ?? []).map((r) => r.scheduled_date));
+      occupiedSet.add(date);
+
+      const freeDay = weekDates.slice(dayIdx + 1).find((d) => !occupiedSet.has(d));
+      if (!freeDay) {
+        setNoFreeDay((prev) => ({ ...prev, [s.id]: true }));
+        return;
+      }
+
       await moveSession(s.id, freeDay, userId);
       onMutate();
     } catch (e: unknown) {
@@ -95,7 +105,7 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
     .toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
 
   return (
-    <VirraModal visible={visible} onClose={onClose} title={title}>
+    <VirraModal visible={visible} onClose={handleClose} title={title}>
       {sessions.map((s) => (
         <View key={s.id} style={modal.sessionBlock}>
           <VirraText variant="bodyMedium" size={14} color={colors.breath}>
@@ -112,7 +122,7 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
                 <VirraText variant="mono" size={9} color={colors.heat}>DROP</VirraText>
               </Pressable>
               {noFreeDay[s.id] ? (
-                <VirraText variant="mono" size={9} color={colors.muted} style={{ flex: 1 }}>
+                <VirraText variant="body" size={10} color={colors.muted} style={{ flex: 1 }}>
                   No free day this week — use Catch-Up to reschedule next week.
                 </VirraText>
               ) : (
@@ -135,7 +145,7 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
           )}
         </View>
       ))}
-      <VirraButton label="Close" variant="ghost" onPress={onClose} style={{ marginTop: spacing.md }} />
+      <VirraButton label="Close" variant="ghost" onPress={handleClose} style={{ marginTop: spacing.md }} />
     </VirraModal>
   );
 }
