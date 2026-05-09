@@ -44,7 +44,7 @@ function firstDayOffset(y: number, m: number): number {
 
 export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
   const [sessionMap, setSessionMap] = useState<Record<string, CalendarSession[]>>({});
-  const todayISO = new Date().toISOString().split('T')[0];
+  const todayISO = new Date().toLocaleDateString('en-CA');
 
   useEffect(() => { load(); }, [userId, year, month]);
 

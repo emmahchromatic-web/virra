@@ -37,17 +37,22 @@ interface DayData {
   isToday:  boolean;
 }
 
+function localDateISO(d: Date): string {
+  return d.toLocaleDateString('en-CA');
+}
+
 function getMondayISO(): string {
   const now = new Date();
-  const day = now.getUTCDay();
-  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + (day === 0 ? -6 : 1 - day)));
-  return monday.toISOString().split('T')[0];
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() + (day === 0 ? -6 : 1 - day));
+  monday.setHours(0, 0, 0, 0);
+  return localDateISO(monday);
 }
 
 function offsetISO(base: string, n: number): string {
-  const d = new Date(`${base}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().split('T')[0];
+  const [y, m, d] = base.split('-').map(Number);
+  return localDateISO(new Date(y, m - 1, d + n));
 }
 
 export function WeekStrip({ userId }: { userId: string }) {
@@ -58,7 +63,7 @@ export function WeekStrip({ userId }: { userId: string }) {
   async function load() {
     const monday   = getMondayISO();
     const sunday   = offsetISO(monday, 6);
-    const todayISO = new Date().toISOString().split('T')[0];
+    const todayISO = localDateISO(new Date());
 
     const { data } = await supabase
       .from('planned_sessions')

@@ -149,7 +149,7 @@ export async function linkActivityToSession(
   sessionLabel?: string,
 ): Promise<void> {
   if (activityType === 'strength' && sessionLabel) {
-    const { data: exact } = await supabase
+    const { data: exact, error: exactErr } = await supabase
       .from('planned_sessions')
       .select('id')
       .eq('user_id', userId)
@@ -159,10 +159,11 @@ export async function linkActivityToSession(
       .eq('status', 'planned')
       .order('created_at')
       .limit(1);
+    if (exactErr) console.warn('[scheduleGenerator] linkActivity strength-label query', exactErr.message);
     if (exact?.length) { await _commitLink(exact[0].id, activityId); return; }
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('planned_sessions')
     .select('id')
     .eq('user_id', userId)
@@ -171,11 +172,12 @@ export async function linkActivityToSession(
     .eq('status', 'planned')
     .order('created_at')
     .limit(1);
+  if (error) console.warn('[scheduleGenerator] linkActivity query', error.message);
   if (data?.length) await _commitLink(data[0].id, activityId);
 }
 
 async function _commitLink(plannedSessionId: string, activityId: string): Promise<void> {
-  await Promise.all([
+  const [r1, r2] = await Promise.all([
     supabase
       .from('planned_sessions')
       .update({ status: 'completed', activity_id: activityId })
@@ -185,6 +187,8 @@ async function _commitLink(plannedSessionId: string, activityId: string): Promis
       .update({ planned_session_id: plannedSessionId })
       .eq('id', activityId),
   ]);
+  if (r1.error) console.warn('[scheduleGenerator] _commitLink planned_sessions', r1.error.message);
+  if (r2.error) console.warn('[scheduleGenerator] _commitLink activities', r2.error.message);
 }
 
 function mondayOf(isoDate: string): Date {
