@@ -13,6 +13,8 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
 import { getActiveBlocks, computeBlockLoad, type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
+import { MonthCalendar, type CalendarSession } from '@/components/ui/MonthCalendar';
+import { SessionActionModal } from '@/components/ui/SessionActionModal';
 
 interface PlanTemplate {
   id:             string;
@@ -103,6 +105,12 @@ export default function TrainingScreen() {
   const [loading,           setLoading]            = useState(true);
   const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
 
+  const now = new Date();
+  const [calYear,        setCalYear]        = useState(now.getFullYear());
+  const [calMonth,       setCalMonth]       = useState(now.getMonth() + 1);
+  const [actionDate,     setActionDate]     = useState<string | null>(null);
+  const [actionSessions, setActionSessions] = useState<CalendarSession[]>([]);
+
   useFocusEffect(
     useCallback(() => {
       if (session) loadData();
@@ -190,6 +198,51 @@ export default function TrainingScreen() {
                 </VirraText>
                 <VirraButton label="Browse plans" onPress={() => setView('browse')} style={{ marginTop: spacing.md }} />
               </VirraCard>
+            )}
+
+            {/* Monthly training calendar */}
+            {(activeBlocks.length > 0 || activePlan) && session && (
+              <VirraCard style={{ gap: spacing.sm }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <VirraText variant="mono" size={9} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
+                    {new Date(calYear, calMonth - 1).toLocaleString('en-GB',
+                      { month: 'long', year: 'numeric' }).toUpperCase()}
+                  </VirraText>
+                  <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                    <Pressable onPress={() => {
+                      if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); }
+                      else setCalMonth((m) => m - 1);
+                    }}>
+                      <VirraText variant="mono" size={12} color={colors.muted}>{'<'}</VirraText>
+                    </Pressable>
+                    <Pressable onPress={() => {
+                      if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); }
+                      else setCalMonth((m) => m + 1);
+                    }}>
+                      <VirraText variant="mono" size={12} color={colors.muted}>{'>'}</VirraText>
+                    </Pressable>
+                  </View>
+                </View>
+                <MonthCalendar
+                  userId={session.user.id}
+                  year={calYear}
+                  month={calMonth}
+                  onDayPress={(date, sessions) => {
+                    setActionDate(date);
+                    setActionSessions(sessions);
+                  }}
+                />
+              </VirraCard>
+            )}
+            {actionDate && session && (
+              <SessionActionModal
+                visible={!!actionDate}
+                date={actionDate}
+                sessions={actionSessions}
+                userId={session.user.id}
+                onClose={() => { setActionDate(null); setActionSessions([]); }}
+                onMutate={() => { setActionDate(null); setActionSessions([]); loadData(); }}
+              />
             )}
 
             {/* Recent activity */}
