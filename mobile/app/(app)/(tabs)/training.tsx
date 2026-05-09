@@ -13,8 +13,8 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
 import { getActiveBlocks, computeBlockLoad, type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
-import { MonthCalendar, type CalendarSession } from '@/components/ui/MonthCalendar';
-import { SessionActionModal } from '@/components/ui/SessionActionModal';
+import { MonthCalendar } from '@/components/ui/MonthCalendar';
+import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 
 interface PlanTemplate {
   id:             string;
@@ -96,7 +96,7 @@ const why = StyleSheet.create({
 
 export default function TrainingScreen() {
   const { session }    = useAuthStore();
-  const { cycleInfo }  = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength } = useCycleStore();
 
   const [activePlan,        setActivePlan]        = useState<UserPlan | null>(null);
   const [templates,         setTemplates]          = useState<PlanTemplate[]>([]);
@@ -108,8 +108,7 @@ export default function TrainingScreen() {
   const now = new Date();
   const [calYear,        setCalYear]        = useState(now.getFullYear());
   const [calMonth,       setCalMonth]       = useState(now.getMonth() + 1);
-  const [actionDate,     setActionDate]     = useState<string | null>(null);
-  const [actionSessions, setActionSessions] = useState<CalendarSession[]>([]);
+  const [actionDate, setActionDate] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,6 +145,12 @@ export default function TrainingScreen() {
   }
 
   const phaseLoad = cycleInfo ? PHASE_LOAD[cycleInfo.phase] : null;
+
+  const cycleStore = {
+    periodStart: periodStart ?? null,
+    cycleLength: cycleLength ?? 28,
+    phase:       cycleInfo?.phase ?? null,
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -227,21 +232,20 @@ export default function TrainingScreen() {
                   userId={session.user.id}
                   year={calYear}
                   month={calMonth}
-                  onDayPress={(date, sessions) => {
+                  onDayPress={(date) => {
                     setActionDate(date);
-                    setActionSessions(sessions);
                   }}
                 />
               </VirraCard>
             )}
             {actionDate && session && (
-              <SessionActionModal
+              <SessionDetailModal
                 visible={!!actionDate}
                 date={actionDate}
-                sessions={actionSessions}
                 userId={session.user.id}
-                onClose={() => { setActionDate(null); setActionSessions([]); }}
-                onMutate={() => { setActionDate(null); setActionSessions([]); loadData(); }}
+                cycleStore={cycleStore}
+                onClose={() => setActionDate(null)}
+                onMutate={() => { setActionDate(null); loadData(); }}
               />
             )}
 
