@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, AppState, AppStateStatus } from 'react-native';
 import { router } from 'expo-router';
 import { getDailyStats } from '@/lib/healthKitDaily';
@@ -11,6 +11,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { useCycleStore, type CyclePhase, type CycleProfile } from '@/store/cycle';
 import { useAuthStore } from '@/store/auth';
 import { WeekStrip } from '@/components/ui/WeekStrip';
+import { supabase } from '@/lib/supabase';
 
 const PHASE_META: Record<CyclePhase, {
   label:     string;
@@ -67,19 +68,26 @@ const bar = StyleSheet.create({
   dot:   { position: 'absolute', top: -4, width: 11, height: 11, borderRadius: radius.full, marginLeft: -5 },
 });
 
-function GuidanceCard({ title, body, accentColor }: { title: string; body: string; accentColor: string }) {
+function GuidanceCard({ title, body, accentColor, loading }: {
+  title: string; body: string; accentColor: string; loading?: boolean;
+}) {
   return (
     <VirraCard style={guide.card}>
       <VirraText variant="mono" size={10} color={accentColor} style={guide.label}>{title.toUpperCase()}</VirraText>
-      <VirraText variant="body" size={14} color="rgba(244,237,224,0.7)" style={guide.body}>{body}</VirraText>
+      {loading ? (
+        <View style={guide.skeleton} />
+      ) : (
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.7)" style={guide.body}>{body}</VirraText>
+      )}
     </VirraCard>
   );
 }
 
 const guide = StyleSheet.create({
-  card:  { gap: spacing.xs },
-  label: { letterSpacing: 1.5 },
-  body:  { lineHeight: 21, marginTop: spacing.xs },
+  card:     { gap: spacing.xs },
+  label:    { letterSpacing: 1.5 },
+  body:     { lineHeight: 21, marginTop: spacing.xs },
+  skeleton: { height: 42, borderRadius: 4, backgroundColor: colors.border },
 });
 
 function EmptyState({ cycleProfile }: { cycleProfile: CycleProfile }) {
@@ -108,26 +116,63 @@ export default function DashboardScreen() {
   const appState        = useRef<AppStateStatus>(AppState.currentState);
   const [steps,        setSteps]        = useState(0);
   const [exerciseMins, setExerciseMins] = useState(0);
+  const [insightTexts,   setInsightTexts]   = useState<{ training: string; nutrition: string } | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+
+  const loadInsight = useCallback(async () => {
+    if (!session || !cycleInfo) return;
+    setInsightLoading(true);
+    try {
+      const { data: cached } = await supabase
+        .from('insights_cache')
+        .select('training_text, nutrition_text, expires_at')
+        .eq('user_id', session.user.id)
+        .eq('insight_type', 'dashboard')
+        .maybeSingle();
+
+      if (cached && new Date(cached.expires_at) > new Date()) {
+        setInsightTexts({ training: cached.training_text, nutrition: cached.nutrition_text });
+        setInsightLoading(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-insights', {
+        body: {
+          insight_type:  'dashboard',
+          phase:         cycleInfo.phase,
+          day_of_cycle:  cycleInfo.dayOfCycle,
+        },
+      });
+      if (!error && data?.training_text && data?.nutrition_text) {
+        setInsightTexts({ training: data.training_text, nutrition: data.nutrition_text });
+      }
+    } catch {
+      // Silently fall back to PHASE_META
+    } finally {
+      setInsightLoading(false);
+    }
+  }, [session, cycleInfo]);
 
   useEffect(() => {
-    function load() {
+    function loadAll() {
       getDailyStats().then(({ steps, exerciseMins }) => {
         setSteps(steps);
         setExerciseMins(exerciseMins);
       });
+      loadInsight();
     }
 
-    load();
+    loadAll();
 
     const sub = AppState.addEventListener('change', (next) => {
       if (appState.current.match(/inactive|background/) && next === 'active') {
-        load();
+        loadAll();
       }
       appState.current = next;
     });
 
     return () => sub.remove();
-  }, []);
+  }, [loadInsight]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -185,8 +230,18 @@ export default function DashboardScreen() {
               </VirraCard>
             )}
 
-            <GuidanceCard title="Training"  body={meta.training}  accentColor={meta.color} />
-            <GuidanceCard title="Nutrition" body={meta.nutrition} accentColor={meta.color} />
+            <GuidanceCard
+              title="Training"
+              body={insightTexts?.training ?? meta.training}
+              accentColor={meta.color}
+              loading={insightLoading && !insightTexts}
+            />
+            <GuidanceCard
+              title="Nutrition"
+              body={insightTexts?.nutrition ?? meta.nutrition}
+              accentColor={meta.color}
+              loading={insightLoading && !insightTexts}
+            />
 
             <VirraButton
               label="Check in for today"
