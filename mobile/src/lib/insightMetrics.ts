@@ -12,6 +12,12 @@ export interface SymptomTrend {
   sleep:  number;
 }
 
+export interface FuellingAlignment {
+  daysOverTarget:  number;
+  daysUnderTarget: number;
+  daysOnTarget:    number;
+}
+
 export interface InsightMetrics {
   streakDays:              number;
   weeklyKm:                number;
@@ -23,6 +29,7 @@ export interface InsightMetrics {
   trainingAdherencePct:    number | null;
   nutritionCompliancePct:  number | null;
   symptomTrend:            SymptomTrend | null;
+  fuellingAlignment:       FuellingAlignment | null;
 }
 
 function isoWeekKey(d = new Date()): string {
@@ -97,7 +104,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
 
     supabase
       .from('nutrition_logs')
-      .select('recorded_on, targets_json, food_entries(calories)')
+      .select('recorded_on, targets_json, inferred_load, food_entries(calories)')
       .eq('user_id', userId)
       .gte('recorded_on', window7ISO)
       .order('recorded_on'),
@@ -179,6 +186,25 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     ? Math.round((compliantDays / loggedDays) * 100)
     : null;
 
+  // Fuelling alignment — compares actual intake against inferred_load target (not user-selected)
+  const alignedLogs = (nutritionLogs as any[]).filter((l: any) => l.inferred_load);
+  let fuellingAlignment: FuellingAlignment | null = null;
+  if (alignedLogs.length >= 3) {
+    let over = 0, under = 0, onTarget = 0;
+    for (const log of alignedLogs) {
+      const targetCal: number = (log.targets_json as any)?.calories ?? 0;
+      if (!targetCal) continue;
+      const actualCal = (log.food_entries as any[])
+        .reduce((s: number, e: any) => s + (e.calories ?? 0), 0);
+      if (actualCal <= 0) continue;
+      const ratio = actualCal / targetCal;
+      if (ratio > 1.10) over++;
+      else if (ratio < 0.90) under++;
+      else onTarget++;
+    }
+    fuellingAlignment = { daysOverTarget: over, daysUnderTarget: under, daysOnTarget: onTarget };
+  }
+
   // Symptom trend — 7-entry average
   const symptomRows = symptomLogsRes.data ?? [];
   let symptomTrend: SymptomTrend | null = null;
@@ -217,6 +243,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     trainingAdherencePct,
     nutritionCompliancePct,
     symptomTrend,
+    fuellingAlignment,
   };
 }
 
