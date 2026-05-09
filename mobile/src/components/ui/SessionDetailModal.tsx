@@ -1,0 +1,293 @@
+import React, { useEffect, useState } from 'react';
+import { View, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { colors, spacing, radius } from '@/constants/theme';
+import { VirraModal } from './VirraModal';
+import { VirraText } from './VirraText';
+import { VirraButton } from './VirraButton';
+import { dropSession, moveSession } from '@/lib/scheduleGenerator';
+import { getDaySessionDetail, formatPace } from '@/lib/volumePlan';
+import { supabase } from '@/lib/supabase';
+import type { CyclePhase } from '@/lib/cycleEngine';
+import type { DayDetail, SessionDetail, RunSessionDetail, UserEvent } from '@/lib/volumePlan';
+
+interface Props {
+  visible:    boolean;
+  date:       string;
+  userId:     string;
+  cycleStore: { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null };
+  onClose:    () => void;
+  onMutate:   () => void;
+}
+
+function shiftDate(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().split('T')[0];
+}
+
+function mondayOfISO(iso: string): string {
+  const d   = new Date(`${iso}T00:00:00Z`);
+  const day = d.getUTCDay();
+  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
+  return d.toISOString().split('T')[0];
+}
+
+const PHASE_COLOR: Record<string, string> = {
+  follicular: colors.pulse,
+  ovulatory:  colors.pulse,
+  luteal:     colors.dawn,
+  menstrual:  colors.muted,
+};
+
+export function SessionDetailModal({ visible, date, userId, cycleStore, onClose, onMutate }: Props) {
+  const [detail, setDetail]       = useState<DayDetail | null>(null);
+  const [loading, setLoading]     = useState(false);
+  const [busy, setBusy]           = useState(false);
+  const [noFreeDay, setNoFreeDay] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    if (visible && date) {
+      setDetail(null);
+      setNoFreeDay({});
+      setLoading(true);
+      getDaySessionDetail(userId, date, cycleStore)
+        .then(setDetail)
+        .catch((e) => console.warn('[SessionDetailModal]', e))
+        .finally(() => setLoading(false));
+    }
+  }, [visible, date]);
+
+  const title = new Date(`${date}T00:00:00Z`).toLocaleDateString('en-GB', {
+    weekday: 'long', day: 'numeric', month: 'short',
+  });
+
+  async function handleDrop(sessionId: string) {
+    setBusy(true);
+    try {
+      await dropSession(sessionId);
+      onMutate();
+    } catch (e: unknown) {
+      Alert.alert('Could not drop session', e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMoveThisWeek(session: SessionDetail) {
+    const monday    = mondayOfISO(date);
+    const jsDay     = new Date(`${date}T00:00:00Z`).getUTCDay();
+    const dayIdx    = jsDay === 0 ? 6 : jsDay - 1;
+    const weekDates = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+
+    const { data: occupied } = await supabase
+      .from('planned_sessions')
+      .select('scheduled_date')
+      .eq('user_id', userId)
+      .eq('modality', session.kind)
+      .eq('session_label', session.session_label)
+      .in('status', ['planned', 'completed'])
+      .in('scheduled_date', weekDates);
+
+    const occupiedSet = new Set((occupied ?? []).map((r: any) => r.scheduled_date));
+    occupiedSet.add(date);
+
+    const freeDay = weekDates.slice(dayIdx + 1).find((d) => !occupiedSet.has(d));
+    if (!freeDay) {
+      setNoFreeDay((prev) => ({ ...prev, [session.planned_session_id]: true }));
+      return;
+    }
+
+    setBusy(true);
+    try {
+      await moveSession(session.planned_session_id, freeDay, userId);
+      onMutate();
+    } catch (e: unknown) {
+      Alert.alert('Could not move session', e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleCatchup(sessionId: string) {
+    setBusy(true);
+    try {
+      await moveSession(sessionId, shiftDate(date, 7), userId);
+      onMutate();
+    } catch (e: unknown) {
+      Alert.alert('Could not move session', e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderSessionCard(s: SessionDetail, i: number) {
+    const label = s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1);
+    const isRun = s.kind === 'run';
+    const r     = s as RunSessionDetail;
+
+    return (
+      <View key={s.planned_session_id} style={[modal.card, i > 0 && modal.cardBorder]}>
+        <View style={modal.cardHeader}>
+          <VirraText variant="bodyMedium" size={14} color={colors.breath}>{label}</VirraText>
+          <VirraText variant="mono" size={9} color={colors.muted}>
+            {s.kind.toUpperCase()}
+          </VirraText>
+        </View>
+
+        {isRun && s.status !== 'dropped' && (
+          <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
+            {s.status === 'completed' && r.actual_distance_km
+              ? `${r.actual_distance_km.toFixed(1)}km · ${r.actual_pace_secs ? formatPace(r.actual_pace_secs) : '—'} · actual`
+              : `${r.distance_km.toFixed(1)}km · ${formatPace(r.pace_target_secs)} · ~${r.estimated_minutes}min`}
+          </VirraText>
+        )}
+
+        {!isRun && s.status !== 'dropped' && (
+          <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
+            ~{s.estimated_minutes}min
+          </VirraText>
+        )}
+
+        {s.status === 'planned' && (
+          <View style={modal.actions}>
+            <Pressable style={modal.actionBtn} onPress={() => handleDrop(s.planned_session_id)} disabled={busy}>
+              <SymbolView name="xmark.circle" size={12} tintColor={colors.heat} />
+              <VirraText variant="mono" size={9} color={colors.heat}>DROP</VirraText>
+            </Pressable>
+
+            {noFreeDay[s.planned_session_id] ? (
+              <VirraText variant="mono" size={9} color={colors.muted} style={{ flex: 1 }}>
+                No free day this week — use Catch-Up to reschedule next week.
+              </VirraText>
+            ) : (
+              <Pressable style={modal.actionBtn} onPress={() => handleMoveThisWeek(s)} disabled={busy}>
+                <SymbolView name="arrow.left.arrow.right" size={12} tintColor={colors.muted} />
+                <VirraText variant="mono" size={9} color={colors.muted}>MOVE THIS WEEK</VirraText>
+              </Pressable>
+            )}
+
+            <Pressable style={modal.actionBtn} onPress={() => handleCatchup(s.planned_session_id)} disabled={busy}>
+              <SymbolView name="calendar.badge.plus" size={12} tintColor={colors.pulse} />
+              <VirraText variant="mono" size={9} color={colors.pulse}>CATCH-UP</VirraText>
+            </Pressable>
+          </View>
+        )}
+
+        {s.status === 'completed' && (
+          <View style={modal.statusRow}>
+            <SymbolView name="checkmark.circle.fill" size={12} tintColor={colors.pulse} />
+            <VirraText variant="mono" size={9} color={colors.pulse}>COMPLETED</VirraText>
+          </View>
+        )}
+
+        {s.status === 'dropped' && (
+          <VirraText variant="mono" size={9} color={colors.muted}>DROPPED</VirraText>
+        )}
+      </View>
+    );
+  }
+
+  function renderEventCard(evt: UserEvent) {
+    const daysUntil = Math.ceil(
+      (new Date(`${evt.event_date}T00:00:00`).getTime() - Date.now()) / 86400000
+    );
+    return (
+      <View key={evt.id} style={[modal.card, modal.cardBorder]}>
+        <View style={modal.cardHeader}>
+          <SymbolView
+            name="flag.fill"
+            size={12}
+            tintColor={(evt.priority === 1 ? colors.heat : colors.dawn) as any}
+          />
+          <VirraText variant="bodyMedium" size={14} color={colors.breath}>{evt.name}</VirraText>
+        </View>
+        {evt.target_finish_time && (
+          <VirraText variant="mono" size={10} color={colors.muted}>
+            Target: {evt.target_finish_time}
+          </VirraText>
+        )}
+        {daysUntil >= 0 && (
+          <VirraText variant="mono" size={9} color={colors.muted}>
+            {daysUntil === 0 ? 'Today!' : `${daysUntil} days away`}
+          </VirraText>
+        )}
+      </View>
+    );
+  }
+
+  return (
+    <VirraModal visible={visible} onClose={onClose} title={title}>
+      {/* Phase banner */}
+      {detail?.phase && (
+        <View style={modal.phaseBanner}>
+          <VirraText
+            variant="mono"
+            size={9}
+            color={PHASE_COLOR[detail.phase] ?? colors.muted}
+            style={{ letterSpacing: 1.5 }}
+          >
+            {detail.phase.toUpperCase()} · {detail.phase_guidance}
+          </VirraText>
+        </View>
+      )}
+
+      {/* Loading */}
+      {loading && (
+        <View style={modal.loadingWrap}>
+          <ActivityIndicator color={colors.pulse} />
+        </View>
+      )}
+
+      {/* Sessions */}
+      {!loading && detail && detail.sessions.map((s, i) => renderSessionCard(s, i))}
+
+      {/* Events (race day info) */}
+      {!loading && detail?.events.map((evt) => renderEventCard(evt))}
+
+      {/* Empty state */}
+      {!loading && detail && detail.sessions.length === 0 && detail.events.length === 0 && (
+        <VirraText variant="body" size={13} color={colors.muted}>
+          No sessions scheduled for this day.
+        </VirraText>
+      )}
+
+      {/* Deficit coaching message */}
+      {!loading && detail?.volume_plan.deficit_message && (
+        <VirraText
+          variant="body"
+          size={13}
+          color={colors.dawn}
+          style={modal.deficitMsg}
+        >
+          {detail.volume_plan.deficit_message}
+        </VirraText>
+      )}
+
+      <VirraButton label="Close" variant="ghost" onPress={onClose} style={{ marginTop: spacing.md }} />
+    </VirraModal>
+  );
+}
+
+const modal = StyleSheet.create({
+  phaseBanner: {
+    backgroundColor: colors.mist,
+    borderRadius:    radius.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    marginBottom:    spacing.sm,
+  },
+  loadingWrap: { alignItems: 'center', paddingVertical: spacing.lg },
+  card:        { gap: spacing.xs, paddingVertical: spacing.sm },
+  cardBorder:  { borderTopWidth: 1, borderTopColor: colors.border },
+  cardHeader:  { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  detail:      { letterSpacing: 0.3 },
+  actions:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+  actionBtn:   {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingVertical: 6, paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+  },
+  statusRow:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  deficitMsg:  { marginTop: spacing.md, lineHeight: 20 },
+});
