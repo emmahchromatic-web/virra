@@ -216,6 +216,29 @@ export default function InsightsScreen() {
           </VirraCard>
         )}
 
+        {/* Fuelling alignment */}
+        {metrics?.fuellingAlignment && (() => {
+          const { daysOverTarget, daysUnderTarget, daysOnTarget } = metrics.fuellingAlignment!;
+          const total = daysOverTarget + daysUnderTarget + daysOnTarget;
+          if (total === 0) return null;
+          let text: string;
+          if (daysUnderTarget >= 3 && daysUnderTarget >= daysOverTarget) {
+            text = `You've fuelled below your planned sessions ${daysUnderTarget} day${daysUnderTarget !== 1 ? 's' : ''} this week.`;
+          } else if (daysOverTarget >= 3) {
+            text = `You've eaten above your rest-day targets ${daysOverTarget} day${daysOverTarget !== 1 ? 's' : ''} this week.`;
+          } else {
+            text = 'Fuelling well-aligned with your training this week.';
+          }
+          return (
+            <VirraCard style={{ gap: spacing.xs }}>
+              <VirraText variant="mono" size={9} color={phaseColor} style={styles.sectionLabel}>FUELLING</VirraText>
+              <VirraText variant="body" size={13} color="rgba(244,237,224,0.8)" style={{ lineHeight: 20 }}>
+                {text}
+              </VirraText>
+            </VirraCard>
+          );
+        })()}
+
         {/* Phase-pace breakdown */}
         {metrics && metrics.phasePaces.length > 0 && (
           <VirraCard style={styles.paceCard}>
