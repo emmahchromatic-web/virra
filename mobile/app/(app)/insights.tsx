@@ -1,15 +1,16 @@
 import React, { useCallback, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, SafeAreaView, RefreshControl } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
-import { computeInsightMetrics, currentPeriodKeys, formatPaceMmSs, type InsightMetrics } from '@/lib/insightMetrics';
+import { computeInsightMetrics, formatPaceMmSs, type InsightMetrics } from '@/lib/insightMetrics';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
+import { AddEventModal } from '@/components/ui/AddEventModal';
 
 const PHASE_COLOR: Record<string, string> = {
   menstrual:  colors.heat,
@@ -34,111 +35,106 @@ const tile = StyleSheet.create({
   sub:   { letterSpacing: 1 },
 });
 
-function NarrativeCard({ title, narrative, loading }: {
-  title: string; narrative: string | null; loading: boolean;
-}) {
-  return (
-    <VirraCard style={narrative_s.card}>
-      <VirraText variant="mono" size={9} color={colors.pulse} style={narrative_s.label}>{title}</VirraText>
-      {loading ? (
-        <VirraText variant="mono" size={10} color={colors.muted}>GENERATING…</VirraText>
-      ) : narrative ? (
-        <VirraText variant="serif" size={16} color={colors.breath} style={narrative_s.body}>
-          {narrative}
-        </VirraText>
-      ) : (
-        <VirraText variant="body" size={13} color={colors.muted} style={{ lineHeight: 20 }}>
-          Generating your first insight…
-        </VirraText>
-      )}
-    </VirraCard>
-  );
-}
-
-const narrative_s = StyleSheet.create({
-  card:  { gap: spacing.sm },
-  label: { letterSpacing: 1.5 },
-  body:  { lineHeight: 26, fontStyle: 'italic' },
-});
-
 export default function InsightsScreen() {
   const { session }   = useAuthStore();
   const { cycleInfo } = useCycleStore();
 
   const [metrics,          setMetrics]          = useState<InsightMetrics | null>(null);
-  const [weeklyNarrative,  setWeeklyNarrative]  = useState<string | null>(null);
-  const [monthlyNarrative, setMonthlyNarrative] = useState<string | null>(null);
+  const [overallText,      setOverallText]      = useState<string | null>(null);
+  const [trainingText,     setTrainingText]     = useState<string | null>(null);
+  const [nutritionText,    setNutritionText]    = useState<string | null>(null);
+  const [generatedAt,      setGeneratedAt]      = useState<string | null>(null);
+  const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
+  const [upcomingEvents,   setUpcomingEvents]   = useState<any[]>([]);
   const [loadingMetrics,   setLoadingMetrics]   = useState(true);
-  const [loadingWeekly,    setLoadingWeekly]    = useState(false);
-  const [loadingMonthly,   setLoadingMonthly]   = useState(false);
-  const [refreshing,       setRefreshing]       = useState(false);
+  const [loadingNarrative, setLoadingNarrative] = useState(false);
+  const [showAddEvent,     setShowAddEvent]     = useState(false);
 
-  const load = useCallback(async (force = false) => {
+  const load = useCallback(async () => {
     if (!session) return;
     setLoadingMetrics(true);
 
-    let m: InsightMetrics;
-    try {
-      m = await computeInsightMetrics(session.user.id);
-    } catch {
-      setLoadingMetrics(false);
+    const today    = new Date().toLocaleDateString('en-CA');
+    const future14 = new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-CA');
+
+    const [metricsResult, cacheResult, sessionsResult, eventsResult] = await Promise.all([
+      computeInsightMetrics(session.user.id).catch(() => null),
+
+      supabase
+        .from('insights_cache')
+        .select('training_text, nutrition_text, overall_text, generated_at, expires_at')
+        .eq('user_id', session.user.id)
+        .eq('insight_type', 'weekly')
+        .maybeSingle(),
+
+      supabase
+        .from('planned_sessions')
+        .select('scheduled_date, modality, session_label, status')
+        .eq('user_id', session.user.id)
+        .gte('scheduled_date', today)
+        .lte('scheduled_date', future14)
+        .neq('status', 'moved')
+        .order('scheduled_date'),
+
+      supabase
+        .from('user_events')
+        .select('id, name, event_date')
+        .eq('user_id', session.user.id)
+        .gte('event_date', today)
+        .lte('event_date', future14)
+        .order('event_date'),
+    ]);
+
+    if (metricsResult) setMetrics(metricsResult);
+    setUpcomingSessions(sessionsResult.data ?? []);
+    setUpcomingEvents(eventsResult.data ?? []);
+    setLoadingMetrics(false);
+
+    const cached = cacheResult.data;
+    if (cached && new Date(cached.expires_at) > new Date()) {
+      setOverallText(cached.overall_text ?? null);
+      setTrainingText(cached.training_text ?? null);
+      setNutritionText(cached.nutrition_text ?? null);
+      setGeneratedAt(cached.generated_at);
       return;
     }
 
-    setMetrics(m);
-    setLoadingMetrics(false);
-
-    const signupDate      = session.user.created_at ? new Date(session.user.created_at) : new Date();
-    const daysSinceSignup = Math.floor((Date.now() - signupDate.getTime()) / (1000 * 60 * 60 * 24));
-
-    const { weekKey, monthKey } = currentPeriodKeys();
-
-    if (force) {
-      await supabase
-        .from('insight_cache')
-        .delete()
-        .eq('user_id', session.user.id)
-        .in('period_key', [weekKey, monthKey]);
-    }
-
-    setLoadingWeekly(true);
-    setLoadingMonthly(true);
-
-    const callEdge = async (periodType: 'weekly' | 'monthly', periodKey: string) => {
-      const { data, error } = await supabase.functions.invoke('generate-insight', {
+    setLoadingNarrative(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-insights', {
         body: {
-          period_type:  periodType,
-          period_key:   periodKey,
-          metrics: {
-            streakDays:         m.streakDays,
-            weeklyKm:           m.weeklyKm,
-            monthlyKm:          m.monthlyKm,
-            totalKm:            m.totalKm,
-            consistencyPct:     m.consistencyPct,
-            phasePaces:         m.phasePaces,
-            activitiesThisWeek: m.activitiesThisWeek,
-          },
-          phase:             cycleInfo?.phase,
-          day_of_cycle:      cycleInfo?.dayOfCycle,
-          days_since_signup: daysSinceSignup,
+          insight_type:  'weekly',
+          phase:         cycleInfo?.phase,
+          day_of_cycle:  cycleInfo?.dayOfCycle,
         },
       });
-      if (error) return null;
-      return (data as any)?.narrative as string ?? null;
-    };
-
-    const weeklyPromise  = callEdge('weekly',  weekKey).then(setWeeklyNarrative).finally(() => setLoadingWeekly(false));
-    const monthlyPromise = callEdge('monthly', monthKey).then(setMonthlyNarrative).finally(() => setLoadingMonthly(false));
-    await Promise.all([weeklyPromise, monthlyPromise]);
+      if (!error && data) {
+        setOverallText(data.overall_text   ?? null);
+        setTrainingText(data.training_text  ?? null);
+        setNutritionText(data.nutrition_text ?? null);
+        setGeneratedAt(data.generated_at ?? new Date().toISOString());
+      }
+    } catch {
+      // Retain stale content if present
+    } finally {
+      setLoadingNarrative(false);
+    }
   }, [session, cycleInfo]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load(true);
-    setRefreshing(false);
-  }, [load]);
+  const phaseColor = cycleInfo ? PHASE_COLOR[cycleInfo.phase] : colors.pulse;
+
+  function relativeTime(iso: string | null): string {
+    if (!iso) return '';
+    const diffMs  = Date.now() - new Date(iso).getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 2)  return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffH = Math.floor(diffMin / 60);
+    if (diffH < 24)   return `${diffH}h ago`;
+    return `${Math.floor(diffH / 24)}d ago`;
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -146,17 +142,32 @@ export default function InsightsScreen() {
         <Pressable style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
           <SymbolView name="chevron.left" size={18} tintColor={colors.breath} />
         </Pressable>
-        <VirraText variant="mono" size={10} color={colors.muted}>INSIGHTS</VirraText>
+        {cycleInfo && (
+          <VirraText variant="mono" size={10} color={phaseColor}>
+            {cycleInfo.phase.toUpperCase()} · DAY {cycleInfo.dayOfCycle}
+          </VirraText>
+        )}
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.pulse} />
-        }
-      >
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* THIS WEEK — Haiku narrative */}
+        <VirraCard style={styles.narrativeCard}>
+          <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>THIS WEEK</VirraText>
+          {loadingNarrative ? (
+            <View style={styles.skeleton} />
+          ) : overallText ? (
+            <VirraText variant="serif" size={16} color={colors.breath} style={styles.narrativeBody}>
+              {overallText}
+            </VirraText>
+          ) : (
+            <VirraText variant="body" size={13} color={colors.muted} style={{ lineHeight: 20 }}>
+              {trainingText ?? 'Log activities to unlock your personal insight.'}
+            </VirraText>
+          )}
+        </VirraCard>
+
         {/* Metric grid */}
         <VirraCard style={styles.metricsCard}>
           <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>YOUR NUMBERS</VirraText>
@@ -170,20 +181,40 @@ export default function InsightsScreen() {
           <View style={styles.metricDividerH} />
           <View style={styles.metricsGrid}>
             <MetricTile
-              label="CONSISTENCY"
-              value={loadingMetrics ? '—' : `${metrics?.consistencyPct ?? 0}%`}
+              label="ADHERENCE"
+              value={loadingMetrics ? '—' : metrics?.trainingAdherencePct != null ? `${metrics.trainingAdherencePct}%` : '—'}
               sub="LAST 28 DAYS"
             />
             <View style={styles.metricDividerV} />
             <MetricTile label="ALL TIME"    value={loadingMetrics ? '—' : `${metrics?.totalKm ?? 0} km`} />
             <View style={styles.metricDividerV} />
             <MetricTile
-              label="ACTIVITIES"
-              value={loadingMetrics ? '—' : String(metrics?.activitiesThisWeek ?? 0)}
-              sub="THIS WEEK"
+              label="NUTRITION"
+              value={loadingMetrics ? '—' : metrics?.nutritionCompliancePct != null ? `${metrics.nutritionCompliancePct}%` : '—'}
+              sub="COMPLIANCE"
             />
           </View>
         </VirraCard>
+
+        {/* Training narrative */}
+        {trainingText && (
+          <VirraCard style={{ gap: spacing.xs }}>
+            <VirraText variant="mono" size={9} color={phaseColor} style={styles.sectionLabel}>TRAINING</VirraText>
+            <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
+              {trainingText}
+            </VirraText>
+          </VirraCard>
+        )}
+
+        {/* Nutrition narrative */}
+        {nutritionText && (
+          <VirraCard style={{ gap: spacing.xs }}>
+            <VirraText variant="mono" size={9} color={phaseColor} style={styles.sectionLabel}>NUTRITION</VirraText>
+            <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
+              {nutritionText}
+            </VirraText>
+          </VirraCard>
+        )}
 
         {/* Phase-pace breakdown */}
         {metrics && metrics.phasePaces.length > 0 && (
@@ -210,32 +241,114 @@ export default function InsightsScreen() {
           </VirraCard>
         )}
 
-        {/* Narratives */}
-        <NarrativeCard title="THIS WEEK"  narrative={weeklyNarrative}  loading={loadingWeekly}  />
-        <NarrativeCard title="THIS MONTH" narrative={monthlyNarrative} loading={loadingMonthly} />
+        {/* Recovery — symptom trend */}
+        {metrics?.symptomTrend && (
+          <VirraCard style={{ gap: spacing.sm }}>
+            <VirraText variant="mono" size={9} color={colors.breath} style={styles.sectionLabel}>RECOVERY</VirraText>
+            {(['energy','mood','sleep'] as const).map((key) => {
+              const label     = key === 'sleep' ? 'SLEEP' : key.toUpperCase();
+              const value     = metrics.symptomTrend![key];
+              const pct       = Math.min(value / 10, 1);
+              const barColor  = value >= 7 ? colors.pulse : value >= 4 ? colors.dawn : colors.heat;
+              return (
+                <View key={key} style={styles.symptomRow}>
+                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.symptomLabel}>{label}</VirraText>
+                  <View style={styles.symptomBar}>
+                    <View style={[styles.symptomFill, { width: `${pct * 100}%` as any, backgroundColor: barColor }]} />
+                  </View>
+                  <VirraText variant="mono" size={10} color={barColor}>{value}</VirraText>
+                </View>
+              );
+            })}
+            <VirraText variant="mono" size={8} color={colors.muted} style={{ marginTop: 2 }}>7-DAY AVERAGE · 1–10 SCALE</VirraText>
+          </VirraCard>
+        )}
 
-        <VirraText variant="mono" size={8} color="rgba(244,237,224,0.2)" style={styles.pullHint}>
-          PULL TO REFRESH INSIGHTS
-        </VirraText>
+        {/* Upcoming — sessions + events */}
+        <VirraCard style={{ gap: spacing.sm }}>
+          <View style={styles.upcomingHeader}>
+            <VirraText variant="mono" size={9} color={colors.muted} style={styles.sectionLabel}>UPCOMING 14 DAYS</VirraText>
+            <Pressable
+              onPress={() => setShowAddEvent(true)}
+              style={styles.addEventBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Add event"
+            >
+              <SymbolView name="plus" size={14} tintColor={colors.pulse} />
+            </Pressable>
+          </View>
+          {upcomingSessions.length === 0 && upcomingEvents.length === 0 ? (
+            <VirraText variant="mono" size={9} color={colors.muted}>No sessions or events planned.</VirraText>
+          ) : (
+            [...upcomingSessions.map((s: any) => ({ ...s, _type: 'session' as const })),
+             ...upcomingEvents.map((e: any) => ({ ...e, _type: 'event' as const, scheduled_date: e.event_date }))]
+              .sort((a, b) => (a.scheduled_date > b.scheduled_date ? 1 : -1))
+              .map((item, i) => (
+                <View key={i} style={styles.upcomingRow}>
+                  <SymbolView
+                    name={item._type === 'event' ? 'calendar.badge.clock' : 'figure.run'}
+                    size={12}
+                    tintColor={item._type === 'event' ? colors.dawn : colors.pulse}
+                  />
+                  <VirraText variant="mono" size={9} color={colors.muted} style={{ minWidth: 52 }}>
+                    {item.scheduled_date.slice(5)}
+                  </VirraText>
+                  <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
+                    {item._type === 'event'
+                      ? item.name
+                      : `${item.session_label.charAt(0).toUpperCase() + item.session_label.slice(1)} ${item.modality}`
+                    }
+                  </VirraText>
+                </View>
+              ))
+          )}
+        </VirraCard>
+
+        {/* Footer */}
+        {generatedAt && (
+          <VirraText variant="mono" size={8} color="rgba(244,237,224,0.2)" style={styles.footer}>
+            UPDATED {relativeTime(generatedAt).toUpperCase()}
+          </VirraText>
+        )}
+
       </ScrollView>
+
+      {session && (
+        <AddEventModal
+          visible={showAddEvent}
+          userId={session.user.id}
+          onClose={() => setShowAddEvent(false)}
+          onSaved={() => { setShowAddEvent(false); load(); }}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe:           { flex: 1, backgroundColor: colors.mile },
-  header:         { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, backgroundColor: colors.mile },
-  backBtn:        { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  scroll:         { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
-  sectionLabel:   { letterSpacing: 1.5, marginBottom: spacing.xs },
-  metricsCard:    { gap: spacing.md },
-  metricsGrid:    { flexDirection: 'row', alignItems: 'center' },
-  metricDividerV: { width: 1, height: 44, backgroundColor: colors.border },
-  metricDividerH: { height: 1, backgroundColor: colors.border },
-  paceCard:       { gap: spacing.sm },
-  paceRow:        { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
-  phaseDot:       { width: 8, height: 8, borderRadius: 4 },
-  pacePhaseLabel: { flex: 1 },
-  paceCount:      { minWidth: 44, textAlign: 'right' },
-  pullHint:       { textAlign: 'center', letterSpacing: 2, marginTop: spacing.md },
+  safe:            { flex: 1, backgroundColor: colors.mile },
+  header:          { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, backgroundColor: colors.mile },
+  backBtn:         { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  scroll:          { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  sectionLabel:    { letterSpacing: 1.5, marginBottom: spacing.xs },
+  narrativeCard:   { gap: spacing.sm },
+  narrativeBody:   { lineHeight: 26, fontStyle: 'italic' },
+  skeleton:        { height: 72, borderRadius: radius.sm, backgroundColor: colors.border },
+  metricsCard:     { gap: spacing.md },
+  metricsGrid:     { flexDirection: 'row', alignItems: 'center' },
+  metricDividerV:  { width: 1, height: 44, backgroundColor: colors.border },
+  metricDividerH:  { height: 1, backgroundColor: colors.border },
+  paceCard:        { gap: spacing.sm },
+  paceRow:         { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
+  phaseDot:        { width: 8, height: 8, borderRadius: 4 },
+  pacePhaseLabel:  { flex: 1 },
+  paceCount:       { minWidth: 44, textAlign: 'right' },
+  symptomRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  symptomLabel:    { width: 44, letterSpacing: 1 },
+  symptomBar:      { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border, overflow: 'hidden' },
+  symptomFill:     { height: '100%', borderRadius: 2 },
+  upcomingHeader:  { flexDirection: 'row', alignItems: 'center' },
+  addEventBtn:     { marginLeft: 'auto', padding: spacing.xs },
+  upcomingRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
+  footer:          { textAlign: 'center', letterSpacing: 2 },
 });
