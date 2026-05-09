@@ -225,9 +225,9 @@ subscriptions       (id, user_id, rc_customer_id, sub_status, trial_end, activat
 - ✅ Haiku narrative insights — `generate-insights` Edge Function, `insights_cache` table, 5 Postgres event-driven triggers
 - ✅ Insights screen — THIS WEEK narrative, metric grid, Recovery (symptom bars), Upcoming 14-day (sessions + user events), AddEventModal, FUELLING alignment card
 - ✅ Training context → nutrition intelligence — `dailyTrainingContext.ts` infers load from planned sessions; Nutrition screen auto-sets chip + stores `inferred_load`; WeekStrip shows load-tier label on today; `fuellingAlignment` metric in Insights
-- [ ] Push notification scheduling — spec written (`docs/superpowers/specs/2026-05-09-notifications-subscription-design.md`)
+- ✅ Push notification intelligence — `inferTrainingHour(userId)` (mode hour from last 30 activities), rest-day gate (skips training notif when no planned sessions), `scheduleTrialReminders` wired in `_layout.tsx`, `getEntitlementInfo()` for trial detection
 - ✅ Profile — cycle settings screen (update cycle profile post-onboarding)
-- [ ] Subscription management screen — spec written (same spec file above)
+- ✅ Subscription management screen — `app/(app)/subscription.tsx` (status badge colour-coded by plan, trial countdown + days remaining, upgrade CTA, manage link via RC `managementURL`, restore purchases)
 - ✅ Dashboard week strip (WeekStrip — Mon–Sun session view, SF icons, colour-coded by modality, today's load-tier label)
 - ✅ Training calendar (MonthCalendar in Training tab — coloured dots, drop/move/catch-up sessions)
 - [ ] App Store submission prep
