@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { generateAndSaveSchedule } from './scheduleGenerator';
 
 // Cycle phase multipliers: follicular = peak adaptation window, menstrual/luteal = reduced capacity.
 const PHASE_MULTIPLIER: Record<string, number> = {
@@ -78,7 +79,7 @@ export async function getActiveBlocks(userId: string): Promise<TrainingBlock[]> 
 export async function addBlock(
   userId: string,
   opts: {
-    templateId:   string;
+    templateId:   string | null;
     modality:     BlockModality;
     startsOn:     string;
     endsOn:       string | null;
@@ -111,9 +112,30 @@ export async function addBlock(
     .single();
 
   if (error) return null;
-  return (data as { id: string }).id;
+  const blockId = (data as { id: string }).id;
+
+  if (opts.templateId) {
+    const { data: tmpl } = await supabase
+      .from('plan_templates')
+      .select('sessions_json')
+      .eq('id', opts.templateId)
+      .single();
+    if (tmpl?.sessions_json) {
+      await generateAndSaveSchedule(
+        userId,
+        blockId,
+        opts.modality,
+        opts.startsOn,
+        tmpl.sessions_json as any,
+      );
+    }
+  }
+
+  return blockId;
 }
 
 export async function removeBlock(blockId: string): Promise<void> {
   await supabase.from('training_blocks').delete().eq('id', blockId);
 }
+
+export { closeBlock } from './scheduleGenerator';
