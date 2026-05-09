@@ -226,7 +226,7 @@ export default function DashboardScreen() {
                   style={{ letterSpacing: 1.5, marginBottom: 2 }}>
                   THIS WEEK
                 </VirraText>
-                <WeekStrip userId={session.user.id} />
+                <WeekStrip userId={session.user.id} phase={cycleInfo?.phase ?? null} />
               </VirraCard>
             )}
 

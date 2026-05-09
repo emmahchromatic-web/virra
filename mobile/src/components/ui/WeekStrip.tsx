@@ -4,6 +4,9 @@ import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from './VirraText';
+import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
+import type { CyclePhase } from '@/store/cycle';
+import type { TrainingLoad } from '@/lib/nutritionTargets';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -55,8 +58,9 @@ function offsetISO(base: string, n: number): string {
   return localDateISO(new Date(y, m - 1, d + n));
 }
 
-export function WeekStrip({ userId }: { userId: string }) {
-  const [dayMap, setDayMap] = useState<Record<string, DayData>>({});
+export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhase | null }) {
+  const [dayMap,    setDayMap]    = useState<Record<string, DayData>>({});
+  const [todayLoad, setTodayLoad] = useState<TrainingLoad | null>(null);
 
   useEffect(() => { load(); }, [userId]);
 
@@ -83,6 +87,13 @@ export function WeekStrip({ userId }: { userId: string }) {
       map[s.scheduled_date]?.sessions.push(s as StripSession);
     }
     setDayMap(map);
+
+    try {
+      const ctx = await getDailyTrainingContext(userId, todayISO, phase ?? null);
+      setTodayLoad(ctx.inferred_load);
+    } catch {
+      // Non-critical — load label omitted on error
+    }
   }
 
   return (
@@ -123,6 +134,11 @@ export function WeekStrip({ userId }: { userId: string }) {
                     { backgroundColor: MODALITY_COLOR[s.modality] ?? colors.muted }]} />
                 ))}
               </View>
+            )}
+            {day.isToday && todayLoad && (
+              <VirraText variant="mono" size={8} color={colors.muted}>
+                {todayLoad === 'moderate' ? 'MOD' : todayLoad.toUpperCase()}
+              </VirraText>
             )}
           </View>
         );
