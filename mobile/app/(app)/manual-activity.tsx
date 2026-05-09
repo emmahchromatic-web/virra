@@ -14,18 +14,25 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
+import type { SessionType, StrengthExercise } from '@/lib/strengthTypes';
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 
 const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ComponentProps<typeof SymbolView>['name'] }[] = [
-  { value: 'run',      label: 'Run',      icon: 'figure.run'         },
-  { value: 'swim',     label: 'Swim',     icon: 'figure.pool.swim'   },
-  { value: 'strength', label: 'Strength', icon: 'dumbbell'           },
+  { value: 'run',      label: 'Run',      icon: 'figure.run'           },
+  { value: 'swim',     label: 'Swim',     icon: 'figure.pool.swim'     },
+  { value: 'strength', label: 'Strength', icon: 'dumbbell'             },
   { value: 'yoga',     label: 'Yoga',     icon: 'figure.mind.and.body' },
-  { value: 'other',    label: 'Other',    icon: 'figure.mixed.cardio' },
+  { value: 'other',    label: 'Other',    icon: 'figure.mixed.cardio'  },
 ];
 
 const DISTANCE_TYPES: ActivityType[] = ['run', 'swim'];
+
+const SESSION_TYPES: { value: SessionType; label: string }[] = [
+  { value: 'lower',    label: 'Lower body' },
+  { value: 'upper',    label: 'Upper body' },
+  { value: 'strength', label: 'General'    },
+];
 
 // ---- Duration parser/formatter ----
 
@@ -87,6 +94,12 @@ export default function ManualActivityScreen() {
   const [notes,    setNotes]    = useState('');
   const [saving,   setSaving]   = useState(false);
 
+  // Strength-specific state
+  const [sessionType, setSessionType] = useState<SessionType>('lower');
+  const [exercises,   setExercises]   = useState<StrengthExercise[]>([]);
+  const [exName,      setExName]      = useState('');
+  const [exSets,      setExSets]      = useState<{ reps: string; weight: string }[]>([{ reps: '', weight: '' }]);
+
   const showDistance = DISTANCE_TYPES.includes(type);
 
   const durationSec = parseDuration(duration);
@@ -95,6 +108,42 @@ export default function ManualActivityScreen() {
     : null;
 
   const canSave = !!session && !!parseDate(date) && durationSec !== null && durationSec > 0;
+
+  function updateSet(idx: number, field: 'reps' | 'weight', val: string) {
+    setExSets((prev) => prev.map((s, i) => i === idx ? { ...s, [field]: val } : s));
+  }
+
+  function addSet() {
+    setExSets((prev) => [...prev, { reps: '', weight: '' }]);
+  }
+
+  function removeSet(idx: number) {
+    setExSets((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function addExercise() {
+    if (!exName.trim()) {
+      Alert.alert('Enter exercise name');
+      return;
+    }
+    const validSets = exSets
+      .filter((s) => s.reps.trim() && s.weight.trim())
+      .map((s) => ({
+        reps:      parseInt(s.reps, 10),
+        weight_kg: parseFloat(s.weight),
+      }));
+    if (validSets.length === 0) {
+      Alert.alert('Add at least one complete set (reps + weight)');
+      return;
+    }
+    setExercises((prev) => [...prev, { name: exName.trim(), sets: validSets }]);
+    setExName('');
+    setExSets([{ reps: '', weight: '' }]);
+  }
+
+  function removeExercise(idx: number) {
+    setExercises((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   async function handleSave() {
     if (!canSave || !session) return;
@@ -106,7 +155,7 @@ export default function ManualActivityScreen() {
       : null;
 
     const startedAt = new Date(actDate);
-    startedAt.setHours(9, 0, 0, 0); // default 9am when time unknown
+    startedAt.setHours(9, 0, 0, 0);
 
     const { data: act, error } = await supabase
       .from('activities')
@@ -137,7 +186,14 @@ export default function ManualActivityScreen() {
       });
     }
 
-    // Cancel today's training reminder if activity date is today
+    if (type === 'strength' && exercises.length > 0 && act?.id) {
+      await supabase.from('strength_details').insert({
+        activity_id:    act.id,
+        session_type:   sessionType,
+        exercises_json: exercises,
+      });
+    }
+
     const todayStr = new Date().toISOString().split('T')[0];
     if (date === todayStr) cancelTrainingReminderToday();
 
@@ -229,7 +285,7 @@ export default function ManualActivityScreen() {
             {showDistance && (
               <>
                 <View style={styles.rowDivider} />
-                <Field label={type === 'swim' ? 'DISTANCE (km)' : 'DISTANCE (km)'}>
+                <Field label="DISTANCE (km)">
                   <TextInput
                     style={styles.input}
                     value={distance}
@@ -268,6 +324,122 @@ export default function ManualActivityScreen() {
             </Field>
           </VirraCard>
 
+          {/* Strength-specific fields */}
+          {type === 'strength' && (
+            <>
+              {/* Session type */}
+              <Field label="SESSION TYPE">
+                <View style={styles.sessionRow}>
+                  {SESSION_TYPES.map(({ value, label }) => {
+                    const active = sessionType === value;
+                    return (
+                      <Pressable
+                        key={value}
+                        onPress={() => setSessionType(value)}
+                        style={[styles.sessionChip, active && styles.sessionChipActive]}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: active }}
+                      >
+                        <VirraText variant="mono" size={9} color={active ? colors.mile : colors.muted}>
+                          {label.toUpperCase()}
+                        </VirraText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Field>
+
+              {/* Logged exercises */}
+              {exercises.length > 0 && (
+                <VirraCard style={styles.formCard}>
+                  <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+                    EXERCISES
+                  </VirraText>
+                  {exercises.map((ex, idx) => (
+                    <View key={idx} style={styles.exerciseItem}>
+                      <View style={styles.exerciseItemHeader}>
+                        <VirraText variant="bodyMedium" size={14} color={colors.breath}>{ex.name}</VirraText>
+                        <Pressable onPress={() => removeExercise(idx)} hitSlop={8}>
+                          <SymbolView name="xmark.circle" size={16} tintColor={colors.muted} />
+                        </Pressable>
+                      </View>
+                      <VirraText variant="mono" size={10} color={colors.muted}>
+                        {ex.sets.map((s) => `${s.reps} × ${s.weight_kg}kg`).join('  ·  ')}
+                      </VirraText>
+                    </View>
+                  ))}
+                </VirraCard>
+              )}
+
+              {/* Exercise builder */}
+              <VirraCard style={styles.formCard}>
+                <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+                  ADD EXERCISE
+                </VirraText>
+
+                <TextInput
+                  style={styles.input}
+                  value={exName}
+                  onChangeText={setExName}
+                  placeholder="Exercise name"
+                  placeholderTextColor={colors.muted}
+                  autoCorrect={false}
+                />
+
+                <View style={styles.rowDivider} />
+
+                {/* Set header */}
+                <View style={styles.setHeader}>
+                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.setColReps}>REPS</VirraText>
+                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.setColWeight}>KG</VirraText>
+                  <View style={styles.setColRemove} />
+                </View>
+
+                {exSets.map((s, idx) => (
+                  <View key={idx} style={styles.setRow}>
+                    <TextInput
+                      style={[styles.input, styles.setColReps]}
+                      value={s.reps}
+                      onChangeText={(v) => updateSet(idx, 'reps', v)}
+                      placeholder="10"
+                      placeholderTextColor={colors.muted}
+                      keyboardType="number-pad"
+                    />
+                    <TextInput
+                      style={[styles.input, styles.setColWeight]}
+                      value={s.weight}
+                      onChangeText={(v) => updateSet(idx, 'weight', v)}
+                      placeholder="0"
+                      placeholderTextColor={colors.muted}
+                      keyboardType="decimal-pad"
+                    />
+                    <Pressable
+                      style={styles.setColRemove}
+                      onPress={() => exSets.length > 1 ? removeSet(idx) : null}
+                      hitSlop={8}
+                    >
+                      {exSets.length > 1 && (
+                        <SymbolView name="minus.circle" size={16} tintColor={colors.muted} />
+                      )}
+                    </Pressable>
+                  </View>
+                ))}
+
+                <Pressable onPress={addSet} style={styles.addSetBtn}>
+                  <SymbolView name="plus" size={12} tintColor={colors.pulse} />
+                  <VirraText variant="mono" size={10} color={colors.pulse}>ADD SET</VirraText>
+                </Pressable>
+
+                <View style={styles.rowDivider} />
+
+                <Pressable onPress={addExercise} style={styles.addExBtn}>
+                  <SymbolView name="checkmark" size={14} tintColor={colors.mile} />
+                  <VirraText variant="mono" size={10} color={colors.mile}>ADD EXERCISE</VirraText>
+                </Pressable>
+              </VirraCard>
+            </>
+          )}
+
           <VirraButton
             label="Save activity"
             onPress={handleSave}
@@ -281,16 +453,28 @@ export default function ManualActivityScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe:           { flex: 1, backgroundColor: colors.mile },
-  header:         { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
-  closeBtn:       { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
-  scroll:         { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
-  hint:           { fontStyle: 'italic', lineHeight: 20 },
-  typeRow:        { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  typeChip:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
-  typeChipActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  formCard:       { gap: spacing.md },
-  rowDivider:     { height: 1, backgroundColor: colors.border },
-  input:          { color: colors.breath, fontFamily: fonts.mono, fontSize: 15, paddingVertical: spacing.xs },
-  notesInput:     { fontFamily: fonts.body, fontSize: 14, minHeight: 60, textAlignVertical: 'top' },
+  safe:               { flex: 1, backgroundColor: colors.mile },
+  header:             { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  closeBtn:           { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  scroll:             { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  hint:               { fontStyle: 'italic', lineHeight: 20 },
+  typeRow:            { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  typeChip:           { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  typeChipActive:     { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  formCard:           { gap: spacing.md },
+  rowDivider:         { height: 1, backgroundColor: colors.border },
+  input:              { color: colors.breath, fontFamily: fonts.mono, fontSize: 15, paddingVertical: spacing.xs },
+  notesInput:         { fontFamily: fonts.body, fontSize: 14, minHeight: 60, textAlignVertical: 'top' },
+  sessionRow:         { flexDirection: 'row', gap: spacing.sm },
+  sessionChip:        { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  sessionChipActive:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  exerciseItem:       { gap: 3 },
+  exerciseItemHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  setHeader:          { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  setRow:             { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  setColReps:         { flex: 1 },
+  setColWeight:       { flex: 1 },
+  setColRemove:       { width: 24, alignItems: 'center' },
+  addSetBtn:          { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
+  addExBtn:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: colors.pulse, borderRadius: radius.sm, paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
 });
