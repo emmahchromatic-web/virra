@@ -29,9 +29,9 @@ const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.Componen
 const DISTANCE_TYPES: ActivityType[] = ['run', 'swim'];
 
 const SESSION_TYPES: { value: SessionType; label: string }[] = [
-  { value: 'lower',    label: 'Lower body' },
-  { value: 'upper',    label: 'Upper body' },
-  { value: 'strength', label: 'General'    },
+  { value: 'lower',   label: 'Lower body' },
+  { value: 'upper',   label: 'Upper body' },
+  { value: 'general', label: 'General'    },
 ];
 
 // ---- Duration parser/formatter ----
@@ -109,6 +109,15 @@ export default function ManualActivityScreen() {
 
   const canSave = !!session && !!parseDate(date) && durationSec !== null && durationSec > 0;
 
+  function handleTypeChange(newType: ActivityType) {
+    setType(newType);
+    if (newType !== 'strength') {
+      setExercises([]);
+      setExName('');
+      setExSets([{ reps: '', weight: '' }]);
+    }
+  }
+
   function updateSet(idx: number, field: 'reps' | 'weight', val: string) {
     setExSets((prev) => prev.map((s, i) => i === idx ? { ...s, [field]: val } : s));
   }
@@ -127,7 +136,7 @@ export default function ManualActivityScreen() {
       return;
     }
     const validSets = exSets
-      .filter((s) => s.reps.trim() && s.weight.trim())
+      .filter((s) => s.reps.trim() && parseInt(s.reps, 10) > 0 && s.weight.trim())
       .map((s) => ({
         reps:      parseInt(s.reps, 10),
         weight_kg: parseFloat(s.weight),
@@ -187,11 +196,14 @@ export default function ManualActivityScreen() {
     }
 
     if (type === 'strength' && exercises.length > 0 && act?.id) {
-      await supabase.from('strength_details').insert({
+      const { error: detailError } = await supabase.from('strength_details').insert({
         activity_id:    act.id,
         session_type:   sessionType,
         exercises_json: exercises,
       });
+      if (detailError) {
+        Alert.alert('Activity saved, but exercises could not be recorded', detailError.message);
+      }
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
@@ -233,7 +245,7 @@ export default function ManualActivityScreen() {
                 return (
                   <Pressable
                     key={value}
-                    onPress={() => setType(value)}
+                    onPress={() => handleTypeChange(value)}
                     style={[styles.typeChip, active && styles.typeChipActive]}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: active }}

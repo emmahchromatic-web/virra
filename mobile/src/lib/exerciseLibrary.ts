@@ -5,7 +5,7 @@ export interface ExerciseDefinition {
   primaryMuscles: string[];
 }
 
-export const EXERCISE_LIBRARY: Record<SessionType | 'general', ExerciseDefinition[]> = {
+export const EXERCISE_LIBRARY: Record<SessionType, ExerciseDefinition[]> = {
   lower: [
     { name: 'Romanian Deadlift',     primaryMuscles: ['hamstrings', 'glutes', 'lower back'] },
     { name: 'Hip Thrust',            primaryMuscles: ['glutes', 'hamstrings'] },
@@ -44,7 +44,7 @@ export const EXERCISE_LIBRARY: Record<SessionType | 'general', ExerciseDefinitio
     { name: 'Skull Crusher',          primaryMuscles: ['triceps'] },
     { name: 'Push-up',                primaryMuscles: ['chest', 'triceps', 'anterior deltoid'] },
   ],
-  strength: [
+  general: [
     { name: 'Deadlift',           primaryMuscles: ['hamstrings', 'glutes', 'lower back', 'traps'] },
     { name: 'Barbell Back Squat', primaryMuscles: ['quads', 'glutes', 'hamstrings', 'core'] },
     { name: 'Front Squat',        primaryMuscles: ['quads', 'glutes', 'core'] },
@@ -59,16 +59,5 @@ export const EXERCISE_LIBRARY: Record<SessionType | 'general', ExerciseDefinitio
     { name: 'Battle Ropes',       primaryMuscles: ['shoulders', 'core', 'forearms'] },
     { name: 'Turkish Get-up',     primaryMuscles: ['core', 'shoulders', 'glutes'] },
     { name: 'Plank',              primaryMuscles: ['core', 'transverse abdominis'] },
-  ],
-  general: [
-    { name: 'Romanian Deadlift', primaryMuscles: ['hamstrings', 'glutes', 'lower back'] },
-    { name: 'Hip Thrust',        primaryMuscles: ['glutes', 'hamstrings'] },
-    { name: 'Goblet Squat',      primaryMuscles: ['quads', 'glutes', 'core'] },
-    { name: 'Dumbbell Row',      primaryMuscles: ['lats', 'rhomboids', 'biceps'] },
-    { name: 'Overhead Press',    primaryMuscles: ['deltoids', 'triceps', 'upper traps'] },
-    { name: 'Pull-up',           primaryMuscles: ['lats', 'biceps', 'core'] },
-    { name: 'Deadlift',          primaryMuscles: ['hamstrings', 'glutes', 'lower back', 'traps'] },
-    { name: 'Plank',             primaryMuscles: ['core', 'transverse abdominis'] },
-    { name: 'Kettlebell Swing',  primaryMuscles: ['glutes', 'hamstrings', 'core'] },
   ],
 };

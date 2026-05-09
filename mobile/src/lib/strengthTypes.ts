@@ -10,4 +10,4 @@ export interface StrengthExercise {
   notes?:  string;
 }
 
-export type SessionType = 'lower' | 'upper' | 'strength';
+export type SessionType = 'lower' | 'upper' | 'general';
