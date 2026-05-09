@@ -44,7 +44,11 @@ export default function SubscriptionScreen() {
 
   async function handleManage() {
     const url = managementURL ?? 'https://apps.apple.com/account/subscriptions';
-    await Linking.openURL(url);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Could not open link', 'Please visit Settings → Subscriptions to manage your plan.');
+    }
   }
 
   async function handleRestore() {
