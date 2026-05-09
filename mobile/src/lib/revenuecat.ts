@@ -38,6 +38,28 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<{ success:
   }
 }
 
+export interface EntitlementInfo {
+  isActive:      boolean;
+  isTrial:       boolean;
+  trialEnd:      Date | null;
+  managementURL: string | null;
+}
+
+export async function getEntitlementInfo(): Promise<EntitlementInfo> {
+  try {
+    const customerInfo = await Purchases.getCustomerInfo();
+    const ent = customerInfo.entitlements.active[ENTITLEMENT_ID];
+    return {
+      isActive:      !!ent,
+      isTrial:       (ent?.periodType as string | undefined)?.toUpperCase() === 'TRIAL',
+      trialEnd:      ent?.expirationDate ? new Date(ent.expirationDate) : null,
+      managementURL: customerInfo.managementURL ?? null,
+    };
+  } catch {
+    return { isActive: false, isTrial: false, trialEnd: null, managementURL: null };
+  }
+}
+
 export async function restorePurchases(): Promise<boolean> {
   try {
     const customerInfo = await Purchases.restorePurchases();

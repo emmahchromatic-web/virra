@@ -5,9 +5,9 @@ import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
-import { getActiveEntitlement } from '@/lib/revenuecat';
+import { getEntitlementInfo } from '@/lib/revenuecat';
 import { importNewWorkouts } from '@/lib/healthKitImport';
-import { scheduleDailyReminders, cancelTrialReminders } from '@/lib/notifications';
+import { scheduleDailyReminders, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
 
 export default function AppLayout() {
@@ -23,9 +23,16 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (!session || isActive) return;
-    getActiveEntitlement().then((active) => {
-      setStatus(active ? 'active' : 'expired');
-      if (!active) router.replace('/(auth)/paywall');
+    getEntitlementInfo().then((info) => {
+      if (info.isActive && info.isTrial) {
+        setStatus('trial', info.trialEnd ?? undefined);
+        if (info.trialEnd) scheduleTrialReminders(info.trialEnd);
+      } else if (info.isActive) {
+        setStatus('active');
+      } else {
+        setStatus('expired');
+        router.replace('/(auth)/paywall');
+      }
     });
   }, [session, isActive]);
 
@@ -55,12 +62,12 @@ export default function AppLayout() {
     }
 
     runImport();
-    scheduleDailyReminders();
+    scheduleDailyReminders(session.user.id);
 
     const sub = AppState.addEventListener('change', (next) => {
       if (appState.current.match(/inactive|background/) && next === 'active') {
         runImport();
-        scheduleDailyReminders();
+        scheduleDailyReminders(session.user.id);
       }
       appState.current = next;
     });
