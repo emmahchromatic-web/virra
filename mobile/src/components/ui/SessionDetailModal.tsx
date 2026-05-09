@@ -75,31 +75,36 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
   }
 
   async function handleMoveThisWeek(session: SessionDetail) {
-    const monday    = mondayOfISO(date);
-    const jsDay     = new Date(`${date}T00:00:00Z`).getUTCDay();
-    const dayIdx    = jsDay === 0 ? 6 : jsDay - 1;
-    const weekDates = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
-
-    const { data: occupied } = await supabase
-      .from('planned_sessions')
-      .select('scheduled_date')
-      .eq('user_id', userId)
-      .eq('modality', session.kind)
-      .eq('session_label', session.session_label)
-      .in('status', ['planned', 'completed'])
-      .in('scheduled_date', weekDates);
-
-    const occupiedSet = new Set((occupied ?? []).map((r: any) => r.scheduled_date));
-    occupiedSet.add(date);
-
-    const freeDay = weekDates.slice(dayIdx + 1).find((d) => !occupiedSet.has(d));
-    if (!freeDay) {
-      setNoFreeDay((prev) => ({ ...prev, [session.planned_session_id]: true }));
-      return;
-    }
-
     setBusy(true);
     try {
+      const monday    = mondayOfISO(date);
+      const jsDay     = new Date(`${date}T00:00:00Z`).getUTCDay();
+      const dayIdx    = jsDay === 0 ? 6 : jsDay - 1;
+      const weekDates = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+
+      const { data: occupied, error: queryErr } = await supabase
+        .from('planned_sessions')
+        .select('scheduled_date')
+        .eq('user_id', userId)
+        .eq('modality', session.kind)
+        .eq('session_label', session.session_label)
+        .in('status', ['planned', 'completed'])
+        .in('scheduled_date', weekDates);
+
+      if (queryErr) {
+        Alert.alert('Could not check availability', queryErr.message);
+        return;
+      }
+
+      const occupiedSet = new Set((occupied ?? []).map((r: any) => r.scheduled_date));
+      occupiedSet.add(date);
+
+      const freeDay = weekDates.slice(dayIdx + 1).find((d) => !occupiedSet.has(d));
+      if (!freeDay) {
+        setNoFreeDay((prev) => ({ ...prev, [session.planned_session_id]: true }));
+        return;
+      }
+
       await moveSession(session.planned_session_id, freeDay, userId);
       onMutate();
     } catch (e: unknown) {
