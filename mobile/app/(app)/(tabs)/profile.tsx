@@ -79,7 +79,6 @@ export default function ProfileScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [cycleLengthModalVisible, setCycleLengthModalVisible] = useState(false);
   const [cycleLengthInput, setCycleLengthInput] = useState('');
-  const [subModalVisible, setSubModalVisible] = useState(false);
   const [cycleLengthError, setCycleLengthError] = useState('');
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
     training: true, breakfast: true, lunch: true, dinner: true, checkin: true,
@@ -210,8 +209,11 @@ export default function ProfileScreen() {
 
         <VirraCard style={styles.card}>
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>SUBSCRIPTION</VirraText>
-          <Row label="STATUS" value={subLabel[status] ?? status} />
-          <Row label="MANAGE" value="Settings → Subscriptions" onPress={() => setSubModalVisible(true)} />
+          <Row
+            label="STATUS"
+            value={subLabel[status] ?? status}
+            onPress={() => router.push('/(app)/subscription')}
+          />
         </VirraCard>
 
         <VirraCard style={styles.card}>
@@ -244,7 +246,7 @@ export default function ProfileScreen() {
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>NOTIFICATIONS</VirraText>
           <NotifRow
             label="Training reminder"
-            sublabel="Daily at 9:00 am · cancels when workout logged"
+            sublabel="Adaptive · based on your history · cancels when workout logged"
             value={notifPrefs.training}
             onToggle={(v) => handleNotifToggle('training', v)}
           />
@@ -311,17 +313,6 @@ export default function ProfileScreen() {
         <VirraButton label="SAVE" onPress={handleCycleLengthSave} loading={saving} />
       </VirraModal>
 
-      {/* Subscription modal */}
-      <VirraModal
-        visible={subModalVisible}
-        onClose={() => setSubModalVisible(false)}
-        title="Manage Subscription"
-      >
-        <VirraText variant="body" size={14} color="rgba(244,237,224,0.7)">
-          Open Settings → Subscriptions to manage your plan.
-        </VirraText>
-        <VirraButton label="OK" variant="ghost" onPress={() => setSubModalVisible(false)} />
-      </VirraModal>
     </SafeAreaView>
   );
 }
