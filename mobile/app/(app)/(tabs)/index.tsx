@@ -9,6 +9,8 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { useCycleStore, type CyclePhase, type CycleProfile } from '@/store/cycle';
+import { useAuthStore } from '@/store/auth';
+import { WeekStrip } from '@/components/ui/WeekStrip';
 
 const PHASE_META: Record<CyclePhase, {
   label:     string;
@@ -100,6 +102,7 @@ function EmptyState({ cycleProfile }: { cycleProfile: CycleProfile }) {
 
 export default function DashboardScreen() {
   const { cycleInfo, cycleProfile } = useCycleStore();
+  const { session } = useAuthStore();
   const meta = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
 
   const appState        = useRef<AppStateStatus>(AppState.currentState);
@@ -171,6 +174,16 @@ export default function DashboardScreen() {
                 <ActivityRings steps={steps} exerciseMins={exerciseMins} />
               </VirraCard>
             </View>
+
+            {session && (
+              <VirraCard style={{ paddingVertical: spacing.xs }}>
+                <VirraText variant="mono" size={9} color={colors.muted}
+                  style={{ letterSpacing: 1.5, marginBottom: 2 }}>
+                  THIS WEEK
+                </VirraText>
+                <WeekStrip userId={session.user.id} />
+              </VirraCard>
+            )}
 
             <GuidanceCard title="Training"  body={meta.training}  accentColor={meta.color} />
             <GuidanceCard title="Nutrition" body={meta.nutrition} accentColor={meta.color} />
