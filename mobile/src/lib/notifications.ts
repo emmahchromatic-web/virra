@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
 // ─── Preference types ────────────────────────────────────────────────────────
 
@@ -110,16 +111,27 @@ function todayAt(hour: number, minute = 0): Notifications.DateTriggerInput {
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 /** Call on every app foreground — idempotent, respects per-slot preferences. */
-export async function scheduleDailyReminders(): Promise<void> {
+export async function scheduleDailyReminders(userId: string): Promise<void> {
   const [date, prefs] = [today(), await loadNotificationPreferences()];
 
   if (prefs.training) {
-    await scheduleOnce(
-      storageKey('training', date),
-      'Time to move',
-      "Today's session is ready. Tap to start.",
-      todayAt(9),
-    );
+    const { data: sessions } = await supabase
+      .from('planned_sessions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('scheduled_date', date)
+      .eq('status', 'planned')
+      .limit(1);
+
+    if (sessions && sessions.length > 0) {
+      const hour = await inferTrainingHour(userId);
+      await scheduleOnce(
+        storageKey('training', date),
+        'Time to move',
+        "Today's session is ready. Tap to start.",
+        todayAt(hour),
+      );
+    }
   }
 
   if (prefs.breakfast) {
@@ -206,4 +218,25 @@ export async function cancelCheckinReminderToday(): Promise<void> {
 export async function cancelTrialReminders(): Promise<void> {
   await cancelStored(storageKey('trial', '11'));
   await cancelStored(storageKey('trial', '13'));
+}
+
+/** Compute the mode hour from the user's last 30 activities. Falls back to 9. */
+export async function inferTrainingHour(userId: string): Promise<number> {
+  try {
+    const { data } = await supabase
+      .from('activities')
+      .select('started_at')
+      .eq('user_id', userId)
+      .order('started_at', { ascending: false })
+      .limit(30);
+    if (!data || data.length === 0) return 9;
+    const counts: Record<number, number> = {};
+    for (const { started_at } of data) {
+      const hour = new Date(started_at).getHours();
+      counts[hour] = (counts[hour] ?? 0) + 1;
+    }
+    return Number(Object.entries(counts).sort(([, a], [, b]) => b - a)[0][0]);
+  } catch {
+    return 9;
+  }
 }
