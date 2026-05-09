@@ -52,7 +52,7 @@ export interface UserEvent {
   id:                 string;
   name:               string;
   event_date:         string;
-  priority:           string;
+  priority:           number;
   target_finish_time: string | null;
 }
 

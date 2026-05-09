@@ -4,14 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
-// TODO: import UserEvent from '@/lib/volumePlan' once volumePlan.ts lands
-interface UserEvent {
-  id: string;
-  name: string;
-  event_date: string;
-  priority?: string;
-  target_finish_time?: string | null;
-}
+import type { UserEvent } from '@/lib/volumePlan';
 
 export interface CalendarSession {
   id: string;
@@ -25,7 +18,7 @@ interface Props {
   userId:      string;
   year:        number;
   month:       number; // 1-based
-  onDayPress?: (date: string, sessions: CalendarSession[]) => void;
+  onDayPress?: (date: string, sessions: CalendarSession[], events: UserEvent[]) => void;
 }
 
 const MODALITY_COLOR: Record<string, string> = {
@@ -86,6 +79,7 @@ export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
     }
     setSessionMap(sMap);
 
+    if (eventsRes.error) console.error('[MonthCalendar] user_events fetch:', eventsRes.error.message);
     const eMap: Record<string, UserEvent[]> = {};
     for (const e of (eventsRes.data ?? [])) {
       if (!eMap[e.event_date]) eMap[e.event_date] = [];
@@ -126,7 +120,7 @@ export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
                 onPress={() => {
                   const hasSessions = sessions.length > 0;
                   const hasEvents   = (eventMap[iso] ?? []).length > 0;
-                  if (hasSessions || hasEvents) onDayPress?.(iso, sessions);
+                  if (hasSessions || hasEvents) onDayPress?.(iso, sessions, eventMap[iso] ?? []);
                 }}
                 accessibilityRole={(sessions.length > 0 || (eventMap[iso] ?? []).length > 0) ? 'button' : 'none'}
               >
@@ -157,7 +151,7 @@ export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
                   <SymbolView
                     name="flag.fill"
                     size={8}
-                    tintColor={(eventMap[iso][0].priority === 'high' ? colors.heat : colors.dawn) as any}
+                    tintColor={(eventMap[iso][0].priority === 1 ? colors.heat : colors.dawn) as any}
                   />
                 )}
               </Pressable>
