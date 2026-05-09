@@ -6,6 +6,7 @@ import { VirraModal } from './VirraModal';
 import { VirraText } from './VirraText';
 import { VirraButton } from './VirraButton';
 import { dropSession, moveSession } from '@/lib/scheduleGenerator';
+import { supabase } from '@/lib/supabase';
 import type { CalendarSession } from './MonthCalendar';
 
 interface Props {
@@ -32,6 +33,7 @@ function mondayOfISO(iso: string): string {
 
 export function SessionActionModal({ visible, date, sessions, userId, onClose, onMutate }: Props) {
   const [busy, setBusy] = useState(false);
+  const [noFreeDay, setNoFreeDay] = useState<Record<string, boolean>>({});
 
   async function handleDrop(s: CalendarSession) {
     setBusy(true);
@@ -44,17 +46,39 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
   }
 
   async function handleMoveThisWeek(s: CalendarSession) {
-    const monday = mondayOfISO(date);
-    const jsDay  = new Date(`${date}T00:00:00Z`).getUTCDay();
-    const dayIdx = jsDay === 0 ? 6 : jsDay - 1;
-    for (let d = dayIdx + 1; d <= 6; d++) {
-      const candidate = shiftDate(monday, d);
-      setBusy(true);
-      try { await moveSession(s.id, candidate, userId); onMutate(); return; }
-      catch { /* try next day */ }
-      finally { setBusy(false); }
+    const monday    = mondayOfISO(date);
+    const jsDay     = new Date(`${date}T00:00:00Z`).getUTCDay();
+    const dayIdx    = jsDay === 0 ? 6 : jsDay - 1;
+    const weekDates = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+
+    const { data: occupied } = await supabase
+      .from('planned_sessions')
+      .select('scheduled_date')
+      .eq('user_id', userId)
+      .eq('modality', s.modality)
+      .eq('session_label', s.session_label)
+      .in('status', ['planned', 'completed'])
+      .in('scheduled_date', weekDates);
+
+    const occupiedSet = new Set((occupied ?? []).map((r: any) => r.scheduled_date));
+    occupiedSet.add(date);
+
+    const freeDay = weekDates.slice(dayIdx + 1).find((d) => !occupiedSet.has(d));
+    if (!freeDay) {
+      setNoFreeDay((prev) => ({ ...prev, [s.id]: true }));
+      return;
     }
-    Alert.alert('No free day available in this week');
+
+    setBusy(true);
+    try {
+      await moveSession(s.id, freeDay, userId);
+      onMutate();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Could not move session', msg);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function handleCatchup(s: CalendarSession) {
@@ -87,10 +111,16 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
                 <SymbolView name="xmark.circle" size={13} tintColor={colors.heat} />
                 <VirraText variant="mono" size={9} color={colors.heat}>DROP</VirraText>
               </Pressable>
-              <Pressable style={modal.actionBtn} onPress={() => handleMoveThisWeek(s)} disabled={busy}>
-                <SymbolView name="arrow.left.arrow.right" size={13} tintColor={colors.muted} />
-                <VirraText variant="mono" size={9} color={colors.muted}>MOVE THIS WEEK</VirraText>
-              </Pressable>
+              {noFreeDay[s.id] ? (
+                <VirraText variant="mono" size={9} color={colors.muted} style={{ flex: 1 }}>
+                  No free day this week — use Catch-Up to reschedule next week.
+                </VirraText>
+              ) : (
+                <Pressable style={modal.actionBtn} onPress={() => handleMoveThisWeek(s)} disabled={busy}>
+                  <SymbolView name="arrow.left.arrow.right" size={13} tintColor={colors.muted} />
+                  <VirraText variant="mono" size={9} color={colors.muted}>MOVE THIS WEEK</VirraText>
+                </Pressable>
+              )}
               <Pressable style={modal.actionBtn} onPress={() => handleCatchup(s)} disabled={busy}>
                 <SymbolView name="calendar.badge.plus" size={13} tintColor={colors.pulse} />
                 <VirraText variant="mono" size={9} color={colors.pulse}>CATCH-UP</VirraText>
