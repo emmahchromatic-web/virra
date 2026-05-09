@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { getNutritionTargets, LOAD_LABELS, type TrainingLoad } from '@/lib/nutritionTargets';
+import { getDailyTrainingContext, type DailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
@@ -99,6 +100,7 @@ export default function NutritionScreen() {
   const [entries, setEntries] = useState<FoodEntry[]>([]);
   const [logId,   setLogId]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dailyContext, setDailyContext] = useState<DailyTrainingContext | null>(null);
 
   const today   = new Date().toISOString().split('T')[0];
   const targets = getNutritionTargets(cycleInfo?.phase ?? null, load);
@@ -115,7 +117,7 @@ export default function NutritionScreen() {
 
   useEffect(() => {
     if (!session) return;
-    loadLog();
+    loadData();
   }, [session, today]);
 
   useFocusEffect(useCallback(() => {
@@ -128,19 +130,35 @@ export default function NutritionScreen() {
     }
   }, [logId]));
 
-  async function loadLog() {
+  async function loadData() {
     if (!session) return;
     setLoading(true);
 
-    // Upsert today's log, storing the current training load
+    let ctx: DailyTrainingContext | null = null;
+    try {
+      ctx = await getDailyTrainingContext(
+        session.user.id,
+        today,
+        cycleInfo?.phase ?? null,
+      );
+      setDailyContext(ctx);
+      setLoad(ctx.inferred_load);
+    } catch {
+      // Network error — fall back to 'easy' default, no label shown
+    }
+
+    const effectiveLoad    = ctx?.inferred_load ?? load;
+    const effectiveTargets = getNutritionTargets(cycleInfo?.phase ?? null, effectiveLoad);
+
     const { data: log } = await supabase
       .from('nutrition_logs')
       .upsert({
-        user_id:      session.user.id,
-        recorded_on:  today,
+        user_id:       session.user.id,
+        recorded_on:   today,
         phase_at_time: cycleInfo?.phase ?? null,
-        training_load: load,
-        targets_json:  targets ?? {},
+        training_load: effectiveLoad,
+        inferred_load: ctx?.inferred_load ?? null,
+        targets_json:  effectiveTargets,
       }, { onConflict: 'user_id,recorded_on' })
       .select('id')
       .single();
@@ -181,6 +199,13 @@ export default function NutritionScreen() {
               </Pressable>
             ))}
           </View>
+          {dailyContext && load === dailyContext.inferred_load && (
+            <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1 }}>
+              {dailyContext.source_label
+                ? `AUTO-SET · ${dailyContext.source_label.toUpperCase()}`
+                : 'AUTO-SET · REST DAY'}
+            </VirraText>
+          )}
         </View>
 
         {/* Targets + progress */}
