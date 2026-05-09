@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
+// TODO: import UserEvent from '@/lib/volumePlan' once volumePlan.ts lands
+interface UserEvent {
+  id: string;
+  name: string;
+  event_date: string;
+  priority?: string;
+  target_finish_time?: string | null;
+}
 
 export interface CalendarSession {
   id: string;
@@ -44,25 +53,45 @@ function firstDayOffset(y: number, m: number): number {
 
 export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
   const [sessionMap, setSessionMap] = useState<Record<string, CalendarSession[]>>({});
+  const [eventMap, setEventMap] = useState<Record<string, UserEvent[]>>({});
   const todayISO = new Date().toLocaleDateString('en-CA');
 
   useEffect(() => { load(); }, [userId, year, month]);
 
   async function load() {
-    const { data } = await supabase
-      .from('planned_sessions')
-      .select('id, scheduled_date, session_label, modality, status, block_id')
-      .eq('user_id', userId)
-      .gte('scheduled_date', toISO(year, month, 1))
-      .lte('scheduled_date', toISO(year, month, daysInMonth(year, month)))
-      .neq('status', 'moved')
-      .order('scheduled_date');
-    const map: Record<string, CalendarSession[]> = {};
-    for (const s of (data ?? [])) {
-      if (!map[s.scheduled_date]) map[s.scheduled_date] = [];
-      map[s.scheduled_date].push(s as CalendarSession);
+    const startISO = toISO(year, month, 1);
+    const endISO   = toISO(year, month, daysInMonth(year, month));
+
+    const [sessionsRes, eventsRes] = await Promise.all([
+      supabase
+        .from('planned_sessions')
+        .select('id, scheduled_date, session_label, modality, status, block_id')
+        .eq('user_id', userId)
+        .gte('scheduled_date', startISO)
+        .lte('scheduled_date', endISO)
+        .neq('status', 'moved')
+        .order('scheduled_date'),
+      supabase
+        .from('user_events')
+        .select('id, name, event_date, priority, target_finish_time')
+        .eq('user_id', userId)
+        .gte('event_date', startISO)
+        .lte('event_date', endISO),
+    ]);
+
+    const sMap: Record<string, CalendarSession[]> = {};
+    for (const s of (sessionsRes.data ?? [])) {
+      if (!sMap[s.scheduled_date]) sMap[s.scheduled_date] = [];
+      sMap[s.scheduled_date].push(s as CalendarSession);
     }
-    setSessionMap(map);
+    setSessionMap(sMap);
+
+    const eMap: Record<string, UserEvent[]> = {};
+    for (const e of (eventsRes.data ?? [])) {
+      if (!eMap[e.event_date]) eMap[e.event_date] = [];
+      eMap[e.event_date].push(e as UserEvent);
+    }
+    setEventMap(eMap);
   }
 
   const totalDays   = daysInMonth(year, month);
@@ -94,8 +123,12 @@ export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
               <Pressable
                 key={di}
                 style={[cal.cell, isToday && cal.cellToday]}
-                onPress={() => sessions.length > 0 && onDayPress?.(iso, sessions)}
-                accessibilityRole={sessions.length > 0 ? 'button' : 'none'}
+                onPress={() => {
+                  const hasSessions = sessions.length > 0;
+                  const hasEvents   = (eventMap[iso] ?? []).length > 0;
+                  if (hasSessions || hasEvents) onDayPress?.(iso, sessions);
+                }}
+                accessibilityRole={(sessions.length > 0 || (eventMap[iso] ?? []).length > 0) ? 'button' : 'none'}
               >
                 <VirraText
                   variant="mono"
@@ -119,6 +152,13 @@ export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
                       />
                     ))}
                   </View>
+                )}
+                {(eventMap[iso] ?? []).length > 0 && (
+                  <SymbolView
+                    name="flag.fill"
+                    size={8}
+                    tintColor={(eventMap[iso][0].priority === 'high' ? colors.heat : colors.dawn) as any}
+                  />
                 )}
               </Pressable>
             );
