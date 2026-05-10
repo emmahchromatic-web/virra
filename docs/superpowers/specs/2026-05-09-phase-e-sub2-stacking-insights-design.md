@@ -208,11 +208,41 @@ This produces e.g. `"2 strength · 1 run dropped"`. Rendered directly below the 
 
 ---
 
+### 1g. `getDailyTrainingContext` — stacking-aware load tier
+
+`WeekStrip` calls `getDailyTrainingContext(userId, dateISO, phase)` to derive today's load-tier label (REST/EASY/MOD/HARD). The returned `inferred_load` is currently based on session label alone (e.g. `tempo → hard`) with no awareness of a concurrent gym block. This makes the WeekStrip label inconsistent with the reduced km shown in SessionDetailModal.
+
+**Fix:** In `getDailyTrainingContext` (file: `src/lib/dailyTrainingContext.ts`), after computing `inferred_load` from session labels, call `getActiveBlocks(userId)` and `computeBlockLoad(allBlocks, phase ?? 'follicular')` to get `loadScale` for the primary run block. Downgrade `inferred_load` based on `loadScale`:
+
+```typescript
+import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
+
+// After inferring inferred_load from session labels:
+const allBlocks  = await getActiveBlocks(userId);
+const computed   = computeBlockLoad(allBlocks, phase ?? 'follicular');
+const runBlock   = computed.find((b) => b.modality === 'run');
+const loadScale  = runBlock
+  ? Math.min(1.0, runBlock.effective_load / (runBlock.load_modifier || 1))
+  : 1.0;
+
+if (loadScale < 0.75) {
+  if (inferred_load === 'hard')     inferred_load = 'easy';
+  if (inferred_load === 'moderate') inferred_load = 'easy';
+} else if (loadScale < 0.85) {
+  if (inferred_load === 'hard')     inferred_load = 'moderate';
+}
+```
+
+This ensures WeekStrip and SessionDetailModal derive load from the same stacking logic. MonthCalendar dots show session presence by modality — stacking doesn't change which sessions exist — so no change is needed there.
+
+---
+
 ## File Map
 
 | Action | Path | Responsibility |
 |---|---|---|
 | Modify | `src/lib/volumePlan.ts` | `loadScale` param in `getWeeklyVolumePlan`; `base_distance_km` in `RunSessionDetail`; `volume_adjustment_note` in `DayDetail`; stacking fetch + `buildVolumeAdjustmentNote` in `getDaySessionDetail` |
+| Modify | `src/lib/dailyTrainingContext.ts` | Add stacking-aware load-tier downgrade after `inferLoadFromLabel` |
 | Modify | `src/lib/insightMetrics.ts` | Add `modality` to session query; `droppedByModality` field + computation |
 | Modify | `src/components/ui/SessionDetailModal.tsx` | Render `8.5 → 6.8km` when `base_distance_km` set; render `volume_adjustment_note` |
 | Modify | `app/(app)/insights.tsx` | Render modality breakdown when non-null |
@@ -229,7 +259,9 @@ This produces e.g. `"2 strength · 1 run dropped"`. Rendered directly below the 
 | Phase is follicular (volume boosted) | `phaseReduced = false`; only gym suppression shown in note |
 | All sessions completed (no drops) | `droppedByModality = null`; adherence % shown with no sub-line |
 | Strength sessions dropped | Included in `droppedByModality` — e.g. `"2 strength dropped"` |
-| `getActiveBlocks` fails | Log error, fall back to `loadScale = 1.0` — conservative, no misleading data |
+| `getActiveBlocks` fails (volumePlan) | Log error, fall back to `loadScale = 1.0` — conservative, no misleading data |
+| `getActiveBlocks` fails (dailyTrainingContext) | Log error, leave `inferred_load` unchanged — WeekStrip shows unscaled label rather than crashing |
+| Strength-only day, no run block | `loadScale = 1.0` (no run block found); no downgrade applied |
 
 ---
 
@@ -243,9 +275,10 @@ This produces e.g. `"2 strength · 1 run dropped"`. Rendered directly below the 
 - `droppedByModality` null when zero drops matches the "only show when needed" UX ✓
 - `getActiveBlocks` called once per `getDaySessionDetail` (not once per block iteration) — no N+1 ✓
 
-**Scope check:** Four file changes, two focused deliverables, no schema changes. Shippable together as one plan.
+**Scope check:** Five file changes, two focused deliverables, no schema changes. Shippable together as one plan.
 
 **Ambiguity resolved:**
 - `loadScale` is per-block but the adjustment note is per-day (once) — note uses the minimum scale across all run blocks, reflecting the most constrained situation
 - Completed sessions show actuals — `base_distance_km` is irrelevant for completed sessions; skip the arrow when `status === 'completed'`
 - `buildVolumeAdjustmentNote` is a pure function — testable in isolation
+- `getDailyTrainingContext` load downgrade uses the same `getActiveBlocks` + `computeBlockLoad` path as `getDaySessionDetail` — consistent source of truth across WeekStrip and SessionDetailModal ✓
