@@ -144,7 +144,9 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
           <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
             {s.status === 'completed' && r.actual_distance_km
               ? `${r.actual_distance_km.toFixed(1)}km · ${r.actual_pace_secs ? formatPace(r.actual_pace_secs) : '—'} · actual`
-              : `${r.distance_km.toFixed(1)}km · ${formatPace(r.pace_target_secs)} · ~${r.estimated_minutes}min`}
+              : r.base_distance_km
+                ? `${r.base_distance_km.toFixed(1)} → ${r.distance_km.toFixed(1)}km · ${formatPace(r.pace_target_secs)} · ~${r.estimated_minutes}min`
+                : `${r.distance_km.toFixed(1)}km · ${formatPace(r.pace_target_secs)} · ~${r.estimated_minutes}min`}
           </VirraText>
         )}
 
@@ -235,6 +237,18 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
             {detail.phase.toUpperCase()} · {detail.phase_guidance}
           </VirraText>
         </View>
+      )}
+
+      {/* Volume adjustment note */}
+      {!loading && detail?.volume_adjustment_note && (
+        <VirraText
+          variant="mono"
+          size={9}
+          color={colors.muted}
+          style={{ marginBottom: spacing.xs }}
+        >
+          {detail.volume_adjustment_note}
+        </VirraText>
       )}
 
       {/* Loading */}
