@@ -27,6 +27,7 @@ export interface InsightMetrics {
   phasePaces:              PhasePace[];
   activitiesThisWeek:      number;
   trainingAdherencePct:    number | null;
+  droppedByModality:       Record<string, number> | null;
   nutritionCompliancePct:  number | null;
   symptomTrend:            SymptomTrend | null;
   fuellingAlignment:       FuellingAlignment | null;
@@ -96,7 +97,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
 
     supabase
       .from('planned_sessions')
-      .select('status')
+      .select('status, modality')
       .eq('user_id', userId)
       .gte('scheduled_date', window28ISO)
       .lte('scheduled_date', todayISO)
@@ -167,6 +168,14 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
   const trainingAdherencePct = completedSessions + droppedSessions > 0
     ? Math.round((completedSessions / (completedSessions + droppedSessions)) * 100)
     : null;
+  const droppedByModality: Record<string, number> | null = droppedSessions === 0
+    ? null
+    : (sessionWindow as any[])
+        .filter((s) => s.status === 'dropped')
+        .reduce((acc: Record<string, number>, s: any) => {
+          acc[s.modality] = (acc[s.modality] ?? 0) + 1;
+          return acc;
+        }, {});
 
   // Nutrition compliance — days where actual calories within 10% of target
   const nutritionLogs = nutritionLogsRes.data ?? [];
@@ -241,6 +250,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     phasePaces,
     activitiesThisWeek:    weekRes.data?.length ?? 0,
     trainingAdherencePct,
+    droppedByModality,
     nutritionCompliancePct,
     symptomTrend,
     fuellingAlignment,

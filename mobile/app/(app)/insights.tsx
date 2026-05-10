@@ -194,6 +194,18 @@ export default function InsightsScreen() {
               sub="COMPLIANCE"
             />
           </View>
+          {metrics?.droppedByModality && (
+            <VirraText
+              variant="mono"
+              size={9}
+              color={colors.muted}
+              style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}
+            >
+              {Object.entries(metrics.droppedByModality)
+                .map(([mod, count]) => `${count} ${mod}`)
+                .join(' · ')}{' dropped'}
+            </VirraText>
+          )}
         </VirraCard>
 
         {/* Training narrative */}
