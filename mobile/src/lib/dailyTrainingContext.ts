@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { CyclePhase } from '@/store/cycle';
 import type { TrainingLoad } from './nutritionTargets';
+import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
 
 export interface PlannedSessionSummary {
   id:            string;
@@ -86,6 +87,25 @@ export async function getDailyTrainingContext(
       topLoad   = load;
       topSource = `${s.session_label} ${s.modality}`;
     }
+  }
+
+  try {
+    const allBlocks    = await getActiveBlocks(userId);
+    const computed     = computeBlockLoad(allBlocks, phase ?? 'follicular');
+    const runIdx       = allBlocks.findIndex((b) => b.modality === 'run');
+    if (runIdx >= 0 && computed[runIdx]) {
+      const loadScale = Math.min(
+        1.0,
+        computed[runIdx].effective_load / (computed[runIdx].load_modifier || 1),
+      );
+      if (loadScale < 0.75) {
+        if (topLoad === 'hard' || topLoad === 'moderate') topLoad = 'easy';
+      } else if (loadScale < 0.85) {
+        if (topLoad === 'hard') topLoad = 'moderate';
+      }
+    }
+  } catch (e) {
+    console.error('[dailyTrainingContext] stacking fetch:', e);
   }
 
   return {
