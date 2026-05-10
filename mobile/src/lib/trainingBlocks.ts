@@ -85,6 +85,7 @@ export async function addBlock(
     endsOn:       string | null;
     loadModifier: number;
     isPrimary:    boolean;
+    dayOverrides?: Record<string, number>;
   },
 ): Promise<string | null> {
   if (opts.isPrimary) {
@@ -127,6 +128,7 @@ export async function addBlock(
         opts.modality,
         opts.startsOn,
         tmpl.sessions_json as any,
+        opts.dayOverrides,
       );
     }
   }

@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-const DAY_TEMPLATES: Record<number, number[]> = {
+export const DAY_TEMPLATES: Record<number, number[]> = {
   1: [0],
   2: [0, 3],
   3: [0, 2, 5],
@@ -9,6 +9,24 @@ const DAY_TEMPLATES: Record<number, number[]> = {
   6: [0, 1, 2, 4, 5, 6],
   7: [0, 1, 2, 3, 4, 5, 6],
 };
+
+// Returns a default label→day mapping for a plan's sessions_json.
+// Maintains the same ordering (regulars first, anchor-last sessions last)
+// and spreads them across the week using DAY_TEMPLATES.
+export function computeDefaultDayAssignment(sessionsJson: WeekSession[]): Record<string, number> {
+  const seen:    Set<string>    = new Set();
+  const ordered: string[]       = [];
+  for (const week of sessionsJson) {
+    const anchors  = week.sessions.filter((s) => ANCHOR_LAST.has(s));
+    const regulars = week.sessions.filter((s) => !ANCHOR_LAST.has(s));
+    for (const label of [...regulars, ...anchors]) {
+      if (!seen.has(label)) { seen.add(label); ordered.push(label); }
+    }
+  }
+  const template = DAY_TEMPLATES[Math.min(ordered.length, 7)] ??
+    Array.from({ length: ordered.length }, (_, i) => i);
+  return Object.fromEntries(ordered.map((label, i) => [label, template[i]]));
+}
 
 const ANCHOR_LAST = new Set(['long', 'race']);
 
@@ -36,6 +54,7 @@ export function generateSchedule(
   modality:     string,
   startsOn:     string,
   sessionsJson: WeekSession[],
+  dayOverrides?: Record<string, number>,
 ): PlannedSessionInsert[] {
   const origin = mondayOf(startsOn);
   const rows: PlannedSessionInsert[] = [];
@@ -43,21 +62,36 @@ export function generateSchedule(
   sessionsJson.forEach((week, weekIndex) => {
     const sessions = [...week.sessions];
     if (sessions.length === 0) return;
-    const template = DAY_TEMPLATES[Math.min(sessions.length, 7)] ??
-      Array.from({ length: sessions.length }, (_, i) => i);
     const anchors  = sessions.filter((s) => ANCHOR_LAST.has(s));
     const regulars = sessions.filter((s) => !ANCHOR_LAST.has(s));
     const ordered  = [...regulars, ...anchors];
+    const template = DAY_TEMPLATES[Math.min(ordered.length, 7)] ??
+      Array.from({ length: ordered.length }, (_, i) => i);
 
-    ordered.forEach((label, i) => {
-      const dayOffset = weekIndex * 7 + template[i];
-      const date      = addDays(origin, dayOffset);
+    // Build day assignment: overrides take priority; remaining sessions fill free template slots
+    const dayMap: Record<string, number> = {};
+    if (dayOverrides) {
+      const takenDays = new Set(
+        ordered.filter((l) => dayOverrides[l] !== undefined).map((l) => dayOverrides[l]),
+      );
+      const freeDays = template.filter((d) => !takenDays.has(d));
+      let freeIdx = 0;
+      ordered.forEach((label) => {
+        dayMap[label] = dayOverrides[label] ?? freeDays[freeIdx++] ?? template[template.length - 1];
+      });
+    } else {
+      ordered.forEach((label, i) => { dayMap[label] = template[i]; });
+    }
+
+    ordered.forEach((label) => {
+      const dayOfWeek = dayMap[label];
+      const date      = addDays(origin, weekIndex * 7 + dayOfWeek);
       rows.push({
         user_id:        userId,
         block_id:       blockId,
         scheduled_date: toISO(date),
         week_number:    week.week,
-        day_of_week:    template[i],
+        day_of_week:    dayOfWeek,
         modality,
         session_label:  label,
         status:         'planned',
@@ -68,14 +102,15 @@ export function generateSchedule(
 }
 
 export async function generateAndSaveSchedule(
-  userId:       string,
-  blockId:      string,
-  modality:     string,
-  startsOn:     string,
-  sessionsJson: WeekSession[],
+  userId:        string,
+  blockId:       string,
+  modality:      string,
+  startsOn:      string,
+  sessionsJson:  WeekSession[],
+  dayOverrides?: Record<string, number>,
 ): Promise<void> {
   if (!sessionsJson.length) return;
-  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson);
+  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, dayOverrides);
   if (!rows.length) return;
   for (let i = 0; i < rows.length; i += 200) {
     const { error } = await supabase.from('planned_sessions').insert(rows.slice(i, i + 200));

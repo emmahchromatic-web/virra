@@ -10,6 +10,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { getActiveBlocks, addBlock, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
+import { computeDefaultDayAssignment } from '@/lib/scheduleGenerator';
 
 interface WeekSession {
   week:     number;
@@ -59,6 +60,61 @@ function parseDMY(str: string): Date | null {
   return dt;
 }
 
+const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+function SchedulePickerRow({
+  label, selectedDay, takenDays, onChange,
+}: {
+  label:       string;
+  selectedDay: number;
+  takenDays:   number[];
+  onChange:    (day: number) => void;
+}) {
+  const taken = new Set(takenDays);
+  return (
+    <View style={picker.row}>
+      <VirraText variant="mono" size={10} color={colors.breath} style={picker.label}>
+        {label}
+      </VirraText>
+      <View style={picker.days}>
+        {DAY_LETTERS.map((letter, i) => {
+          const isSelected = selectedDay === i;
+          const isTaken    = taken.has(i);
+          return (
+            <Pressable
+              key={i}
+              style={[picker.dayBtn, isSelected && picker.dayBtnActive, isTaken && !isSelected && picker.dayBtnTaken]}
+              onPress={() => onChange(i)}
+              accessibilityRole="button"
+            >
+              <VirraText
+                variant="mono"
+                size={9}
+                color={isSelected ? colors.mile : isTaken ? 'rgba(244,237,224,0.25)' : colors.muted}
+              >
+                {letter}
+              </VirraText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const picker = StyleSheet.create({
+  row:        { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  label:      { width: 80, flexShrink: 0 },
+  days:       { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
+  dayBtn:     {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  dayBtnActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  dayBtnTaken:  { borderColor: 'transparent' },
+});
+
 function VolumeChart({ weeks }: { weeks: WeekSession[] }) {
   const maxKm = Math.max(...weeks.map((w) => w.km), 1);
   return (
@@ -97,6 +153,7 @@ export default function PlanDetailScreen() {
   const [raceName,       setRaceName]       = useState('');
   const [raceDateObj,    setRaceDateObj]    = useState<Date | null>(null);
   const [showRacePicker, setShowRacePicker] = useState(false);
+  const [dayAssignment,  setDayAssignment]  = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!id || !session) return;
@@ -120,6 +177,9 @@ export default function PlanDetailScreen() {
       const p = planRes.data as UserPlan | null;
       setPlan(t);
       setUserPlan(p);
+      if (t?.sessions_json?.length) {
+        setDayAssignment(computeDefaultDayAssignment(t.sessions_json as any));
+      }
       setExistingBlocks(blocks);
 
       if (p) {
@@ -192,6 +252,7 @@ export default function PlanDetailScreen() {
         endsOn:       goalDate,
         loadModifier: 1.0,
         isPrimary:    true,
+        dayOverrides: Object.keys(dayAssignment).length > 0 ? dayAssignment : undefined,
       });
       if (!blockId) console.warn('training_block creation failed — plan started but stack not updated');
       router.replace('/(app)/(tabs)/training');
@@ -511,6 +572,24 @@ export default function PlanDetailScreen() {
                     )}
                   </View>
                 )}
+              </VirraCard>
+            )}
+            {Object.keys(dayAssignment).length > 0 && (
+              <VirraCard style={{ gap: spacing.sm }}>
+                <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+                  SCHEDULE YOUR WEEK
+                </VirraText>
+                {Object.entries(dayAssignment).map(([label, day]) => (
+                  <SchedulePickerRow
+                    key={label}
+                    label={SESSION_LABEL[label] ?? label.charAt(0).toUpperCase() + label.slice(1)}
+                    selectedDay={day}
+                    takenDays={Object.entries(dayAssignment)
+                      .filter(([l]) => l !== label)
+                      .map(([, d]) => d)}
+                    onChange={(d) => setDayAssignment((prev) => ({ ...prev, [label]: d }))}
+                  />
+                ))}
               </VirraCard>
             )}
             <VirraButton
