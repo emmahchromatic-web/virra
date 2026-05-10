@@ -206,7 +206,7 @@ export default function TrainingScreen() {
             )}
 
             {/* Monthly training calendar */}
-            {(activeBlocks.length > 0 || activePlan) && session && (
+            {activeBlocks.length > 0 && session && (
               <VirraCard style={{ gap: spacing.sm }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <VirraText variant="mono" size={9} color={colors.pulse} style={{ letterSpacing: 1.5 }}>

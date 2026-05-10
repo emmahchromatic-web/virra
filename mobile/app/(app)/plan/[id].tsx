@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, SafeAreaView, Alert, Pressable, TextInput } from 'react-native';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
@@ -92,9 +93,10 @@ export default function PlanDetailScreen() {
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
   const [existingBlocks, setExistingBlocks] = useState<TrainingBlock[]>([]);
-  const [raceOpen,      setRaceOpen]      = useState(false);
-  const [raceName,      setRaceName]      = useState('');
-  const [raceDate,      setRaceDate]      = useState('');
+  const [raceOpen,       setRaceOpen]       = useState(false);
+  const [raceName,       setRaceName]       = useState('');
+  const [raceDateObj,    setRaceDateObj]    = useState<Date | null>(null);
+  const [showRacePicker, setShowRacePicker] = useState(false);
 
   useEffect(() => {
     if (!id || !session) return;
@@ -140,7 +142,7 @@ export default function PlanDetailScreen() {
     });
   }, [id, session]);
 
-  const raceTarget  = parseDMY(raceDate);
+  const raceTarget  = raceDateObj;
   const startDate   = raceTarget && plan?.duration_weeks
     ? new Date(raceTarget.getTime() - plan.duration_weeks * 7 * 86400000)
     : null;
@@ -477,16 +479,29 @@ export default function PlanDetailScreen() {
                       value={raceName}
                       onChangeText={setRaceName}
                     />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Race date  DD.MM.YYYY"
-                      placeholderTextColor={colors.muted}
-                      value={raceDate}
-                      onChangeText={setRaceDate}
-                      keyboardType="numbers-and-punctuation"
-                    />
-                    {raceDate.length > 0 && !raceTarget && (
-                      <VirraText variant="mono" size={9} color={colors.dawn}>Use format DD.MM.YYYY</VirraText>
+                    <Pressable
+                      style={styles.datePicker}
+                      onPress={() => setShowRacePicker(true)}
+                      accessibilityRole="button"
+                    >
+                      <VirraText variant="mono" size={13} color={raceDateObj ? colors.breath : colors.muted}>
+                        {raceDateObj
+                          ? raceDateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : 'Select race date'}
+                      </VirraText>
+                      <SymbolView name="calendar" size={14} tintColor={colors.muted} />
+                    </Pressable>
+                    {showRacePicker && (
+                      <DateTimePicker
+                        value={raceDateObj ?? new Date()}
+                        mode="date"
+                        display="spinner"
+                        minimumDate={new Date()}
+                        onChange={(_: DateTimePickerEvent, selected?: Date) => {
+                          setShowRacePicker(false);
+                          if (selected) setRaceDateObj(selected);
+                        }}
+                      />
                     )}
                     {startHint && (
                       <View style={styles.startHint}>
@@ -588,6 +603,12 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 15,
     color: colors.breath,
+  },
+  datePicker:  {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
+    padding: spacing.md,
   },
   startHint:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
