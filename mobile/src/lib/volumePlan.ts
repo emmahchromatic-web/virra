@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { CyclePhase } from './cycleEngine';
 import { getCycleInfo } from './cycleEngine';
+import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
 
 // ---- Interfaces ----
 
@@ -496,7 +497,7 @@ export async function getDaySessionDetail(
       phase,
       phase_guidance,
       volume_plan:            EMPTY_PLAN,
-      volume_adjustment_note: null,
+      volume_adjustment_note: buildVolumeAdjustmentNote(1.0, phase),
     };
   }
 
@@ -507,20 +508,37 @@ export async function getDaySessionDetail(
     blockGroups[s.block_id].push(s);
   }
 
+  // Fetch all active blocks once for stacking computation
+  let allActiveBlocks: Awaited<ReturnType<typeof getActiveBlocks>> = [];
+  let computedBlocks: ReturnType<typeof computeBlockLoad> = [];
+  try {
+    allActiveBlocks = await getActiveBlocks(userId);
+    computedBlocks  = computeBlockLoad(allActiveBlocks, phase ?? 'follicular');
+  } catch (e) {
+    console.error('[volumePlan] getDaySessionDetail getActiveBlocks:', e);
+  }
+
   const allSessions: SessionDetail[] = [];
   let volumePlan: VolumePlanResult = EMPTY_PLAN;
+  let minRunLoadScale = 1.0;
 
   for (const [blockId, sessions] of Object.entries(blockGroups)) {
     const runSessions      = sessions.filter((s) => s.modality === 'run');
     const strengthSessions = sessions.filter((s) => s.modality === 'strength');
 
     if (runSessions.length > 0) {
+      const blockIdx = allActiveBlocks.findIndex((b) => b.id === blockId);
+      const loadScale = blockIdx >= 0 && computedBlocks[blockIdx]
+        ? Math.min(1.0, computedBlocks[blockIdx].effective_load / (computedBlocks[blockIdx].load_modifier || 1))
+        : 1.0;
+      if (loadScale < minRunLoadScale) minRunLoadScale = loadScale;
+
       const [goalPace, plan] = await Promise.all([
         getGoalPace(userId, blockId, phase),
         getWeeklyVolumePlan(userId, blockId, {
           periodStart: cycleStore.periodStart,
           cycleLength: cycleStore.cycleLength,
-        }),
+        }, loadScale),
       ]);
       volumePlan = plan;
 
@@ -569,12 +587,16 @@ export async function getDaySessionDetail(
             : null;
         }
 
+        const base_distance_km = loadScale < 1.0
+          ? Math.round((distance_km / loadScale) * 10) / 10
+          : null;
+
         allSessions.push({
           kind:               'run',
           planned_session_id: s.id,
           session_label:      s.session_label,
           distance_km,
-          base_distance_km:   null,
+          base_distance_km,
           pace_target_secs,
           estimated_minutes,
           status:             s.status,
@@ -603,6 +625,6 @@ export async function getDaySessionDetail(
     phase,
     phase_guidance,
     volume_plan:            volumePlan,
-    volume_adjustment_note: null,
+    volume_adjustment_note: buildVolumeAdjustmentNote(minRunLoadScale, phase),
   };
 }
