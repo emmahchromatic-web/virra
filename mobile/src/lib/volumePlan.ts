@@ -30,7 +30,8 @@ export interface RunSessionDetail {
   kind:               'run';
   planned_session_id: string;
   session_label:      string;
-  distance_km:        number;
+  distance_km:        number;         // post-stacking (actual target)
+  base_distance_km:   number | null;  // pre-gym-scale; null when no stacking
   pace_target_secs:   number;
   estimated_minutes:  number;
   status:             string;
@@ -57,12 +58,13 @@ export interface UserEvent {
 }
 
 export interface DayDetail {
-  date:            string;
-  sessions:        SessionDetail[];
-  events:          UserEvent[];
-  phase:           CyclePhase | null;
-  phase_guidance:  string;
-  volume_plan:     VolumePlanResult;
+  date:                   string;
+  sessions:               SessionDetail[];
+  events:                 UserEvent[];
+  phase:                  CyclePhase | null;
+  phase_guidance:         string;
+  volume_plan:            VolumePlanResult;
+  volume_adjustment_note: string | null;
 }
 
 // Input type for the pure redistribution function (exported for tests)
@@ -127,6 +129,19 @@ const PHASE_GUIDANCE: Record<string, string> = {
   luteal:     'Hold the work, honour fatigue.',
   menstrual:  'Keep effort light — rest is training too.',
 };
+
+export function buildVolumeAdjustmentNote(
+  loadScale: number,
+  phase: CyclePhase | null,
+): string | null {
+  const gymReduced   = loadScale < 1.0;
+  const phaseReduced = phase === 'luteal' || phase === 'menstrual';
+  if (!gymReduced && !phaseReduced) return null;
+  const parts: string[] = [];
+  if (gymReduced)   parts.push('gym block');
+  if (phaseReduced) parts.push(`${phase} phase`);
+  return `Volume adjusted · ${parts.join(' + ')}`;
+}
 
 // ---- Helpers (exported for tests) ----
 
@@ -330,6 +345,7 @@ export async function getWeeklyVolumePlan(
   userId:     string,
   blockId:    string,
   cycleStore: { periodStart: Date | null; cycleLength: number },
+  loadScale   = 1.0,
 ): Promise<VolumePlanResult> {
   const EMPTY: VolumePlanResult = {
     weeks: [], total_km: 0, completed_km: 0, remaining_km: 0, deficit_message: null,
@@ -428,7 +444,9 @@ export async function getWeeklyVolumePlan(
   const weeks: WeekVolumePlan[] = weekInputs.map((w, i) => ({
     week_number: w.week_number,
     original_km: w.original_km,
-    adjusted_km: w.is_past ? w.original_km : adjustedKms[i],
+    adjusted_km: w.is_past
+      ? w.original_km
+      : Math.round(adjustedKms[i] * loadScale * 10) / 10,
     phase:       w.phase,
     is_current:  w.is_current,
     is_past:     w.is_past,
@@ -472,12 +490,13 @@ export async function getDaySessionDetail(
 
   if (!daySessions?.length) {
     return {
-      date: dateISO,
-      sessions: [],
-      events: (events ?? []) as UserEvent[],
+      date:                   dateISO,
+      sessions:               [],
+      events:                 (events ?? []) as UserEvent[],
       phase,
       phase_guidance,
-      volume_plan: EMPTY_PLAN,
+      volume_plan:            EMPTY_PLAN,
+      volume_adjustment_note: null,
     };
   }
 
@@ -555,6 +574,7 @@ export async function getDaySessionDetail(
           planned_session_id: s.id,
           session_label:      s.session_label,
           distance_km,
+          base_distance_km:   null,
           pace_target_secs,
           estimated_minutes,
           status:             s.status,
@@ -577,11 +597,12 @@ export async function getDaySessionDetail(
   }
 
   return {
-    date:         dateISO,
-    sessions:     allSessions,
-    events:       (events ?? []) as UserEvent[],
+    date:                   dateISO,
+    sessions:               allSessions,
+    events:                 (events ?? []) as UserEvent[],
     phase,
     phase_guidance,
-    volume_plan:  volumePlan,
+    volume_plan:            volumePlan,
+    volume_adjustment_note: null,
   };
 }

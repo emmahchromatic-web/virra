@@ -3,6 +3,7 @@ import {
   _redistributeKm,
   distributeWeeklyKm,
   formatPace,
+  buildVolumeAdjustmentNote,
   type WeekInput,
 } from '@/lib/volumePlan';
 
@@ -115,4 +116,34 @@ test('formatPace 60 s/km → 1:00/km', () => {
 
 test('formatPace 59.5 s/km rounds to 1:00/km, not 0:60/km', () => {
   expect(formatPace(59.5)).toBe('1:00/km');
+});
+
+// --- buildVolumeAdjustmentNote ---
+
+test('returns null when loadScale is 1.0 and phase is follicular', () => {
+  expect(buildVolumeAdjustmentNote(1.0, 'follicular')).toBeNull();
+});
+
+test('returns null when loadScale is 1.0 and phase is null', () => {
+  expect(buildVolumeAdjustmentNote(1.0, null)).toBeNull();
+});
+
+test('returns gym note when loadScale < 1.0 and phase is neutral', () => {
+  expect(buildVolumeAdjustmentNote(0.8, 'follicular')).toBe('Volume adjusted · gym block');
+});
+
+test('returns phase note when loadScale is 1.0 and phase is luteal', () => {
+  expect(buildVolumeAdjustmentNote(1.0, 'luteal')).toBe('Volume adjusted · luteal phase');
+});
+
+test('returns combined note when gym block and luteal phase both apply', () => {
+  expect(buildVolumeAdjustmentNote(0.8, 'luteal')).toBe('Volume adjusted · gym block + luteal phase');
+});
+
+test('returns phase note for menstrual phase with no gym block', () => {
+  expect(buildVolumeAdjustmentNote(1.0, 'menstrual')).toBe('Volume adjusted · menstrual phase');
+});
+
+test('returns null for ovulatory phase with no gym block', () => {
+  expect(buildVolumeAdjustmentNote(1.0, 'ovulatory')).toBeNull();
 });
