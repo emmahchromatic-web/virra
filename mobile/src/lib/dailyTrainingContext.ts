@@ -47,6 +47,28 @@ export function inferLoadFromLabel(label: string, modality: string): TrainingLoa
   return LABEL_TO_LOAD[key] ?? 'easy';
 }
 
+// Shared gym phase algorithm — used by plan detail UI and nutrition context
+export function gymWeekPhase(weekIndex: number, totalWeeks: number): string {
+  const w = weekIndex + 1; // 1-indexed
+  if (totalWeeks >= 20) {
+    const cutAStart = Math.round(totalWeeks * 0.33);
+    const cutBStart = Math.round(totalWeeks * 0.67);
+    if (w <= Math.round(totalWeeks * 0.15)) return 'Foundation';
+    if (w < cutAStart)      return 'Build';
+    if (w <= cutAStart + 1) return 'Cut';
+    if (w < cutBStart)      return 'Strength';
+    if (w <= cutBStart + 1) return 'Cut';
+    return 'Peak';
+  } else {
+    const cutStart = Math.round(totalWeeks * 0.55);
+    if (w <= Math.round(totalWeeks * 0.2)) return 'Foundation';
+    if (w < cutStart)       return 'Build';
+    if (w <= cutStart + 1)  return 'Cut';
+    if (w <= Math.round(totalWeeks * 0.85)) return 'Strength';
+    return 'Peak';
+  }
+}
+
 const PHASE_GUIDANCE: Record<CyclePhase, string> = {
   menstrual:  'Keep effort light — rest is training too.',
   follicular: 'Ramp up. Your body adapts faster now.',
@@ -90,9 +112,11 @@ export async function getDailyTrainingContext(
   }
 
   try {
-    const allBlocks    = await getActiveBlocks(userId);
-    const computed     = computeBlockLoad(allBlocks, phase ?? 'follicular');
-    const runIdx       = allBlocks.findIndex((b) => b.modality === 'run');
+    const allBlocks = await getActiveBlocks(userId);
+    const computed  = computeBlockLoad(allBlocks, phase ?? 'follicular');
+
+    // Run stacking: scale load down when gym volume is suppressing run capacity
+    const runIdx = allBlocks.findIndex((b) => b.modality === 'run');
     if (runIdx >= 0 && computed[runIdx]) {
       const loadScale = Math.min(
         1.0,
@@ -103,6 +127,23 @@ export async function getDailyTrainingContext(
       } else if (loadScale < 0.85) {
         if (topLoad === 'hard') topLoad = 'moderate';
       }
+    }
+
+    // Gym Cut phase: step load down by one tier to reduce calorie targets
+    const today = new Date(`${dateISO}T00:00:00`);
+    const inCutWeek = allBlocks
+      .filter((b) => b.modality === 'strength')
+      .some((b) => {
+        const start     = new Date(`${b.starts_on}T00:00:00`);
+        const totalWeeks = b.ends_on
+          ? Math.ceil((new Date(`${b.ends_on}T00:00:00`).getTime() - start.getTime()) / (7 * 86400000))
+          : 12;
+        const weekIdx = Math.floor((today.getTime() - start.getTime()) / (7 * 86400000));
+        return weekIdx >= 0 && weekIdx < totalWeeks && gymWeekPhase(weekIdx, totalWeeks) === 'Cut';
+      });
+    if (inCutWeek) {
+      if (topLoad === 'hard')     topLoad = 'moderate';
+      else if (topLoad !== 'rest') topLoad = 'easy';
     }
   } catch (e) {
     console.error('[dailyTrainingContext] stacking fetch:', e);

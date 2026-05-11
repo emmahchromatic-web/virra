@@ -11,6 +11,7 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { getActiveBlocks, addBlock, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
+import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 
 interface WeekSession {
   week:     number;
@@ -49,6 +50,7 @@ const PHASE_COLOR: Record<string, string> = {
   // Gym phases
   Foundation:  '#9DB8AC',
   Strength:    '#FF6B3D',
+  Cut:         '#5BA4CF',
 };
 
 const SESSION_LABEL: Record<string, string> = {
@@ -314,15 +316,6 @@ export default function PlanDetailScreen() {
     5: ['lower', 'upper', 'lower', 'upper', 'general'],
   };
 
-  // Gym phase progression based on position in plan
-  function gymPhaseLabel(weekIndex: number, total: number): string {
-    const pct = weekIndex / Math.max(total - 1, 1);
-    if (pct < 0.2)  return 'Foundation';
-    if (pct < 0.55) return 'Build';
-    if (pct < 0.85) return 'Strength';
-    return 'Peak';
-  }
-
   const displayWeeks = userPlan || (!weeks.length && !isStrength)
     ? weeks
     : Array.from({ length: durationOverride }, (_, i) => {
@@ -331,7 +324,7 @@ export default function PlanDetailScreen() {
           return {
             week:     i + 1,
             km:       sessions.length,
-            label:    gymPhaseLabel(i, durationOverride),
+            label:    gymWeekPhase(i, durationOverride),
             sessions,
           };
         }
