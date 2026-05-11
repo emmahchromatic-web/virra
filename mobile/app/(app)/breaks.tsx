@@ -117,7 +117,6 @@ export default function BreaksScreen() {
         <BreakModal
           visible={showModal}
           userId={session.user.id}
-          activeBlocks={activeBlocks}
           onClose={() => setShowModal(false)}
           onApplied={() => { setShowModal(false); load(); }}
         />

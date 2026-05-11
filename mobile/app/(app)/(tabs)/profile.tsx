@@ -336,7 +336,6 @@ export default function ProfileScreen() {
           <BreakModal
             visible={showBreakModal}
             userId={session.user.id}
-            activeBlocks={profileBlocks}
             onClose={() => setShowBreakModal(false)}
             onApplied={() => {
               setShowBreakModal(false);

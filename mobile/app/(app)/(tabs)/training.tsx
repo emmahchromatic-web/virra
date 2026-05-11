@@ -259,7 +259,6 @@ export default function TrainingScreen() {
               <BreakModal
                 visible={breakModalVisible}
                 userId={session.user.id}
-                activeBlocks={activeBlocks}
                 initialDate={breakModalStartDate}
                 onClose={() => setBreakModalVisible(false)}
                 onApplied={() => {
