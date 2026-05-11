@@ -99,9 +99,11 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
   return (
     <View style={strip.row}>
       {Object.entries(dayMap).map(([iso, day], i) => {
-        const hasCompleted = day.sessions.some((s) => s.status === 'completed');
-        const hasSessions  = day.sessions.length > 0;
-        const primary      = day.sessions[0];
+        const hasCompleted  = day.sessions.some((s) => s.status === 'completed');
+        const hasSessions   = day.sessions.length > 0;
+        const primary       = day.sessions[0];
+        const modalityColor = primary ? (MODALITY_COLOR[primary.modality] ?? colors.muted) : null;
+        const todayFill     = day.isToday && hasSessions && modalityColor;
         return (
           <View key={iso} style={strip.col}>
             <VirraText variant="mono" size={8} color={day.isToday ? colors.breath : colors.muted}>
@@ -109,21 +111,18 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
             </VirraText>
             <View style={[
               strip.circle,
-              day.isToday  && strip.circleToday,
               !hasSessions && strip.circleEmpty,
+              todayFill && { backgroundColor: modalityColor, borderColor: modalityColor },
             ]}>
               {day.isPast && hasCompleted ? (
-                <SymbolView name="checkmark" size={10}
-                  tintColor={day.isToday ? colors.mile : colors.pulse} />
+                <SymbolView name="checkmark" size={10} tintColor={colors.pulse} />
               ) : day.isPast && hasSessions ? (
                 <SymbolView name="minus" size={10} tintColor={colors.muted} />
               ) : hasSessions && primary ? (
                 <SymbolView
                   name={MODALITY_ICON[primary.modality] ?? 'figure.walk'}
                   size={12}
-                  tintColor={day.isToday
-                    ? colors.mile
-                    : (MODALITY_COLOR[primary.modality] ?? colors.muted)}
+                  tintColor={day.isToday ? colors.mile : (MODALITY_COLOR[primary.modality] ?? colors.muted)}
                 />
               ) : null}
             </View>
@@ -154,7 +153,6 @@ const strip = StyleSheet.create({
   circle:      { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, borderWidth: 1,
                  borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
                  backgroundColor: colors.mist },
-  circleToday: { backgroundColor: colors.breath, borderColor: colors.breath },
   circleEmpty: { borderColor: 'transparent', backgroundColor: 'transparent' },
   dots:        { flexDirection: 'row', gap: 3 },
   dot:         { width: 4, height: 4, borderRadius: 2 },
