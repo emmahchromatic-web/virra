@@ -298,12 +298,20 @@ export default function PlanDetailScreen() {
     router.replace('/(app)/(tabs)/training');
   }
 
-  const weeks           = (plan?.sessions_json ?? []) as WeekSession[];
-  const displayWeeks    = userPlan || !weeks.length
+  const weeks        = (plan?.sessions_json ?? []) as WeekSession[];
+  const isStrength   = plan?.sport_type === 'strength';
+
+  const displayWeeks = userPlan || !weeks.length
     ? weeks
-    : Array.from({ length: durationOverride }, (_, i) => ({ ...weeks[i % weeks.length], week: i + 1 }));
-  const peakKm          = displayWeeks.length ? Math.max(...displayWeeks.map((w) => w.km)) : 0;
-  const isStrength      = plan?.sport_type === 'strength';
+    : Array.from({ length: durationOverride }, (_, i) => {
+        const w       = weeks[i % weeks.length];
+        const sessions = userPlan ? w.sessions : w.sessions.slice(0, sessionCountOverride);
+        // For strength plans km is always 0 — use session count as load metric instead
+        const km       = isStrength ? sessions.length : w.km;
+        return { ...w, week: i + 1, sessions, km };
+      });
+
+  const peakKm = displayWeeks.length ? Math.max(...displayWeeks.map((w) => w.km), 1) : 1;
   const sessionsPerWk   = weeks[0]?.sessions.length ?? 0;
   const MAX_SESSIONS    = 5;
 
