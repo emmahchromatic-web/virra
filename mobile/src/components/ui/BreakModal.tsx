@@ -66,15 +66,17 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
     setShowEndPicker(false);
     setMode('reschedule');
 
+    const todayStr = toLocalISO(today);
     supabase
       .from('training_blocks')
       .select('id, user_id, template_id, starts_on, ends_on, load_modifier, modality, is_primary, event_id, template:plan_templates(name, duration_weeks, distance_goal, sport_type)')
       .eq('user_id', userId)
-      .lte('starts_on', toLocalISO(today))
-      .or(`ends_on.is.null,ends_on.gte.${toLocalISO(today)}`)
+      .lte('starts_on', todayStr)
       .order('is_primary', { ascending: false })
-      .then(({ data }) => {
-        const blocks = (data ?? []) as unknown as TrainingBlock[];
+      .then(({ data, error }) => {
+        if (error) { console.warn('[BreakModal] block fetch error', error.message); return; }
+        const blocks = ((data ?? []) as unknown as TrainingBlock[])
+          .filter((b) => !b.ends_on || b.ends_on >= todayStr);
         setActiveBlocks(blocks);
         setSelectedIds(new Set(blocks.map((b) => b.id)));
       });
@@ -139,7 +141,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
             display="inline"
             minimumDate={today}
             accentColor={colors.pulse}
-            textColor="rgba(244,237,224,0.75)"
+            themeVariant="dark"
             onChange={(_: DateTimePickerEvent, d?: Date) => {
               if (d) {
                 setBreakStart(d);
