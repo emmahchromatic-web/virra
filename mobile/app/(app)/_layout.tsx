@@ -1,14 +1,45 @@
 import React, { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { Stack, router } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { getEntitlementInfo } from '@/lib/revenuecat';
 import { importNewWorkouts } from '@/lib/healthKitImport';
-import { scheduleDailyReminders, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
+import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
+
+function nextMondayISO(): string {
+  const now    = new Date();
+  const dow    = now.getDay();
+  const offset = dow === 0 ? 1 : 8 - dow;
+  const d      = new Date(now);
+  d.setDate(d.getDate() + offset);
+  d.setHours(0, 0, 0, 0);
+  return d.toLocaleDateString('en-CA');
+}
+
+async function maybeShowWeekAhead(): Promise<void> {
+  const now  = new Date();
+  const dow  = now.getDay();  // 0 = Sunday
+  const hour = now.getHours();
+
+  // Only prompt from Sunday 18:00 onwards (Mon–Sat counts as "past Sunday")
+  if (dow === 0 && hour < 18) return;
+
+  const prefs = await loadNotificationPreferences();
+  if (!prefs.weeklyPlan) return;
+
+  const key     = `virra:week_ahead_${nextMondayISO()}`;
+  const already = await AsyncStorage.getItem(key);
+  if (already) return;
+
+  await AsyncStorage.setItem(key, '1');
+  router.push('/(app)/week-ahead' as any);
+}
 
 export default function AppLayout() {
   const { session, isLoading } = useAuthStore();
@@ -63,16 +94,26 @@ export default function AppLayout() {
 
     runImport();
     scheduleDailyReminders(session.user.id);
+    scheduleWeeklyPlanReminder();
+    maybeShowWeekAhead();
 
     const sub = AppState.addEventListener('change', (next) => {
       if (appState.current.match(/inactive|background/) && next === 'active') {
         runImport();
         scheduleDailyReminders(session.user.id);
+        scheduleWeeklyPlanReminder();
+        maybeShowWeekAhead();
       }
       appState.current = next;
     });
 
-    return () => sub.remove();
+    // Navigate to week-ahead when tapping the weekly planning notification
+    const notifSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen;
+      if (screen === 'week-ahead') router.push('/(app)/week-ahead' as any);
+    });
+
+    return () => { sub.remove(); notifSub.remove(); };
   }, [session?.user.id, periodStart, cycleLength]);
 
   return (
@@ -89,6 +130,8 @@ export default function AppLayout() {
       <Stack.Screen name="cycle-settings"  options={{ presentation: 'card'  }} />
       <Stack.Screen name="subscription"    options={{ presentation: 'card'  }} />
       <Stack.Screen name="breaks"          options={{ presentation: 'card'  }} />
+      <Stack.Screen name="week-ahead"      options={{ presentation: 'card'  }} />
+      <Stack.Screen name="settings"        options={{ presentation: 'card'  }} />
     </Stack>
   );
 }

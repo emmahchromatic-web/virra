@@ -6,6 +6,7 @@ import { getUnitSystem, setUnitSystem, type UnitSystem } from '@/lib/units';
 import {
   loadNotificationPreferences,
   setNotificationPreference,
+  scheduleWeeklyPlanReminder,
   type NotificationPreferences,
   type NotifSlot,
 } from '@/lib/notifications';
@@ -14,22 +15,24 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 
 const NOTIF_ROWS: { slot: NotifSlot; label: string; sublabel: string }[] = [
-  { slot: 'training',  label: 'Training reminder',  sublabel: 'Adaptive · based on your history · cancels when workout logged' },
-  { slot: 'breakfast', label: 'Breakfast reminder', sublabel: 'Daily at 8:00 am · cancels when meal logged' },
-  { slot: 'lunch',     label: 'Lunch reminder',     sublabel: 'Daily at 12:30 pm · cancels when meal logged' },
-  { slot: 'dinner',    label: 'Dinner reminder',    sublabel: 'Daily at 7:00 pm · cancels when meal logged' },
-  { slot: 'checkin',   label: 'Daily check-in',     sublabel: 'Daily at 8:00 pm · cancels when check-in submitted' },
+  { slot: 'weeklyPlan', label: 'Weekly planning',   sublabel: 'Every Sunday at 6:00 pm · review and adjust next week\'s sessions' },
+  { slot: 'training',   label: 'Training reminder', sublabel: 'Adaptive · based on your history · cancels when workout logged' },
+  { slot: 'breakfast',  label: 'Breakfast reminder',sublabel: 'Daily at 8:00 am · cancels when meal logged' },
+  { slot: 'lunch',      label: 'Lunch reminder',    sublabel: 'Daily at 12:30 pm · cancels when meal logged' },
+  { slot: 'dinner',     label: 'Dinner reminder',   sublabel: 'Daily at 7:00 pm · cancels when meal logged' },
+  { slot: 'checkin',    label: 'Daily check-in',    sublabel: 'Daily at 8:00 pm · cancels when check-in submitted' },
 ];
 
 export default function SettingsScreen() {
   const [units, setUnits] = useState<UnitSystem>('metric');
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
-    training: true, breakfast: true, lunch: true, dinner: true, checkin: true,
+    training: true, breakfast: true, lunch: true, dinner: true, checkin: true, weeklyPlan: true,
   });
 
   useEffect(() => {
     getUnitSystem().then(setUnits);
     loadNotificationPreferences().then(setNotifPrefs);
+    scheduleWeeklyPlanReminder();
   }, []);
 
   async function handleUnitChange(system: UnitSystem) {
@@ -40,6 +43,7 @@ export default function SettingsScreen() {
   async function handleNotifToggle(slot: NotifSlot, enabled: boolean) {
     setNotifPrefs((p) => ({ ...p, [slot]: enabled }));
     await setNotificationPreference(slot, enabled);
+    if (slot === 'weeklyPlan') await scheduleWeeklyPlanReminder();
   }
 
   return (

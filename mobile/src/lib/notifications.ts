@@ -4,24 +4,26 @@ import { supabase } from './supabase';
 
 // ─── Preference types ────────────────────────────────────────────────────────
 
-export type NotifSlot = 'training' | 'breakfast' | 'lunch' | 'dinner' | 'checkin';
+export type NotifSlot = 'training' | 'breakfast' | 'lunch' | 'dinner' | 'checkin' | 'weeklyPlan';
 
 export interface NotificationPreferences {
-  training:  boolean;
-  breakfast: boolean;
-  lunch:     boolean;
-  dinner:    boolean;
-  checkin:   boolean;
+  training:    boolean;
+  breakfast:   boolean;
+  lunch:       boolean;
+  dinner:      boolean;
+  checkin:     boolean;
+  weeklyPlan:  boolean;
 }
 
 const PREF_KEY = 'notif_prefs_v1';
 
 const DEFAULT_PREFS: NotificationPreferences = {
-  training:  true,
-  breakfast: true,
-  lunch:     true,
-  dinner:    true,
-  checkin:   true,
+  training:   true,
+  breakfast:  true,
+  lunch:      true,
+  dinner:     true,
+  checkin:    true,
+  weeklyPlan: true,
 };
 
 export async function loadNotificationPreferences(): Promise<NotificationPreferences> {
@@ -50,7 +52,8 @@ export async function setNotificationPreference(
       case 'breakfast': await cancelStored(storageKey('nutrition_breakfast', date)); break;
       case 'lunch':     await cancelStored(storageKey('nutrition_lunch',     date)); break;
       case 'dinner':    await cancelStored(storageKey('nutrition_dinner',    date)); break;
-      case 'checkin':   await cancelStored(storageKey('checkin',            date)); break;
+      case 'checkin':    await cancelStored(storageKey('checkin',      date)); break;
+      case 'weeklyPlan': await cancelStored('notif_weekly_plan');              break;
     }
   }
 }
@@ -109,6 +112,36 @@ function todayAt(hour: number, minute = 0): Notifications.DateTriggerInput {
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
+
+/** Schedule (or cancel) the Sunday 18:00 weekly planning reminder. Idempotent. */
+export async function scheduleWeeklyPlanReminder(): Promise<void> {
+  const prefs = await loadNotificationPreferences();
+  const key   = 'notif_weekly_plan';
+
+  if (!prefs.weeklyPlan) {
+    await cancelStored(key);
+    return;
+  }
+
+  const existing = await loadId(key);
+  if (existing) return; // already scheduled
+
+  const id = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Plan your week',
+      body:  "Your training week starts tomorrow — tap to review and adjust your sessions.",
+      sound: true,
+      data:  { screen: 'week-ahead' },
+    },
+    trigger: {
+      type:    Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: 1, // 1 = Sunday (iOS EKWeekday convention)
+      hour:    18,
+      minute:  0,
+    },
+  });
+  await saveId(key, id);
+}
 
 /** Call on every app foreground — idempotent, respects per-slot preferences. */
 export async function scheduleDailyReminders(userId: string): Promise<void> {
