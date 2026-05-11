@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { generateAndSaveSchedule } from './scheduleGenerator';
+import { generateAndSaveSchedule, type SessionSlot } from './scheduleGenerator';
 
 // Cycle phase multipliers: follicular = peak adaptation window, menstrual/luteal = reduced capacity.
 const PHASE_MULTIPLIER: Record<string, number> = {
@@ -85,8 +85,8 @@ export async function addBlock(
     endsOn:       string | null;
     loadModifier: number;
     isPrimary:    boolean;
-    dayOverrides?:       Record<string, number>;
-    maxSessionsPerWeek?: number;
+    slotAssignments?: SessionSlot[];
+    maxWeeks?:        number;
   },
 ): Promise<string | null> {
   if (opts.isPrimary) {
@@ -129,8 +129,8 @@ export async function addBlock(
         opts.modality,
         opts.startsOn,
         tmpl.sessions_json as any,
-        opts.dayOverrides,
-        opts.maxSessionsPerWeek,
+        opts.slotAssignments,
+        opts.maxWeeks,
       );
     }
   }

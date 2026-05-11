@@ -10,7 +10,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { getActiveBlocks, addBlock, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
-import { computeDefaultDayAssignment } from '@/lib/scheduleGenerator';
+import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 
 interface WeekSession {
   week:     number;
@@ -71,14 +71,16 @@ function parseDMY(str: string): Date | null {
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 function SchedulePickerRow({
-  label, selectedDay, takenDays, onChange,
+  label, selectedDay, takenDays, occupiedDays, onChange,
 }: {
-  label:       string;
-  selectedDay: number;
-  takenDays:   number[];
-  onChange:    (day: number) => void;
+  label:        string;
+  selectedDay:  number;
+  takenDays:    number[];
+  occupiedDays: number[];
+  onChange:     (day: number) => void;
 }) {
-  const taken = new Set(takenDays);
+  const taken    = new Set(takenDays);
+  const occupied = new Set(occupiedDays);
   return (
     <View style={picker.row}>
       <VirraText variant="mono" size={10} color={colors.breath} style={picker.label}>
@@ -86,8 +88,9 @@ function SchedulePickerRow({
       </VirraText>
       <View style={picker.days}>
         {DAY_LETTERS.map((letter, i) => {
-          const isSelected = selectedDay === i;
-          const isTaken    = taken.has(i);
+          const isSelected  = selectedDay === i;
+          const isTaken     = taken.has(i);
+          const isOccupied  = occupied.has(i) && !isSelected;
           return (
             <Pressable
               key={i}
@@ -102,6 +105,7 @@ function SchedulePickerRow({
               >
                 {letter}
               </VirraText>
+              {isOccupied && <View style={picker.occupiedDot} />}
             </Pressable>
           );
         })}
@@ -111,16 +115,17 @@ function SchedulePickerRow({
 }
 
 const picker = StyleSheet.create({
-  row:        { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label:      { width: 80, flexShrink: 0 },
-  days:       { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
-  dayBtn:     {
+  row:         { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  label:       { width: 80, flexShrink: 0 },
+  days:        { flex: 1, flexDirection: 'row', justifyContent: 'space-between' },
+  dayBtn:      {
     width: 28, height: 28, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: colors.border,
   },
-  dayBtnActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  dayBtnTaken:  { borderColor: 'transparent' },
+  dayBtnActive:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  dayBtnTaken:   { borderColor: 'transparent' },
+  occupiedDot:   { position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.dawn },
 });
 
 function VolumeChart({ weeks }: { weeks: WeekSession[] }) {
@@ -157,12 +162,14 @@ export default function PlanDetailScreen() {
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
   const [existingBlocks, setExistingBlocks] = useState<TrainingBlock[]>([]);
-  const [raceOpen,            setRaceOpen]            = useState(false);
-  const [raceName,            setRaceName]            = useState('');
-  const [raceDateObj,         setRaceDateObj]         = useState<Date | null>(null);
-  const [showRacePicker,      setShowRacePicker]      = useState(false);
-  const [dayAssignment,       setDayAssignment]       = useState<Record<string, number>>({});
+  const [raceOpen,             setRaceOpen]             = useState(false);
+  const [raceName,             setRaceName]             = useState('');
+  const [raceDateObj,          setRaceDateObj]          = useState<Date | null>(null);
+  const [showRacePicker,       setShowRacePicker]       = useState(false);
+  const [dayAssignment,        setDayAssignment]        = useState<SessionSlot[]>([]);
   const [sessionCountOverride, setSessionCountOverride] = useState(0);
+  const [durationOverride,     setDurationOverride]     = useState(0);
+  const [occupiedDays,         setOccupiedDays]         = useState<number[]>([]);
 
   useEffect(() => {
     if (!id || !session) return;
@@ -191,6 +198,7 @@ export default function PlanDetailScreen() {
         setSessionCountOverride(defaultCount);
         setDayAssignment(computeDefaultDayAssignment(t.sessions_json as any, defaultCount));
       }
+      setDurationOverride(t?.duration_weeks > 0 ? t.duration_weeks : 8);
       setExistingBlocks(blocks);
 
       if (p) {
@@ -213,6 +221,28 @@ export default function PlanDetailScreen() {
     });
   }, [id, session]);
 
+  useEffect(() => {
+    if (!session) return;
+    const d   = new Date();
+    const dow = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const fmt = (dt: Date) => dt.toISOString().split('T')[0];
+    supabase
+      .from('planned_sessions')
+      .select('day_of_week')
+      .eq('user_id', session.user.id)
+      .gte('scheduled_date', fmt(monday))
+      .lte('scheduled_date', fmt(sunday))
+      .not('status', 'in', '("moved","dropped")')
+      .then(({ data }) => {
+        setOccupiedDays([...new Set((data ?? []).map((s: any) => s.day_of_week as number))]);
+      });
+  }, [session]);
+
   const raceTarget  = raceDateObj;
   const startDate   = raceTarget && plan?.duration_weeks
     ? new Date(raceTarget.getTime() - plan.duration_weeks * 7 * 86400000)
@@ -231,17 +261,14 @@ export default function PlanDetailScreen() {
   async function handleStart() {
     if (!session || !plan) return;
     setSaving(true);
-    const today = new Date().toISOString().split('T')[0];
-    let planStart = today;
-    let goalDate: string | null = null;
+    const today      = new Date().toISOString().split('T')[0];
+    const effectiveDuration = durationOverride > 0 ? durationOverride : (plan.duration_weeks || 8);
+    let planStart    = today;
+    let goalDate: string | null = new Date(Date.now() + effectiveDuration * 7 * 86400000).toISOString().split('T')[0];
 
-    if (raceOpen && raceTarget && plan.duration_weeks > 0) {
+    if (raceOpen && raceTarget) {
       goalDate  = raceTarget.toISOString().split('T')[0];
-      planStart = (startDate && !startInPast)
-        ? startDate.toISOString().split('T')[0]
-        : today;
-    } else if (plan.duration_weeks > 0) {
-      goalDate = new Date(Date.now() + plan.duration_weeks * 7 * 86400000).toISOString().split('T')[0];
+      planStart = (startDate && !startInPast) ? startDate.toISOString().split('T')[0] : today;
     }
 
     await supabase.from('user_plans').update({ is_active: false }).eq('user_id', session.user.id);
@@ -255,60 +282,42 @@ export default function PlanDetailScreen() {
     setSaving(false);
     if (error) {
       Alert.alert('Could not start plan', error.message);
-    } else {
-      const blockId = await addBlock(session!.user.id, {
-        templateId:          plan.id,
-        modality:            inferModality(plan.sport_type),
-        startsOn:            planStart,
-        endsOn:              goalDate,
-        loadModifier:        1.0,
-        isPrimary:           true,
-        dayOverrides:        Object.keys(dayAssignment).length > 0 ? dayAssignment : undefined,
-        maxSessionsPerWeek:  sessionCountOverride > 0 ? sessionCountOverride : undefined,
-      });
-      if (!blockId) console.warn('training_block creation failed — plan started but stack not updated');
-      router.replace('/(app)/(tabs)/training');
-    }
-  }
-
-  async function handleAddSupplementary() {
-    if (!session || !plan) return;
-    setSaving(true);
-    const today  = new Date().toISOString().split('T')[0];
-    const endsOn = plan.duration_weeks > 0
-      ? new Date(Date.now() + plan.duration_weeks * 7 * 86400000).toISOString().split('T')[0]
-      : null;
-    const id = await addBlock(session.user.id, {
-      templateId:   plan.id,
-      modality:     inferModality(plan.sport_type),
-      startsOn:     today,
-      endsOn,
-      loadModifier: 0.5,
-      isPrimary:    false,
-    });
-    setSaving(false);
-    if (!id) {
-      Alert.alert('Could not add block', 'Please try again.');
       return;
     }
+    const blockId = await addBlock(session!.user.id, {
+      templateId:     plan.id,
+      modality:       inferModality(plan.sport_type),
+      startsOn:       planStart,
+      endsOn:         goalDate,
+      loadModifier:   sameModalityPrimary ? 1.0 : 0.5,
+      isPrimary:      !sameModalityPrimary,
+      slotAssignments: dayAssignment.length > 0 ? dayAssignment : undefined,
+      maxWeeks:        effectiveDuration,
+    });
+    if (!blockId) console.warn('training_block creation failed — plan started but stack not updated');
     router.replace('/(app)/(tabs)/training');
   }
 
-  const weeks              = (plan?.sessions_json ?? []) as WeekSession[];
-  const peakKm             = weeks.length ? Math.max(...weeks.map((w) => w.km)) : 0;
-  const isStrength         = plan?.sport_type === 'strength';
-  const sessionsPerWk      = weeks[0]?.sessions.length ?? 0;
-  const templateMaxSessions = weeks.length ? Math.max(...weeks.map((w) => w.sessions.length)) : 1;
+  const weeks           = (plan?.sessions_json ?? []) as WeekSession[];
+  const peakKm          = weeks.length ? Math.max(...weeks.map((w) => w.km)) : 0;
+  const isStrength      = plan?.sport_type === 'strength';
+  const sessionsPerWk   = weeks[0]?.sessions.length ?? 0;
+  const MAX_SESSIONS    = 5;
 
   function adjustSessions(delta: number) {
     if (!plan?.sessions_json) return;
-    const next = Math.max(1, Math.min(templateMaxSessions, sessionCountOverride + delta));
+    const next = Math.max(1, Math.min(MAX_SESSIONS, sessionCountOverride + delta));
     setSessionCountOverride(next);
     setDayAssignment(computeDefaultDayAssignment(plan.sessions_json as any, next));
   }
-  const ctaLabel      = raceOpen && raceName.trim()
-    ? `Start training for ${raceName.trim()}`
-    : 'Start this plan';
+
+  const hasExistingBlocks = existingBlocks.length > 0;
+  const sameModalityPrimary = existingBlocks.some(
+    (b) => b.modality === inferModality(plan?.sport_type ?? '') && b.is_primary,
+  );
+  const ctaLabel = raceOpen && raceName.trim()
+    ? (hasExistingBlocks ? `Add training for ${raceName.trim()}` : `Start training for ${raceName.trim()}`)
+    : hasExistingBlocks ? 'Add this plan' : 'Start this plan';
 
   // Active plan context
   const planStartDate  = userPlan ? new Date(userPlan.start_date) : null;
@@ -394,7 +403,24 @@ export default function PlanDetailScreen() {
         {/* Stats row */}
         {weeks.length > 0 && (
           <View style={styles.statsRow}>
-            <StatPill label="DURATION" value={plan.duration_weeks > 0 ? `${plan.duration_weeks}w` : '∞'} />
+            {userPlan ? (
+              <StatPill label="DURATION" value={`${plan.duration_weeks > 0 ? plan.duration_weeks : durationOverride}w`} />
+            ) : (
+              <View style={styles.statPill}>
+                <VirraText variant="mono" size={9} color={colors.muted}>DURATION</VirraText>
+                <View style={styles.adjRow}>
+                  <Pressable style={styles.adjBtn} onPress={() => setDurationOverride((v) => Math.max(4, v - 1))}
+                    disabled={durationOverride <= 4} accessibilityRole="button" accessibilityLabel="Shorter">
+                    <SymbolView name="minus" size={11} tintColor={durationOverride <= 4 ? colors.border : colors.muted} />
+                  </Pressable>
+                  <VirraText variant="display" size={20} color={colors.breath}>{durationOverride}w</VirraText>
+                  <Pressable style={styles.adjBtn} onPress={() => setDurationOverride((v) => Math.min(24, v + 1))}
+                    disabled={durationOverride >= 24} accessibilityRole="button" accessibilityLabel="Longer">
+                    <SymbolView name="plus" size={11} tintColor={durationOverride >= 24 ? colors.border : colors.muted} />
+                  </Pressable>
+                </View>
+              </View>
+            )}
             {userPlan ? (
               <StatPill label="SESSIONS" value={`${sessionsPerWk}/wk`} />
             ) : (
@@ -417,12 +443,12 @@ export default function PlanDetailScreen() {
                   <Pressable
                     style={styles.adjBtn}
                     onPress={() => adjustSessions(1)}
-                    disabled={sessionCountOverride >= templateMaxSessions}
+                    disabled={sessionCountOverride >= MAX_SESSIONS}
                     accessibilityRole="button"
                     accessibilityLabel="More sessions"
                   >
                     <SymbolView name="plus" size={11}
-                      tintColor={sessionCountOverride >= templateMaxSessions ? colors.border : colors.muted} />
+                      tintColor={sessionCountOverride >= MAX_SESSIONS ? colors.border : colors.muted} />
                   </Pressable>
                 </View>
               </View>
@@ -627,20 +653,24 @@ export default function PlanDetailScreen() {
                 )}
               </VirraCard>
             )}
-            {Object.keys(dayAssignment).length > 0 && (
+            {dayAssignment.length > 0 && (
               <VirraCard style={{ gap: spacing.sm }}>
                 <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
                   SCHEDULE YOUR WEEK
                 </VirraText>
-                {Object.entries(dayAssignment).map(([label, day]) => (
+                <VirraText variant="mono" size={8} color={colors.muted} style={{ marginTop: -spacing.xs }}>
+                  ORANGE DOTS = DAYS WITH OTHER PLAN SESSIONS
+                </VirraText>
+                {dayAssignment.map((slot) => (
                   <SchedulePickerRow
-                    key={label}
-                    label={SESSION_LABEL[label] ?? label.charAt(0).toUpperCase() + label.slice(1)}
-                    selectedDay={day}
-                    takenDays={Object.entries(dayAssignment)
-                      .filter(([l]) => l !== label)
-                      .map(([, d]) => d)}
-                    onChange={(d) => setDayAssignment((prev) => ({ ...prev, [label]: d }))}
+                    key={slot.key}
+                    label={SESSION_LABEL[slot.label] ?? slot.label.charAt(0).toUpperCase() + slot.label.slice(1)}
+                    selectedDay={slot.day}
+                    takenDays={dayAssignment.filter((s) => s.key !== slot.key).map((s) => s.day)}
+                    occupiedDays={occupiedDays}
+                    onChange={(d) => setDayAssignment((prev) =>
+                      prev.map((s) => s.key === slot.key ? { ...s, day: d } : s)
+                    )}
                   />
                 ))}
               </VirraCard>
@@ -651,15 +681,6 @@ export default function PlanDetailScreen() {
               loading={saving}
               style={styles.cta}
             />
-            {existingBlocks.length > 0 && (
-              <VirraButton
-                label="Add to stack as supplementary"
-                variant="ghost"
-                onPress={handleAddSupplementary}
-                loading={saving}
-                style={{ marginTop: spacing.xs }}
-              />
-            )}
           </>
         )}
 

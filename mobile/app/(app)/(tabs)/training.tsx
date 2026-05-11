@@ -358,7 +358,7 @@ function BlockStack({ blocks, cyclePhase, onAddBlock }: {
       ))}
       <Pressable onPress={onAddBlock} style={stack.addRow} accessibilityRole="button">
         <SymbolView name="plus" size={11} tintColor={colors.muted} />
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>ADD SUPPLEMENTARY BLOCK</VirraText>
+        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>ADD PLAN</VirraText>
       </Pressable>
     </View>
   );
