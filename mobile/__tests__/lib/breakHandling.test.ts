@@ -33,7 +33,7 @@ test('single-day break: shiftDays = 1', () => {
   const r = computeBreakDays(sessions, '2026-05-15', '2026-05-15', 'reschedule');
   expect(r.shiftDays).toBe(1);
   expect(r.toDropIds).toEqual(['s2']);
-  expect(r.toShiftIds).toEqual(['s4', 's5']);
+  expect(r.toShiftIds).toEqual(['s3', 's4', 's5']);
 });
 
 test('break with no sessions: all arrays empty', () => {
