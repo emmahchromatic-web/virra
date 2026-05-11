@@ -15,10 +15,11 @@ export interface CalendarSession {
 }
 
 interface Props {
-  userId:      string;
-  year:        number;
-  month:       number; // 1-based
-  onDayPress?: (date: string, sessions: CalendarSession[], events: UserEvent[]) => void;
+  userId:       string;
+  year:         number;
+  month:        number; // 1-based
+  onDayPress?:  (date: string, sessions: CalendarSession[], events: UserEvent[]) => void;
+  onLongPress?: (date: string) => void;
 }
 
 const MODALITY_COLOR: Record<string, string> = {
@@ -44,7 +45,7 @@ function firstDayOffset(y: number, m: number): number {
   return jsDay === 0 ? 6 : jsDay - 1; // Mon=0
 }
 
-export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
+export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: Props) {
   const [sessionMap, setSessionMap] = useState<Record<string, CalendarSession[]>>({});
   const [eventMap, setEventMap] = useState<Record<string, UserEvent[]>>({});
   const todayISO = new Date().toLocaleDateString('en-CA');
@@ -122,6 +123,8 @@ export function MonthCalendar({ userId, year, month, onDayPress }: Props) {
                   const hasEvents   = (eventMap[iso] ?? []).length > 0;
                   if (hasSessions || hasEvents) onDayPress?.(iso, sessions, eventMap[iso] ?? []);
                 }}
+                onLongPress={() => onLongPress?.(iso)}
+                delayLongPress={400}
                 accessibilityRole={(sessions.length > 0 || (eventMap[iso] ?? []).length > 0) ? 'button' : 'none'}
               >
                 <VirraText
