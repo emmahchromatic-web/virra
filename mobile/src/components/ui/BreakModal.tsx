@@ -139,6 +139,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
             display="inline"
             minimumDate={today}
             accentColor={colors.pulse}
+            textColor="rgba(244,237,224,0.75)"
             onChange={(_: DateTimePickerEvent, d?: Date) => {
               if (d) {
                 setBreakStart(d);
@@ -257,7 +258,7 @@ const brk = StyleSheet.create({
   },
   dateRowActive: { borderColor: colors.pulse },
   dateRight:     { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  inlinePicker:  { marginTop: 4, marginBottom: spacing.xs },
+  inlinePicker:  { marginTop: 4, marginBottom: spacing.xs, backgroundColor: 'transparent' },
   blockRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
     paddingVertical: spacing.xs,
