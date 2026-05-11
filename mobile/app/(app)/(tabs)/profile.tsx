@@ -7,6 +7,8 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import { SymbolView } from 'expo-symbols';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore, type CycleProfile } from '@/store/cycle';
@@ -23,6 +25,8 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraModal } from '@/components/ui/VirraModal';
+import { BreakModal } from '@/components/ui/BreakModal';
+import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
 
 function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
@@ -83,14 +87,49 @@ export default function ProfileScreen() {
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
     training: true, breakfast: true, lunch: true, dinner: true, checkin: true,
   });
+  const [lastBreak,      setLastBreak]      = useState<{ break_start: string; break_end: string } | null>(null);
+  const [showBreakModal, setShowBreakModal] = useState(false);
+  const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
 
   useEffect(() => {
     loadNotificationPreferences().then(setNotifPrefs);
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) return;
+      supabase
+        .from('training_breaks')
+        .select('break_start, break_end')
+        .eq('user_id', session.user.id)
+        .order('break_start', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data }) => setLastBreak(data ?? null));
+      getActiveBlocks(session.user.id).then(setProfileBlocks);
+    }, [session]),
+  );
+
   const displayName      = [firstName, lastName].filter(Boolean).join(' ') || 'Runner';
   const initials         = [firstName?.[0], lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
   const showCycleDetails = cycleProfile === 'natural' || cycleProfile === 'irregular';
+
+  function fmtBreakRange(start: string, end: string): string {
+    const s = new Date(start + 'T00:00:00');
+    const e = new Date(end   + 'T00:00:00');
+    const eStr = e.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
+      return `${s.getDate()}–${eStr}`;
+    }
+    return `${s.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${eStr}`;
+  }
+
+  const todayISO     = new Date().toLocaleDateString('en-CA');
+  const breakSummary = lastBreak
+    ? (lastBreak.break_start >= todayISO
+      ? fmtBreakRange(lastBreak.break_start, lastBreak.break_end)
+      : `Last: ${fmtBreakRange(lastBreak.break_start, lastBreak.break_end)}`)
+    : 'None scheduled';
 
   async function handlePickAvatar() {
     if (!session) return;
@@ -243,6 +282,15 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
+          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>TRAINING</VirraText>
+          <Row
+            label="BREAKS"
+            value={breakSummary}
+            onPress={() => router.push('/(app)/breaks' as any)}
+          />
+        </VirraCard>
+
+        <VirraCard style={styles.card}>
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>NOTIFICATIONS</VirraText>
           <NotifRow
             label="Training reminder"
@@ -286,6 +334,26 @@ export default function ProfileScreen() {
           onPress={handleSignOut}
           style={styles.signout}
         />
+
+        {session && (
+          <BreakModal
+            visible={showBreakModal}
+            userId={session.user.id}
+            activeBlocks={profileBlocks}
+            onClose={() => setShowBreakModal(false)}
+            onApplied={() => {
+              setShowBreakModal(false);
+              supabase
+                .from('training_breaks')
+                .select('break_start, break_end')
+                .eq('user_id', session.user.id)
+                .order('break_start', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+                .then(({ data }) => setLastBreak(data ?? null));
+            }}
+          />
+        )}
       </ScrollView>
 
       {/* Cycle length modal */}

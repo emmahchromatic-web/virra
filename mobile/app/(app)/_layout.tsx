@@ -88,6 +88,7 @@ export default function AppLayout() {
       <Stack.Screen name="manual-activity" options={{ presentation: 'modal' }} />
       <Stack.Screen name="cycle-settings"  options={{ presentation: 'card'  }} />
       <Stack.Screen name="subscription"    options={{ presentation: 'card'  }} />
+      <Stack.Screen name="breaks"          options={{ presentation: 'card'  }} />
     </Stack>
   );
 }
