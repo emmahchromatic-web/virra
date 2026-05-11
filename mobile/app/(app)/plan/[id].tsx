@@ -50,7 +50,7 @@ const PHASE_COLOR: Record<string, string> = {
   // Gym phases
   Foundation:  '#9DB8AC',
   Strength:    '#FF6B3D',
-  Cut:         '#5BA4CF',
+  Deload:      '#5BA4CF',
 };
 
 const SESSION_LABEL: Record<string, string> = {
@@ -61,6 +61,7 @@ const SESSION_LABEL: Record<string, string> = {
   strength:  'Strength',
   lower:     'Lower body',
   upper:     'Upper body',
+  general:   'Full body',
   rest:      'Rest',
   race:      'Race',
 };
@@ -307,24 +308,41 @@ export default function PlanDetailScreen() {
   const weeks      = (plan?.sessions_json ?? []) as WeekSession[];
   const isStrength = plan?.sport_type === 'strength';
 
-  // Gym plans: fixed session patterns per count — independent of template data
-  const GYM_SESSIONS: Record<number, string[]> = {
+  // Gym session patterns per weekly count.
+  // 3-day alternates L/U/L ↔ U/L/U each week (evidence: 48h rest between same muscle groups).
+  // 1 day = full body (frequency too low to split).
+  const GYM_SESSIONS_BASE: Record<number, string[]> = {
     1: ['general'],
     2: ['lower', 'upper'],
     3: ['lower', 'upper', 'lower'],
-    4: ['lower', 'upper', 'lower', 'upper'],
-    5: ['lower', 'upper', 'lower', 'upper', 'general'],
+    4: ['upper', 'lower', 'upper', 'lower'],
+    5: ['upper', 'lower', 'general', 'upper', 'lower'],
+  };
+  const GYM_SESSIONS_ALT: Record<number, string[]> = {
+    ...GYM_SESSIONS_BASE,
+    3: ['upper', 'lower', 'upper'], // alternated week
+  };
+
+  // Chart bars = RPE target per phase (not session count — that's already in the stat pill)
+  const GYM_PHASE_RPE: Record<string, number> = {
+    Foundation: 6.5,
+    Build:      7.5,
+    Strength:   8.5,
+    Peak:       8.0,
+    Deload:     5.5,
   };
 
   const displayWeeks = userPlan || (!weeks.length && !isStrength)
     ? weeks
     : Array.from({ length: durationOverride }, (_, i) => {
         if (isStrength) {
-          const sessions = GYM_SESSIONS[sessionCountOverride] ?? GYM_SESSIONS[2];
+          const phase    = gymWeekPhase(i, durationOverride);
+          const patterns = i % 2 === 0 ? GYM_SESSIONS_BASE : GYM_SESSIONS_ALT;
+          const sessions = patterns[sessionCountOverride] ?? patterns[2];
           return {
             week:     i + 1,
-            km:       sessions.length,
-            label:    gymWeekPhase(i, durationOverride),
+            km:       GYM_PHASE_RPE[phase] ?? 7,
+            label:    phase,
             sessions,
           };
         }

@@ -51,19 +51,19 @@ export function inferLoadFromLabel(label: string, modality: string): TrainingLoa
 export function gymWeekPhase(weekIndex: number, totalWeeks: number): string {
   const w = weekIndex + 1; // 1-indexed
   if (totalWeeks >= 20) {
-    const cutAStart = Math.round(totalWeeks * 0.33);
-    const cutBStart = Math.round(totalWeeks * 0.67);
+    const deloadAStart = Math.round(totalWeeks * 0.33);
+    const deloadBStart = Math.round(totalWeeks * 0.67);
     if (w <= Math.round(totalWeeks * 0.15)) return 'Foundation';
-    if (w < cutAStart)      return 'Build';
-    if (w <= cutAStart + 1) return 'Cut';
-    if (w < cutBStart)      return 'Strength';
-    if (w <= cutBStart + 1) return 'Cut';
+    if (w < deloadAStart)       return 'Build';
+    if (w <= deloadAStart + 1)  return 'Deload';
+    if (w < deloadBStart)       return 'Strength';
+    if (w <= deloadBStart + 1)  return 'Deload';
     return 'Peak';
   } else {
-    const cutStart = Math.round(totalWeeks * 0.55);
+    const deloadStart = Math.round(totalWeeks * 0.55);
     if (w <= Math.round(totalWeeks * 0.2)) return 'Foundation';
-    if (w < cutStart)       return 'Build';
-    if (w <= cutStart + 1)  return 'Cut';
+    if (w < deloadStart)        return 'Build';
+    if (w <= deloadStart + 1)   return 'Deload';
     if (w <= Math.round(totalWeeks * 0.85)) return 'Strength';
     return 'Peak';
   }
@@ -139,7 +139,7 @@ export async function getDailyTrainingContext(
           ? Math.ceil((new Date(`${b.ends_on}T00:00:00`).getTime() - start.getTime()) / (7 * 86400000))
           : 12;
         const weekIdx = Math.floor((today.getTime() - start.getTime()) / (7 * 86400000));
-        return weekIdx >= 0 && weekIdx < totalWeeks && gymWeekPhase(weekIdx, totalWeeks) === 'Cut';
+        return weekIdx >= 0 && weekIdx < totalWeeks && gymWeekPhase(weekIdx, totalWeeks) === 'Deload';
       });
     if (inCutWeek) {
       if (topLoad === 'hard')     topLoad = 'moderate';
