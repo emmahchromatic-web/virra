@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, ScrollView, Pressable, StyleSheet, SafeAreaView, Alert,
+  View, Pressable, StyleSheet, SafeAreaView, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -180,7 +180,7 @@ export default function WeekAheadScreen() {
         <View style={{ width: 18 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <View style={s.body}>
         <View style={s.meta}>
           <VirraText variant="mono" size={9} color={colors.muted} style={s.range}>{fmtRange(monday)}</VirraText>
           <VirraText variant="mono" size={9} color={colors.muted}>
@@ -197,7 +197,8 @@ export default function WeekAheadScreen() {
                 {/* Date column */}
                 <View style={s.dateCol}>
                   <VirraText variant="mono" size={8} color={colors.muted}>{day.dayName}</VirraText>
-                  <VirraText variant="display" size={18} color={day.sessions.length > 0 ? colors.breath : colors.border}>
+                  <VirraText variant="display" size={18}
+                    color={day.sessions.length > 0 ? colors.breath : LOAD_COLOR.rest}>
                     {day.date}
                   </VirraText>
                 </View>
@@ -205,11 +206,13 @@ export default function WeekAheadScreen() {
                 {/* Session column */}
                 <View style={s.sessionCol}>
                   {day.sessions.length === 0 ? (
-                    <VirraText variant="mono" size={9} color={colors.border}>REST DAY</VirraText>
+                    <View style={s.sessItem}>
+                      <SymbolView name="moon.zzz" size={11} tintColor={LOAD_COLOR.rest} />
+                      <VirraText variant="mono" size={9} color={LOAD_COLOR.rest}>REST DAY</VirraText>
+                    </View>
                   ) : (
                     day.sessions.map((sess, si) => (
                       <View key={sess.id} style={[s.sessItem, si > 0 && { marginTop: 3 }]}>
-                        <View style={[s.modalityDot, { backgroundColor: MODALITY_COLOR[sess.modality] ?? colors.muted }]} />
                         <SymbolView
                           name={MODALITY_ICON[sess.modality] ?? 'figure.walk'}
                           size={11}
@@ -236,7 +239,7 @@ export default function WeekAheadScreen() {
 
                 {/* Actions column — stacked */}
                 <View style={s.actionsCol}>
-                  {day.sessions.filter((s) => s.status === 'planned').map((sess) => (
+                  {day.sessions.filter((sess) => sess.status === 'planned').map((sess) => (
                     <View key={sess.id} style={s.btnStack}>
                       <Pressable
                         style={s.actionBtn}
@@ -264,13 +267,7 @@ export default function WeekAheadScreen() {
             </React.Fragment>
           ))}
         </VirraCard>
-
-        {totalSessions === 0 && (
-          <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
-            No sessions planned for next week. Start a training plan to see your schedule here.
-          </VirraText>
-        )}
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -282,21 +279,20 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.lg, height: 52,
   },
   title:        { letterSpacing: 1.5 },
-  scroll:       { padding: spacing.lg, paddingBottom: spacing.xl },
+  body:         { flex: 1, padding: spacing.lg, paddingBottom: spacing.lg },
   meta:         { gap: 2, marginBottom: spacing.sm },
   range:        { letterSpacing: 1.5 },
-  card:         { padding: 0, overflow: 'hidden' },
+  card:         { flex: 1, padding: 0, overflow: 'hidden' },
   divider:      { height: 1, backgroundColor: colors.border },
   row:          {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 8, paddingHorizontal: spacing.sm, gap: spacing.xs,
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: spacing.md, gap: spacing.md,
   },
   dateCol:      { width: 36, alignItems: 'center', gap: 1 },
-  sessionCol:   { flex: 1, gap: 2, paddingHorizontal: spacing.xs },
-  sessItem:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  modalityDot:  { width: 4, height: 4, borderRadius: 2 },
-  nutritionCol: { width: 46, alignItems: 'center', gap: 1 },
-  actionsCol:   { width: 44, alignItems: 'flex-end', gap: 4 },
+  sessionCol:   { flex: 1, gap: 2 },
+  sessItem:     { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  nutritionCol: { width: 52, alignItems: 'center', gap: 1 },
+  actionsCol:   { width: 48, alignItems: 'flex-end', gap: 4 },
   btnStack:     { gap: 3 },
   actionBtn:    {
     flexDirection: 'row', alignItems: 'center', gap: 2,
