@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';
+import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -62,7 +63,7 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
   const [dayMap,    setDayMap]    = useState<Record<string, DayData>>({});
   const [todayLoad, setTodayLoad] = useState<TrainingLoad | null>(null);
 
-  useEffect(() => { load(); }, [userId]);
+  useFocusEffect(useCallback(() => { load(); }, [userId, phase]));
 
   async function load() {
     const monday   = getMondayISO();
