@@ -38,13 +38,17 @@ const SPORT_LABEL: Record<string, string> = {
 };
 
 const PHASE_COLOR: Record<string, string> = {
-  Recovery:    '#9DB8AC', // Hush — muted sage-teal
-  Base:        '#94B062', // Foundation — pulse lime desaturated
-  Steady:      '#C9B68F', // Even — breath bone warmed
-  Taper:       '#F5A077', // Glow — dawn coral softened
-  Build:       '#D4521F', // Ember — dawn coral deepened
-  Peak:        '#D4FF26', // Pulse Lime at full
-  'Race week': '#FF2E7E', // Heat Magenta at full
+  // Run phases
+  Recovery:    '#9DB8AC',
+  Base:        '#94B062',
+  Steady:      '#C9B68F',
+  Taper:       '#F5A077',
+  Build:       '#D4521F',
+  Peak:        '#D4FF26',
+  'Race week': '#FF2E7E',
+  // Gym phases
+  Foundation:  '#9DB8AC',
+  Strength:    '#FF6B3D',
 };
 
 const SESSION_LABEL: Record<string, string> = {
@@ -298,17 +302,41 @@ export default function PlanDetailScreen() {
     router.replace('/(app)/(tabs)/training');
   }
 
-  const weeks        = (plan?.sessions_json ?? []) as WeekSession[];
-  const isStrength   = plan?.sport_type === 'strength';
+  const weeks      = (plan?.sessions_json ?? []) as WeekSession[];
+  const isStrength = plan?.sport_type === 'strength';
 
-  const displayWeeks = userPlan || !weeks.length
+  // Gym plans: fixed session patterns per count — independent of template data
+  const GYM_SESSIONS: Record<number, string[]> = {
+    1: ['general'],
+    2: ['lower', 'upper'],
+    3: ['lower', 'upper', 'lower'],
+    4: ['lower', 'upper', 'lower', 'upper'],
+    5: ['lower', 'upper', 'lower', 'upper', 'general'],
+  };
+
+  // Gym phase progression based on position in plan
+  function gymPhaseLabel(weekIndex: number, total: number): string {
+    const pct = weekIndex / Math.max(total - 1, 1);
+    if (pct < 0.2)  return 'Foundation';
+    if (pct < 0.55) return 'Build';
+    if (pct < 0.85) return 'Strength';
+    return 'Peak';
+  }
+
+  const displayWeeks = userPlan || (!weeks.length && !isStrength)
     ? weeks
     : Array.from({ length: durationOverride }, (_, i) => {
-        const w       = weeks[i % weeks.length];
-        const sessions = userPlan ? w.sessions : w.sessions.slice(0, sessionCountOverride);
-        // For strength plans km is always 0 — use session count as load metric instead
-        const km       = isStrength ? sessions.length : w.km;
-        return { ...w, week: i + 1, sessions, km };
+        if (isStrength) {
+          const sessions = GYM_SESSIONS[sessionCountOverride] ?? GYM_SESSIONS[2];
+          return {
+            week:     i + 1,
+            km:       sessions.length,
+            label:    gymPhaseLabel(i, durationOverride),
+            sessions,
+          };
+        }
+        const w = weeks[i % weeks.length];
+        return { ...w, week: i + 1, sessions: w.sessions.slice(0, sessionCountOverride) };
       });
 
   const peakKm = displayWeeks.length ? Math.max(...displayWeeks.map((w) => w.km), 1) : 1;
