@@ -376,7 +376,9 @@ export default function PlanDetailScreen() {
           <View style={styles.statsRow}>
             <StatPill label="DURATION"   value={plan.duration_weeks > 0 ? `${plan.duration_weeks}w` : '∞'} />
             <StatPill label="SESSIONS"   value={`${sessionsPerWk}/wk`} />
-            <StatPill label="PEAK WEEK"  value={isStrength ? `${peakKm} sessions` : `${peakKm}km`} />
+            {!isStrength && (
+              <StatPill label="PEAK WEEK" value={`${peakKm}km`} />
+            )}
           </View>
         )}
 
@@ -455,7 +457,7 @@ export default function PlanDetailScreen() {
         {weeks.length > 0 && (
           <VirraCard style={styles.chartCard}>
             <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
-              WEEKLY VOLUME
+              {isStrength ? 'WEEKLY LOAD' : 'WEEKLY VOLUME'}
             </VirraText>
             <VolumeChart weeks={weeks} />
             <View style={styles.legend}>
@@ -518,7 +520,7 @@ export default function PlanDetailScreen() {
           />
         ) : (
           <>
-            {plan.duration_weeks > 0 && (
+            {plan.duration_weeks > 0 && !isStrength && (
               <VirraCard style={styles.raceCard} accent={raceOpen}>
                 <Pressable style={styles.raceToggle} onPress={() => setRaceOpen((v) => !v)}>
                   <View style={{ flex: 1 }}>
