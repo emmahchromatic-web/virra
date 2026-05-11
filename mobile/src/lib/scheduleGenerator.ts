@@ -286,7 +286,7 @@ export async function applyBreak(
       .from('planned_sessions')
       .update({ status: 'dropped' })
       .in('id', toDropIds);
-    if (dropErr) console.warn('[scheduleGenerator] applyBreak drop:', dropErr.message);
+    if (dropErr) throw new Error(`[scheduleGenerator] applyBreak drop: ${dropErr.message}`);
   }
 
   // Shift sessions after break window (reschedule mode) — latest-first to avoid unique clashes
