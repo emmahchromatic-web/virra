@@ -168,9 +168,14 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <VirraText variant="display" size={24} color={colors.pulse}>Profile</VirraText>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <SymbolView name="xmark" size={18} tintColor={colors.muted} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => router.push('/(app)/settings' as any)} hitSlop={12}>
+            <SymbolView name="gearshape" size={18} tintColor={colors.muted} />
+          </Pressable>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <SymbolView name="xmark" size={18} tintColor={colors.muted} />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -250,15 +255,6 @@ export default function ProfileScreen() {
           />
         </VirraCard>
 
-        <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>NOTIFICATIONS</VirraText>
-          <Row
-            label="REMINDERS"
-            value="Manage"
-            onPress={() => router.push('/(app)/notifications' as any)}
-          />
-        </VirraCard>
-
         <VirraButton
           label="Sign out"
           variant="secondary"
@@ -318,6 +314,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe:              { flex: 1, backgroundColor: colors.mile },
   header:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, height: 52 },
+  headerActions:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   scroll:            { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   card:              { gap: spacing.xs },
   cardLabel:         { letterSpacing: 1.5, marginBottom: spacing.xs },
