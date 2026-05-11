@@ -299,7 +299,9 @@ export default function PlanDetailScreen() {
   }
 
   const weeks           = (plan?.sessions_json ?? []) as WeekSession[];
-  const displayWeeks    = userPlan ? weeks : weeks.slice(0, durationOverride);
+  const displayWeeks    = userPlan || !weeks.length
+    ? weeks
+    : Array.from({ length: durationOverride }, (_, i) => ({ ...weeks[i % weeks.length], week: i + 1 }));
   const peakKm          = displayWeeks.length ? Math.max(...displayWeeks.map((w) => w.km)) : 0;
   const isStrength      = plan?.sport_type === 'strength';
   const sessionsPerWk   = weeks[0]?.sessions.length ?? 0;
