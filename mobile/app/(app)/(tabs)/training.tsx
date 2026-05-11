@@ -15,6 +15,7 @@ import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
 import { getActiveBlocks, computeBlockLoad, type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
+import { BreakModal } from '@/components/ui/BreakModal';
 
 interface PlanTemplate {
   id:             string;
@@ -109,6 +110,8 @@ export default function TrainingScreen() {
   const [calYear,        setCalYear]        = useState(now.getFullYear());
   const [calMonth,       setCalMonth]       = useState(now.getMonth() + 1);
   const [actionDate, setActionDate] = useState<string | null>(null);
+  const [breakModalVisible,   setBreakModalVisible]   = useState(false);
+  const [breakModalStartDate, setBreakModalStartDate] = useState<string | undefined>(undefined);
 
   useFocusEffect(
     useCallback(() => {
@@ -235,6 +238,10 @@ export default function TrainingScreen() {
                   onDayPress={(date) => {
                     setActionDate(date);
                   }}
+                  onLongPress={(date) => {
+                    setBreakModalStartDate(date);
+                    setBreakModalVisible(true);
+                  }}
                 />
               </VirraCard>
             )}
@@ -246,6 +253,19 @@ export default function TrainingScreen() {
                 cycleStore={cycleStore}
                 onClose={() => setActionDate(null)}
                 onMutate={() => { setActionDate(null); loadData(); }}
+              />
+            )}
+            {session && (
+              <BreakModal
+                visible={breakModalVisible}
+                userId={session.user.id}
+                activeBlocks={activeBlocks}
+                initialDate={breakModalStartDate}
+                onClose={() => setBreakModalVisible(false)}
+                onApplied={() => {
+                  setBreakModalVisible(false);
+                  loadData();
+                }}
               />
             )}
 
