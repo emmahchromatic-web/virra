@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView, Alert, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
@@ -103,13 +103,14 @@ export default function CycleSettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <VirraText variant="display" size={24} color={colors.pulse}>Cycle Settings</VirraText>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <SymbolView name="xmark" size={18} tintColor={colors.muted} />
         </Pressable>
       </View>
+    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
 
       <View style={styles.section}>
         <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
@@ -198,13 +199,15 @@ export default function CycleSettingsScreen() {
 
       <VirraButton label="SAVE" onPress={handleSave} loading={saving} style={styles.cta} />
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe:                { flex: 1, backgroundColor: colors.mile },
   scroll:              { flex: 1 },
   container:           { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  header:              { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  header:              { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, height: 52 },
   section:             { gap: spacing.sm },
   sectionLabel:        { letterSpacing: 2, marginBottom: spacing.xs },
   profileOption:       { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist, gap: 3 },

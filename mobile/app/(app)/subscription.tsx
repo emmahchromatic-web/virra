@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, Pressable, Alert, Linking, ActivityIndicator,
+  View, StyleSheet, ScrollView, SafeAreaView, Pressable, Alert, Linking, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -71,6 +71,7 @@ export default function SubscriptionScreen() {
   const badgeColor = STATUS_COLOR[status] ?? colors.muted;
 
   return (
+    <SafeAreaView style={styles.safe}>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.content}
@@ -134,11 +135,13 @@ export default function SubscriptionScreen() {
         </Pressable>
       </VirraCard>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll:       { flex: 1, backgroundColor: colors.mile },
+  safe:         { flex: 1, backgroundColor: colors.mile },
+  scroll:       { flex: 1 },
   content:      { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
   headerRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
   backBtn:      { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
