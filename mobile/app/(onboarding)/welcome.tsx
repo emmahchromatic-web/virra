@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Image } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -13,9 +13,7 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
-        <VirraText variant="display" size={64} color={colors.pulse} style={styles.wordmark}>
-          VIRRA
-        </VirraText>
+        <Image source={require('../../assets/ViRRA.png')} style={styles.wordmark} />
         <VirraText variant="display" size={26} color={colors.breath} style={styles.headline}>
           Training that works with your cycle, not against it.
         </VirraText>
@@ -47,7 +45,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container:  { flex: 1, padding: spacing.lg, justifyContent: 'space-between' },
   hero:       { flex: 1, justifyContent: 'center', gap: spacing.lg },
-  wordmark:   { letterSpacing: 6 },
+  wordmark:   { width: 180, height: 72, resizeMode: 'contain' },
   headline:   { lineHeight: 32 },
   bullets:    { gap: spacing.sm, marginTop: spacing.sm },
   bullet:     { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Image } from 'react-native';
 import { router } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -11,9 +11,7 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <View style={styles.hero}>
-          <VirraText variant="display" size={72} color={colors.pulse}>
-            VIRRA
-          </VirraText>
+          <Image source={require('../../assets/ViRRA.png')} style={styles.logo} />
           <VirraText variant="serif" size={20} color={colors.breath} style={styles.sub}>
             Train with your cycle, not against it.
           </VirraText>
@@ -40,6 +38,7 @@ const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: colors.mile },
   container: { flex: 1, padding: spacing.lg, justifyContent: 'space-between' },
   hero:      { flex: 1, justifyContent: 'center' },
+  logo:      { width: 200, height: 80, resizeMode: 'contain' },
   sub:       { marginTop: spacing.md },
   actions:   { paddingBottom: spacing.xl },
 });
