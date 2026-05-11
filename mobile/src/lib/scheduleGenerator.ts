@@ -13,7 +13,10 @@ export const DAY_TEMPLATES: Record<number, number[]> = {
 // Returns a default label→day mapping for a plan's sessions_json.
 // Maintains the same ordering (regulars first, anchor-last sessions last)
 // and spreads them across the week using DAY_TEMPLATES.
-export function computeDefaultDayAssignment(sessionsJson: WeekSession[]): Record<string, number> {
+export function computeDefaultDayAssignment(
+  sessionsJson:        WeekSession[],
+  maxSessionsPerWeek?: number,
+): Record<string, number> {
   const seen:    Set<string>    = new Set();
   const ordered: string[]       = [];
   for (const week of sessionsJson) {
@@ -23,9 +26,10 @@ export function computeDefaultDayAssignment(sessionsJson: WeekSession[]): Record
       if (!seen.has(label)) { seen.add(label); ordered.push(label); }
     }
   }
-  const template = DAY_TEMPLATES[Math.min(ordered.length, 7)] ??
-    Array.from({ length: ordered.length }, (_, i) => i);
-  return Object.fromEntries(ordered.map((label, i) => [label, template[i]]));
+  const limited  = maxSessionsPerWeek != null ? ordered.slice(0, maxSessionsPerWeek) : ordered;
+  const template = DAY_TEMPLATES[Math.min(limited.length, 7)] ??
+    Array.from({ length: limited.length }, (_, i) => i);
+  return Object.fromEntries(limited.map((label, i) => [label, template[i]]));
 }
 
 const ANCHOR_LAST = new Set(['long', 'race']);
@@ -49,12 +53,13 @@ export interface PlannedSessionInsert {
 }
 
 export function generateSchedule(
-  userId:       string,
-  blockId:      string,
-  modality:     string,
-  startsOn:     string,
-  sessionsJson: WeekSession[],
-  dayOverrides?: Record<string, number>,
+  userId:              string,
+  blockId:             string,
+  modality:            string,
+  startsOn:            string,
+  sessionsJson:        WeekSession[],
+  dayOverrides?:       Record<string, number>,
+  maxSessionsPerWeek?: number,
 ): PlannedSessionInsert[] {
   const origin = mondayOf(startsOn);
   const rows: PlannedSessionInsert[] = [];
@@ -64,7 +69,8 @@ export function generateSchedule(
     if (sessions.length === 0) return;
     const anchors  = sessions.filter((s) => ANCHOR_LAST.has(s));
     const regulars = sessions.filter((s) => !ANCHOR_LAST.has(s));
-    const ordered  = [...regulars, ...anchors];
+    const allOrdered = [...regulars, ...anchors];
+    const ordered    = maxSessionsPerWeek != null ? allOrdered.slice(0, maxSessionsPerWeek) : allOrdered;
     const template = DAY_TEMPLATES[Math.min(ordered.length, 7)] ??
       Array.from({ length: ordered.length }, (_, i) => i);
 
@@ -102,15 +108,16 @@ export function generateSchedule(
 }
 
 export async function generateAndSaveSchedule(
-  userId:        string,
-  blockId:       string,
-  modality:      string,
-  startsOn:      string,
-  sessionsJson:  WeekSession[],
-  dayOverrides?: Record<string, number>,
+  userId:              string,
+  blockId:             string,
+  modality:            string,
+  startsOn:            string,
+  sessionsJson:        WeekSession[],
+  dayOverrides?:       Record<string, number>,
+  maxSessionsPerWeek?: number,
 ): Promise<void> {
   if (!sessionsJson.length) return;
-  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, dayOverrides);
+  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, dayOverrides, maxSessionsPerWeek);
   if (!rows.length) return;
   for (let i = 0; i < rows.length; i += 200) {
     const { error } = await supabase.from('planned_sessions').insert(rows.slice(i, i + 200));

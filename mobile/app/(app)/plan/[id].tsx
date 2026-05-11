@@ -29,6 +29,14 @@ interface PlanTemplate {
   sessions_json:  WeekSession[] | null;
 }
 
+const SPORT_LABEL: Record<string, string> = {
+  run:      'Running',
+  strength: 'Gym',
+  swim:     'Swimming',
+  yoga:     'Yoga',
+  other:    'Training',
+};
+
 const PHASE_COLOR: Record<string, string> = {
   Recovery:    '#9DB8AC', // Hush — muted sage-teal
   Base:        '#94B062', // Foundation — pulse lime desaturated
@@ -149,11 +157,12 @@ export default function PlanDetailScreen() {
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
   const [existingBlocks, setExistingBlocks] = useState<TrainingBlock[]>([]);
-  const [raceOpen,       setRaceOpen]       = useState(false);
-  const [raceName,       setRaceName]       = useState('');
-  const [raceDateObj,    setRaceDateObj]    = useState<Date | null>(null);
-  const [showRacePicker, setShowRacePicker] = useState(false);
-  const [dayAssignment,  setDayAssignment]  = useState<Record<string, number>>({});
+  const [raceOpen,            setRaceOpen]            = useState(false);
+  const [raceName,            setRaceName]            = useState('');
+  const [raceDateObj,         setRaceDateObj]         = useState<Date | null>(null);
+  const [showRacePicker,      setShowRacePicker]      = useState(false);
+  const [dayAssignment,       setDayAssignment]       = useState<Record<string, number>>({});
+  const [sessionCountOverride, setSessionCountOverride] = useState(0);
 
   useEffect(() => {
     if (!id || !session) return;
@@ -178,7 +187,9 @@ export default function PlanDetailScreen() {
       setPlan(t);
       setUserPlan(p);
       if (t?.sessions_json?.length) {
-        setDayAssignment(computeDefaultDayAssignment(t.sessions_json as any));
+        const defaultCount = (t.sessions_json as WeekSession[])[0]?.sessions?.length ?? 1;
+        setSessionCountOverride(defaultCount);
+        setDayAssignment(computeDefaultDayAssignment(t.sessions_json as any, defaultCount));
       }
       setExistingBlocks(blocks);
 
@@ -246,13 +257,14 @@ export default function PlanDetailScreen() {
       Alert.alert('Could not start plan', error.message);
     } else {
       const blockId = await addBlock(session!.user.id, {
-        templateId:   plan.id,
-        modality:     inferModality(plan.sport_type),
-        startsOn:     planStart,
-        endsOn:       goalDate,
-        loadModifier: 1.0,
-        isPrimary:    true,
-        dayOverrides: Object.keys(dayAssignment).length > 0 ? dayAssignment : undefined,
+        templateId:          plan.id,
+        modality:            inferModality(plan.sport_type),
+        startsOn:            planStart,
+        endsOn:              goalDate,
+        loadModifier:        1.0,
+        isPrimary:           true,
+        dayOverrides:        Object.keys(dayAssignment).length > 0 ? dayAssignment : undefined,
+        maxSessionsPerWeek:  sessionCountOverride > 0 ? sessionCountOverride : undefined,
       });
       if (!blockId) console.warn('training_block creation failed — plan started but stack not updated');
       router.replace('/(app)/(tabs)/training');
@@ -282,10 +294,18 @@ export default function PlanDetailScreen() {
     router.replace('/(app)/(tabs)/training');
   }
 
-  const weeks         = (plan?.sessions_json ?? []) as WeekSession[];
-  const peakKm        = weeks.length ? Math.max(...weeks.map((w) => w.km)) : 0;
-  const isStrength    = plan?.sport_type === 'strength';
-  const sessionsPerWk = weeks[0]?.sessions.length ?? 0;
+  const weeks              = (plan?.sessions_json ?? []) as WeekSession[];
+  const peakKm             = weeks.length ? Math.max(...weeks.map((w) => w.km)) : 0;
+  const isStrength         = plan?.sport_type === 'strength';
+  const sessionsPerWk      = weeks[0]?.sessions.length ?? 0;
+  const templateMaxSessions = weeks.length ? Math.max(...weeks.map((w) => w.sessions.length)) : 1;
+
+  function adjustSessions(delta: number) {
+    if (!plan?.sessions_json) return;
+    const next = Math.max(1, Math.min(templateMaxSessions, sessionCountOverride + delta));
+    setSessionCountOverride(next);
+    setDayAssignment(computeDefaultDayAssignment(plan.sessions_json as any, next));
+  }
   const ctaLabel      = raceOpen && raceName.trim()
     ? `Start training for ${raceName.trim()}`
     : 'Start this plan';
@@ -357,7 +377,7 @@ export default function PlanDetailScreen() {
         {/* Title block */}
         <View style={styles.titleBlock}>
           <VirraText variant="mono" size={9} color={colors.dawn} style={styles.tag}>
-            {plan.sport_type.toUpperCase()}
+            {(SPORT_LABEL[plan.sport_type] ?? plan.sport_type).toUpperCase()}
             {plan.distance_goal ? ` · ${plan.distance_goal.replace(/_/g, ' ').toUpperCase()}` : ''}
             {plan.duration_weeks > 0 ? `  ·  ${plan.duration_weeks} WEEKS` : '  ·  ONGOING'}
           </VirraText>
@@ -374,8 +394,39 @@ export default function PlanDetailScreen() {
         {/* Stats row */}
         {weeks.length > 0 && (
           <View style={styles.statsRow}>
-            <StatPill label="DURATION"   value={plan.duration_weeks > 0 ? `${plan.duration_weeks}w` : '∞'} />
-            <StatPill label="SESSIONS"   value={`${sessionsPerWk}/wk`} />
+            <StatPill label="DURATION" value={plan.duration_weeks > 0 ? `${plan.duration_weeks}w` : '∞'} />
+            {userPlan ? (
+              <StatPill label="SESSIONS" value={`${sessionsPerWk}/wk`} />
+            ) : (
+              <View style={styles.statPill}>
+                <VirraText variant="mono" size={9} color={colors.muted}>SESSIONS</VirraText>
+                <View style={styles.adjRow}>
+                  <Pressable
+                    style={styles.adjBtn}
+                    onPress={() => adjustSessions(-1)}
+                    disabled={sessionCountOverride <= 1}
+                    accessibilityRole="button"
+                    accessibilityLabel="Fewer sessions"
+                  >
+                    <SymbolView name="minus" size={11}
+                      tintColor={sessionCountOverride <= 1 ? colors.border : colors.muted} />
+                  </Pressable>
+                  <VirraText variant="display" size={20} color={colors.breath}>
+                    {sessionCountOverride}/wk
+                  </VirraText>
+                  <Pressable
+                    style={styles.adjBtn}
+                    onPress={() => adjustSessions(1)}
+                    disabled={sessionCountOverride >= templateMaxSessions}
+                    accessibilityRole="button"
+                    accessibilityLabel="More sessions"
+                  >
+                    <SymbolView name="plus" size={11}
+                      tintColor={sessionCountOverride >= templateMaxSessions ? colors.border : colors.muted} />
+                  </Pressable>
+                </View>
+              </View>
+            )}
             {!isStrength && (
               <StatPill label="PEAK WEEK" value={`${peakKm}km`} />
             )}
@@ -648,6 +699,8 @@ const styles = StyleSheet.create({
 
   statsRow:    { flexDirection: 'row', gap: spacing.sm },
   statPill:    { flex: 1, backgroundColor: colors.mist, borderRadius: radius.md, padding: spacing.md, gap: 2, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
+  adjRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  adjBtn:      { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 5 },
 
   sectionLabel:{ letterSpacing: 1.5, marginBottom: spacing.xs },
   chartCard:   { gap: 0 },
