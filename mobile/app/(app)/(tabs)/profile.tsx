@@ -5,7 +5,6 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { SymbolView } from 'expo-symbols';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
@@ -145,13 +144,11 @@ export default function ProfileScreen() {
     try {
       const uri     = result.assets[0].uri;
       const path    = `${session.user.id}/avatar.jpg`;
-      const base64  = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-      const binary  = atob(base64);
-      const bytes   = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const res     = await fetch(uri);
+      const blob    = await res.blob();
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(path, bytes.buffer, { contentType: 'image/jpeg', upsert: true });
+        .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       await saveProfile(session.user.id, { avatarUrl: `${urlData.publicUrl}?t=${Date.now()}` });
