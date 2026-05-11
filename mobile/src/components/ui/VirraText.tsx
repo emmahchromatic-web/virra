@@ -5,12 +5,13 @@ import { colors, fonts } from '@/constants/theme';
 type Variant = 'display' | 'serif' | 'body' | 'bodyMedium' | 'mono' | 'label';
 
 interface VirraTextProps {
-  variant?:  Variant;
-  color?:    string;
-  size?:     number;
-  uppercase?: boolean;
-  style?:    TextStyle | TextStyle[];
-  children:  React.ReactNode;
+  variant?:      Variant;
+  color?:        string;
+  size?:         number;
+  uppercase?:    boolean;
+  numberOfLines?: number;
+  style?:        TextStyle | TextStyle[];
+  children:      React.ReactNode;
 }
 
 const variantStyles: Record<Variant, TextStyle> = {
@@ -22,9 +23,10 @@ const variantStyles: Record<Variant, TextStyle> = {
   label:      { fontFamily: fonts.mono,       fontSize: 9,  letterSpacing: 1.5, textTransform: 'uppercase' },
 };
 
-export function VirraText({ variant = 'body', color, size, uppercase, style, children }: VirraTextProps) {
+export function VirraText({ variant = 'body', color, size, uppercase, numberOfLines, style, children }: VirraTextProps) {
   return (
     <Text
+      numberOfLines={numberOfLines}
       style={[
         variantStyles[variant],
         { color: color ?? colors.breath },
