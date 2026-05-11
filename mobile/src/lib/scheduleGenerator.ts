@@ -266,71 +266,73 @@ export async function applyBreak(
   breakEnd:   string,
   mode:       'reschedule' | 'skip',
 ): Promise<void> {
-  if (blockIds.length === 0) return;
-
-  // Fetch all planned sessions in affected blocks from breakStart onward
-  // ordered latest-first so shifts don't clash with each other
-  const { data: sessions, error } = await supabase
-    .from('planned_sessions')
-    .select('id, scheduled_date')
-    .in('block_id', blockIds)
-    .gte('scheduled_date', breakStart)
-    .eq('status', 'planned')
-    .order('scheduled_date', { ascending: false });
-  if (error) throw new Error(error.message);
-
-  const { toDropIds, toShiftIds, shiftDays } = computeBreakDays(
-    sessions ?? [],
-    breakStart,
-    breakEnd,
-    mode,
-  );
-
-  // Drop sessions in the break window
-  if (toDropIds.length > 0) {
-    const { error: dropErr } = await supabase
+  // Manipulate sessions only when blocks are selected
+  if (blockIds.length > 0) {
+    // Fetch all planned sessions in affected blocks from breakStart onward
+    // ordered latest-first so shifts don't clash with each other
+    const { data: sessions, error } = await supabase
       .from('planned_sessions')
-      .update({ status: 'dropped' })
-      .in('id', toDropIds);
-    if (dropErr) throw new Error(`[scheduleGenerator] applyBreak drop: ${dropErr.message}`);
-  }
+      .select('id, scheduled_date')
+      .in('block_id', blockIds)
+      .gte('scheduled_date', breakStart)
+      .eq('status', 'planned')
+      .order('scheduled_date', { ascending: false });
+    if (error) throw new Error(error.message);
 
-  // Shift sessions after break window (reschedule mode) — latest-first to avoid unique clashes
-  if (mode === 'reschedule' && shiftDays > 0) {
-    const sessionsToShift = (sessions ?? []).filter((s) => toShiftIds.includes(s.id));
-    for (const s of sessionsToShift) {
-      const newDate = _addDaysISO(s.scheduled_date, shiftDays);
-      const { error: shiftErr } = await supabase
+    const { toDropIds, toShiftIds, shiftDays } = computeBreakDays(
+      sessions ?? [],
+      breakStart,
+      breakEnd,
+      mode,
+    );
+
+    // Drop sessions in the break window
+    if (toDropIds.length > 0) {
+      const { error: dropErr } = await supabase
         .from('planned_sessions')
-        .update({ scheduled_date: newDate })
-        .eq('id', s.id);
-      if (shiftErr) console.warn(`[scheduleGenerator] applyBreak shift ${s.id}:`, shiftErr.message);
+        .update({ status: 'dropped' })
+        .in('id', toDropIds);
+      if (dropErr) throw new Error(`[scheduleGenerator] applyBreak drop: ${dropErr.message}`);
     }
 
-    // Extend block.ends_on for each affected block
-    for (const blockId of blockIds) {
-      const { data: block } = await supabase
-        .from('training_blocks')
-        .select('ends_on')
-        .eq('id', blockId)
-        .single();
-      if (block?.ends_on) {
-        await supabase
+    // Shift sessions after break window (reschedule mode) — latest-first to avoid unique clashes
+    if (mode === 'reschedule' && shiftDays > 0) {
+      const sessionsToShift = (sessions ?? []).filter((s) => toShiftIds.includes(s.id));
+      for (const s of sessionsToShift) {
+        const newDate = _addDaysISO(s.scheduled_date, shiftDays);
+        const { error: shiftErr } = await supabase
+          .from('planned_sessions')
+          .update({ scheduled_date: newDate })
+          .eq('id', s.id);
+        if (shiftErr) console.warn(`[scheduleGenerator] applyBreak shift ${s.id}:`, shiftErr.message);
+      }
+
+      // Extend block.ends_on for each affected block
+      for (const blockId of blockIds) {
+        const { data: block } = await supabase
           .from('training_blocks')
-          .update({ ends_on: _addDaysISO(block.ends_on, shiftDays) })
-          .eq('id', blockId);
+          .select('ends_on')
+          .eq('id', blockId)
+          .single();
+        if (block?.ends_on) {
+          await supabase
+            .from('training_blocks')
+            .update({ ends_on: _addDaysISO(block.ends_on, shiftDays) })
+            .eq('id', blockId);
+        }
       }
     }
   }
 
-  // Record the break
-  await supabase.from('training_breaks').insert({
+  // Always record the break — even with no blocks affected
+  const { error: insertErr } = await supabase.from('training_breaks').insert({
     user_id:     userId,
     break_start: breakStart,
     break_end:   breakEnd,
     mode,
     block_ids:   blockIds,
   });
+  if (insertErr) throw new Error(`[scheduleGenerator] applyBreak record: ${insertErr.message}`);
 }
 
 function _daysBetween(startISO: string, endISO: string): number {

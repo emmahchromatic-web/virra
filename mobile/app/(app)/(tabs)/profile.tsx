@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, Alert, Switch, TextInput, Image,
+  Pressable, Alert, TextInput, Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,12 +13,6 @@ import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore, type CycleProfile } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { supabase } from '@/lib/supabase';
-import {
-  loadNotificationPreferences,
-  setNotificationPreference,
-  type NotificationPreferences,
-  type NotifSlot,
-} from '@/lib/notifications';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -39,25 +33,6 @@ function Row({ label, value, onPress }: { label: string; value: string; onPress?
   );
 }
 
-function NotifRow({
-  label, sublabel, value, onToggle,
-}: { label: string; sublabel: string; value: boolean; onToggle: (v: boolean) => void }) {
-  return (
-    <View style={row.wrap}>
-      <View style={{ flex: 1 }}>
-        <VirraText variant="body" size={14} color={colors.breath}>{label}</VirraText>
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ marginTop: 2, letterSpacing: 0 }}>{sublabel}</VirraText>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: colors.border, true: `${colors.pulse}99` }}
-        thumbColor={value ? colors.pulse : 'rgba(244,237,224,0.4)'}
-        ios_backgroundColor={colors.border}
-      />
-    </View>
-  );
-}
 
 const row = StyleSheet.create({
   wrap:  { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
@@ -83,16 +58,9 @@ export default function ProfileScreen() {
   const [cycleLengthModalVisible, setCycleLengthModalVisible] = useState(false);
   const [cycleLengthInput, setCycleLengthInput] = useState('');
   const [cycleLengthError, setCycleLengthError] = useState('');
-  const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
-    training: true, breakfast: true, lunch: true, dinner: true, checkin: true,
-  });
   const [lastBreak,      setLastBreak]      = useState<{ break_start: string; break_end: string } | null>(null);
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
-
-  useEffect(() => {
-    loadNotificationPreferences().then(setNotifPrefs);
-  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,11 +125,6 @@ export default function ProfileScreen() {
     } finally {
       setUploadingAvatar(false);
     }
-  }
-
-  async function handleNotifToggle(slot: NotifSlot, enabled: boolean) {
-    setNotifPrefs((p) => ({ ...p, [slot]: enabled }));
-    await setNotificationPreference(slot, enabled);
   }
 
   async function handleSignOut() {
@@ -289,39 +252,10 @@ export default function ProfileScreen() {
 
         <VirraCard style={styles.card}>
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>NOTIFICATIONS</VirraText>
-          <NotifRow
-            label="Training reminder"
-            sublabel="Adaptive · based on your history · cancels when workout logged"
-            value={notifPrefs.training}
-            onToggle={(v) => handleNotifToggle('training', v)}
-          />
-          <View style={styles.divider} />
-          <NotifRow
-            label="Breakfast reminder"
-            sublabel="Daily at 8:00 am · cancels when meal logged"
-            value={notifPrefs.breakfast}
-            onToggle={(v) => handleNotifToggle('breakfast', v)}
-          />
-          <View style={styles.divider} />
-          <NotifRow
-            label="Lunch reminder"
-            sublabel="Daily at 12:30 pm · cancels when meal logged"
-            value={notifPrefs.lunch}
-            onToggle={(v) => handleNotifToggle('lunch', v)}
-          />
-          <View style={styles.divider} />
-          <NotifRow
-            label="Dinner reminder"
-            sublabel="Daily at 7:00 pm · cancels when meal logged"
-            value={notifPrefs.dinner}
-            onToggle={(v) => handleNotifToggle('dinner', v)}
-          />
-          <View style={styles.divider} />
-          <NotifRow
-            label="Daily check-in"
-            sublabel="Daily at 8:00 pm · cancels when check-in submitted"
-            value={notifPrefs.checkin}
-            onToggle={(v) => handleNotifToggle('checkin', v)}
+          <Row
+            label="REMINDERS"
+            value="Manage"
+            onPress={() => router.push('/(app)/notifications' as any)}
           />
         </VirraCard>
 
