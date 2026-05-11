@@ -549,7 +549,7 @@ export default function PlanDetailScreen() {
             </VirraText>
             <VolumeChart weeks={displayWeeks} />
             <View style={styles.legend}>
-              {Object.entries(PHASE_COLOR).map(([label, color]) => (
+              {Object.entries(PHASE_COLOR).filter(([label]) => displayWeeks.some((w) => w.label === label)).map(([label, color]) => (
                 <View key={label} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: color }]} />
                   <VirraText variant="mono" size={8} color={colors.muted}>{label.toUpperCase()}</VirraText>
