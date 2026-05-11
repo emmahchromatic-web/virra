@@ -125,12 +125,12 @@ export default function DashboardScreen() {
     try {
       const { data: cached } = await supabase
         .from('insights_cache')
-        .select('training_text, nutrition_text, expires_at')
+        .select('training_text, nutrition_text, expires_at, phase')
         .eq('user_id', session.user.id)
         .eq('insight_type', 'dashboard')
         .maybeSingle();
 
-      if (cached && new Date(cached.expires_at) > new Date()) {
+      if (cached && new Date(cached.expires_at) > new Date() && cached.phase === cycleInfo.phase) {
         setInsightTexts({ training: cached.training_text, nutrition: cached.nutrition_text });
         setInsightLoading(false);
         return;
