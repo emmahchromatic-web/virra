@@ -299,7 +299,8 @@ export default function PlanDetailScreen() {
   }
 
   const weeks           = (plan?.sessions_json ?? []) as WeekSession[];
-  const peakKm          = weeks.length ? Math.max(...weeks.map((w) => w.km)) : 0;
+  const displayWeeks    = userPlan ? weeks : weeks.slice(0, durationOverride);
+  const peakKm          = displayWeeks.length ? Math.max(...displayWeeks.map((w) => w.km)) : 0;
   const isStrength      = plan?.sport_type === 'strength';
   const sessionsPerWk   = weeks[0]?.sessions.length ?? 0;
   const MAX_SESSIONS    = 5;
@@ -401,7 +402,7 @@ export default function PlanDetailScreen() {
         </View>
 
         {/* Stats row */}
-        {weeks.length > 0 && (
+        {displayWeeks.length > 0 && (
           <View style={styles.statsRow}>
             {userPlan ? (
               <StatPill label="DURATION" value={`${plan.duration_weeks > 0 ? plan.duration_weeks : durationOverride}w`} />
@@ -531,12 +532,12 @@ export default function PlanDetailScreen() {
         )}
 
         {/* Volume chart */}
-        {weeks.length > 0 && (
+        {displayWeeks.length > 0 && (
           <VirraCard style={styles.chartCard}>
             <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
               {isStrength ? 'WEEKLY LOAD' : 'WEEKLY VOLUME'}
             </VirraText>
-            <VolumeChart weeks={weeks} />
+            <VolumeChart weeks={displayWeeks} />
             <View style={styles.legend}>
               {Object.entries(PHASE_COLOR).map(([label, color]) => (
                 <View key={label} style={styles.legendItem}>
@@ -549,12 +550,12 @@ export default function PlanDetailScreen() {
         )}
 
         {/* Week-by-week breakdown */}
-        {weeks.length > 0 && (
+        {displayWeeks.length > 0 && (
           <View style={styles.weekList}>
             <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
               WEEK BY WEEK
             </VirraText>
-            {weeks.map((w) => {
+            {displayWeeks.map((w) => {
               const isCurrent = userPlan && w.week === weekIndex + 1;
               return (
               <VirraCard key={w.week} style={[styles.weekCard, isCurrent && styles.weekCardCurrent]}>
