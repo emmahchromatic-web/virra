@@ -34,14 +34,20 @@ function MacroBar({ label, actual, target, color }: {
   target: number;
   color:  string;
 }) {
-  const pct = Math.min(actual / target, 1);
+  const ratio    = target > 0 ? actual / target : 0;
+  const over     = ratio > 1.1;
+  const basePct  = Math.min(ratio, 1);
+  const overPct  = over ? Math.min((ratio - 1) / 0.5, 1) : 0; // overflow segment scales up to 50% over
   return (
     <View style={macro.row}>
       <VirraText variant="mono" size={9} color={colors.muted} style={macro.label}>{label}</VirraText>
       <View style={macro.track}>
-        <View style={[macro.fill, { width: `${pct * 100}%` as any, backgroundColor: color }]} />
+        <View style={[macro.fill, { width: `${basePct * 100}%` as any, backgroundColor: color }]} />
+        {over && (
+          <View style={[macro.fill, macro.overflow, { width: `${overPct * 100}%` as any }]} />
+        )}
       </View>
-      <VirraText variant="mono" size={9} color={colors.muted} style={macro.value}>
+      <VirraText variant="mono" size={9} color={over ? colors.heat : colors.muted} style={macro.value}>
         {Math.round(actual)}/{target}g
       </VirraText>
     </View>
@@ -51,8 +57,9 @@ function MacroBar({ label, actual, target, color }: {
 const macro = StyleSheet.create({
   row:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   label: { width: 52, letterSpacing: 1 },
-  track: { flex: 1, height: 4, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden' },
-  fill:  { height: '100%', borderRadius: radius.full },
+  track:    { flex: 1, height: 4, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },
+  fill:     { height: '100%', borderRadius: radius.full },
+  overflow: { backgroundColor: colors.heat, position: 'absolute', right: 0, top: 0, bottom: 0 },
   value: { width: 72, textAlign: 'right', letterSpacing: 0.5 },
 });
 
