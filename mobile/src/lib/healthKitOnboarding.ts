@@ -133,8 +133,16 @@ export async function fetchHKGoalData(): Promise<HKGoalData> {
   }
 }
 
-// react-native-health v1.19 does not expose menstrual flow data.
-// Cycle pre-fill from HealthKit is not available — users enter this manually.
 export async function fetchHKCycleData(): Promise<HKCycleData> {
-  return { lastPeriodStart: null, estimatedCycleLength: null };
+  try {
+    const { getRecentPeriodStarts } = await import('@/modules/menstrual-health');
+    const isoStrings = await getRecentPeriodStarts();
+    if (!isoStrings.length) return { lastPeriodStart: null, estimatedCycleLength: null };
+    const dates = isoStrings.map((s: string) => new Date(s));
+    const lastPeriodStart      = dates[dates.length - 1];
+    const estimatedCycleLength = estimateCycleLength(dates);
+    return { lastPeriodStart, estimatedCycleLength };
+  } catch {
+    return { lastPeriodStart: null, estimatedCycleLength: null };
+  }
 }

@@ -85,6 +85,9 @@ async function requestPermission(id: string): Promise<void> {
             () => resolve()
           );
         });
+        // MenstrualFlow requires a separate permission request (not supported by react-native-health)
+        const { requestMenstrualPermission } = await import('@/modules/menstrual-health');
+        await requestMenstrualPermission();
       } catch { /* HK unavailable */ }
       break;
     }

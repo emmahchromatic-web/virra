@@ -92,6 +92,11 @@ export default function CycleSettingsScreen() {
       if (showDatePickers) {
         setPeriodStart(periodStart);
         setCycleLength(cycleLength);
+        // Write period start back to Apple Health (best-effort, silent)
+        try {
+          const { logPeriodStartToHealth } = await import('@/modules/menstrual-health');
+          await logPeriodStartToHealth(periodStart.toISOString().split('T')[0]);
+        } catch { /* permission not granted or unavailable */ }
       }
 
       router.back();
