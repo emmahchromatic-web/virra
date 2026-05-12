@@ -111,7 +111,7 @@ export default function PaywallScreen() {
           onPress={handleRestore}
         />
 
-        {__DEV__ && (
+        {(__DEV__ || process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') && (
           <VirraButton
             label="[DEV] Skip paywall"
             variant="ghost"
