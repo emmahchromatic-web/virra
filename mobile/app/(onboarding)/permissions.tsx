@@ -62,12 +62,24 @@ async function requestPermission(id: string): Promise<void> {
               permissions: {
                 read: [
                   Constants.Permissions.HeartRate,
+                  Constants.Permissions.RestingHeartRate,
+                  Constants.Permissions.HeartRateVariability,
                   Constants.Permissions.ActiveEnergyBurned,
                   Constants.Permissions.DistanceWalkingRunning,
                   Constants.Permissions.Steps,
+                  Constants.Permissions.Vo2Max,
+                  Constants.Permissions.SleepAnalysis,
+                  Constants.Permissions.Weight,
                   Constants.Permissions.Workout,
                 ],
-                write: [Constants.Permissions.Workout],
+                write: [
+                  Constants.Permissions.Workout,
+                  Constants.Permissions.EnergyConsumed,
+                  Constants.Permissions.Carbohydrates,
+                  Constants.Permissions.Protein,
+                  Constants.Permissions.FatTotal,
+                  Constants.Permissions.Fiber,
+                ],
               },
             },
             () => resolve()
