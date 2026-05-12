@@ -25,6 +25,7 @@ interface FoodEntry {
   carbs_g:    number;
   protein_g:  number;
   fat_g:      number;
+  fibre_g:    number;
 }
 
 function MacroBar({ label, actual, target, color }: {
@@ -111,8 +112,9 @@ export default function NutritionScreen() {
       carbs_g:   acc.carbs_g   + (e.carbs_g   ?? 0),
       protein_g: acc.protein_g + (e.protein_g ?? 0),
       fat_g:     acc.fat_g     + (e.fat_g     ?? 0),
+      fibre_g:   acc.fibre_g   + (e.fibre_g   ?? 0),
     }),
-    { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 },
+    { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0, fibre_g: 0 },
   );
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export default function NutritionScreen() {
     if (session && logId) {
       supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g')
         .eq('log_id', logId)
         .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
     }
@@ -167,7 +169,7 @@ export default function NutritionScreen() {
       setLogId(log.id);
       const { data: food } = await supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g')
         .eq('log_id', log.id);
       setEntries((food as FoodEntry[]) ?? []);
     }
@@ -224,6 +226,7 @@ export default function NutritionScreen() {
             <MacroBar label="CARBS"   actual={totals.carbs_g}   target={targets.carbs_g}   color={colors.pulse} />
             <MacroBar label="PROTEIN" actual={totals.protein_g} target={targets.protein_g} color={colors.dawn}  />
             <MacroBar label="FAT"     actual={totals.fat_g}     target={targets.fat_g}     color={colors.heat}  />
+            <MacroBar label="FIBRE"   actual={totals.fibre_g}   target={targets.fibre_g}   color={colors.breath} />
           </View>
           {cycleInfo && <WhyCard body={NUTRITION_WHY[cycleInfo.phase]} />}
         </VirraCard>

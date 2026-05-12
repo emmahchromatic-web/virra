@@ -264,7 +264,7 @@ export default function FoodSearchScreen() {
         networkError ? 'No connection' : 'Not found',
         networkError
           ? 'Check your internet connection and try again.'
-          : 'This barcode wasn\'t recognised by Open Food Facts. Try searching by name or log manually.',
+          : 'This barcode wasn\'t recognised. Try searching by name or log manually.',
       );
       scannedRef.current = false;
     }

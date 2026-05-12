@@ -88,20 +88,31 @@ async function cancelStored(key: string): Promise<void> {
 
 // ─── Scheduling helpers ─────────────────────────────────────────────────────
 
+const _scheduling = new Set<string>();
+
 async function scheduleOnce(
   key:     string,
   title:   string,
   body:    string,
   trigger: Notifications.NotificationTriggerInput,
 ): Promise<void> {
-  const existing = await loadId(key);
-  if (existing) return; // already scheduled
-
-  const id = await Notifications.scheduleNotificationAsync({
-    content: { title, body, sound: true },
-    trigger,
-  });
-  await saveId(key, id);
+  if (_scheduling.has(key)) return;
+  _scheduling.add(key);
+  try {
+    const existing = await loadId(key);
+    if (existing) {
+      const pending = await Notifications.getAllScheduledNotificationsAsync();
+      if (pending.some((n) => n.identifier === existing)) return;
+      await AsyncStorage.removeItem(key);
+    }
+    const id = await Notifications.scheduleNotificationAsync({
+      content: { title, body, sound: true },
+      trigger,
+    });
+    await saveId(key, id);
+  } finally {
+    _scheduling.delete(key);
+  }
 }
 
 function todayAt(hour: number, minute = 0): Notifications.DateTriggerInput {

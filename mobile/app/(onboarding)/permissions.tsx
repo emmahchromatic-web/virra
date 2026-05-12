@@ -64,6 +64,7 @@ async function requestPermission(id: string): Promise<void> {
                   Constants.Permissions.HeartRate,
                   Constants.Permissions.ActiveEnergyBurned,
                   Constants.Permissions.DistanceWalkingRunning,
+                  Constants.Permissions.Steps,
                   Constants.Permissions.Workout,
                 ],
                 write: [Constants.Permissions.Workout],
