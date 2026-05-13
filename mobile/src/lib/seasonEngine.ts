@@ -243,7 +243,20 @@ export async function applySeasonChain(
     })
     .select('id')
     .single();
-  if (seasonErr || !season) throw new Error(seasonErr?.message ?? 'season insert failed');
+  if (seasonErr) {
+    // Another concurrent call won the race — refetch the existing active season
+    if (seasonErr.code === '23505') {
+      const { data: existing } = await supabase
+        .from('seasons')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+      if (existing) return existing.id;
+    }
+    throw new Error(seasonErr.message ?? 'season insert failed');
+  }
+  if (!season) throw new Error('season insert failed');
   const season_id = season.id;
 
   // 2. Update user_events: link to season + write priority + sequence_position
@@ -270,7 +283,10 @@ export async function applySeasonChain(
       .order('sort_order', { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (!tmpl) continue;
+    if (!tmpl) {
+      console.warn('[seasonEngine] no plan_template for modality', block.modality);
+      continue;
+    }
 
     const { data: blockRow, error: blockErr } = await supabase
       .from('training_blocks')
@@ -286,7 +302,10 @@ export async function applySeasonChain(
       })
       .select('id')
       .single();
-    if (blockErr || !blockRow) continue;
+    if (blockErr || !blockRow) {
+      console.warn('[seasonEngine] training_blocks insert failed', blockErr?.message, 'block:', block);
+      continue;
+    }
 
     await generateAndSaveSchedule(
       userId,
@@ -294,8 +313,8 @@ export async function applySeasonChain(
       block.modality,
       block.starts_on,
       tmpl.sessions_json as WeekSession[],
-      undefined,
-      undefined,
+      /* slotAssignments */ undefined,
+      /* maxWeeks */         undefined,
       block.phase_segments,
     );
   }
@@ -322,7 +341,7 @@ export async function recomputeSeasonForUser(
 
   const { data: events } = await supabase
     .from('user_events')
-    .select('id, event_date, modality, distance_goal')
+    .select('id, event_date, distance_goal')
     .eq('user_id', userId)
     .gte('event_date', today)
     .order('event_date');
@@ -331,7 +350,7 @@ export async function recomputeSeasonForUser(
   const seasonEvents: SeasonEvent[] = events.map((e) => ({
     id:            e.id,
     event_date:    e.event_date,
-    modality:      e.modality,
+    modality:      'run',                       // default — races are runs in MVP
     distance_goal: e.distance_goal,
   }));
 

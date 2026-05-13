@@ -138,7 +138,7 @@ export async function addBlock(
   }
 
   // Fire-and-forget: auto-create season if 2+ future events now exist
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('en-CA');
   const cycleProfile = useCycleStore.getState().cycleProfile;
   recomputeSeasonForUser(userId, today, cycleProfile).catch((e) => {
     console.warn('[seasonEngine] recompute failed', e);
