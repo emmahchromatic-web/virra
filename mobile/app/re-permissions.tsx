@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet, SafeAreaView } from 'react-native';
+import { View, StyleSheet, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -65,13 +65,6 @@ export default function RePermissionsScreen() {
         </View>
         <View style={styles.footer}>
           <VirraButton label="CONTINUE" onPress={handleContinue} loading={loading} />
-          {current.optional && (
-            <Pressable onPress={advance} style={styles.skip}>
-              <VirraText variant="body" size={13} color="rgba(244,237,224,0.4)">
-                Skip for now
-              </VirraText>
-            </Pressable>
-          )}
           <VirraText variant="mono" size={10} color="rgba(244,237,224,0.25)" style={styles.counter}>
             {permIndex + 1} of {PERMISSIONS.length}
           </VirraText>
@@ -96,6 +89,5 @@ const styles = StyleSheet.create({
   whyLabel:        { letterSpacing: 1 },
   whyText:         { lineHeight: 20 },
   footer:          { gap: spacing.md, paddingBottom: spacing.xl },
-  skip:            { alignItems: 'center', paddingVertical: spacing.sm },
   counter:         { textAlign: 'center', letterSpacing: 1 },
 });
