@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import type { BlockPhase, PhaseSegment } from './seasonEngine';
 
 export const DAY_TEMPLATES: Record<number, number[]> = {
   1: [0],
@@ -114,12 +115,26 @@ export async function generateAndSaveSchedule(
   sessionsJson:     WeekSession[],
   slotAssignments?: SessionSlot[],
   maxWeeks?:        number,
+  phaseSegments?:   PhaseSegment[],
 ): Promise<void> {
   if (!sessionsJson.length) return;
   const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, slotAssignments, maxWeeks);
   if (!rows.length) return;
-  for (let i = 0; i < rows.length; i += 200) {
-    const { error } = await supabase.from('planned_sessions').insert(rows.slice(i, i + 200));
+
+  function resolvePhase(scheduled_date: string): BlockPhase | null {
+    if (!phaseSegments) return null;
+    return phaseSegments.find(
+      (s) => scheduled_date >= s.starts_on && scheduled_date <= s.ends_on,
+    )?.phase ?? null;
+  }
+
+  const rowsWithPhase = rows.map((row) => ({
+    ...row,
+    phase: resolvePhase(row.scheduled_date),
+  }));
+
+  for (let i = 0; i < rowsWithPhase.length; i += 200) {
+    const { error } = await supabase.from('planned_sessions').insert(rowsWithPhase.slice(i, i + 200));
     if (error) console.warn('[scheduleGenerator] insert error', error.message);
   }
 }

@@ -1,4 +1,6 @@
 import type { CycleProfile } from '@/store/cycle';
+import { supabase } from './supabase';
+import { generateAndSaveSchedule, type WeekSession } from './scheduleGenerator';
 
 export type BlockPhase = 'recovery' | 'base' | 'build' | 'peak' | 'taper' | 'race';
 export type Priority   = 1 | 2 | 3;
@@ -215,4 +217,131 @@ export function buildSeasonChain(input: SeasonChainInput): ChainBlock[] {
   }
 
   return out;
+}
+
+/**
+ * Persists a chain: creates the season, links user_events, creates training_blocks,
+ * generates planned_sessions with phase per session. Returns the new season_id.
+ */
+export async function applySeasonChain(
+  userId:        string,
+  events:        SeasonEvent[],
+  chain:         ChainBlock[],
+  season_name:   string,
+): Promise<string> {
+  if (chain.length === 0) throw new Error('applySeasonChain: empty chain');
+
+  // 1. Create season row
+  const { data: season, error: seasonErr } = await supabase
+    .from('seasons')
+    .insert({
+      user_id:   userId,
+      name:      season_name,
+      starts_on: chain[0].starts_on,
+      ends_on:   chain[chain.length - 1].ends_on,
+      status:    'active',
+    })
+    .select('id')
+    .single();
+  if (seasonErr || !season) throw new Error(seasonErr?.message ?? 'season insert failed');
+  const season_id = season.id;
+
+  // 2. Update user_events: link to season + write priority + sequence_position
+  for (let i = 0; i < events.length; i++) {
+    const event = events[i];
+    const block = chain.find((b) => b.event_id === event.id);
+    if (!block) continue;
+    await supabase
+      .from('user_events')
+      .update({
+        season_id,
+        sequence_position: i + 1,
+        priority:          block.priority,  // integer 1|2|3
+      })
+      .eq('id', event.id);
+  }
+
+  // 3. For each block, find a matching plan_template + create training_block + generate sessions
+  for (const block of chain) {
+    const { data: tmpl } = await supabase
+      .from('plan_templates')
+      .select('id, sessions_json')
+      .eq('sport_type', block.modality)
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (!tmpl) continue;
+
+    const { data: blockRow, error: blockErr } = await supabase
+      .from('training_blocks')
+      .insert({
+        user_id:       userId,
+        template_id:   tmpl.id,
+        starts_on:     block.starts_on,
+        ends_on:       block.ends_on,
+        modality:      block.modality,
+        load_modifier: 1.0,
+        event_id:      block.event_id,
+        season_id,
+      })
+      .select('id')
+      .single();
+    if (blockErr || !blockRow) continue;
+
+    await generateAndSaveSchedule(
+      userId,
+      blockRow.id,
+      block.modality,
+      block.starts_on,
+      tmpl.sessions_json as WeekSession[],
+      undefined,
+      undefined,
+      block.phase_segments,
+    );
+  }
+
+  return season_id;
+}
+
+/**
+ * Detects 2+ future events without an active season; if found, builds and applies
+ * the chain. Idempotent — returns existing season_id if one is already active.
+ */
+export async function recomputeSeasonForUser(
+  userId:        string,
+  today:         string,
+  cycle_profile: CycleProfile,
+): Promise<{ season_id: string | null }> {
+  const { data: existing } = await supabase
+    .from('seasons')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status',  'active')
+    .maybeSingle();
+  if (existing) return { season_id: existing.id };
+
+  const { data: events } = await supabase
+    .from('user_events')
+    .select('id, event_date, modality, distance_goal')
+    .eq('user_id', userId)
+    .gte('event_date', today)
+    .order('event_date');
+  if (!events || events.length < 2) return { season_id: null };
+
+  const seasonEvents: SeasonEvent[] = events.map((e) => ({
+    id:            e.id,
+    event_date:    e.event_date,
+    modality:      e.modality,
+    distance_goal: e.distance_goal,
+  }));
+
+  const chain = buildSeasonChain({ events: seasonEvents, cycle_profile, today });
+  if (chain.length === 0) return { season_id: null };
+
+  const name = seasonEvents
+    .map((e) => (e.distance_goal ?? 'event').toUpperCase().replace(/_/g, ' '))
+    .join(' → ');
+
+  const season_id = await applySeasonChain(userId, seasonEvents, chain, name);
+  return { season_id };
 }

@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 import { generateAndSaveSchedule, type SessionSlot } from './scheduleGenerator';
+import { recomputeSeasonForUser } from './seasonEngine';
+import { useCycleStore } from '@/store/cycle';
 
 // Cycle phase multipliers: follicular = peak adaptation window, menstrual/luteal = reduced capacity.
 const PHASE_MULTIPLIER: Record<string, number> = {
@@ -134,6 +136,13 @@ export async function addBlock(
       );
     }
   }
+
+  // Fire-and-forget: auto-create season if 2+ future events now exist
+  const today = new Date().toISOString().split('T')[0];
+  const cycleProfile = useCycleStore.getState().cycleProfile;
+  recomputeSeasonForUser(userId, today, cycleProfile).catch((e) => {
+    console.warn('[seasonEngine] recompute failed', e);
+  });
 
   return blockId;
 }
