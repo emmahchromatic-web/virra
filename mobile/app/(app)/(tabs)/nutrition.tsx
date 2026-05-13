@@ -31,28 +31,38 @@ interface FoodEntry {
   quantity_g: number | null;
 }
 
-function MacroBar({ label, actual, target, color }: {
-  label:  string;
-  actual: number;
-  target: number;
-  color:  string;
+function MacroBar({ label, actual, target, color, height }: {
+  label:   string;
+  actual:  number;
+  target:  number;
+  color:   string;
+  height?: number;
 }) {
+  const trackHeight = height ?? 6;
   const ratio    = target > 0 ? actual / target : 0;
   const over     = ratio > 1.1;
   const basePct  = Math.min(ratio, 1);
   const overPct  = over ? Math.min((ratio - 1) / 0.5, 1) : 0; // overflow segment scales up to 50% over
   return (
     <View style={macro.row}>
-      <VirraText variant="mono" size={9} color={colors.muted} style={macro.label}>{label}</VirraText>
-      <View style={macro.track}>
+      {label ? (
+        <VirraText variant="mono" size={9} color={colors.muted} style={macro.label}>{label}</VirraText>
+      ) : (
+        <View style={macro.label} />
+      )}
+      <View style={[macro.track, { height: trackHeight }]}>
         <View style={[macro.fill, { width: `${basePct * 100}%` as any, backgroundColor: color }]} />
         {over && (
           <View style={[macro.fill, macro.overflow, { width: `${overPct * 100}%` as any }]} />
         )}
       </View>
-      <VirraText variant="mono" size={9} color={over ? colors.heat : colors.muted} style={macro.value}>
-        {Math.round(actual)}/{target}g
-      </VirraText>
+      {label ? (
+        <VirraText variant="mono" size={9} color={over ? colors.heat : colors.muted} style={macro.value}>
+          {Math.round(actual)}/{target}g
+        </VirraText>
+      ) : (
+        <View style={macro.value} />
+      )}
     </View>
   );
 }
@@ -60,7 +70,7 @@ function MacroBar({ label, actual, target, color }: {
 const macro = StyleSheet.create({
   row:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   label: { width: 52, letterSpacing: 1 },
-  track:    { flex: 1, height: 4, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },
+  track:    { flex: 1, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },
   fill:     { height: '100%', borderRadius: radius.full },
   overflow: { backgroundColor: colors.heat, position: 'absolute', right: 0, top: 0, bottom: 0 },
   value: { width: 72, textAlign: 'right', letterSpacing: 0.5 },
@@ -317,16 +327,19 @@ export default function NutritionScreen() {
               <VirraText variant="display" size={36} color={colors.pulse}>
                 {Math.round(totals.calories)}
               </VirraText>
-              <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+              <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
                 OF {targets.calories} KCAL
               </VirraText>
             </View>
           </View>
+          <View style={styles.calBar}>
+            <MacroBar label="" actual={totals.calories} target={targets.calories} color={colors.pulse} height={10} />
+          </View>
           <View style={styles.macros}>
-            <MacroBar label="CARBS"   actual={totals.carbs_g}   target={targets.carbs_g}   color={colors.pulse} />
-            <MacroBar label="PROTEIN" actual={totals.protein_g} target={targets.protein_g} color={colors.dawn}  />
-            <MacroBar label="FAT"     actual={totals.fat_g}     target={targets.fat_g}     color={colors.heat}  />
-            <MacroBar label="FIBRE"   actual={totals.fibre_g}   target={targets.fibre_g}   color={colors.breath} />
+            <MacroBar label="CARBS"   actual={totals.carbs_g}   target={targets.carbs_g}   color={colors.dawn}   />
+            <MacroBar label="PROTEIN" actual={totals.protein_g} target={targets.protein_g} color={colors.heat}   />
+            <MacroBar label="FAT"     actual={totals.fat_g}     target={targets.fat_g}     color={colors.breath} />
+            <MacroBar label="FIBRE"   actual={totals.fibre_g}   target={targets.fibre_g}   color={colors.muted}  />
           </View>
           {cycleInfo && <WhyCard body={NUTRITION_WHY[cycleInfo.phase]} />}
         </VirraCard>
@@ -385,6 +398,7 @@ const styles = StyleSheet.create({
   loadActive:   { backgroundColor: colors.pulse, borderColor: colors.pulse },
   targetsCard:  { gap: spacing.md },
   calRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  calBar:       { marginVertical: spacing.xs },
   macros:       { gap: spacing.sm },
   mealSection:  { gap: spacing.sm },
   mealHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
