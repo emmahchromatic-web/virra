@@ -15,8 +15,8 @@ export interface ModulationResult {
 }
 
 interface PaceModifier {
-  pace_delta_pct?:      number;
-  intensity_delta_pct?: number;
+  pace_delta_pct?:      number;   // negative = slower pace
+  intensity_delta_pct?: number;   // positive = push harder; negative = back off
   skip?:                boolean;
   fuel_caution?:        boolean;
   reason:               string;
@@ -63,6 +63,8 @@ const MATRIX: Record<SessionType, Record<CyclePhase, PaceModifier | null>> = {
 };
 
 function applyModifier(base: SessionPaceTarget, mod: PaceModifier): SessionPaceTarget {
+  // For pace-less targets (strength with weight-based intensity, or duration-only),
+  // the numeric modifier is a no-op but the reason still surfaces in the why-card.
   const next = { ...base };
   if (mod.pace_delta_pct !== undefined && next.pace_seconds_per_km) {
     next.pace_seconds_per_km = Math.round(next.pace_seconds_per_km * (1 - mod.pace_delta_pct / 100));
@@ -116,7 +118,7 @@ export function modulateForCycle(
 }
 
 export function shouldAnchorKeySession(session_type: SessionType): boolean {
-  return session_type === 'long' || session_type === 'tempo' || session_type === 'intervals';
+  return session_type === 'long' || session_type === 'tempo' || session_type === 'intervals' || session_type === 'strength';
 }
 
 const ANCHOR_RANK: Record<SessionType, Record<CyclePhase, number>> = {

@@ -15,6 +15,7 @@ describe('modulateForCycle', () => {
     const r = modulateForCycle(baseTempo, 'tempo', 'follicular', 'natural');
     expect(r.adjusted_target.pace_seconds_per_km).toBe(275);
     expect(r.reason).toBeNull();
+    expect(r.source_cycle_phase).toBe('follicular');
   });
 
   test('tempo in ovulatory speeds up slightly (peak power)', () => {
@@ -84,6 +85,24 @@ describe('anchorKeySession', () => {
     const result = anchorKeySession([
       { date: '2026-05-05', cycle_phase: 'follicular' },
       { date: '2026-05-04', cycle_phase: 'follicular' },
+    ], 'long');
+    expect(result).toBe('2026-05-04');
+  });
+
+  test('strength anchors to ovulatory over follicular', () => {
+    const result = anchorKeySession([
+      { date: '2026-05-04', cycle_phase: 'follicular' },
+      { date: '2026-05-06', cycle_phase: 'ovulatory'  },
+      { date: '2026-05-08', cycle_phase: 'luteal'     },
+    ], 'strength');
+    expect(result).toBe('2026-05-06');
+  });
+
+  test('null cycle_phase candidates fall back to earliest date', () => {
+    const result = anchorKeySession([
+      { date: '2026-05-06', cycle_phase: null },
+      { date: '2026-05-04', cycle_phase: null },
+      { date: '2026-05-05', cycle_phase: null },
     ], 'long');
     expect(result).toBe('2026-05-04');
   });
