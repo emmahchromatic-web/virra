@@ -15,4 +15,11 @@ Simulator\ Screenshot*.png
 Simulator\ Screenshot\ *.png
 *.pptx
 *.icon/
+.agents/
+.claude/
+.mcp.json
+.vercel/
+skills-lock.json
+*.xlsx
+mobile/supabase/.temp/
 
