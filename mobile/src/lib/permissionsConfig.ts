@@ -126,6 +126,22 @@ export async function hasPermissionsBeenGranted(): Promise<boolean> {
   return v === '1';
 }
 
+/**
+ * Returns the route a profile-complete user should land on after authenticating.
+ * Centralizes the "have device permissions been granted on this install?" check
+ * so every post-auth path (sign-in, paywall, dev bypass, cold-start) routes
+ * consistently. AsyncStorage clears on iOS reinstall, so a missing flag means
+ * device permissions were wiped and we need to re-prompt.
+ */
+export async function getPostAuthRoute(): Promise<'/(app)/(tabs)' | '/re-permissions'> {
+  const granted = await hasPermissionsBeenGranted();
+  if (granted) {
+    initHealthKitForSession();
+    return '/(app)/(tabs)';
+  }
+  return '/re-permissions';
+}
+
 export type PermissionStatusValue = 'granted' | 'denied' | 'undetermined';
 
 export interface PermissionStatusEntry {

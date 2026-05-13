@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
 import { useSubscriptionStore } from '@/store/subscription';
+import { getPostAuthRoute } from '@/lib/permissionsConfig';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
@@ -30,6 +31,12 @@ export default function PaywallScreen() {
     });
   }, []);
 
+  async function routePostPaywall() {
+    const route = await getPostAuthRoute();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    router.replace(route as any);
+  }
+
   async function handlePurchase() {
     if (!selected) return;
     setLoading(true);
@@ -37,7 +44,7 @@ export default function PaywallScreen() {
     setLoading(false);
     if (success) {
       setStatus('active');
-      router.replace('/(app)/(tabs)');
+      await routePostPaywall();
     } else {
       Alert.alert('Purchase failed', error ?? 'Please try again or restore purchases below.');
     }
@@ -49,7 +56,7 @@ export default function PaywallScreen() {
     setLoading(false);
     if (success) {
       setStatus('active');
-      router.replace('/(app)/(tabs)');
+      await routePostPaywall();
     } else {
       Alert.alert('No active subscription found');
     }
@@ -115,7 +122,7 @@ export default function PaywallScreen() {
           <VirraButton
             label="[DEV] Skip paywall"
             variant="ghost"
-            onPress={() => { setStatus('trial'); router.replace('/(app)/(tabs)'); }}
+            onPress={() => { setStatus('trial'); routePostPaywall(); }}
             style={{ marginTop: spacing.lg, opacity: 0.5 }}
           />
         )}

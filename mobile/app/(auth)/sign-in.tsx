@@ -7,6 +7,7 @@ import { useCycleStore } from '@/store/cycle';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { getPostAuthRoute } from '@/lib/permissionsConfig';
 
 async function routeAfterSignIn(userId: string) {
   const { data } = await supabase
@@ -14,7 +15,13 @@ async function routeAfterSignIn(userId: string) {
     .select('id')
     .eq('id', userId)
     .maybeSingle();
-  router.replace(data ? '/(app)/(tabs)' : '/(onboarding)/welcome');
+  if (!data) {
+    router.replace('/(onboarding)/welcome');
+    return;
+  }
+  const route = await getPostAuthRoute();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  router.replace(route as any);
 }
 
 export default function SignInScreen() {
