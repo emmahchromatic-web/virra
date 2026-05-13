@@ -322,18 +322,29 @@ export default function NutritionScreen() {
 
         {/* Targets + progress */}
         <VirraCard style={styles.targetsCard}>
-          <View style={styles.calRow}>
-            <View>
-              <VirraText variant="display" size={36} color={colors.pulse}>
-                {Math.round(totals.calories)}
-              </VirraText>
-              <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-                OF {targets.calories} KCAL
-              </VirraText>
-            </View>
-          </View>
-          <View style={styles.calBar}>
-            <MacroBar label="" actual={totals.calories} target={targets.calories} color={colors.pulse} height={10} />
+          {/* Full-width calories progress bar at top */}
+          {(() => {
+            const ratio   = targets.calories > 0 ? totals.calories / targets.calories : 0;
+            const over    = ratio > 1.1;
+            const basePct = Math.min(ratio, 1);
+            const overPct = over ? Math.min((ratio - 1) / 0.5, 1) : 0;
+            return (
+              <View style={styles.caloriesTrack}>
+                <View style={[styles.caloriesFill, { width: `${basePct * 100}%` as any, backgroundColor: colors.pulse }]} />
+                {over && (
+                  <View style={[styles.caloriesFill, styles.caloriesOverflow, { width: `${overPct * 100}%` as any }]} />
+                )}
+              </View>
+            );
+          })()}
+          {/* Hero calorie count + target subline */}
+          <View>
+            <VirraText variant="display" size={36} color={colors.pulse}>
+              {Math.round(totals.calories)}
+            </VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+              OF {targets.calories} KCAL
+            </VirraText>
           </View>
           <View style={styles.macros}>
             <MacroBar label="CARBS"   actual={totals.carbs_g}   target={targets.carbs_g}   color={colors.dawn}   />
@@ -396,10 +407,11 @@ const styles = StyleSheet.create({
   loadChips:    { flexDirection: 'row', gap: spacing.sm },
   loadChip:     { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
   loadActive:   { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  targetsCard:  { gap: spacing.md },
-  calRow:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  calBar:       { marginVertical: spacing.xs },
-  macros:       { gap: spacing.sm },
+  targetsCard:        { gap: spacing.md },
+  caloriesTrack:      { height: 10, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },
+  caloriesFill:       { height: '100%', borderRadius: radius.full },
+  caloriesOverflow:   { backgroundColor: colors.heat, position: 'absolute', right: 0, top: 0, bottom: 0 },
+  macros:             { gap: spacing.sm },
   mealSection:  { gap: spacing.sm },
   mealHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mealLabel:    { letterSpacing: 1.5 },
