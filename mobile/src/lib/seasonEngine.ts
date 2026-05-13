@@ -116,7 +116,11 @@ function distributePhases(
     // Bridge: recovery → build → taper (no full base, no full peak)
     // Cap recovery so at least the race day remains.
     const cappedRecovery = Math.min(recovery_in, Math.max(0, totalWks - 1));
-    const remainingWks   = totalWks - cappedRecovery - 1; // subtract 1 for race day
+    // Race day is a single day captured by clamping the final non-race segment's
+    // ends_on to ends_on - 1. Do NOT subtract a "race day week" from remainingWks —
+    // that would double-count it and cause the taper to be incorrectly dropped on
+    // normal-length bridges (e.g. Brighton→Leeds 5-week bridge).
+    const remainingWks = totalWks - cappedRecovery;
     let cursor = starts_on;
     cursor = tryPushSegment(segments, 'recovery', cursor, cappedRecovery);
 
@@ -125,9 +129,14 @@ function distributePhases(
       cursor = tryPushSegment(segments, 'build', cursor, remainingWks);
     } else {
       const taperWks = remainingWks <= 4 ? 1 : Math.min(2, Math.floor(remainingWks * 0.25));
-      const buildWks = remainingWks - taperWks;
+      const buildWks = Math.max(0, remainingWks - taperWks);
       cursor = tryPushSegment(segments, 'build', cursor, buildWks);
       cursor = tryPushSegment(segments, 'taper', cursor, taperWks);
+      // Clamp taper's ends_on to ends_on - 1 so it never eats the race day.
+      const lastSeg = segments[segments.length - 1];
+      if (lastSeg && lastSeg.phase === 'taper') {
+        lastSeg.ends_on = addDays(ends_on, -1);
+      }
     }
   }
 

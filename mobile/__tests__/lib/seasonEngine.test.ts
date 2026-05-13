@@ -43,11 +43,12 @@ describe('buildSeasonChain — back-to-back marathon (Brighton + Leeds)', () => 
     expect(chain[1].phase_segments[0].weeks).toBe(3); // marathon recovery
   });
 
-  test('bridge block has no full base or peak — recovery → build → race (Leeds is 5wk bridge, too short for taper)', () => {
+  test('bridge block has recovery → build → taper → race', () => {
     const phases = chain[1].phase_segments.map((s) => s.phase);
-    // Brighton → Leeds is only ~5 weeks; after 3wk marathon recovery + race day,
-    // only 1 week remains — taper is dropped to avoid starts_on > ends_on.
-    expect(phases).toEqual(['recovery', 'build', 'race']);
+    // Brighton → Leeds is 5 weeks; 3wk marathon recovery leaves 2 weeks for
+    // build + taper. Taper must be present — race day is a single day captured
+    // by clamping, not a phase-week reservation.
+    expect(phases).toEqual(['recovery', 'build', 'taper', 'race']);
   });
 });
 
