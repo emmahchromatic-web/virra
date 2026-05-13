@@ -18,6 +18,7 @@ import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { BreakModal } from '@/components/ui/BreakModal';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
 import { getTodaysSessions, type TodaysSession } from '@/lib/todaysSession';
+import { SeasonTimeline, type SeasonChainSummary } from '@/components/ui/SeasonTimeline';
 
 interface PlanTemplate {
   id:             string;
@@ -108,6 +109,7 @@ export default function TrainingScreen() {
   const [loading,           setLoading]            = useState(true);
   const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
   const [todaysSessions,    setTodaysSessions]      = useState<TodaysSession[]>([]);
+  const [seasonSummary,     setSeasonSummary]       = useState<SeasonChainSummary | null>(null);
 
   const now = new Date();
   const [calYear,        setCalYear]        = useState(now.getFullYear());
@@ -122,9 +124,95 @@ export default function TrainingScreen() {
     }, [session]),
   );
 
+  async function loadSeasonSummary(
+    userId: string,
+    cyclePhase: string | null,
+  ): Promise<SeasonChainSummary | null> {
+    const { data: season } = await supabase
+      .from('seasons')
+      .select('id, name, starts_on, ends_on')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (!season) return null;
+
+    const todayISO = new Date().toLocaleDateString('en-CA');
+
+    const { data: events } = await supabase
+      .from('user_events')
+      .select('id, name, event_date')
+      .eq('season_id', season.id)
+      .gte('event_date', todayISO)
+      .order('event_date');
+
+    if (!events || events.length === 0) return null;
+
+    const { data: currentSession } = await supabase
+      .from('planned_sessions')
+      .select('phase, block_id')
+      .eq('user_id', userId)
+      .eq('scheduled_date', todayISO)
+      .neq('status', 'moved')
+      .neq('status', 'dropped')
+      .maybeSingle();
+
+    const currentPhase = currentSession?.phase ?? 'rest';
+
+    const totalWeeks = Math.max(
+      1,
+      Math.round(
+        (new Date(`${season.ends_on}T00:00:00Z`).getTime() -
+          new Date(`${season.starts_on}T00:00:00Z`).getTime()) /
+        (1000 * 60 * 60 * 24 * 7),
+      ),
+    );
+    const currentWeek = Math.max(
+      1,
+      Math.min(
+        totalWeeks,
+        Math.ceil(
+          (new Date(`${todayISO}T00:00:00Z`).getTime() -
+            new Date(`${season.starts_on}T00:00:00Z`).getTime()) /
+          (1000 * 60 * 60 * 24 * 7),
+        ),
+      ),
+    );
+
+    const next = events[0];
+    const nextInWeeks = Math.max(
+      0,
+      Math.round(
+        (new Date(`${next.event_date}T00:00:00Z`).getTime() -
+          new Date(`${todayISO}T00:00:00Z`).getTime()) /
+        (1000 * 60 * 60 * 24 * 7),
+      ),
+    );
+    const laterEvents = events.slice(1).map((e, i) => {
+      const priorDate = i === 0 ? next.event_date : events[i].event_date;
+      const inWeeksAfterNext = Math.round(
+        (new Date(`${e.event_date}T00:00:00Z`).getTime() -
+          new Date(`${priorDate}T00:00:00Z`).getTime()) /
+        (1000 * 60 * 60 * 24 * 7),
+      );
+      return { name: e.name, in_weeks_after_next: inWeeksAfterNext, date: e.event_date };
+    });
+
+    return {
+      season_name:         season.name,
+      total_weeks:         totalWeeks,
+      current_week:        currentWeek,
+      current_phase:       currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1),
+      current_cycle_phase: cyclePhase ? cyclePhase.charAt(0).toUpperCase() + cyclePhase.slice(1) : null,
+      next_event_name:     next.name,
+      next_event_in_weeks: nextInWeeks,
+      next_event_date:     next.event_date,
+      later_events:        laterEvents,
+    };
+  }
+
   async function loadData() {
     setLoading(true);
-    const [blocks, planRes, templateRes, activityRes, today] = await Promise.all([
+    const [blocks, planRes, templateRes, activityRes, today, season] = await Promise.all([
       getActiveBlocks(session!.user.id),
       supabase
         .from('user_plans')
@@ -143,12 +231,14 @@ export default function TrainingScreen() {
         .order('started_at', { ascending: false })
         .limit(5),
       getTodaysSessions(session!.user.id),
+      loadSeasonSummary(session!.user.id, cycleInfo?.phase ?? null),
     ]);
     setActiveBlocks(blocks);
     setActivePlan(planRes.data as UserPlan | null);
     setTemplates((templateRes.data ?? []) as PlanTemplate[]);
     setRecentActivities((activityRes.data ?? []) as Activity[]);
     setTodaysSessions(today);
+    setSeasonSummary(season);
     setLoading(false);
   }
 
@@ -182,6 +272,9 @@ export default function TrainingScreen() {
             <WhyCard body={PHASE_WHY[cycleInfo.phase]} />
           </VirraCard>
         )}
+
+        {/* Season chain overview */}
+        <SeasonTimeline summary={seasonSummary} />
 
         {/* Today's planned session hero */}
         {(activeBlocks.length > 0 || activePlan) && (
