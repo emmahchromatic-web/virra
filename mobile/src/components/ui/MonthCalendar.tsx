@@ -130,7 +130,7 @@ export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: 
                 <VirraText
                   variant="mono"
                   size={11}
-                  color={isToday ? colors.mile : isPast ? colors.muted : colors.breath}
+                  color={isToday ? colors.pulse : isPast ? colors.muted : colors.breath}
                 >
                   {dayNum}
                 </VirraText>
@@ -173,8 +173,8 @@ const cal = StyleSheet.create({
   headerCell: { flex: 1, textAlign: 'center' },
   weekRow:    { flexDirection: 'row' },
   cell:       { flex: 1, height: CELL, alignItems: 'center', justifyContent: 'center',
-                gap: 2, borderRadius: radius.sm },
-  cellToday:  { backgroundColor: colors.breath },
+                gap: 2, borderRadius: radius.sm, borderWidth: 1, borderColor: 'transparent' },
+  cellToday:  { borderColor: colors.pulse },
   dotRow:     { flexDirection: 'row', gap: 2 },
   dot:        { width: 4, height: 4, borderRadius: 2 },
 });
