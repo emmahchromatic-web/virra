@@ -20,6 +20,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraModal } from '@/components/ui/VirraModal';
 import { BreakModal } from '@/components/ui/BreakModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
+import { getPermissionsStatus } from '@/lib/permissionsConfig';
 
 function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
@@ -64,6 +65,7 @@ export default function ProfileScreen() {
   const [lastBreak,      setLastBreak]      = useState<{ break_start: string; break_end: string } | null>(null);
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
+  const [permissionsSummary, setPermissionsSummary] = useState({ granted: 0, total: 0 });
 
   useFocusEffect(
     useCallback(() => {
@@ -77,6 +79,12 @@ export default function ProfileScreen() {
         .maybeSingle()
         .then(({ data }) => setLastBreak(data ?? null));
       getActiveBlocks(session.user.id).then(setProfileBlocks);
+      getPermissionsStatus().then((entries) => {
+        setPermissionsSummary({
+          granted: entries.filter((e) => e.status === 'granted').length,
+          total:   entries.length,
+        });
+      });
     }, [session]),
   );
 
@@ -275,6 +283,15 @@ export default function ProfileScreen() {
             label="BREAKS"
             value={breakSummary}
             onPress={() => router.push('/(app)/breaks' as any)}
+          />
+        </VirraCard>
+
+        <VirraCard style={styles.card}>
+          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>DEVICE</VirraText>
+          <Row
+            label="PERMISSIONS"
+            value={`${permissionsSummary.granted} of ${permissionsSummary.total} granted`}
+            onPress={() => router.push('/(app)/permissions-status' as any)}
           />
         </VirraCard>
 

@@ -23,6 +23,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { configureRevenueCat } from '@/lib/revenuecat';
 import { colors } from '@/constants/theme';
+import { hasPermissionsBeenGranted } from '@/lib/permissionsConfig';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
@@ -63,14 +64,24 @@ export default function RootLayout() {
       return;
     }
 
-    supabase
-      .from('user_profiles')
-      .select('id')
-      .eq('id', initialSession.user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        router.replace(data ? '/(app)/(tabs)' : '/(onboarding)/welcome');
-      });
+    (async () => {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('id', initialSession.user.id)
+        .maybeSingle();
+
+      if (!data) {
+        router.replace('/(onboarding)/welcome');
+        return;
+      }
+
+      // Profile exists. AsyncStorage clears on iOS reinstall — if the flag is
+      // missing, device permissions were wiped and we need to re-prompt.
+      const granted = await hasPermissionsBeenGranted();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.replace((granted ? '/(app)/(tabs)' : '/re-permissions') as any);
+    })();
   }, [fontsLoaded, initialSession]);
 
   useEffect(() => {
@@ -85,6 +96,7 @@ export default function RootLayout() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(onboarding)" />
       <Stack.Screen name="(app)" />
+      <Stack.Screen name="re-permissions" />
     </Stack>
   );
 }

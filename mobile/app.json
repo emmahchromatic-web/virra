@@ -40,6 +40,15 @@
       "expo-font",
       "expo-apple-authentication",
       [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A0A0F",
+          "image": "./assets/Splash.png",
+          "imageWidth": 320,
+          "resizeMode": "contain"
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Virra uses your location to track your runs."
