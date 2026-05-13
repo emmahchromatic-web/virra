@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, ScrollView, Pressable, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { SymbolView } from 'expo-symbols';
@@ -13,6 +14,7 @@ import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { FoodEntryEditModal } from '@/components/ui/FoodEntryEditModal';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type MealType = typeof MEAL_TYPES[number];
@@ -26,6 +28,7 @@ interface FoodEntry {
   protein_g:  number;
   fat_g:      number;
   fibre_g:    number;
+  quantity_g: number | null;
 }
 
 function MacroBar({ label, actual, target, color }: {
@@ -100,6 +103,79 @@ const why = StyleSheet.create({
   body:  { lineHeight: 20, marginTop: spacing.xs },
 });
 
+// ---- FoodEntryRow ----
+
+interface FoodEntryRowProps {
+  entry:    FoodEntry;
+  onEdit:   (entry: FoodEntry) => void;
+  onDelete: (entry: FoodEntry) => void;
+}
+
+function FoodEntryRow({ entry, onEdit, onDelete }: FoodEntryRowProps) {
+  const swipeRef = useRef<Swipeable>(null);
+
+  function handleDelete() {
+    swipeRef.current?.close();
+    Alert.alert(
+      'Delete entry',
+      `Delete "${entry.food_name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => swipeRef.current?.close() },
+        { text: 'Delete', style: 'destructive', onPress: () => onDelete(entry) },
+      ],
+    );
+  }
+
+  function renderRightActions() {
+    return (
+      <Pressable style={row.deleteAction} onPress={handleDelete} accessibilityRole="button" accessibilityLabel="Delete food entry">
+        <VirraText variant="mono" size={11} color={colors.breath} style={row.deleteLabel}>
+          DELETE
+        </VirraText>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderRightActions}
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <Pressable
+        onLongPress={() => onEdit(entry)}
+        delayLongPress={400}
+        style={({ pressed }) => [styles.entryRow, pressed && { opacity: 0.7 }]}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${entry.food_name}`}
+      >
+        <VirraText variant="body" size={14} color={colors.breath} style={{ flex: 1 }}>
+          {entry.food_name}
+        </VirraText>
+        <VirraText variant="mono" size={12} color={colors.muted}>
+          {Math.round(entry.calories)} kcal
+        </VirraText>
+      </Pressable>
+    </Swipeable>
+  );
+}
+
+const row = StyleSheet.create({
+  deleteAction: {
+    width:           80,
+    backgroundColor: colors.heat,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  deleteLabel: {
+    letterSpacing: 1.5,
+  },
+});
+
+// ---- NutritionScreen ----
+
 export default function NutritionScreen() {
   const { session } = useAuthStore();
   const { cycleInfo } = useCycleStore();
@@ -109,6 +185,7 @@ export default function NutritionScreen() {
   const [logId,   setLogId]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dailyContext, setDailyContext] = useState<DailyTrainingContext | null>(null);
+  const [editing, setEditing] = useState<FoodEntry | null>(null);
 
   const today   = new Date().toISOString().split('T')[0];
   const targets = getNutritionTargets(cycleInfo?.phase ?? null, load);
@@ -133,7 +210,7 @@ export default function NutritionScreen() {
     if (session && logId) {
       supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g')
         .eq('log_id', logId)
         .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
     }
@@ -176,7 +253,7 @@ export default function NutritionScreen() {
       setLogId(log.id);
       const { data: food } = await supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g')
         .eq('log_id', log.id);
       setEntries((food as FoodEntry[]) ?? []);
     }
@@ -185,7 +262,23 @@ export default function NutritionScreen() {
 
   const byMeal = (meal: MealType) => entries.filter((e) => e.meal_type === meal);
 
+  async function handleDeleteEntry(entry: FoodEntry) {
+    await supabase.from('food_entries').delete().eq('id', entry.id);
+    // Optimistically remove from local state for instant feedback
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+  }
+
+  function reloadEntries() {
+    if (!logId) return;
+    supabase
+      .from('food_entries')
+      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g')
+      .eq('log_id', logId)
+      .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
+  }
+
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaView style={styles.safe}>
       <AppHeader title="Nutrition" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -259,20 +352,26 @@ export default function NutritionScreen() {
               </VirraText>
             ) : (
               byMeal(meal).map((e) => (
-                <View key={e.id} style={styles.entryRow}>
-                  <VirraText variant="body" size={14} color={colors.breath} style={{ flex: 1 }}>
-                    {e.food_name}
-                  </VirraText>
-                  <VirraText variant="mono" size={12} color={colors.muted}>
-                    {Math.round(e.calories)} kcal
-                  </VirraText>
-                </View>
+                <FoodEntryRow
+                  key={e.id}
+                  entry={e}
+                  onEdit={setEditing}
+                  onDelete={handleDeleteEntry}
+                />
               ))
             )}
           </View>
         ))}
       </ScrollView>
+
+      <FoodEntryEditModal
+        visible={editing !== null}
+        entry={editing}
+        onClose={() => setEditing(null)}
+        onSaved={reloadEntries}
+      />
     </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
