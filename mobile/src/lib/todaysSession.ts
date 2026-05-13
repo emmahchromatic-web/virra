@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import { modulateForCycle, type SessionType } from './cycleModulation';
+import { useCycleStore } from '@/store/cycle';
 
 export interface TodaysSession {
   id:             string;
@@ -10,6 +12,10 @@ export interface TodaysSession {
   actual_distance_m?:  number | null;
   actual_duration_s?:  number | null;
   actual_activity_type?: string | null;
+  // Cycle modulation badge
+  cycle_adjusted_pace_secs: number | null; // null if no modulation OR no pace target
+  cycle_reason_short:       string | null; // first sentence of the modulation reason
+  cycle_pace_arrow:         '↑' | '↓' | null; // direction of pace adjustment
 }
 
 interface PlannedSessionRow {
@@ -18,6 +24,16 @@ interface PlannedSessionRow {
   session_label:  string;
   status:         TodaysSession['status'];
   activity_id:    string | null;
+}
+
+function mapLabelToSessionType(label: string): SessionType {
+  const L = label.toLowerCase();
+  if (L.includes('long'))                                                  return 'long';
+  if (L.includes('tempo') || L.includes('threshold'))                     return 'tempo';
+  if (L.includes('interval') || L.includes('vo2'))                        return 'intervals';
+  if (L.includes('race'))                                                  return 'race';
+  if (L.includes('lower') || L.includes('upper') || L.includes('strength')) return 'strength';
+  return 'easy';
 }
 
 interface ActivityRow {
@@ -50,35 +66,85 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
   const rows = planned as PlannedSessionRow[];
   const activityIds = rows.map((r) => r.activity_id).filter((id): id is string => !!id);
 
-  let activityMap: Record<string, ActivityRow> = {};
-  if (activityIds.length) {
-    const { data: acts } = await supabase
+  // Fetch baseline pace and activity data in parallel
+  const [activityResult, profileResult, todayActsResult] = await Promise.all([
+    activityIds.length
+      ? supabase
+          .from('activities')
+          .select('id, activity_type, distance_meters, duration_seconds')
+          .in('id', activityIds)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from('user_profiles')
+      .select('baseline_pace_seconds_per_km')
+      .eq('id', userId)
+      .maybeSingle(),
+    supabase
       .from('activities')
-      .select('id, activity_type, distance_meters, duration_seconds')
-      .in('id', activityIds);
-    activityMap = Object.fromEntries(((acts ?? []) as ActivityRow[]).map((a) => [a.id, a]));
-  }
+      .select('id, activity_type, distance_meters, duration_seconds, planned_session_id, started_at')
+      .eq('user_id', userId)
+      .gte('started_at', `${today}T00:00:00`)
+      .lt('started_at',  `${today}T23:59:59`),
+  ]);
+
+  const activityMap: Record<string, ActivityRow> = Object.fromEntries(
+    ((activityResult.data ?? []) as ActivityRow[]).map((a) => [a.id, a])
+  );
+
+  const baselinePace: number = profileResult.data?.baseline_pace_seconds_per_km ?? 360;
 
   // Also surface any activity logged today that DIDN'T link to a planned session —
   // gives the lenient completion match a chance to recover if the auto-linker missed it.
   // We only fold in matching-modality unmatched activities for sessions still 'planned'.
-  const { data: todayActs } = await supabase
-    .from('activities')
-    .select('id, activity_type, distance_meters, duration_seconds, planned_session_id, started_at')
-    .eq('user_id', userId)
-    .gte('started_at', `${today}T00:00:00`)
-    .lt('started_at',  `${today}T23:59:59`);
-
   const unlinkedByModality: Record<string, ActivityRow> = {};
-  for (const a of (todayActs ?? []) as (ActivityRow & { planned_session_id: string | null })[]) {
+  for (const a of (todayActsResult.data ?? []) as (ActivityRow & { planned_session_id: string | null })[]) {
     if (a.planned_session_id) continue;
     unlinkedByModality[a.activity_type] = a;
   }
+
+  // Read cycle state synchronously from Zustand — free, no DB round trip
+  const cycleState   = useCycleStore.getState();
+  const cyclePhase   = cycleState.cycleInfo?.phase ?? null;
+  const cycleProfile = cycleState.cycleProfile;
 
   return rows.map((r) => {
     const linked = r.activity_id ? activityMap[r.activity_id] : undefined;
     const fallback = r.status === 'planned' ? unlinkedByModality[r.modality] : undefined;
     const act = linked ?? fallback;
+
+    // Compute cycle modulation for run sessions only (strength has no pace target)
+    let cycle_adjusted_pace_secs: number | null = null;
+    let cycle_reason_short: string | null        = null;
+    let cycle_pace_arrow: '↑' | '↓' | null      = null;
+
+    if (r.modality === 'run') {
+      const sessionType = mapLabelToSessionType(r.session_label);
+      const baseTarget = {
+        pace_seconds_per_km: baselinePace,
+        intensity_label:     r.session_label,
+      };
+      const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile);
+
+      if (result.reason) {
+        cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
+
+        const adjustedPace = result.adjusted_target.pace_seconds_per_km;
+        if (adjustedPace && adjustedPace !== baselinePace) {
+          cycle_adjusted_pace_secs = adjustedPace;
+          // Faster pace = lower seconds/km value
+          cycle_pace_arrow = adjustedPace < baselinePace ? '↑' : '↓';
+        }
+      }
+    } else if (r.modality === 'strength') {
+      // Strength sessions: surface reason text only, no pace arrow
+      const sessionType = mapLabelToSessionType(r.session_label);
+      const baseTarget = { intensity_label: r.session_label };
+      const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile);
+      if (result.reason) {
+        cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
+      }
+    }
+
     return {
       id:                    r.id,
       modality:              r.modality,
@@ -88,6 +154,9 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
       actual_distance_m:     act?.distance_meters ?? null,
       actual_duration_s:     act?.duration_seconds ?? null,
       actual_activity_type:  act?.activity_type ?? null,
+      cycle_adjusted_pace_secs,
+      cycle_reason_short,
+      cycle_pace_arrow,
     };
   });
 }

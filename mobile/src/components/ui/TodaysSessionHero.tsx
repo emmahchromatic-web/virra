@@ -9,6 +9,7 @@ import {
   formatDistance,
   formatDuration,
 } from '@/lib/todaysSession';
+import { formatPace } from '@/lib/volumePlan';
 
 const MODALITY_ICON: Record<TodaysSession['modality'], SymbolViewProps['name']> = {
   run:      'figure.run',
@@ -88,6 +89,14 @@ export function TodaysSessionHero({ sessions }: Props) {
               {s.status === 'completed' && s.actual_distance_m ? ` · ${formatDistance(s.actual_distance_m)}` : ''}
               {s.status === 'completed' && s.actual_duration_s ? ` · ${formatDuration(s.actual_duration_s)}` : ''}
             </VirraText>
+            {s.cycle_reason_short && (
+              <VirraText variant="mono" size={9} color={colors.pulse} style={{ marginTop: 2 }}>
+                {s.cycle_adjusted_pace_secs
+                  ? `${s.cycle_pace_arrow ?? '↓'} ${formatPace(s.cycle_adjusted_pace_secs)} · `
+                  : ''}
+                {s.cycle_reason_short.toLowerCase()}
+              </VirraText>
+            )}
           </View>
           <StatusBadge status={s.status} />
         </View>
