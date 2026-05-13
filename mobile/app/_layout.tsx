@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { Stack, router } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import type { Session } from '@supabase/supabase-js';
 import { useFonts } from 'expo-font';
+
+// Keep the native splash visible until fonts AND session are loaded.
+// Errors are non-fatal — if the splash was never shown (hot reload) this no-ops.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 import {
   BigShouldersDisplay_700Bold,
   BigShouldersDisplay_900Black,
@@ -85,8 +91,20 @@ export default function RootLayout() {
     if (user?.id) configureRevenueCat(user.id);
   }, [user?.id]);
 
-  // Hold render until we know where to route — prevents flash of wrong screen
-  if (!fontsLoaded || initialSession === undefined) return null;
+  // Hide the native splash once both fonts and session are ready and routing
+  // has fired. This is the atomic transition from splash → real UI; without it
+  // the splash would either persist forever or hide too early and reveal a
+  // white frame between splash and the first rendered screen.
+  const ready = fontsLoaded && initialSession !== undefined;
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+
+  // While not ready, render a mile-coloured View instead of null so any frame
+  // before the splash hides (or any hot-reload gap) is dark, not white.
+  if (!ready) {
+    return <View style={{ flex: 1, backgroundColor: colors.mile }} />;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
