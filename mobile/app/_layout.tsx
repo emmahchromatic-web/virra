@@ -23,7 +23,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { configureRevenueCat } from '@/lib/revenuecat';
 import { colors } from '@/constants/theme';
-import { hasPermissionsBeenGranted } from '@/lib/permissionsConfig';
+import { hasPermissionsBeenGranted, initHealthKitForSession } from '@/lib/permissionsConfig';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
@@ -79,6 +79,11 @@ export default function RootLayout() {
       // Profile exists. AsyncStorage clears on iOS reinstall — if the flag is
       // missing, device permissions were wiped and we need to re-prompt.
       const granted = await hasPermissionsBeenGranted();
+      if (granted) {
+        // Re-establish HK JS↔native bridge for this session (iOS does not re-prompt
+        // since underlying permissions are retained).
+        initHealthKitForSession();
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       router.replace((granted ? '/(app)/(tabs)' : '/re-permissions') as any);
     })();

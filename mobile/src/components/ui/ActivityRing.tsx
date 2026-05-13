@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Circle, G } from 'react-native-svg';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 
@@ -33,20 +33,20 @@ export function ActivityRing({ value, max, color, size = 56, label, valueText }:
           strokeWidth={stroke}
           fill="none"
         />
-        {/* Progress arc — starts at top (rotate -90°) */}
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          stroke={color}
-          strokeWidth={stroke}
-          fill="none"
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={dashOffset}
-          strokeLinecap="round"
-          rotation={-90}
-          origin={`${center} ${center}`}
-        />
+        {/* Progress arc — rotated -90° about the center so 0% sits at 12 o'clock */}
+        <G transform={`rotate(-90, ${center}, ${center})`}>
+          <Circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke={color}
+            strokeWidth={stroke}
+            fill="none"
+            strokeDasharray={[circumference, circumference]}
+            strokeDashoffset={dashOffset}
+            strokeLinecap="round"
+          />
+        </G>
       </Svg>
       <VirraText variant="display" size={11} color={colors.breath} style={styles.value}>
         {valueText}

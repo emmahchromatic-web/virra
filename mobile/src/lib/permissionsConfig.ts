@@ -49,45 +49,57 @@ export const PERMISSIONS: readonly PermissionItem[] = [
   },
 ] as const;
 
+// Single source of truth for the HK permission set so onboarding, re-permissions,
+// and app-launch init all establish the same bridge.
+function buildHKPermissions() {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { Constants } = require('react-native-health');
+  return {
+    permissions: {
+      read: [
+        Constants.Permissions.HeartRate,
+        Constants.Permissions.RestingHeartRate,
+        Constants.Permissions.HeartRateVariability,
+        Constants.Permissions.ActiveEnergyBurned,
+        Constants.Permissions.AppleExerciseTime,
+        Constants.Permissions.DistanceWalkingRunning,
+        Constants.Permissions.Steps,
+        Constants.Permissions.Vo2Max,
+        Constants.Permissions.SleepAnalysis,
+        Constants.Permissions.Weight,
+        Constants.Permissions.Workout,
+      ],
+      write: [
+        Constants.Permissions.Workout,
+        Constants.Permissions.EnergyConsumed,
+        Constants.Permissions.Carbohydrates,
+        Constants.Permissions.Protein,
+        Constants.Permissions.FatTotal,
+        Constants.Permissions.Fiber,
+      ],
+    },
+  };
+}
+
+// Establishes the HK JS↔native bridge for the current session. Safe to call on
+// every app launch — when permissions were already granted iOS does not re-prompt.
+export async function initHealthKitForSession(): Promise<void> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { NativeModules } = require('react-native');
+    const HK = NativeModules.AppleHealthKit;
+    if (!HK?.initHealthKit) return;
+    await new Promise<void>((resolve) => {
+      HK.initHealthKit(buildHKPermissions(), () => resolve());
+    });
+  } catch { /* HK unavailable (simulator etc.) */ }
+}
+
 export async function requestPermission(id: PermissionItem['id']): Promise<void> {
   switch (id) {
     case 'health': {
+      await initHealthKitForSession();
       try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { NativeModules } = require('react-native');
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { Constants } = require('react-native-health');
-        const HK = NativeModules.AppleHealthKit;
-        if (!HK?.initHealthKit) return;
-        await new Promise<void>((resolve) => {
-          HK.initHealthKit(
-            {
-              permissions: {
-                read: [
-                  Constants.Permissions.HeartRate,
-                  Constants.Permissions.RestingHeartRate,
-                  Constants.Permissions.HeartRateVariability,
-                  Constants.Permissions.ActiveEnergyBurned,
-                  Constants.Permissions.DistanceWalkingRunning,
-                  Constants.Permissions.Steps,
-                  Constants.Permissions.Vo2Max,
-                  Constants.Permissions.SleepAnalysis,
-                  Constants.Permissions.Weight,
-                  Constants.Permissions.Workout,
-                ],
-                write: [
-                  Constants.Permissions.Workout,
-                  Constants.Permissions.EnergyConsumed,
-                  Constants.Permissions.Carbohydrates,
-                  Constants.Permissions.Protein,
-                  Constants.Permissions.FatTotal,
-                  Constants.Permissions.Fiber,
-                ],
-              },
-            },
-            () => resolve()
-          );
-        });
         const { requestMenstrualPermission } = await import('@/modules/menstrual-health');
         await requestMenstrualPermission();
       } catch { /* HK unavailable */ }
