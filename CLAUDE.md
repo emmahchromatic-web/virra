@@ -232,25 +232,31 @@ subscriptions       (id, user_id, rc_customer_id, sub_status, trial_end, activat
 - ✅ Training calendar (MonthCalendar in Training tab — coloured dots, drop/move/catch-up sessions)
 - [ ] App Store submission prep
 
-### Phase E — Dynamic Planning Engine (partially pre-shipped)
-Full architectural planning session required before completing. Core schema is live; intelligence layer is not.
+### Phase E — Dynamic Planning Engine ✅ complete
 
-**Already shipped:**
-- ✅ `training_blocks` table — overlapping blocks per modality (run + gym simultaneously)
-- ✅ `planned_sessions` table — day-level scheduling with status tracking (planned/completed/dropped/moved)
-- ✅ `scheduleGenerator` — auto-assigns sessions to days on block start (DAY_TEMPLATES), session actions (drop/move/catch-up), activity auto-linking
-- ✅ Dropped-session tracking — `status='dropped'` queryable for goal explanation ("why are you behind?")
-- ✅ Over-training detection foundation — activities without a matched `planned_session_id` = unplanned volume
+Four sub-projects, all shipped:
 
-**Still to design + build:**
-- [ ] Plan stacking load-balancing — run volume auto-adjusts when gym block is active; cycle phase governs combined demand
-- [ ] Smart scheduling intelligence — MOVE THIS WEEK currently picks the next calendar day; needs free-day query + partial unique constraint on `(user_id, scheduled_date, modality, session_label)` (see memory: future scheduling intelligence)
-- [ ] Multi-event progressive planning — continuous timeline across multiple races; `user_events` table is live (name, event_date, notes, priority)
-- [ ] Insights surfacing — surface dropped-session and over-consumption data in the Insights screen
-- [ ] Holiday/illness break handling — redistribute future sessions around gaps
+- ✅ **Sub-project 1** — Volume Intelligence + Session Detail + Smart Scheduling + Race Markers (`volumePlan.ts`, `SessionDetailModal`, race markers on `MonthCalendar`, partial unique constraint on `planned_sessions`)
+- ✅ **Sub-project 2** — Plan Stacking Load-Balancing + Insights Surfacing (`buildVolumeAdjustmentNote`, `RunSessionDetail.base_distance_km`, `loadScale` per block, dropped-session breakdown in Insights)
+- ✅ **Sub-project 3a** — Holiday/Illness Break Handling (`training_breaks` table, `computeBreakDays`/`applyBreak`, `BreakModal`, MonthCalendar long-press, profile break history)
+- ✅ **Sub-project 3b** — Multi-Event Progressive Planning (`seasons` aggregate, `seasonEngine` with phase-based periodisation, `cycleModulation` matrix + day-anchoring, SessionDetailModal "WHY THIS PACE" card, TodaysSessionHero adjustment badge, MY SEASON timeline on Training tab)
 
-**Remaining schema (design before implementation):**
-None — `user_events` is live. All Phase E tables exist. Intelligence layer still needs design.
+### Phase F — Plan Editability (deferred)
+
+Editable-season UX so users can manage their progressive training season after it's been auto-created. Tracked as a future phase (not pre-launch) but elevated from a memory note so it's visible in the roadmap.
+
+**Scope:**
+- [ ] Add an event to an existing active season — currently `recomputeSeasonForUser` is idempotent and skips a 3rd+ event insert. Needs either append-only chain extension or a destructive rebuild path that preserves completed/dropped session history. (See [`project_season_event_addition.md`](.) memory.)
+- [ ] Manual priority overrides — user can demote/promote A/B/C race priority after the engine's default assignment
+- [ ] Manual phase-boundary adjustments — drag a phase divider to shorten taper, lengthen build, etc.
+- [ ] Recovery duration tuning — override the default `RECOVERY_WEEKS` per modality per event
+- [ ] "Rebuild season" affordance — destructive button on MY SEASON timeline with confirm dialog
+- [ ] Retire / archive a completed season — currently season `status` field exists (`active`/`completed`/`abandoned`) but no UX flips it
+- [ ] Season recap UX — post-completion summary screen surfacing the arc the user just finished
+
+**Why deferred:** Phase E ships a system-driven season that produces sensible defaults across the three primary scenarios (back-to-back, progressive ladder, conflict). Editability is the retention loop deepening — high value once users are 2-3 seasons in, but not blocking the first season's value delivery. Defer until post-launch usage data shows which edit affordances users actually reach for.
+
+**How to apply:** When this phase activates, run a brainstorm session covering the seven items above. They cluster naturally — "structural edits" (events, priorities, phase boundaries) vs. "lifecycle edits" (rebuild, retire, recap). Two sub-projects (Fa / Fb) are likely.
 
 ---
 
