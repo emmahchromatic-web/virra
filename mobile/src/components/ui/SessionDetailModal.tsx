@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
+import { VirraCard } from './VirraCard';
 import { VirraModal } from './VirraModal';
 import { VirraText } from './VirraText';
 import { VirraButton } from './VirraButton';
@@ -9,7 +10,7 @@ import { dropSession, moveSession } from '@/lib/scheduleGenerator';
 import { getDaySessionDetail, formatPace } from '@/lib/volumePlan';
 import { supabase } from '@/lib/supabase';
 import type { CyclePhase } from '@/lib/cycleEngine';
-import type { DayDetail, SessionDetail, RunSessionDetail, UserEvent } from '@/lib/volumePlan';
+import type { DayDetail, SessionDetail, RunSessionDetail, StrengthSessionDetail, UserEvent } from '@/lib/volumePlan';
 import { useCycleStore } from '@/store/cycle';
 
 interface Props {
@@ -133,6 +134,18 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
     const isRun = s.kind === 'run';
     const r     = s as RunSessionDetail;
 
+    // Cycle modulation helpers — read-only, no recomputation
+    const mod            = s.cycle_modulation;
+    const hasWhyCard     = !!mod?.reason;
+    const adjustedPaceSecs = isRun && hasWhyCard
+      ? mod!.adjusted_target.pace_seconds_per_km ?? null
+      : null;
+    const basePaceSecs   = isRun && hasWhyCard ? r.pace_target_secs : null;
+    // Display adjusted pace as primary for run sessions when a modulation reason exists
+    const displayPaceSecs = (isRun && adjustedPaceSecs != null)
+      ? adjustedPaceSecs
+      : (isRun ? r.pace_target_secs : 0);
+
     return (
       <View key={s.planned_session_id} style={[modal.card, i > 0 && modal.cardBorder]}>
         <View style={modal.cardHeader}>
@@ -143,13 +156,20 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
         </View>
 
         {isRun && s.status !== 'dropped' && (
-          <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
-            {s.status === 'completed' && r.actual_distance_km
-              ? `${r.actual_distance_km.toFixed(1)}km · ${r.actual_pace_secs ? formatPace(r.actual_pace_secs) : '—'} · actual`
-              : r.base_distance_km
-                ? `${r.base_distance_km.toFixed(1)} → ${r.distance_km.toFixed(1)}km · ${formatPace(r.pace_target_secs)} · ~${r.estimated_minutes}min`
-                : `${r.distance_km.toFixed(1)}km · ${formatPace(r.pace_target_secs)} · ~${r.estimated_minutes}min`}
-          </VirraText>
+          <>
+            <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
+              {s.status === 'completed' && r.actual_distance_km
+                ? `${r.actual_distance_km.toFixed(1)}km · ${r.actual_pace_secs ? formatPace(r.actual_pace_secs) : '—'} · actual`
+                : r.base_distance_km
+                  ? `${r.base_distance_km.toFixed(1)} → ${r.distance_km.toFixed(1)}km · ${formatPace(displayPaceSecs)} · ~${r.estimated_minutes}min`
+                  : `${r.distance_km.toFixed(1)}km · ${formatPace(displayPaceSecs)} · ~${r.estimated_minutes}min`}
+            </VirraText>
+            {hasWhyCard && adjustedPaceSecs != null && basePaceSecs != null && adjustedPaceSecs !== basePaceSecs && s.status !== 'completed' && (
+              <VirraText variant="mono" size={9} color={colors.muted} style={modal.adjustedFrom}>
+                ADJUSTED FROM {formatPace(basePaceSecs)}/km
+              </VirraText>
+            )}
+          </>
         )}
 
         {!isRun && s.status !== 'dropped' && (
@@ -192,6 +212,17 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
 
         {s.status === 'dropped' && (
           <VirraText variant="mono" size={9} color={colors.muted}>DROPPED</VirraText>
+        )}
+
+        {hasWhyCard && (
+          <VirraCard style={modal.whyCard}>
+            <VirraText variant="mono" size={9} color={colors.pulse} style={modal.whyLabel}>
+              WHY THIS PACE
+            </VirraText>
+            <VirraText variant="body" size={13} color="rgba(244,237,224,0.75)" style={modal.whyText}>
+              {mod!.reason}
+            </VirraText>
+          </VirraCard>
         )}
       </View>
     );
@@ -309,6 +340,10 @@ const modal = StyleSheet.create({
     paddingVertical: 6, paddingHorizontal: spacing.sm,
     borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
   },
-  statusRow:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  deficitMsg:  { marginTop: spacing.md, lineHeight: 20 },
+  statusRow:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  deficitMsg:   { marginTop: spacing.md, lineHeight: 20 },
+  whyCard:      { gap: spacing.xs, marginTop: spacing.sm },
+  whyLabel:     { letterSpacing: 1.5 },
+  whyText:      { lineHeight: 20 },
+  adjustedFrom: { letterSpacing: 1, marginTop: 2 },
 });
