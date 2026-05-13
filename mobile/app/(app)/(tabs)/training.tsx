@@ -16,6 +16,8 @@ import { getActiveBlocks, computeBlockLoad, type TrainingBlock, type ComputedBlo
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { BreakModal } from '@/components/ui/BreakModal';
+import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
+import { getTodaysSessions, type TodaysSession } from '@/lib/todaysSession';
 
 interface PlanTemplate {
   id:             string;
@@ -105,6 +107,7 @@ export default function TrainingScreen() {
   const [view,              setView]               = useState<'plan' | 'browse'>('plan');
   const [loading,           setLoading]            = useState(true);
   const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
+  const [todaysSessions,    setTodaysSessions]      = useState<TodaysSession[]>([]);
 
   const now = new Date();
   const [calYear,        setCalYear]        = useState(now.getFullYear());
@@ -121,7 +124,7 @@ export default function TrainingScreen() {
 
   async function loadData() {
     setLoading(true);
-    const [blocks, planRes, templateRes, activityRes] = await Promise.all([
+    const [blocks, planRes, templateRes, activityRes, today] = await Promise.all([
       getActiveBlocks(session!.user.id),
       supabase
         .from('user_plans')
@@ -139,11 +142,13 @@ export default function TrainingScreen() {
         .eq('user_id', session!.user.id)
         .order('started_at', { ascending: false })
         .limit(5),
+      getTodaysSessions(session!.user.id),
     ]);
     setActiveBlocks(blocks);
     setActivePlan(planRes.data as UserPlan | null);
     setTemplates((templateRes.data ?? []) as PlanTemplate[]);
     setRecentActivities((activityRes.data ?? []) as Activity[]);
+    setTodaysSessions(today);
     setLoading(false);
   }
 
@@ -176,6 +181,11 @@ export default function TrainingScreen() {
             </VirraText>
             <WhyCard body={PHASE_WHY[cycleInfo.phase]} />
           </VirraCard>
+        )}
+
+        {/* Today's planned session hero */}
+        {(activeBlocks.length > 0 || activePlan) && (
+          <TodaysSessionHero sessions={todaysSessions} />
         )}
 
         {/* Toggle */}
