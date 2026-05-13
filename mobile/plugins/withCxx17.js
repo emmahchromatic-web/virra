@@ -3,8 +3,10 @@ const path = require('path');
 const fs = require('fs');
 
 const SNIPPET = [
-  '    # fmt/Folly incompatibility with Xcode 16 consteval — force C++17 across all pods',
+  '    # fmt/Folly incompatibility with Xcode 16 consteval — pin only fmt-touching pods to C++17',
+  "    CXX17_POD_NAMES = ['RCT-Folly', 'fmt', 'glog', 'DoubleConversion'].freeze",
   '    installer.pods_project.targets.each do |target|',
+  '      next unless CXX17_POD_NAMES.include?(target.name)',
   '      target.build_configurations.each do |config|',
   "        config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'",
   '      end',
