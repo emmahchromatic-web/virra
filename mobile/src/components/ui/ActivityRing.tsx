@@ -66,7 +66,14 @@ function ActivityRingTile({ ring }: { ring: Props }) {
   );
 }
 
-export function ActivityRings({ steps, exerciseMins }: { steps: number; exerciseMins: number }) {
+export function ActivityRings({
+  steps, exerciseMins, stepsTarget, exerciseMinsTarget,
+}: {
+  steps:              number;
+  exerciseMins:       number;
+  stepsTarget:        number;
+  exerciseMinsTarget: number;
+}) {
   const stepsText = steps >= 1000
     ? `${(steps / 1000).toFixed(1)}k`
     : String(steps);
@@ -74,8 +81,8 @@ export function ActivityRings({ steps, exerciseMins }: { steps: number; exercise
 
   return (
     <View style={styles.stack}>
-      <ActivityRingTile ring={{ value: steps, max: 10000, color: colors.pulse, label: 'STEPS', valueText: stepsText }} />
-      <ActivityRingTile ring={{ value: exerciseMins, max: 30, color: colors.dawn, label: 'MIN', valueText: minsText }} />
+      <ActivityRingTile ring={{ value: steps, max: stepsTarget, color: colors.pulse, label: 'STEPS', valueText: stepsText }} />
+      <ActivityRingTile ring={{ value: exerciseMins, max: exerciseMinsTarget, color: colors.dawn, label: 'MIN', valueText: minsText }} />
     </View>
   );
 }

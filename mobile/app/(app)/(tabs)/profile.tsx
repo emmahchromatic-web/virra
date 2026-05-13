@@ -51,13 +51,16 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
-  const { firstName, lastName, avatarUrl, save: saveProfile } = useProfileStore();
+  const { firstName, lastName, avatarUrl, stepsTarget, save: saveProfile } = useProfileStore();
 
   const [saving,  setSaving]  = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [cycleLengthModalVisible, setCycleLengthModalVisible] = useState(false);
   const [cycleLengthInput, setCycleLengthInput] = useState('');
   const [cycleLengthError, setCycleLengthError] = useState('');
+  const [stepsModalVisible, setStepsModalVisible] = useState(false);
+  const [stepsInput,        setStepsInput]        = useState('');
+  const [stepsError,        setStepsError]        = useState('');
   const [lastBreak,      setLastBreak]      = useState<{ break_start: string; break_end: string } | null>(null);
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
@@ -144,6 +147,21 @@ export default function ProfileScreen() {
       .limit(1);
     setSaving(false);
     if (error) Alert.alert('Could not update', error.message);
+  }
+
+  async function handleStepsTargetSave() {
+    if (!session) return;
+    const val = parseInt(stepsInput, 10);
+    if (isNaN(val) || val < 1000 || val > 30000) {
+      setStepsError('Enter a number between 1,000 and 30,000.');
+      return;
+    }
+    setStepsError('');
+    setStepsModalVisible(false);
+    setSaving(true);
+    try { await saveProfile(session.user.id, { stepsTarget: val }); }
+    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    finally { setSaving(false); }
   }
 
   async function handleCycleLengthSave() {
@@ -249,6 +267,11 @@ export default function ProfileScreen() {
         <VirraCard style={styles.card}>
           <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>TRAINING</VirraText>
           <Row
+            label="DAILY STEPS TARGET"
+            value={stepsTarget.toLocaleString()}
+            onPress={() => { setStepsInput(String(stepsTarget)); setStepsError(''); setStepsModalVisible(true); }}
+          />
+          <Row
             label="BREAKS"
             value={breakSummary}
             onPress={() => router.push('/(app)/breaks' as any)}
@@ -305,6 +328,31 @@ export default function ProfileScreen() {
           </VirraText>
         ) : null}
         <VirraButton label="SAVE" onPress={handleCycleLengthSave} loading={saving} />
+      </VirraModal>
+
+      {/* Steps target modal */}
+      <VirraModal
+        visible={stepsModalVisible}
+        onClose={() => { setStepsModalVisible(false); setStepsError(''); }}
+        title="Daily Steps Target"
+      >
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
+          Set your daily step goal (1,000–30,000). Default is 8,000.
+        </VirraText>
+        <TextInput
+          value={stepsInput}
+          onChangeText={setStepsInput}
+          keyboardType="number-pad"
+          maxLength={5}
+          style={styles.modalInput}
+          placeholderTextColor="rgba(244,237,224,0.3)"
+        />
+        {stepsError ? (
+          <VirraText variant="mono" size={10} color={colors.heat} style={{ letterSpacing: 1 }}>
+            {stepsError.toUpperCase()}
+          </VirraText>
+        ) : null}
+        <VirraButton label="SAVE" onPress={handleStepsTargetSave} loading={saving} />
       </VirraModal>
 
     </SafeAreaView>

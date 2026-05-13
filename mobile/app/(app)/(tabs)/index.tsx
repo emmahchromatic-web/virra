@@ -10,8 +10,11 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { useCycleStore, type CyclePhase, type CycleProfile } from '@/store/cycle';
 import { useAuthStore } from '@/store/auth';
+import { useProfileStore } from '@/store/profile';
+import type { TrainingLoad } from '@/lib/nutritionTargets';
 import { WeekStrip } from '@/components/ui/WeekStrip';
 import { supabase } from '@/lib/supabase';
+import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 
 const PHASE_META: Record<CyclePhase, {
   label:     string;
@@ -108,14 +111,23 @@ function EmptyState({ cycleProfile }: { cycleProfile: CycleProfile }) {
   );
 }
 
+const EXERCISE_MINS_TARGET: Record<TrainingLoad, number> = {
+  rest:     15,
+  easy:     30,
+  moderate: 45,
+  hard:     60,
+};
+
 export default function DashboardScreen() {
   const { cycleInfo, cycleProfile } = useCycleStore();
   const { session } = useAuthStore();
+  const { stepsTarget } = useProfileStore();
   const meta = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
 
   const appState        = useRef<AppStateStatus>(AppState.currentState);
   const [steps,        setSteps]        = useState(0);
   const [exerciseMins, setExerciseMins] = useState(0);
+  const [inferredLoad, setInferredLoad] = useState<TrainingLoad>('easy');
   const [insightTexts,   setInsightTexts]   = useState<{ training: string; nutrition: string } | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
 
@@ -159,6 +171,12 @@ export default function DashboardScreen() {
         setSteps(steps);
         setExerciseMins(exerciseMins);
       });
+      if (session) {
+        const today = new Date().toISOString().split('T')[0];
+        getDailyTrainingContext(session.user.id, today, cycleInfo?.phase ?? null)
+          .then((ctx) => setInferredLoad(ctx.inferred_load))
+          .catch(() => {});
+      }
       loadInsight();
     }
 
@@ -216,7 +234,12 @@ export default function DashboardScreen() {
               </View>
             </VirraCard>
               <VirraCard style={styles.ringsCard}>
-                <ActivityRings steps={steps} exerciseMins={exerciseMins} />
+                <ActivityRings
+                  steps={steps}
+                  exerciseMins={exerciseMins}
+                  stepsTarget={stepsTarget}
+                  exerciseMinsTarget={EXERCISE_MINS_TARGET[inferredLoad]}
+                />
               </VirraCard>
             </View>
 
