@@ -10,6 +10,7 @@ import { getDaySessionDetail, formatPace } from '@/lib/volumePlan';
 import { supabase } from '@/lib/supabase';
 import type { CyclePhase } from '@/lib/cycleEngine';
 import type { DayDetail, SessionDetail, RunSessionDetail, UserEvent } from '@/lib/volumePlan';
+import { useCycleStore } from '@/store/cycle';
 
 interface Props {
   visible:    boolean;
@@ -45,13 +46,14 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
   const [loading, setLoading]     = useState(false);
   const [busy, setBusy]           = useState(false);
   const [noFreeDay, setNoFreeDay] = useState<Record<string, boolean>>({});
+  const cycleProfile = useCycleStore((s) => s.cycleProfile);
 
   useEffect(() => {
     if (visible && date) {
       setDetail(null);
       setNoFreeDay({});
       setLoading(true);
-      getDaySessionDetail(userId, date, cycleStore)
+      getDaySessionDetail(userId, date, cycleStore, cycleProfile)
         .then(setDetail)
         .catch((e) => console.warn('[SessionDetailModal]', e))
         .finally(() => setLoading(false));

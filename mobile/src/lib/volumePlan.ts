@@ -2,6 +2,9 @@ import { supabase } from './supabase';
 import type { CyclePhase } from './cycleEngine';
 import { getCycleInfo } from './cycleEngine';
 import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
+import type { ModulationResult, SessionType, SessionPaceTarget } from './cycleModulation';
+import { modulateForCycle } from './cycleModulation';
+import type { CycleProfile } from '@/store/cycle';
 
 // ---- Interfaces ----
 
@@ -38,6 +41,7 @@ export interface RunSessionDetail {
   status:             string;
   actual_pace_secs:   number | null;
   actual_distance_km: number | null;
+  cycle_modulation:   ModulationResult | null;
 }
 
 export interface StrengthSessionDetail {
@@ -46,6 +50,7 @@ export interface StrengthSessionDetail {
   session_label:      string;
   estimated_minutes:  number;
   status:             string;
+  cycle_modulation:   ModulationResult | null;
 }
 
 export type SessionDetail = RunSessionDetail | StrengthSessionDetail;
@@ -130,6 +135,18 @@ const PHASE_GUIDANCE: Record<string, string> = {
   luteal:     'Hold the work, honour fatigue.',
   menstrual:  'Keep effort light — rest is training too.',
 };
+
+// ---- Cycle modulation helpers ----
+
+function mapLabelToSessionType(label: string): SessionType {
+  const L = label.toLowerCase();
+  if (L.includes('long'))                                     return 'long';
+  if (L.includes('tempo') || L.includes('threshold'))        return 'tempo';
+  if (L.includes('interval') || L.includes('vo2'))           return 'intervals';
+  if (L.includes('race'))                                     return 'race';
+  if (L.includes('lower') || L.includes('upper') || L.includes('strength')) return 'strength';
+  return 'easy';
+}
 
 export function buildVolumeAdjustmentNote(
   loadScale: number,
@@ -459,9 +476,10 @@ export async function getWeeklyVolumePlan(
 // ---- 1d. Day session detail ----
 
 export async function getDaySessionDetail(
-  userId:     string,
-  dateISO:    string,
-  cycleStore: { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null },
+  userId:        string,
+  dateISO:       string,
+  cycleStore:    { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null },
+  cycle_profile: CycleProfile = 'natural',
 ): Promise<DayDetail> {
   const phase          = cycleStore.phase;
   const phase_guidance = PHASE_GUIDANCE[phase ?? ''] ?? '';
@@ -591,6 +609,18 @@ export async function getDaySessionDetail(
           ? Math.round((distance_km / loadScale) * 10) / 10
           : null;
 
+        const run_session_type  = mapLabelToSessionType(s.session_label);
+        const run_base_target: SessionPaceTarget = {
+          pace_seconds_per_km: pace_target_secs,
+          intensity_label:     s.session_label,
+        };
+        const cycle_modulation = modulateForCycle(
+          run_base_target,
+          run_session_type,
+          phase,
+          cycle_profile,
+        );
+
         allSessions.push({
           kind:               'run',
           planned_session_id: s.id,
@@ -602,18 +632,31 @@ export async function getDaySessionDetail(
           status:             s.status,
           actual_pace_secs,
           actual_distance_km,
+          cycle_modulation,
         });
       }
     }
 
     for (const s of strengthSessions) {
       const estimated_minutes = STRENGTH_DURATION[s.session_label] ?? 40;
+      const strength_session_type = mapLabelToSessionType(s.session_label);
+      const strength_base_target: SessionPaceTarget = {
+        duration_minutes: estimated_minutes,
+        intensity_label:  s.session_label,
+      };
+      const cycle_modulation = modulateForCycle(
+        strength_base_target,
+        strength_session_type,
+        phase,
+        cycle_profile,
+      );
       allSessions.push({
         kind:               'strength',
         planned_session_id: s.id,
         session_label:      s.session_label,
         estimated_minutes,
         status:             s.status,
+        cycle_modulation,
       });
     }
   }
