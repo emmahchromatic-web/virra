@@ -32,6 +32,7 @@
       }
     },
     "plugins": [
+      "./plugins/withCxx17",
       "expo-router",
       "expo-font",
       "expo-apple-authentication",
