@@ -63,11 +63,11 @@ export default function PermissionsStatusScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <SymbolView name="chevron.left" size={22} tintColor={colors.breath} />
+        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
-        <VirraText variant="display" size={20} color={colors.breath}>PERMISSIONS</VirraText>
-        <View style={{ width: 22 }} />
+        <VirraText variant="display" size={24} color={colors.pulse}>Permissions</VirraText>
+        <View style={{ width: 18 }} />
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         {PERMISSIONS.map((item) => {
@@ -121,8 +121,9 @@ export default function PermissionsStatusScreen() {
 
 const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: colors.mile },
-  header:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-               paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  header:    { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+               paddingHorizontal: spacing.lg },
+  backBtn:   { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   scroll:    { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.xxl },
   card:      { gap: spacing.sm },
   row:       { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },

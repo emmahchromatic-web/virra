@@ -90,10 +90,11 @@ export default function CheckInScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <VirraText variant="display" size={22} color={colors.breath}>Daily check-in</VirraText>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <SymbolView name="xmark" size={18} tintColor={colors.muted} />
+        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
+        <VirraText variant="display" size={24} color={colors.pulse}>Check-in</VirraText>
+        <View style={{ width: 18 }} />
       </View>
 
       {cycleInfo && (
@@ -161,7 +162,8 @@ export default function CheckInScreen() {
 
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: colors.mile },
-  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  header:       { height: 52, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg },
+  backBtn:      { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   phaseBadge:   { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   badgeText:    { letterSpacing: 1.5 },
   scroll:       { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },

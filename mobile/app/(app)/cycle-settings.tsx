@@ -110,10 +110,11 @@ export default function CycleSettingsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <VirraText variant="display" size={24} color={colors.pulse}>Cycle Settings</VirraText>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <SymbolView name="xmark" size={18} tintColor={colors.muted} />
+        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
+        <VirraText variant="display" size={24} color={colors.pulse}>Cycle</VirraText>
+        <View style={{ width: 18 }} />
       </View>
     <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
 
@@ -213,6 +214,7 @@ const styles = StyleSheet.create({
   scroll:              { flex: 1 },
   container:           { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
   header:              { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg, height: 52 },
+  backBtn:             { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   section:             { gap: spacing.sm },
   sectionLabel:        { letterSpacing: 2, marginBottom: spacing.xs },
   profileOption:       { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist, gap: 3 },

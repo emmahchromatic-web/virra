@@ -61,11 +61,11 @@ export default function BreaksScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <SymbolView name="chevron.left" size={18} tintColor={colors.breath} />
+        <Pressable style={s.headerBtn} onPress={() => router.back()} hitSlop={12}>
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
-        <VirraText variant="mono" size={11} color={colors.breath} style={s.title}>BREAKS</VirraText>
-        <Pressable onPress={() => setShowModal(true)} hitSlop={12}>
+        <VirraText variant="display" size={24} color={colors.pulse}>Breaks</VirraText>
+        <Pressable style={s.headerBtn} onPress={() => setShowModal(true)} hitSlop={12}>
           <SymbolView name="plus" size={18} tintColor={colors.pulse} />
         </Pressable>
       </View>
@@ -131,6 +131,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.lg, height: 52,
   },
+  headerBtn: { width: 18, height: 32, alignItems: 'center', justifyContent: 'center' },
   title:    { letterSpacing: 1.5 },
   scroll:   { padding: spacing.lg, gap: spacing.md },
   card:     { gap: spacing.xs },

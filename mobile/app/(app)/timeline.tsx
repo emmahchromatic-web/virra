@@ -68,11 +68,11 @@ export default function TimelineScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Back">
-          <SymbolView name="chevron.left" size={18} tintColor={colors.breath} />
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
-        <VirraText variant="mono" size={10} color={colors.muted}>ACTIVITY</VirraText>
-        <View style={{ width: 32 }} />
+        <VirraText variant="display" size={24} color={colors.pulse}>Activity</VirraText>
+        <View style={{ width: 18 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -125,7 +125,7 @@ export default function TimelineScreen() {
 const styles = StyleSheet.create({
   safe:       { flex: 1, backgroundColor: colors.mile },
   header:     { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, backgroundColor: colors.mile },
-  backBtn:    { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  backBtn:    { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   scroll:     { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   group:      { gap: spacing.xs },
   groupLabel: { letterSpacing: 1.5 },

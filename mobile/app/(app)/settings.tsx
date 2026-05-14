@@ -49,10 +49,10 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
-          <SymbolView name="chevron.left" size={18} tintColor={colors.breath} />
+        <Pressable style={s.backBtn} onPress={() => router.back()} hitSlop={12}>
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
-        <VirraText variant="mono" size={11} color={colors.breath} style={s.title}>SETTINGS</VirraText>
+        <VirraText variant="display" size={24} color={colors.pulse}>Settings</VirraText>
         <View style={{ width: 18 }} />
       </View>
 
@@ -113,6 +113,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.lg, height: 52,
   },
+  backBtn:       { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   title:         { letterSpacing: 1.5 },
   scroll:        { padding: spacing.lg, gap: spacing.md },
   card:          { gap: spacing.xs },

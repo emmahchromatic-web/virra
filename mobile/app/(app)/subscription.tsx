@@ -72,20 +72,18 @@ export default function SubscriptionScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
+        </Pressable>
+        <VirraText variant="display" size={24} color={colors.pulse}>Subscription</VirraText>
+        <View style={{ width: 18 }} />
+      </View>
     <ScrollView
       style={styles.scroll}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <SymbolView name="chevron.left" size={16} tintColor={colors.muted} />
-          <VirraText variant="mono" size={11} color={colors.muted}>BACK</VirraText>
-        </Pressable>
-      </View>
-      <VirraText variant="display" size={26} color={colors.pulse} style={styles.title}>
-        Subscription
-      </VirraText>
 
       <VirraCard style={styles.card}>
         <VirraText variant="mono" size={9} color={colors.muted} style={styles.sectionLabel}>
@@ -143,8 +141,8 @@ const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: colors.mile },
   scroll:       { flex: 1 },
   content:      { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
-  headerRow:    { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs },
-  backBtn:      { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  header:       { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  backBtn:      { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   title:        { marginBottom: spacing.sm },
   card:         { gap: spacing.xs },
   sectionLabel: { letterSpacing: 1.5, marginBottom: spacing.xs },

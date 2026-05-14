@@ -236,11 +236,11 @@ export default function ManualActivityScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
-            <SymbolView name="xmark" size={18} tintColor={colors.muted} />
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+            <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
           </Pressable>
-          <VirraText variant="mono" size={10} color={colors.muted}>LOG ACTIVITY</VirraText>
-          <View style={{ width: 32 }} />
+          <VirraText variant="display" size={24} color={colors.pulse}>Log activity</VirraText>
+          <View style={{ width: 18 }} />
         </View>
 
         <ScrollView
@@ -482,6 +482,7 @@ export default function ManualActivityScreen() {
 const styles = StyleSheet.create({
   safe:               { flex: 1, backgroundColor: colors.mile },
   header:             { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  backBtn:            { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   closeBtn:           { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   scroll:             { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   hint:               { fontStyle: 'italic', lineHeight: 20 },
