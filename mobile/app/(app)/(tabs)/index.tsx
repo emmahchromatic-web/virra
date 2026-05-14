@@ -322,12 +322,11 @@ const styles = StyleSheet.create({
   actionRow:   { flexDirection: 'row', gap: spacing.md },
   actionTile:  {
     flex:            1,
-    aspectRatio:     1,
     borderWidth:     1.5,
     borderRadius:    radius.md,
     backgroundColor: colors.mist,
     padding:         spacing.md,
-    justifyContent:  'space-between',
+    gap:             spacing.sm,
   },
   actionLabel: { letterSpacing: 1.5 },
   actionSub:   { lineHeight: 14, marginTop: 2 },
