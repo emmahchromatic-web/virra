@@ -258,6 +258,68 @@ Editable-season UX so users can manage their progressive training season after i
 
 **How to apply:** When this phase activates, run a brainstorm session covering the seven items above. They cluster naturally — "structural edits" (events, priorities, phase boundaries) vs. "lifecycle edits" (rebuild, retire, recap). Two sub-projects (Fa / Fb) are likely.
 
+### Phase G — Cycle-Narrated Weight (deferred, opt-in only)
+
+Banded weight tracking that interprets every reading through three lenses — cycle, training, fuelling — and surfaces an insight *only* when a reading diverges from what other data predicted AND there's something specific to say about it. The framing principle: **Virra doesn't track weight, it narrates it.**
+
+Visual design mockup: [`docs/design/phase-g-weight-tracking.html`](docs/design/phase-g-weight-tracking.html). Brainstorming for this phase happened 2026-05-14; full design captured in the mockup.
+
+**Core architectural principles (do not lose during implementation):**
+
+1. **Opt-in only.** Default OFF on `user_profiles.track_weight`. Until the user explicitly enables it, nothing about weight surfaces anywhere — no card, no flag, no insight, no HK pull. First-run activation shows a one-shot explainer ("This isn't a weight loss feature…") + a calibrating state until baseline stabilises (~3 cycles).
+2. **Silence is the default state.** Most readings produce no insight. A user might go weeks without seeing a card, and that's correct — their body is doing what bodies do. Insights are *only* generated when |actual − expected| > threshold AND the engine can compose a meaningful explanation.
+3. **Explain before flag.** When a reading diverges, the engine first searches for rationale across training (long run / race / inflammation in last 72h), nutrition (sodium / alcohol / TDEE-intake variance), cycle (phase edges, irregular cycles), and symptom logs. If rationale found → pulse-bordered "expected" card with supportive copy. If not → dawn-bordered "watch this" card with cautious framing. Never heat-coloured (no moral judgement).
+4. **Predictive over reactive.** Surface forecasts the *morning of* a hard session ("tomorrow you'll likely see +1.2–1.8kg from glycogen restoration") rather than reacting to the reading after. Foresight defuses the diet-culture reflex; surprise triggers it.
+5. **Delta from baseline, never absolute weight.** Baseline is the rolling median of follicular-phase readings over the last 2-3 cycles (follicular = least water, most stable). The user never sets a goal weight; it emerges from data. The hero number is "+1.5 kg from baseline," not "67.3 kg."
+6. **No streaks, no trends, no targets.** These are diet-culture mechanics. Explicitly excluded.
+
+**Surfaces:**
+
+| Surface | Behaviour |
+|---|---|
+| Profile toggle | Default OFF. Toggle ON triggers explainer + HK observer + calibration state |
+| Dashboard daily glance | Phrase + band-position indicator. Anticipatory copy. Gated on `track_weight` |
+| Detail chart (Insights tab) | 3-cycle band visualisation, deltas not absolutes, annotated dots showing training event causes (long runs, races) |
+| Insights flags | Cards only when engine has something specific to say (rapid change with rationale, projection variance, post-session water forecast) |
+
+**Schema additions:**
+
+```sql
+alter table user_profiles
+  add column track_weight                boolean default false,
+  add column weight_baseline_kg          numeric,
+  add column weight_baseline_computed_at timestamptz;
+
+create table body_weights (
+  id                  uuid primary key default gen_random_uuid(),
+  user_id             uuid not null references auth.users(id) on delete cascade,
+  recorded_on         date not null,
+  weight_kg           numeric not null,
+  source              text not null check (source in ('healthkit','manual')),
+  cycle_day_at_time   integer,
+  cycle_phase_at_time text,
+  created_at          timestamptz default now()
+);
+
+-- Insights persisted per reading so the engine doesn't recompute on every Insights refresh
+create table weight_insights (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
+  weight_id    uuid references body_weights(id) on delete cascade,
+  variant      text not null,   -- 'post_session'|'outlier'|'rapid_loss'|'rapid_gain'|'projection_variance'
+  rationale    text not null,
+  data_sources text[] not null, -- ['training','nutrition','cycle','symptoms']
+  surfaced_at  timestamptz default now(),
+  dismissed_at timestamptz
+);
+```
+
+**Training feedback loop:** Sustained underfuelling signal (down > projected for 2+ weeks while training high) → SeasonEngine downgrades upcoming hard sessions via the existing `buildVolumeAdjustmentNote` infrastructure with a new trigger source.
+
+**Why deferred:** App Store submission is the next gate; Phase G is meaningful feature surface (schema, HK pipe, baseline computation, 4 UI surfaces, insight engine) and not blocking launch. Activates post-launch when usage data + cycle-completion patterns are available to validate the band defaults per cohort.
+
+**How to apply:** When this phase activates, run a fresh brainstorm covering the rationale-search algorithm (which training/nutrition signals get checked in what order, what their thresholds are), then a writing-plans session. Two likely sub-projects: **Ga** ingestion + chart + glance (the foundation), **Gb** rationale-engine + insight cards + season feedback loop (the intelligence layer). The mockup is design-locked; copy iteration is fine but the architecture should hold.
+
 ---
 
 ## Phase 2 (post-launch — not in scope for MVP)
