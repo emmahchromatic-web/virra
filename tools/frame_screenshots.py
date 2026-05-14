@@ -3,18 +3,27 @@
 frame_screenshots.py  —  Screenshot the Simulator for App Store Connect or marketing
 
 ── App Store Connect (raw native-resolution PNG, ready to upload) ────────────
-  Boot iPhone 16 Pro Max  (6.9" tier, 1320×2868 — preferred for ASC 2026)
-  or iPhone 15 Pro Max    (6.7" tier, 1290×2796 — also accepted),
-  navigate to a screen, then:
+  ASC's upload UI gates strictly on pixel dimensions per slot. Capture one set
+  per slot that ASC asks you to populate. The --tier flag validates the booted
+  simulator matches the target tier and organises output into per-tier folders.
 
-    python3 tools/frame_screenshots.py --capture dashboard --asc
+  6.9" tier  (iPhone 16 Pro Max, 1320×2868):
+    Boot iPhone 16 Pro Max, then:
+    python3 tools/frame_screenshots.py --asc --tier 6.9 --screens \\
+        onboarding,dashboard,training,nutrition,cycle,insights,paywall
 
-  Or capture a sequence in one run (prompts you to navigate between screens):
+  6.7" tier  (iPhone 15 Pro Max or 16 Plus, 1290×2796):
+    Shut down 6.9" sim, boot iPhone 15 Pro Max, then re-run with --tier 6.7
 
-    python3 tools/frame_screenshots.py --asc --screens onboarding,dashboard,training,nutrition,cycle,insights,paywall
+  6.5" tier  (iPhone 11 Pro Max, 1242×2688):
+    Shut down previous sim, boot iPhone 11 Pro Max, then re-run with --tier 6.5
 
-  Output: docs/app-store/screenshots/01-{name}.png at the simulator's native size.
-  ASC mode skips the frame, the device chrome, and WebP — Apple wants raw PNGs.
+  Single screen instead of a sequence:
+    python3 tools/frame_screenshots.py --capture dashboard --asc --tier 6.9
+
+  Outputs land in docs/app-store/screenshots/{tier}/01-{name}.png so the
+  tiers stay separate and the upload order to ASC is deterministic. ASC
+  mode skips the frame, device chrome, and WebP — Apple wants raw PNGs.
 
 ── Marketing: capture the Simulator window as-is (chrome included) ──────────
   Navigate the Simulator to a screen, then:
@@ -153,14 +162,35 @@ def to_webp(png_path: Path):
 # ── Simulator helpers ─────────────────────────────────────────────────────────
 
 # Apple-accepted screenshot sizes for App Store Connect, portrait orientation.
-# As of 2026 Apple requires ONE of the 6.9" or 6.7" tiers; older tiers are
-# accepted in their respective ASC slots but no longer required separately
-# because ASC auto-downscales for smaller devices.
+# Note: Apple's published policy says 6.7"/6.9" alone is sufficient and ASC will
+# auto-scale for smaller tiers, but in practice ASC's upload validator gates
+# strictly on the exact dimensions for whichever slot you upload into. If the
+# ASC UI shows you slots for 6.5"/5.5", you'll need to populate them with
+# screenshots at those exact dimensions — capture from a matching simulator.
 ASC_SPEC_SIZES = {
-    (1320, 2868): '6.9"  preferred  (iPhone 16 Pro Max)',
-    (1290, 2796): '6.7"  accepted   (iPhone 14/15 Pro Max, 15/16 Plus)',
-    (1284, 2778): '6.7"  legacy     (iPhone 12/13 Pro Max)',
-    (1242, 2688): '6.5"  legacy     (iPhone XS Max, 11 Pro Max)',
+    (1320, 2868): '6.9"  (iPhone 16 Pro Max)',
+    (1290, 2796): '6.7"  (iPhone 14/15 Pro Max, 15/16 Plus)',
+    (1284, 2778): '6.7"  (iPhone 12/13 Pro Max — also accepted in 6.5" slot)',
+    (1242, 2688): '6.5"  (iPhone XS Max, 11 Pro Max)',
+    (1242, 2208): '5.5"  (iPhone 8 Plus — legacy)',
+}
+
+# Which tier each accepted size belongs to in the ASC upload UI.
+# Used by --tier to validate the booted simulator and to organise output folders.
+ASC_TIER_SIZES = {
+    '6.9': {(1320, 2868)},
+    '6.7': {(1290, 2796), (1284, 2778)},
+    '6.5': {(1284, 2778), (1242, 2688)},   # ASC accepts either in the 6.5" slot
+    '5.5': {(1242, 2208)},
+}
+
+# Suggested simulator for each tier — helps when you don't have all of them
+# installed in Xcode and need to know what to download.
+ASC_TIER_DEVICES = {
+    '6.9': 'iPhone 16 Pro Max',
+    '6.7': 'iPhone 15 Pro Max  (or iPhone 16 Plus)',
+    '6.5': 'iPhone 11 Pro Max  (or iPhone XS Max)',
+    '5.5': 'iPhone 8 Plus',
 }
 
 
@@ -196,15 +226,28 @@ def sim_booted_device_name() -> str:
     return 'unknown'
 
 
-def asc_validate(png_path: Path) -> tuple[int, int, str]:
+def asc_validate(png_path: Path, expected_tier: Optional[str] = None) -> tuple[int, int, str]:
     """
     Open the PNG, return (w, h, label).  Prints a warning if the size is not
-    an Apple-accepted App Store Connect screenshot size.
+    an Apple-accepted App Store Connect screenshot size, or — if expected_tier
+    is provided — if the size does not match that specific ASC slot.
     """
     img = Image.open(str(png_path))
     w, h = img.size
     label = ASC_SPEC_SIZES.get((w, h))
-    if label:
+
+    if expected_tier:
+        if (w, h) in ASC_TIER_SIZES.get(expected_tier, set()):
+            print(f"  ASC ✓  {w}×{h}  matches {expected_tier}\" slot  ({label})")
+        else:
+            accepted = ASC_TIER_SIZES.get(expected_tier, set())
+            print(
+                f"  ASC ✗  {w}×{h} does NOT fit the {expected_tier}\" slot.\n"
+                f"     {expected_tier}\" accepts: " +
+                ', '.join(f"{a}×{b}" for a, b in accepted) +
+                f"\n     → Boot {ASC_TIER_DEVICES.get(expected_tier, 'a matching device')}"
+            )
+    elif label:
         print(f"  ASC ✓  {w}×{h}  {label}")
     else:
         print(
@@ -212,9 +255,7 @@ def asc_validate(png_path: Path) -> tuple[int, int, str]:
             f"     Accepted (portrait): " +
             ', '.join(f"{a}×{b}" for a, b in ASC_SPEC_SIZES)
         )
-        print(
-            f"     → Boot iPhone 16 Pro Max (preferred) or iPhone 15 Pro Max"
-        )
+
     return w, h, label or 'unaccepted'
 
 
@@ -370,7 +411,7 @@ def _styles_to_capture(asc: bool, dark_only: bool, light_only: bool) -> tuple[st
 def capture_and_frame(name: str, out_dir: Path, webp: bool, delay: float,
                       frame_override: Optional[str], use_window: bool,
                       asc: bool, dark_only: bool, light_only: bool,
-                      filename_prefix: str = ''):
+                      filename_prefix: str = '', asc_tier: Optional[str] = None):
     # Bring Simulator to front before doing anything — avoids screencapture failure
     # if the window is minimised or on a different Space.
     if use_window:
@@ -414,7 +455,7 @@ def capture_and_frame(name: str, out_dir: Path, webp: bool, delay: float,
                     import shutil
                     shutil.copy(raw, outputs[style])
                     print(f"  saved  {outputs[style]}")
-                    asc_validate(outputs[style])
+                    asc_validate(outputs[style], expected_tier=asc_tier)
                 elif use_window:
                     capture_sim_window(raw)
                     import shutil
@@ -437,7 +478,8 @@ def capture_and_frame(name: str, out_dir: Path, webp: bool, delay: float,
 
 def capture_screens_sequence(screens: list[str], out_dir: Path, asc: bool,
                              webp: bool, delay: float, frame_override: Optional[str],
-                             use_window: bool, dark_only: bool, light_only: bool):
+                             use_window: bool, dark_only: bool, light_only: bool,
+                             asc_tier: Optional[str] = None):
     """
     Capture a sequence of named screens. Prompts the user to navigate the
     Simulator to each screen before pressing Enter. In ASC mode, filenames
@@ -448,7 +490,12 @@ def capture_screens_sequence(screens: list[str], out_dir: Path, asc: bool,
     print(f"Output directory:  {out_dir}")
     print(f"Screens to capture: {', '.join(screens)}")
     if asc:
-        print("Mode: ASC (raw native-resolution PNG, dark appearance)")
+        if asc_tier:
+            expected = ', '.join(f"{a}×{b}" for a, b in ASC_TIER_SIZES.get(asc_tier, set()))
+            print(f"Mode: ASC — {asc_tier}\" tier  (expecting {expected})")
+            print(f"Recommended sim:  {ASC_TIER_DEVICES.get(asc_tier, '—')}")
+        else:
+            print("Mode: ASC (raw native-resolution PNG, dark appearance)")
     print()
 
     for idx, screen in enumerate(screens, start=1):
@@ -463,7 +510,7 @@ def capture_screens_sequence(screens: list[str], out_dir: Path, asc: bool,
             name=screen, out_dir=out_dir, webp=webp, delay=delay,
             frame_override=frame_override, use_window=use_window,
             asc=asc, dark_only=dark_only, light_only=light_only,
-            filename_prefix=prefix,
+            filename_prefix=prefix, asc_tier=asc_tier,
         )
         print()
 
@@ -488,6 +535,10 @@ def main():
     p.add_argument('--asc', action='store_true',
                    help='App Store Connect mode: raw native-resolution PNG, no frame, '
                         'no chrome, no WebP. Default output: docs/app-store/screenshots/')
+    p.add_argument('--tier', choices=['6.9', '6.7', '6.5', '5.5'],
+                   help='Target ASC display tier. Validates the booted simulator '
+                        'matches that tier and organises output into a per-tier folder. '
+                        'Pair with --asc; capture each tier ASC asks you to populate.')
     p.add_argument('--window', action='store_true',
                    help='Capture the Simulator window as-is (device chrome included). '
                         'Marketing mode — no frame PNG needed.')
@@ -510,13 +561,20 @@ def main():
 
     args = p.parse_args()
 
-    # Resolve default output directory based on mode
+    # Resolve default output directory based on mode + tier
     if args.out_dir:
         default_out = Path(args.out_dir)
+    elif args.asc and args.tier:
+        # Organise per-tier so multi-tier captures don't collide
+        default_out = Path('docs/app-store/screenshots') / args.tier
     elif args.asc:
         default_out = Path('docs/app-store/screenshots')
     else:
         default_out = Path('images')
+
+    if args.tier and not args.asc:
+        print("--tier is only meaningful with --asc; continuing without tier validation.")
+        args.tier = None
 
     if args.screens:
         screens = [s.strip() for s in args.screens.split(',') if s.strip()]
@@ -526,6 +584,7 @@ def main():
             screens=screens, out_dir=default_out, asc=args.asc,
             webp=args.webp, delay=args.delay, frame_override=args.frame,
             use_window=args.window, dark_only=args.dark_only, light_only=args.light_only,
+            asc_tier=args.tier,
         )
 
     elif args.capture:
@@ -533,6 +592,7 @@ def main():
             name=args.capture, out_dir=default_out, webp=args.webp, delay=args.delay,
             frame_override=args.frame, use_window=args.window, asc=args.asc,
             dark_only=args.dark_only, light_only=args.light_only,
+            asc_tier=args.tier,
         )
 
     elif args.batch:

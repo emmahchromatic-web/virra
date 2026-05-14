@@ -20,21 +20,42 @@ Working document. ASC app already exists: **ID `6768433819`**, Apple ID `dickens
 - [ ] Age rating questionnaire
 
 ### Phase 2 — Visual assets
-- [ ] Screenshots — **6.9" (1320×2868) from iPhone 16 Pro Max** — preferred, up to 10
-- [ ] Screenshots — 6.7" (1290×2796) from iPhone 15 Pro Max / 16 Plus — accepted alternative, up to 10
-- ASC auto-downscales these for older devices — submitting 6.5" / 5.5" separately is no longer required
+
+ASC's upload UI gates strictly on pixel dimensions per slot. Populate every slot the ASC UI shows you, capturing each from a matching simulator. Up to 10 screenshots per tier.
+
+- [ ] **6.9"** (1320×2868) — iPhone 16 Pro Max
+- [ ] **6.7"** (1290×2796 or 1284×2778) — iPhone 15 Pro Max / 16 Plus / 13 Pro Max
+- [ ] **6.5"** (1242×2688 or 1284×2778) — iPhone 11 Pro Max / XS Max
+- [ ] **5.5"** (1242×2208) — iPhone 8 Plus (only if ASC asks for this slot)
 - [ ] App preview video (optional, recommended for retention)
 - [x] App icon — light/dark/tinted variants (done, shipped 2026-05-13)
 - [x] Splash screen — Splash.png (done)
 
-Capture command (after booting iPhone 16 Pro Max simulator + signing in to the demo account):
+Capture workflow per tier (after signing in to the App Review demo account on each booted simulator):
 
 ```bash
-python3 tools/frame_screenshots.py --asc --screens \
+# 6.9" — iPhone 16 Pro Max
+python3 tools/frame_screenshots.py --asc --tier 6.9 --screens \
+  onboarding,dashboard,training,nutrition,cycle,insights,paywall
+
+# 6.7" — shut down 6.9" sim, boot iPhone 15 Pro Max, then:
+python3 tools/frame_screenshots.py --asc --tier 6.7 --screens \
+  onboarding,dashboard,training,nutrition,cycle,insights,paywall
+
+# 6.5" — boot iPhone 11 Pro Max, then:
+python3 tools/frame_screenshots.py --asc --tier 6.5 --screens \
   onboarding,dashboard,training,nutrition,cycle,insights,paywall
 ```
 
-Files land in `docs/app-store/screenshots/` numbered for deterministic upload order.
+The `--tier` flag validates the booted simulator produces the expected size and organises output into:
+
+```
+docs/app-store/screenshots/6.9/01-onboarding.png … 07-paywall.png
+docs/app-store/screenshots/6.7/01-onboarding.png … 07-paywall.png
+docs/app-store/screenshots/6.5/01-onboarding.png … 07-paywall.png
+```
+
+Drag each folder into the matching ASC slot.
 
 ### Phase 3 — App Privacy ("nutrition label")
 - [ ] Complete the privacy questionnaire in ASC
