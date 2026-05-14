@@ -43,8 +43,6 @@ export function getDailyStats(): Promise<DailyStats> {
             0,
           );
           if (total > 0) {
-            // eslint-disable-next-line no-console
-            console.log('[HK] exerciseMins via summary →', total);
             resolve(Math.round(total));
             return;
           }
@@ -54,12 +52,7 @@ export function getDailyStats(): Promise<DailyStats> {
         HK.getAppleExerciseTime(
           { startDate: startOfToday(), endDate: endOfToday(), unit: 'minute', includeManuallyAdded: true },
           (err: unknown, res: unknown) => {
-            if (err || !res) {
-              // eslint-disable-next-line no-console
-              console.log('[HK] exerciseMins fallback err/empty', { err, res });
-              resolve(0);
-              return;
-            }
+            if (err || !res) { resolve(0); return; }
             let total = 0;
             if (Array.isArray(res)) {
               total = (res as { value?: number }[]).reduce(
@@ -69,8 +62,6 @@ export function getDailyStats(): Promise<DailyStats> {
             } else {
               total = (res as { value?: number }).value ?? 0;
             }
-            // eslint-disable-next-line no-console
-            console.log('[HK] exerciseMins via samples →', total, 'res shape:', Array.isArray(res) ? `array(${(res as unknown[]).length})` : typeof res);
             resolve(Math.round(total));
           },
         );
