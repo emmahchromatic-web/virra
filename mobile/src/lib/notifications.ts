@@ -115,11 +115,32 @@ async function scheduleOnce(
   }
 }
 
-function todayAt(hour: number, minute = 0): Notifications.DateTriggerInput {
+// Returns a DateTrigger for today at hour:minute, or null if that moment has
+// already passed. We deliberately do NOT bump to tomorrow — daily reminders
+// are re-scheduled by the app on launch / foreground, so tomorrow's reminder
+// will be created freshly tomorrow. Bumping would also cause duplicates:
+// the storage key is per-day, so a "today" key holding a "tomorrow" trigger
+// would never be matched the next day and a second notif would be scheduled.
+function todayAt(hour: number, minute = 0): Notifications.DateTriggerInput | null {
   const d = new Date();
   d.setHours(hour, minute, 0, 0);
-  if (d <= new Date()) d.setDate(d.getDate() + 1); // already past → tomorrow
+  if (d <= new Date()) return null;
   return { type: Notifications.SchedulableTriggerInputTypes.DATE, date: d };
+}
+
+// Cancel any reminder keys for past dates that the old "bump to tomorrow"
+// logic may have left behind. Idempotent and cheap to run on every foreground.
+async function sweepStaleReminderKeys(): Promise<void> {
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const todayISO = today();
+    const stale = allKeys.filter((k) => {
+      // Match notif_<slot>_YYYY-MM-DD where the date is strictly before today.
+      const m = k.match(/^notif_(?:training|nutrition_(?:breakfast|lunch|dinner)|checkin)_(\d{4}-\d{2}-\d{2})$/);
+      return m !== null && m[1] < todayISO;
+    });
+    for (const key of stale) await cancelStored(key);
+  } catch { /* best-effort cleanup */ }
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -156,7 +177,18 @@ export async function scheduleWeeklyPlanReminder(): Promise<void> {
 
 /** Call on every app foreground — idempotent, respects per-slot preferences. */
 export async function scheduleDailyReminders(userId: string): Promise<void> {
+  await sweepStaleReminderKeys();
   const [date, prefs] = [today(), await loadNotificationPreferences()];
+
+  async function maybeSchedule(
+    slot:    string,
+    title:   string,
+    body:    string,
+    trigger: Notifications.DateTriggerInput | null,
+  ): Promise<void> {
+    if (!trigger) return;
+    await scheduleOnce(storageKey(slot, date), title, body, trigger);
+  }
 
   if (prefs.training) {
     const { data: sessions, error: sessionsError } = await supabase
@@ -170,8 +202,8 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     const hasSession = sessionsError ? true : (sessions && sessions.length > 0);
     if (hasSession) {
       const hour = sessionsError ? 9 : await inferTrainingHour(userId);
-      await scheduleOnce(
-        storageKey('training', date),
+      await maybeSchedule(
+        'training',
         'Time to move',
         "Today's session is ready. Tap to start.",
         todayAt(hour),
@@ -180,8 +212,8 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
   }
 
   if (prefs.breakfast) {
-    await scheduleOnce(
-      storageKey('nutrition_breakfast', date),
+    await maybeSchedule(
+      'nutrition_breakfast',
       'Fuel right from the start',
       'Log your breakfast to hit your morning targets.',
       todayAt(8),
@@ -189,8 +221,8 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
   }
 
   if (prefs.lunch) {
-    await scheduleOnce(
-      storageKey('nutrition_lunch', date),
+    await maybeSchedule(
+      'nutrition_lunch',
       'Keep the momentum going',
       'Log your lunch — your body is mid-adaptation right now.',
       todayAt(12, 30),
@@ -198,8 +230,8 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
   }
 
   if (prefs.dinner) {
-    await scheduleOnce(
-      storageKey('nutrition_dinner', date),
+    await maybeSchedule(
+      'nutrition_dinner',
       'End the day strong',
       'Log your dinner and close out your nutrition.',
       todayAt(19),
@@ -207,8 +239,8 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
   }
 
   if (prefs.checkin) {
-    await scheduleOnce(
-      storageKey('checkin', date),
+    await maybeSchedule(
+      'checkin',
       'A minute to check in',
       'How are you feeling today? It only takes 30 seconds.',
       todayAt(20),
