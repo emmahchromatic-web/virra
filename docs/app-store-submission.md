@@ -178,9 +178,17 @@ Virra is a running app for women that integrates menstrual cycle data with train
 
 4. Demo account: provided in the credentials field. The account has completed onboarding and 4 weeks of sample training + cycle data so reviewers can immediately see the cycle-aware features in action.
 
-5. Permissions: HealthKit (required), Location (required for run tracking), Notifications (required for reminders), Camera (optional, for food barcode scanning). All requested with clear usage descriptions before the iOS dialog.
+5. Permissions: HealthKit (workouts, heart rate variants, exercise minutes, distance, steps, VO₂max, sleep, weight, menstrual flow — read; workouts + nutrition macros — write), Location (foreground + background — used only during an active run for GPS tracking; background mode is declared in Info.plist and matches the actual entitlement request), Notifications (training and meal reminders that cancel themselves when the action is completed), Camera (for food barcode scanning in the nutrition log). All requested with a clear in-app rationale screen before the iOS dialog. The app does not block on denial — every feature degrades gracefully.
 
-6. Cycle-aware claims are framed as informational and education, not medical advice. All articles in our Education Library reference that we aren't a replacement for medical professionals.
+6. Cycle-aware claims are framed as informational and educational, not medical advice. Every article in the Education Library carries a disclaimer footer reminding the reader that Virra is not a substitute for advice from a qualified healthcare professional. A separate "Health & medical" entry in Profile presents the same disclaimer at any time.
+
+7. AI insights: weekly narrative insights are generated via an Anthropic Claude Haiku API call from a Supabase Edge Function. Only aggregated training and cycle metrics are sent — never raw HealthKit readings (no heart rate samples, no GPS traces, no per-meal nutrition rows). The purpose is health management for the user; the data is not used for advertising, marketing, research, or data mining. Anthropic is disclosed as a third-party processor in the App Privacy questionnaire and in the privacy policy.
+
+8. Dashboard activity rings: the Dashboard shows two separate progress tiles — STEPS and EXERCISE MIN — against user-defined daily targets. They are intentionally distinct from Apple's three-ring concentric Activity control: two side-by-side tiles (not concentric), lime + orange colours (not Apple's red/green/blue), and labelled with mono text. Exercise minutes is read from HKQuantityTypeIdentifierAppleExerciseTime, which Apple's HealthKit documentation invites third-party fitness apps to surface.
+
+9. Account deletion: available under Profile → DELETE ACCOUNT. A type-to-confirm modal then calls a Supabase Edge Function which cascade-deletes all user data and removes the auth record. Compliant with 5.1.1(v).
+
+10. Food data is sourced from the Open Food Facts open database (ODbL licence) with attribution visible on the food-search screen and in the in-app Credits surface.
 
 Happy to answer any questions at dickenson.ps@gmail.com.
 ```
@@ -198,10 +206,48 @@ Data collected by Virra:
 | Health & Fitness — body metrics | Optional, only if Track Weight enabled | Yes | No |
 | Precise location | Run tracking (GPS) | Yes | No |
 | Purchase history | Subscription management (RevenueCat) | Yes | No |
-| Crash data | Diagnostics | No (anonymous) | No |
-| Performance data | Diagnostics | No (anonymous) | No |
 
-Tracking: **none.** No third-party advertising. No SDK that follows users across apps/websites.
+Tracking: **none.** No third-party advertising. No SDK that follows users across apps/websites. Crash/performance diagnostics are NOT collected today (no diagnostics SDK is wired in) — do not declare them on the App Privacy questionnaire until/unless one is added.
+
+### HealthKit data types — paste-ready enumeration
+
+For the App Privacy questionnaire (Health & Fitness → Specific types) and for the privacy policy. Every type is read or written through a permission the user grants in the iOS HealthKit dialog.
+
+**Read (from Apple Health):**
+- Workouts (`HKWorkoutType`) — runs, walks, strength sessions, swims, etc.
+- Heart rate (`HKQuantityTypeIdentifierHeartRate`)
+- Resting heart rate (`HKQuantityTypeIdentifierRestingHeartRate`)
+- Heart rate variability — SDNN (`HKQuantityTypeIdentifierHeartRateVariabilitySDNN`)
+- Active energy burned (`HKQuantityTypeIdentifierActiveEnergyBurned`)
+- Apple exercise time (`HKQuantityTypeIdentifierAppleExerciseTime`)
+- Walking + running distance (`HKQuantityTypeIdentifierDistanceWalkingRunning`)
+- Step count (`HKQuantityTypeIdentifierStepCount`)
+- VO₂ max (`HKQuantityTypeIdentifierVO2Max`)
+- Sleep analysis (`HKCategoryTypeIdentifierSleepAnalysis`)
+- Body mass / weight (`HKQuantityTypeIdentifierBodyMass`)
+- Menstrual flow (`HKCategoryTypeIdentifierMenstrualFlow`) — via custom Expo module
+
+**Write (to Apple Health):**
+- Workouts (`HKWorkoutType`) — from the in-app run tracker and manual activity log
+- Dietary energy (`HKQuantityTypeIdentifierDietaryEnergyConsumed`)
+- Dietary carbohydrates (`HKQuantityTypeIdentifierDietaryCarbohydrates`)
+- Dietary protein (`HKQuantityTypeIdentifierDietaryProtein`)
+- Dietary fat (`HKQuantityTypeIdentifierDietaryFatTotal`)
+- Dietary fibre (`HKQuantityTypeIdentifierDietaryFiber`)
+
+### Third-party processors (paste-ready)
+
+For the App Privacy questionnaire's "Data Used to Track You" / "Data Linked to You" disclosures and for the privacy policy.
+
+| Processor | What is sent | Purpose | Tracking? |
+|---|---|---|---|
+| **Supabase** (Postgres + Auth + Storage + Edge Functions) | Email, name, avatar, cycle logs, training plans, planned sessions, activities, nutrition entries, insights cache, subscription record | Backend for the app — encrypted in transit (TLS) and at rest | No |
+| **RevenueCat** | Apple receipt + product identifier + anonymised customer ID | Subscription entitlement check | No |
+| **Anthropic (Claude Haiku)** | **Aggregate** training and cycle metrics only — weekly km, adherence %, average energy/mood from check-ins, current cycle phase, upcoming session count. Never raw heart rate, never GPS traces, never per-meal entries | Generate weekly narrative insight text shown only to the user themselves | No |
+| **Apple HealthKit** | (on-device only; not transmitted to Virra's servers in raw form) | Source of workout, heart rate, distance, sleep, weight, menstrual data | No |
+| **Open Food Facts** | Outbound barcode lookup (a 13-digit number); no personal data sent | Resolve a barcode to food + macros | No |
+
+None of the above are used for advertising, marketing, or use-based data mining.
 
 ### Category
 

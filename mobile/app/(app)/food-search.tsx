@@ -399,6 +399,9 @@ export default function FoodSearchScreen() {
                   NOT LISTED? LOG MANUALLY →
                 </VirraText>
               </Pressable>
+              <VirraText variant="mono" size={8} color={colors.muted} style={styles.offAttribution}>
+                FOOD DATA FROM OPEN FOOD FACTS · OPENFOODFACTS.ORG
+              </VirraText>
             </>
           )}
         </ScrollView>
@@ -429,4 +432,12 @@ const styles = StyleSheet.create({
   empty:       { textAlign: 'center', paddingVertical: spacing.md },
   manualLink:  { alignItems: 'center', paddingVertical: spacing.xs },
   barcodeBtn:  { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  offAttribution: {
+    textAlign:     'center',
+    letterSpacing: 1.5,
+    marginTop:     spacing.lg,
+    paddingTop:    spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
 });

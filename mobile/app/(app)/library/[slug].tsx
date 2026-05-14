@@ -94,6 +94,14 @@ export default function ArticleScreen() {
           <View style={styles.body}>
             {renderBody(article.body_md)}
           </View>
+          <View style={styles.disclaimer}>
+            <VirraText variant="mono" size={9} color={colors.muted} style={styles.disclaimerLabel}>
+              EDUCATIONAL CONTENT
+            </VirraText>
+            <VirraText variant="body" size={12} color={colors.muted} style={styles.disclaimerBody}>
+              Virra is an educational and training-guidance product, not a medical service. Articles are not a substitute for advice from a qualified healthcare professional. Consult a doctor before making decisions about exercise, nutrition, or your cycle — especially if pregnant, post-partum, or managing a medical condition.
+            </VirraText>
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -110,4 +118,13 @@ const styles = StyleSheet.create({
   tag:     { letterSpacing: 1.5 },
   title:   { lineHeight: 36, marginBottom: spacing.lg },
   body:    { gap: spacing.md },
+  disclaimer: {
+    marginTop:         spacing.xl,
+    paddingTop:        spacing.md,
+    borderTopWidth:    1,
+    borderTopColor:    colors.border,
+    gap:               spacing.xs,
+  },
+  disclaimerLabel: { letterSpacing: 1.5 },
+  disclaimerBody:  { lineHeight: 18 },
 });

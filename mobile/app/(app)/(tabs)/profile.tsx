@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, Alert, TextInput, Image,
+  Pressable, Alert, TextInput, Image, Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -69,6 +69,8 @@ export default function ProfileScreen() {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirm,      setDeleteConfirm]      = useState('');
   const [deleting,           setDeleting]           = useState(false);
+  const [medicalModalVisible, setMedicalModalVisible] = useState(false);
+  const [creditsModalVisible, setCreditsModalVisible] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -144,6 +146,11 @@ export default function ProfileScreen() {
   async function handleSignOut() {
     await signOut();
     router.replace('/(auth)');
+  }
+
+  async function openExternal(url: string) {
+    try { await Linking.openURL(url); }
+    catch { Alert.alert('Could not open link', url); }
   }
 
   async function handleDeleteAccount() {
@@ -317,6 +324,35 @@ export default function ProfileScreen() {
           />
         </VirraCard>
 
+        <VirraCard style={styles.card}>
+          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>HELP &amp; LEGAL</VirraText>
+          <Row
+            label="HEALTH &amp; MEDICAL"
+            value="Educational use only · tap to read"
+            onPress={() => setMedicalModalVisible(true)}
+          />
+          <Row
+            label="SUPPORT"
+            value="hello@virra.app"
+            onPress={() => openExternal('mailto:hello@virra.app?subject=Virra%20Support')}
+          />
+          <Row
+            label="PRIVACY POLICY"
+            value="virra.app/privacy"
+            onPress={() => openExternal('https://virra.app/privacy')}
+          />
+          <Row
+            label="TERMS OF SERVICE"
+            value="virra.app/terms"
+            onPress={() => openExternal('https://virra.app/terms')}
+          />
+          <Row
+            label="CREDITS"
+            value="Data &amp; libraries we use"
+            onPress={() => setCreditsModalVisible(true)}
+          />
+        </VirraCard>
+
         <VirraButton
           label="Sign out"
           variant="secondary"
@@ -376,6 +412,59 @@ export default function ProfileScreen() {
           </VirraText>
         ) : null}
         <VirraButton label="SAVE" onPress={handleCycleLengthSave} loading={saving} />
+      </VirraModal>
+
+      {/* Health & medical disclaimer modal */}
+      <VirraModal
+        visible={medicalModalVisible}
+        onClose={() => setMedicalModalVisible(false)}
+        title="Health & medical"
+      >
+        <VirraText variant="body" size={14} color={colors.breath}>
+          Virra is an educational and training-guidance product. It is not a medical service, does not provide a diagnosis, and is not a substitute for professional medical advice.
+        </VirraText>
+        <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
+          Cycle phase, pace, and fuelling recommendations are generated from the data you and Apple Health provide and from general physiology research. Consult a qualified healthcare professional before making decisions about exercise, nutrition, or your cycle — especially if pregnant, post-partum, breastfeeding, on hormonal contraception, perimenopausal, menopausal, or managing any medical condition.
+        </VirraText>
+        <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
+          If you experience pain, dizziness, unusual symptoms, or anything that concerns you, stop exercising and seek medical advice.
+        </VirraText>
+        <VirraButton label="Got it" variant="ghost" onPress={() => setMedicalModalVisible(false)} style={{ marginTop: spacing.md }} />
+      </VirraModal>
+
+      {/* Credits modal */}
+      <VirraModal
+        visible={creditsModalVisible}
+        onClose={() => setCreditsModalVisible(false)}
+        title="Credits"
+      >
+        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+          FOOD DATABASE
+        </VirraText>
+        <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: 2 }}>
+          Food and barcode data is provided by Open Food Facts, a collaborative open database, under the Open Database License.
+        </VirraText>
+        <Pressable onPress={() => openExternal('https://world.openfoodfacts.org')} style={{ marginTop: spacing.xs }}>
+          <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
+            OPENFOODFACTS.ORG →
+          </VirraText>
+        </Pressable>
+
+        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
+          TYPEFACES
+        </VirraText>
+        <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: 2 }}>
+          Big Shoulders Display, Fraunces, Inter, and Space Mono — distributed by Google Fonts under the SIL Open Font License.
+        </VirraText>
+
+        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
+          BUILT WITH
+        </VirraText>
+        <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: 2 }}>
+          React Native, Expo, Supabase, RevenueCat.
+        </VirraText>
+
+        <VirraButton label="Close" variant="ghost" onPress={() => setCreditsModalVisible(false)} style={{ marginTop: spacing.md }} />
       </VirraModal>
 
       {/* Steps target modal */}
