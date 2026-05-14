@@ -320,6 +320,65 @@ create table weight_insights (
 
 **How to apply:** When this phase activates, run a fresh brainstorm covering the rationale-search algorithm (which training/nutrition signals get checked in what order, what their thresholds are), then a writing-plans session. Two likely sub-projects: **Ga** ingestion + chart + glance (the foundation), **Gb** rationale-engine + insight cards + season feedback loop (the intelligence layer). The mockup is design-locked; copy iteration is fine but the architecture should hold.
 
+### Phase H — Nutrition Input Expansion (deferred)
+
+Two complementary additions to nutrition logging that reduce friction for foods OFF's barcode database doesn't cover well:
+
+1. **Expanded curated common-foods list** — a designed library of UK-common items with sensible default portions (banana, slice of toast with butter, flat white, pint, generic restaurant items). Sits alongside OFF search as the first surface user sees when adding food. Higher hit rate for everyday inputs than searching OFF.
+
+2. **Haiku-powered meal description** — a "describe a meal" entry point where the user types or speaks natural language ("Pret tuna baguette and a flat white", "Wagamama chicken katsu curry") and a Haiku edge function returns structured items with macro/calorie estimates. Critical for restaurants, takeaways, and ad-hoc meals.
+
+**Core architectural principles:**
+
+1. **Estimates are estimates, never truth.** Haiku-derived entries carry a `confidence` field and visually display as "estimated" — small caveat label on the entry row, not a quiet write. Users see at a glance which entries came from a precise source (barcode) vs a fuzzy one (Haiku).
+2. **Edit affordance is loud, not hidden.** Long-press / tap-to-edit (already in place from the 2026-05-13 portion editing work) extends to the Haiku result modal — every parsed item is adjustable before save. The original natural-language input is stored alongside so the user can re-parse later if the estimate was wrong.
+3. **Fuelling language survives the cost data.** A 1200 kcal restaurant meal is never framed as "high" — it's framed against the user's target for that day's training load. The same diet-culture discipline that governs the rest of the app applies here.
+4. **Privacy disclosure on first use.** A one-shot explainer on first "describe meal" tap: "Your description goes to AI for estimation. No identifying info is sent. The text + result is stored on your account for future reference."
+5. **Cost-aware.** Estimated <$0.10/user/month at typical use even uncached. Caching by description-hash is cheap to add and reduces calls further. Not blocking — ship without cache, add if cost shows up.
+
+**Schema additions:**
+
+```sql
+-- Tag every food_entries row with how it got there
+alter table food_entries
+  add column source       text default 'manual'
+    check (source in ('manual','off_search','off_barcode','haiku_estimate','common_food')),
+  add column confidence   numeric,    -- 0..1, only set for haiku_estimate
+  add column haiku_input  text;       -- the original NL description, only for haiku_estimate
+
+-- Curated UK common-foods library (or ship as a static JSON asset — decide at brainstorm)
+create table common_foods (
+  id              uuid primary key default gen_random_uuid(),
+  name            text not null,
+  category        text not null,      -- 'breakfast'|'lunch'|'snack'|'drink'|'restaurant_chain'
+  default_grams   numeric not null,
+  calories        numeric not null,
+  carbs_g         numeric not null,
+  protein_g       numeric not null,
+  fat_g           numeric not null,
+  fibre_g         numeric not null,
+  sort_order      integer
+);
+```
+
+**Surfaces:**
+
+| Surface | Behaviour |
+|---|---|
+| Meal section "+" tap | Shows three choices: Common foods · Describe a meal · Scan barcode (existing) · Search OFF (existing) |
+| Common foods picker | Categorised grid (breakfast / lunch / drink / restaurant). One tap → adjust portion → save |
+| Describe a meal | Multi-line textbox, voice-input enabled. Submit → spinner ~2s → review modal |
+| Review modal | Parsed items list, confidence badge per item, edit affordance, "Save" / "These aren't right — retry" |
+| Entry rows | Haiku-sourced rows show a small "EST." badge in muted mono so source provenance is visible |
+
+**Edge function:**
+
+`estimate-meal` Supabase Edge Function calls Anthropic API with a system prompt that constrains output to strict JSON (items with name, quantity_g, kcal, carbs_g, protein_g, fat_g, fibre_g, confidence). Includes UK chain heuristics in the prompt. Graceful fallback on parse failure: surface the raw description as a single manual entry with macros = null, prompting user to fill in.
+
+**Why deferred:** Pre-launch nutrition input is functional via OFF (barcode + search) and manual entry. Phase H is meaningful UX uplift but the gap it closes isn't blocking the first cycle of usage. Activates after launch when usage data shows the "friction events" — every time a user opens food search and gives up without saving an entry.
+
+**How to apply:** Brainstorm first, splitting into two likely sub-projects: **Ha** common-foods library + picker UI (no AI dependency, ships fast, immediate friction reduction), **Hb** Haiku describe-meal + edge function + review modal (AI integration, more complex). Ha foundational; Hb additive. The Ha curated list could be seeded from a one-time analytics review of OFF searches that returned no results — those are the foods to add manually.
+
 ---
 
 ## Phase 2 (post-launch — not in scope for MVP)
