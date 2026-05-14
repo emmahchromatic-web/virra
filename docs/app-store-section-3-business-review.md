@@ -109,7 +109,7 @@ This is one of the most common rejection patterns Apple cites for first-time sub
 
 **Suggested copy** (adapt to brand voice; the legal substance must remain):
 ```
-Virra Pro — Monthly · £X.99/month, or Annual · £XX.99/year
+Virra Pro — Monthly · £9.99/month, or Annual · £99.99/year (~£8.33/month)
 - Payment is charged to your Apple ID at the end of the 14-day free trial.
 - Subscriptions auto-renew at the same price for the same period unless turned off
   at least 24 hours before the end of the current period.

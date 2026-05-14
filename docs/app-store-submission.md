@@ -32,10 +32,10 @@ Working document. ASC app already exists: **ID `6768433819`**, Apple ID `dickens
 - [ ] Privacy types collected: email, name, health & fitness, location (precise + coarse), purchase history, identifiers, usage data — see questionnaire draft below
 
 ### Phase 4 — Subscription product
-- [ ] Create subscription group "Virra Pro"
-- [ ] Add monthly tier — price?
-- [ ] Add annual tier — price? (typically discounted vs monthly)
-- [ ] 14-day free trial configured on both
+- [x] Create subscription group "Virra Pro"
+- [x] Add monthly tier — **£9.99 / month**
+- [x] Add annual tier — **£99.99 / year** (effective £8.33 / month — saves ~17% vs monthly)
+- [x] 14-day free trial configured on both
 - [ ] Subscription display name + description per locale
 - [ ] Subscription review notes
 - [ ] RevenueCat: link products + offerings, update `EXPO_PUBLIC_REVENUECAT_IOS_KEY` from test_ key to appl_ key
