@@ -75,20 +75,22 @@ from day_offsets
 where (days_ago % 2 = 0) or (days_ago % 7 in (1, 4));
 
 -- 4. Symptom logs — daily check-ins for last 21 days
+-- energy / mood / sleep_quality are constrained to 1-5 in the schema
 delete from public.symptom_logs where user_id = :'user_id_param';
 
 insert into public.symptom_logs (user_id, recorded_on, energy, mood, sleep_quality, symptoms, notes)
 select
   :'user_id_param',
   current_date - (d || ' days')::interval,
-  -- energy: lower around days 24-28 of cycle, higher mid-cycle
-  case when d % 28 between 0 and 3 then 5
-       when d % 28 between 4 and 12 then 7 + (d % 3)
-       when d % 28 between 13 and 16 then 8
-       else 6 end,
-  case when d % 28 between 24 and 27 then 5 else 7 end,
-  6 + (d % 3),
-  case when d % 28 between 0 and 2 then array['cramps','low_energy']
+  case when d % 28 between 0  and 3  then 2     -- menstrual: low
+       when d % 28 between 4  and 12 then 4     -- follicular: high
+       when d % 28 between 13 and 16 then 5     -- ovulatory: peak
+       else 3 end,                              -- luteal: moderate
+  case when d % 28 between 24 and 27 then 2     -- late luteal: dip
+       when d % 28 between 13 and 16 then 5     -- ovulatory: high
+       else 4 end,
+  case when d % 3 = 0 then 4 when d % 3 = 1 then 5 else 3 end,
+  case when d % 28 between 0  and 2  then array['cramps','low_energy']
        when d % 28 between 22 and 25 then array['bloating']
        else '{}'::text[] end,
   null
