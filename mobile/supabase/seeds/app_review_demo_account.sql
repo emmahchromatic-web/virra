@@ -122,6 +122,80 @@ select
   )
 from generate_series(0, 13) as d;
 
+-- 6. Training block + planned sessions — drives the Training tab and dashboard
+--    week strip. Half-marathon plan starting 3 weeks ago, anchored on a Monday.
+--    Day-of-week template Mon/Wed/Thu/Sun so today (whichever weekday) tends
+--    to fall on a session day.
+delete from public.training_blocks where user_id = :'user_id_param';
+
+with new_block as (
+  insert into public.training_blocks (
+    user_id, template_id, starts_on, modality, is_primary, load_modifier
+  ) values (
+    :'user_id_param',
+    'ec78fe4d-19ac-4885-bc80-6a856bf477c1',   -- Half Marathon Build (12-week)
+    (current_date - interval '21 days')::date - extract(dow from (current_date - interval '21 days'))::int + 1,  -- nearest Monday ≤ 3 weeks back
+    'run', true, 1.0
+  )
+  returning id, starts_on
+),
+session_grid(week, slot, label, training_phase) as (values
+  (1,0,'easy','base'),(1,1,'tempo','base'),(1,2,'easy','base'),(1,3,'long','base'),
+  (2,0,'easy','base'),(2,1,'tempo','base'),(2,2,'easy','base'),(2,3,'long','base'),
+  (3,0,'easy','build'),(3,1,'threshold','build'),(3,2,'easy','build'),(3,3,'long','build'),
+  (4,0,'easy','recovery'),(4,1,'easy','recovery'),(4,2,'easy','recovery'),(4,3,'long','recovery'),
+  (5,0,'easy','build'),(5,1,'threshold','build'),(5,2,'tempo','build'),(5,3,'long','build'),
+  (6,0,'easy','build'),(6,1,'threshold','build'),(6,2,'tempo','build'),(6,3,'long','build'),
+  (7,0,'easy','peak'),(7,1,'threshold','peak'),(7,2,'tempo','peak'),(7,3,'long','peak'),
+  (8,0,'easy','recovery'),(8,1,'easy','recovery'),(8,2,'easy','recovery'),(8,3,'long','recovery'),
+  (9,0,'easy','peak'),(9,1,'threshold','peak'),(9,2,'tempo','peak'),(9,3,'long','peak'),
+  (10,0,'easy','peak'),(10,1,'threshold','peak'),(10,2,'tempo','peak'),(10,3,'long','peak'),
+  (11,0,'easy','taper'),(11,1,'tempo','taper'),(11,2,'easy','taper'),(11,3,'long','taper'),
+  (12,0,'easy','race'),(12,1,'easy','race'),(12,3,'race','race')
+),
+day_map(slot, dow) as (values (0,0), (1,2), (2,3), (3,6))   -- Mon/Wed/Thu/Sun
+insert into public.planned_sessions (
+  user_id, block_id, scheduled_date, week_number, day_of_week,
+  modality, session_label, status, phase
+)
+select
+  :'user_id_param',
+  b.id,
+  b.starts_on + ((sg.week - 1) * 7 + dm.dow),
+  sg.week,
+  dm.dow,
+  'run',
+  sg.label,
+  case when b.starts_on + ((sg.week - 1) * 7 + dm.dow) < current_date
+       then 'completed' else 'planned' end,
+  sg.training_phase
+from new_block b, session_grid sg
+join day_map dm on dm.slot = sg.slot;
+
+-- 7. Food entries for the last 3 days — populates the Nutrition tab
+delete from public.food_entries
+where log_id in (
+  select id from public.nutrition_logs where user_id = :'user_id_param'
+);
+
+with target_logs as (
+  select id from public.nutrition_logs
+  where user_id = :'user_id_param'
+  and recorded_on >= current_date - 2
+)
+insert into public.food_entries (
+  log_id, meal_type, food_name, quantity_g, carbs_g, protein_g, fat_g, fibre_g, calories
+)
+select tl.id, m.meal_type, m.food_name, m.qty, m.carbs, m.protein, m.fat, m.fibre, m.kcal
+from target_logs tl,
+lateral (values
+  ('breakfast', 'Porridge with banana and honey',  250, 65,  9,  4,  6, 350),
+  ('breakfast', 'Greek yoghurt and berries',       150, 14, 12,  4,  3, 140),
+  ('lunch',     'Chicken and quinoa salad',        380, 55, 38, 14,  8, 520),
+  ('snack',     'Flat white and almonds',          140, 12,  8, 18,  3, 240),
+  ('dinner',    'Salmon, sweet potato and greens', 420, 48, 36, 22,  9, 580)
+) as m(meal_type, food_name, qty, carbs, protein, fat, fibre, kcal);
+
 commit;
 
 -- After running, verify with:
