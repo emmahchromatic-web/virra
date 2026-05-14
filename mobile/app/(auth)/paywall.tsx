@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Alert, ScrollView, Pressable } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Alert, ScrollView, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
@@ -9,6 +9,9 @@ import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
+
+const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+const PRIVACY_URL = 'https://virra.app/privacy';
 
 const FEATURES = [
   'Cycle-adjusted training plans (5K → marathon)',
@@ -108,9 +111,35 @@ export default function PaywallScreen() {
           style={styles.cta}
         />
 
-        <VirraText variant="label" color={colors.muted} style={styles.legal}>
-          Subscription auto-renews. Cancel at any time in Settings before trial ends.
-        </VirraText>
+        <View style={styles.legal}>
+          <VirraText variant="mono" size={9} color={colors.muted} style={styles.legalLabel}>
+            SUBSCRIPTION TERMS
+          </VirraText>
+          <VirraText variant="body" size={11} color={colors.muted} style={styles.legalBody}>
+            Virra Pro is an auto-renewing subscription
+            {selected ? ` — ${selected.product.title} at ${selected.product.priceString}` : ''}.
+            Payment is charged to your Apple ID account at the end of the 14-day free trial.
+            The subscription renews automatically at the same price for the same period unless
+            auto-renew is turned off at least 24 hours before the end of the current period.
+            Your account is charged for renewal within 24 hours prior to the end of the current
+            period. Manage or cancel at any time in Settings → [your name] → Subscriptions
+            on this device. Any unused portion of the free trial is forfeited when you start a
+            paid subscription.
+          </VirraText>
+          <View style={styles.legalLinks}>
+            <Pressable onPress={() => Linking.openURL(TERMS_URL)} hitSlop={8}>
+              <VirraText variant="mono" size={10} color={colors.pulse} style={styles.legalLink}>
+                TERMS OF SERVICE
+              </VirraText>
+            </Pressable>
+            <VirraText variant="mono" size={10} color={colors.muted}>·</VirraText>
+            <Pressable onPress={() => Linking.openURL(PRIVACY_URL)} hitSlop={8}>
+              <VirraText variant="mono" size={10} color={colors.pulse} style={styles.legalLink}>
+                PRIVACY POLICY
+              </VirraText>
+            </Pressable>
+          </View>
+        </View>
 
         <VirraButton
           label="Restore purchases"
@@ -142,5 +171,12 @@ const styles = StyleSheet.create({
   pkg:         { paddingVertical: spacing.md },
   pkgSelected: { borderColor: colors.pulse },
   cta:         { marginTop: spacing.sm },
-  legal:       { textAlign: 'center', marginVertical: spacing.sm },
+  legal: {
+    marginVertical: spacing.sm,
+    gap:            spacing.xs,
+  },
+  legalLabel:  { letterSpacing: 1.5 },
+  legalBody:   { lineHeight: 16 },
+  legalLinks:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  legalLink:   { letterSpacing: 1.5 },
 });
