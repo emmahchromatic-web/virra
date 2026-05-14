@@ -152,16 +152,19 @@ export default function InsightsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
-          <SymbolView name="chevron.left" size={18} tintColor={colors.breath} />
+        <Pressable style={styles.backBtn} onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
-        {cycleInfo && (
+        <VirraText variant="display" size={24} color={colors.pulse}>Insights</VirraText>
+        <View style={{ width: 18 }} />
+      </View>
+      {cycleInfo && (
+        <View style={styles.phaseRow}>
           <VirraText variant="mono" size={10} color={phaseColor}>
             {cycleInfo.phase.toUpperCase()} · DAY {cycleInfo.dayOfCycle}
           </VirraText>
-        )}
-        <View style={{ width: 32 }} />
-      </View>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
@@ -378,7 +381,8 @@ export default function InsightsScreen() {
 const styles = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: colors.mile },
   header:          { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, backgroundColor: colors.mile },
-  backBtn:         { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  backBtn:         { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
+  phaseRow:        { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   scroll:          { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   sectionLabel:    { letterSpacing: 1.5, marginBottom: spacing.xs },
   narrativeCard:   { gap: spacing.sm },
