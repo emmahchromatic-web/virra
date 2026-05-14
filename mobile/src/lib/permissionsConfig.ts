@@ -20,7 +20,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     label:    'HEALTH + ACTIVITY',
     headline: 'Your health data, working for you.',
     body:     "Virra reads your workout history to pre-fill your fitness baseline — and pulls cycle data if you've logged it in Apple Health.",
-    why:      'Your data never leaves your device. Virra never uploads or sells health information.',
+    why:      'Raw health records stay in Apple Health on your device. Virra only processes aggregated training and cycle signals to generate your plan and insights, and never sells health data.',
     optional: false,
   },
   {
@@ -105,9 +105,14 @@ export async function requestPermission(id: PermissionItem['id']): Promise<void>
       } catch { /* HK unavailable */ }
       break;
     }
-    case 'location':
-      await Location.requestForegroundPermissionsAsync();
+    case 'location': {
+      const fg = await Location.requestForegroundPermissionsAsync();
+      if (fg.status === 'granted') {
+        try { await Location.requestBackgroundPermissionsAsync(); }
+        catch { /* user can grant later from Settings */ }
+      }
       break;
+    }
     case 'notifications':
       await Notifications.requestPermissionsAsync();
       break;
