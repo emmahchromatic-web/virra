@@ -28,25 +28,52 @@ export function getDailyStats(): Promise<DailyStats> {
     });
   });
 
-  // getAppleExerciseTime uses fetchCumulativeSumStatisticsCollection → returns
-  // an array of period-bucketed samples. Default unit is seconds, so pass
-  // unit: 'minute' to get minutes directly, then sum the buckets for the day.
+  // Primary path: getActivitySummary returns the daily total exercise minutes
+  // directly (Apple's intended ring API). Falls back to summing
+  // getAppleExerciseTime samples if no activity summary exists (e.g. simulator
+  // without a paired Watch, or third-party apps writing exercise time outside
+  // the Activity Summary system).
   const minsPromise = new Promise<number>((resolve) => {
-    HK.getAppleExerciseTime(
-      { startDate: startOfToday(), endDate: endOfToday(), unit: 'minute' },
-      (err: unknown, res: unknown) => {
-        if (err || !res) { resolve(0); return; }
-        if (Array.isArray(res)) {
-          const total = (res as { value?: number }[]).reduce(
-            (sum, sample) => sum + (sample.value ?? 0),
+    HK.getActivitySummary(
+      { startDate: startOfToday(), endDate: endOfToday() },
+      (summaryErr: unknown, summaryRes: unknown) => {
+        if (!summaryErr && Array.isArray(summaryRes) && summaryRes.length > 0) {
+          const total = (summaryRes as { appleExerciseTime?: number }[]).reduce(
+            (sum, day) => sum + (day.appleExerciseTime ?? 0),
             0,
           );
-          resolve(Math.round(total));
-          return;
+          if (total > 0) {
+            // eslint-disable-next-line no-console
+            console.log('[HK] exerciseMins via summary →', total);
+            resolve(Math.round(total));
+            return;
+          }
         }
-        // Fallback for any future library version returning a sum object.
-        const v = (res as { value?: number }).value;
-        resolve(v != null ? Math.round(v) : 0);
+
+        // Fallback to AppleExerciseTime samples
+        HK.getAppleExerciseTime(
+          { startDate: startOfToday(), endDate: endOfToday(), unit: 'minute', includeManuallyAdded: true },
+          (err: unknown, res: unknown) => {
+            if (err || !res) {
+              // eslint-disable-next-line no-console
+              console.log('[HK] exerciseMins fallback err/empty', { err, res });
+              resolve(0);
+              return;
+            }
+            let total = 0;
+            if (Array.isArray(res)) {
+              total = (res as { value?: number }[]).reduce(
+                (sum, sample) => sum + (sample.value ?? 0),
+                0,
+              );
+            } else {
+              total = (res as { value?: number }).value ?? 0;
+            }
+            // eslint-disable-next-line no-console
+            console.log('[HK] exerciseMins via samples →', total, 'res shape:', Array.isArray(res) ? `array(${(res as unknown[]).length})` : typeof res);
+            resolve(Math.round(total));
+          },
+        );
       },
     );
   });

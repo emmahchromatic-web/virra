@@ -62,6 +62,7 @@ function buildHKPermissions() {
         Constants.Permissions.HeartRateVariability,
         Constants.Permissions.ActiveEnergyBurned,
         Constants.Permissions.AppleExerciseTime,
+        Constants.Permissions.ActivitySummary,
         Constants.Permissions.DistanceWalkingRunning,
         Constants.Permissions.Steps,
         Constants.Permissions.Vo2Max,
