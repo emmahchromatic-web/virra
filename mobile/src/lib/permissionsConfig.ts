@@ -27,8 +27,8 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     id:       'location',
     label:    'GPS + LOCATION',
     headline: 'Track every run, automatically.',
-    body:     'Virra uses GPS to map routes, measure pace in real time, and log splits — all without touching your phone mid-run.',
-    why:      "Without this, Virra can't track runs live. Your Watch data still syncs automatically.",
+    body:     'Virra uses GPS to map routes, measure pace in real time, and log splits. The screen can lock during a run — Virra keeps recording in the background until you tap Finish.',
+    why:      "We ask for When in Use only — never Always. Location is only collected during an active run.",
     optional: false,
   },
   {
@@ -105,14 +105,12 @@ export async function requestPermission(id: PermissionItem['id']): Promise<void>
       } catch { /* HK unavailable */ }
       break;
     }
-    case 'location': {
-      const fg = await Location.requestForegroundPermissionsAsync();
-      if (fg.status === 'granted') {
-        try { await Location.requestBackgroundPermissionsAsync(); }
-        catch { /* user can grant later from Settings */ }
-      }
+    case 'location':
+      // When-In-Use only. Combined with UIBackgroundModes: ["location"] in
+      // app.json, iOS keeps delivering updates while the app is backgrounded
+      // during an active run — no "Always" permission required.
+      await Location.requestForegroundPermissionsAsync();
       break;
-    }
     case 'notifications':
       await Notifications.requestPermissionsAsync();
       break;

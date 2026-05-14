@@ -22,8 +22,7 @@
       "infoPlist": {
         "NSHealthShareUsageDescription": "Virra reads your workouts, heart rate, and menstrual cycle data from Apple Health to personalise your training plan and nutrition targets to your cycle phase.",
         "NSHealthUpdateUsageDescription": "Virra writes completed workouts to Apple Health.",
-        "NSLocationWhenInUseUsageDescription": "Virra uses your location to track your runs.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Virra uses your location to track runs in the background.",
+        "NSLocationWhenInUseUsageDescription": "Virra uses your location to track your runs. GPS keeps running while your screen is locked during an active run so your route and pace stay accurate.",
         "NSCameraUsageDescription": "Virra uses the camera to scan food barcodes for your nutrition log.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": ["location"]
@@ -51,7 +50,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Virra uses your location to track your runs."
+          "locationWhenInUsePermission": "Virra uses your location to track your runs. GPS keeps running while your screen is locked during an active run so your route and pace stay accurate."
         }
       ],
       [
