@@ -66,6 +66,9 @@ export default function ProfileScreen() {
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
   const [permissionsSummary, setPermissionsSummary] = useState({ granted: 0, total: 0 });
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteConfirm,      setDeleteConfirm]      = useState('');
+  const [deleting,           setDeleting]           = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -141,6 +144,25 @@ export default function ProfileScreen() {
   async function handleSignOut() {
     await signOut();
     router.replace('/(auth)');
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteConfirm.trim().toUpperCase() !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (!s) throw new Error('Not signed in');
+      const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+      if (error) throw error;
+      await signOut();
+      router.replace('/(auth)');
+    } catch (e) {
+      Alert.alert('Could not delete account', (e as Error).message);
+    } finally {
+      setDeleting(false);
+      setDeleteModalVisible(false);
+      setDeleteConfirm('');
+    }
   }
 
   async function updateCycleLength(days: number) {
@@ -302,6 +324,15 @@ export default function ProfileScreen() {
           style={styles.signout}
         />
 
+        <Pressable
+          onPress={() => setDeleteModalVisible(true)}
+          style={{ marginTop: spacing.sm, alignItems: 'center', paddingVertical: spacing.sm }}
+        >
+          <VirraText variant="mono" size={10} color={colors.heat} style={{ letterSpacing: 1.5 }}>
+            DELETE ACCOUNT
+          </VirraText>
+        </Pressable>
+
         {session && (
           <BreakModal
             visible={showBreakModal}
@@ -370,6 +401,39 @@ export default function ProfileScreen() {
           </VirraText>
         ) : null}
         <VirraButton label="SAVE" onPress={handleStepsTargetSave} loading={saving} />
+      </VirraModal>
+
+      {/* Delete account modal */}
+      <VirraModal
+        visible={deleteModalVisible}
+        onClose={() => { setDeleteModalVisible(false); setDeleteConfirm(''); }}
+        title="Delete account"
+      >
+        <VirraText variant="body" size={14} color={colors.breath}>
+          This permanently erases your profile, training plan, cycle data, activities, nutrition logs, and subscription record. It cannot be undone.
+        </VirraText>
+        <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
+          If you have an active subscription, cancel it in the App Store first — deleting your account here does not cancel Apple billing.
+        </VirraText>
+        <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
+          TYPE "DELETE" TO CONFIRM
+        </VirraText>
+        <TextInput
+          value={deleteConfirm}
+          onChangeText={setDeleteConfirm}
+          autoCapitalize="characters"
+          style={styles.modalInput}
+          placeholder="DELETE"
+          placeholderTextColor="rgba(244,237,224,0.3)"
+        />
+        <VirraButton
+          label="Delete my account"
+          variant="primary"
+          onPress={handleDeleteAccount}
+          loading={deleting}
+          disabled={deleteConfirm.trim().toUpperCase() !== 'DELETE' || deleting}
+          style={{ marginTop: spacing.md, backgroundColor: colors.heat }}
+        />
       </VirraModal>
 
     </SafeAreaView>
