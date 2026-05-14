@@ -31,7 +31,7 @@ Full design reference: `docs/design/virra-mvp-master.html` (open in browser).
 | Mobile framework | Expo + expo-router | File-based routing, EAS Build for App Store |
 | Backend / DB / auth | Supabase (Postgres + RLS) | Row-level security scoped per user |
 | Subscriptions | RevenueCat | 14-day trial → paid. Apple SBP = 15% cut |
-| Food database | Open Food Facts API (future phase) | Free, open source, strong UK/global coverage. Barcode scan + food search deferred until post-launch revenue. Manual macro entry + bundled common-foods list in MVP. |
+| Food database | Open Food Facts API | Free, open source, strong UK/global coverage. Barcode scan + food search shipped — replaces Nutritionix entirely. |
 | Health data | Apple HealthKit (`react-native-health`) | Primary activity source |
 | State | Zustand | Local, synced to Supabase |
 | Notifications | Expo Notifications + APNs | State-aware — cancelled when action completed |
@@ -215,7 +215,7 @@ subscriptions       (id, user_id, rc_customer_id, sub_status, trial_end, activat
 - ✅ HealthKit background import pipeline (HKObserverQuery + HKAnchoredObjectQuery)
 - ✅ GPS run tracker (in-app)
 - ✅ Activity Timeline screen
-- ~~Nutritionix food search + barcode scan~~ — deferred (see Phase 2)
+- ✅ Open Food Facts food search + barcode scan — `food-search.tsx`, repurposed `nutritionix_id` column as `off_barcode`
 - ✅ Manual activity log (fallback) — run, swim, strength, yoga, other
 - ✅ Strength workout recording — `strength_details` table, 57-exercise library (lower/upper/general), RPE tracking
 - ✅ Smart notification cancellation logic
@@ -333,7 +333,7 @@ create table weight_insights (
 - Race day planning tool
 - Android (React Native supports it — launch 2-3 months post iOS)
 - Wearable expansion (direct Garmin Connect IQ + Wahoo API beyond HealthKit bridge)
-- **Food database — Open Food Facts integration:** barcode scanning + food search via the free OFF API. Strong UK/global coverage. Replace the MVP manual-entry + common-foods approach. Schema already uses `food_name`, `quantity_g`, macro fields — `nutritionix_id` column can be repurposed as `off_barcode`. Build once there's post-launch revenue to absorb any API changes.
+- ~~**Food database — Open Food Facts integration**~~ ✅ shipped pre-launch — barcode scan + food search live; `nutritionix_id` column repurposed as `off_barcode`
 
 ---
 
