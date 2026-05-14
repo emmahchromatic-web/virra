@@ -1,13 +1,13 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, AppState, AppStateStatus } from 'react-native';
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { getDailyStats } from '@/lib/healthKitDaily';
 import { ActivityRings } from '@/components/ui/ActivityRing';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
-import { VirraButton } from '@/components/ui/VirraButton';
 import { useCycleStore, type CyclePhase, type CycleProfile } from '@/store/cycle';
 import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
@@ -253,6 +253,39 @@ export default function DashboardScreen() {
               </VirraCard>
             )}
 
+            <View style={styles.actionRow}>
+              <Pressable
+                style={[styles.actionTile, { borderColor: colors.pulse }]}
+                onPress={() => router.push('/(app)/insights' as any)}
+                accessibilityRole="button"
+              >
+                <SymbolView name="chart.line.uptrend.xyaxis" size={28} tintColor={colors.pulse} />
+                <View>
+                  <VirraText variant="mono" size={10} color={colors.pulse} style={styles.actionLabel}>
+                    INSIGHTS
+                  </VirraText>
+                  <VirraText variant="body" size={11} color={colors.muted} style={styles.actionSub}>
+                    Your week, narrated
+                  </VirraText>
+                </View>
+              </Pressable>
+              <Pressable
+                style={[styles.actionTile, { borderColor: colors.dawn }]}
+                onPress={() => router.push('/(app)/checkin')}
+                accessibilityRole="button"
+              >
+                <SymbolView name="checkmark.circle" size={28} tintColor={colors.dawn} />
+                <View>
+                  <VirraText variant="mono" size={10} color={colors.dawn} style={styles.actionLabel}>
+                    CHECK IN
+                  </VirraText>
+                  <VirraText variant="body" size={11} color={colors.muted} style={styles.actionSub}>
+                    30 seconds
+                  </VirraText>
+                </View>
+              </Pressable>
+            </View>
+
             <GuidanceCard
               title="Training"
               body={insightTexts?.training ?? meta.training}
@@ -265,24 +298,8 @@ export default function DashboardScreen() {
               accentColor={meta.color}
               loading={insightLoading && !insightTexts}
             />
-
-            <VirraButton
-              label="Check in for today"
-              variant="ghost"
-              onPress={() => router.push('/(app)/checkin')}
-            />
           </>
         )}
-
-        <Pressable
-          onPress={() => router.push('/(app)/insights' as any)}
-          style={styles.insightLink}
-          accessibilityRole="button"
-        >
-          <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-            VIEW INSIGHTS →
-          </VirraText>
-        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -302,5 +319,16 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, backgroundColor: colors.border, marginHorizontal: spacing.sm },
   ringsCard:   { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md },
   emptyCard:   { gap: spacing.sm },
-  insightLink: { alignItems: 'center', paddingVertical: spacing.xs },
+  actionRow:   { flexDirection: 'row', gap: spacing.md },
+  actionTile:  {
+    flex:            1,
+    aspectRatio:     1,
+    borderWidth:     1.5,
+    borderRadius:    radius.md,
+    backgroundColor: colors.mist,
+    padding:         spacing.md,
+    justifyContent:  'space-between',
+  },
+  actionLabel: { letterSpacing: 1.5 },
+  actionSub:   { lineHeight: 14, marginTop: 2 },
 });
