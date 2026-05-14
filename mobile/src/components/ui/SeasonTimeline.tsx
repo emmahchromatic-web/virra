@@ -25,10 +25,10 @@ export function SeasonTimeline({ summary }: Props) {
   return (
     <VirraCard style={styles.card}>
       <View style={styles.headerRow}>
-        <VirraText variant="mono" size={9} color={colors.pulse} style={styles.kicker}>
+        <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
           MY SEASON · {summary.total_weeks} WEEKS
         </VirraText>
-        <VirraText variant="mono" size={9} color={colors.muted}>
+        <VirraText variant="mono" size={11} color={colors.muted}>
           {summary.season_name}
         </VirraText>
       </View>
@@ -47,14 +47,14 @@ export function SeasonTimeline({ summary }: Props) {
       </View>
       <View style={styles.divider} />
       <View style={styles.eventRow}>
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>NEXT</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>NEXT</VirraText>
         <VirraText variant="bodyMedium" size={14} color={colors.breath}>
           {summary.next_event_name} · {summary.next_event_in_weeks} wk
         </VirraText>
       </View>
       {summary.later_events.map((e) => (
         <View key={e.date} style={styles.eventRow}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>THEN</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>THEN</VirraText>
           <VirraText variant="body" size={12} color="rgba(244,237,224,0.6)">
             {e.name} · {e.in_weeks_after_next} wk after
           </VirraText>

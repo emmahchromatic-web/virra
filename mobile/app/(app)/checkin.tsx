@@ -99,7 +99,7 @@ export default function CheckInScreen() {
 
       {cycleInfo && (
         <View style={styles.phaseBadge}>
-          <VirraText variant="mono" size={9} color={colors.pulse} style={styles.badgeText}>
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.badgeText}>
             DAY {cycleInfo.dayOfCycle} — {cycleInfo.phase.toUpperCase()} PHASE
           </VirraText>
         </View>

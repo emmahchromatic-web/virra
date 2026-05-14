@@ -150,7 +150,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
       <View key={s.planned_session_id} style={[modal.card, i > 0 && modal.cardBorder]}>
         <View style={modal.cardHeader}>
           <VirraText variant="bodyMedium" size={14} color={colors.breath}>{label}</VirraText>
-          <VirraText variant="mono" size={9} color={colors.muted}>
+          <VirraText variant="mono" size={11} color={colors.muted}>
             {s.kind.toUpperCase()}
           </VirraText>
         </View>
@@ -165,7 +165,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
                   : `${r.distance_km.toFixed(1)}km · ${formatPace(displayPaceSecs)} · ~${r.estimated_minutes}min`}
             </VirraText>
             {hasWhyCard && adjustedPaceSecs != null && basePaceSecs != null && adjustedPaceSecs !== basePaceSecs && s.status !== 'completed' && (
-              <VirraText variant="mono" size={9} color={colors.muted} style={modal.adjustedFrom}>
+              <VirraText variant="mono" size={11} color={colors.muted} style={modal.adjustedFrom}>
                 ADJUSTED FROM {formatPace(basePaceSecs)}/km
               </VirraText>
             )}
@@ -182,23 +182,23 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
           <View style={modal.actions}>
             <Pressable style={modal.actionBtn} onPress={() => handleDrop(s.planned_session_id)} disabled={busy}>
               <SymbolView name="xmark.circle" size={12} tintColor={colors.heat} />
-              <VirraText variant="mono" size={9} color={colors.heat}>DROP</VirraText>
+              <VirraText variant="mono" size={11} color={colors.heat}>DROP</VirraText>
             </Pressable>
 
             {noFreeDay[s.planned_session_id] ? (
-              <VirraText variant="mono" size={9} color={colors.muted} style={{ flex: 1 }}>
+              <VirraText variant="mono" size={11} color={colors.muted} style={{ flex: 1 }}>
                 No free day this week — use Catch-Up to reschedule next week.
               </VirraText>
             ) : (
               <Pressable style={modal.actionBtn} onPress={() => handleMoveThisWeek(s)} disabled={busy}>
                 <SymbolView name="arrow.left.arrow.right" size={12} tintColor={colors.muted} />
-                <VirraText variant="mono" size={9} color={colors.muted}>MOVE THIS WEEK</VirraText>
+                <VirraText variant="mono" size={11} color={colors.muted}>MOVE THIS WEEK</VirraText>
               </Pressable>
             )}
 
             <Pressable style={modal.actionBtn} onPress={() => handleCatchup(s.planned_session_id)} disabled={busy}>
               <SymbolView name="calendar.badge.plus" size={12} tintColor={colors.pulse} />
-              <VirraText variant="mono" size={9} color={colors.pulse}>CATCH-UP</VirraText>
+              <VirraText variant="mono" size={11} color={colors.pulse}>CATCH-UP</VirraText>
             </Pressable>
           </View>
         )}
@@ -206,17 +206,17 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
         {s.status === 'completed' && (
           <View style={modal.statusRow}>
             <SymbolView name="checkmark.circle.fill" size={12} tintColor={colors.pulse} />
-            <VirraText variant="mono" size={9} color={colors.pulse}>COMPLETED</VirraText>
+            <VirraText variant="mono" size={11} color={colors.pulse}>COMPLETED</VirraText>
           </View>
         )}
 
         {s.status === 'dropped' && (
-          <VirraText variant="mono" size={9} color={colors.muted}>DROPPED</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted}>DROPPED</VirraText>
         )}
 
         {hasWhyCard && (
           <VirraCard style={modal.whyCard}>
-            <VirraText variant="mono" size={9} color={colors.pulse} style={modal.whyLabel}>
+            <VirraText variant="mono" size={11} color={colors.pulse} style={modal.whyLabel}>
               WHY THIS PACE
             </VirraText>
             <VirraText variant="body" size={13} color="rgba(244,237,224,0.75)" style={modal.whyText}>
@@ -248,7 +248,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
           </VirraText>
         )}
         {daysUntil >= 0 && (
-          <VirraText variant="mono" size={9} color={colors.muted}>
+          <VirraText variant="mono" size={11} color={colors.muted}>
             {daysUntil === 0 ? 'Today!' : `${daysUntil} days away`}
           </VirraText>
         )}
@@ -263,7 +263,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
         <View style={modal.phaseBanner}>
           <VirraText
             variant="mono"
-            size={9}
+            size={11}
             color={PHASE_COLOR[detail.phase] ?? colors.muted}
             style={{ letterSpacing: 1.5 }}
           >
@@ -276,7 +276,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
       {!loading && detail?.volume_adjustment_note && (
         <VirraText
           variant="mono"
-          size={9}
+          size={11}
           color={colors.muted}
           style={{ marginBottom: spacing.xs }}
         >

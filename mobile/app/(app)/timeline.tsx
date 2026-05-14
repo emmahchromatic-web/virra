@@ -87,7 +87,7 @@ export default function TimelineScreen() {
         ) : (
           groups.map((group) => (
             <View key={group.label} style={styles.group}>
-              <VirraText variant="mono" size={9} color={colors.pulse} style={styles.groupLabel}>
+              <VirraText variant="mono" size={11} color={colors.pulse} style={styles.groupLabel}>
                 {group.label.toUpperCase()}
               </VirraText>
               <VirraCard style={styles.groupCard}>
@@ -113,7 +113,7 @@ export default function TimelineScreen() {
           style={styles.manualLink}
           accessibilityRole="button"
         >
-          <VirraText variant="mono" size={9} color="rgba(244,237,224,0.25)">
+          <VirraText variant="mono" size={11} color="rgba(244,237,224,0.25)">
             Didn't have your watch? Log manually →
           </VirraText>
         </Pressable>

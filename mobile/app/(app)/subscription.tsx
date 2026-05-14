@@ -86,7 +86,7 @@ export default function SubscriptionScreen() {
     >
 
       <VirraCard style={styles.card}>
-        <VirraText variant="mono" size={9} color={colors.muted} style={styles.sectionLabel}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={styles.sectionLabel}>
           PLAN STATUS
         </VirraText>
 

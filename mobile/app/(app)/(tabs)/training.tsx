@@ -73,7 +73,7 @@ function WhyCard({ body }: { body: string }) {
   return (
     <Pressable onPress={() => setOpen((v) => !v)} style={why.wrap} accessibilityRole="button">
       <View style={why.row}>
-        <VirraText variant="mono" size={9} color="rgba(244,237,224,0.35)" style={why.label}>
+        <VirraText variant="mono" size={11} color="rgba(244,237,224,0.35)" style={why.label}>
           WHY?
         </VirraText>
         <SymbolView
@@ -262,7 +262,7 @@ export default function TrainingScreen() {
               <VirraText variant="display" size={20} color={colors.breath}>
                 {phaseLoad.intensity}
               </VirraText>
-              <VirraText variant="mono" size={9} color={colors.pulse} style={styles.phaseLabel}>
+              <VirraText variant="mono" size={11} color={colors.pulse} style={styles.phaseLabel}>
                 TODAY
               </VirraText>
             </View>
@@ -315,7 +315,7 @@ export default function TrainingScreen() {
             {activeBlocks.length > 0 && session && (
               <VirraCard style={{ gap: spacing.sm }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <VirraText variant="mono" size={9} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
+                  <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
                     {new Date(calYear, calMonth - 1).toLocaleString('en-GB',
                       { month: 'long', year: 'numeric' }).toUpperCase()}
                   </VirraText>
@@ -377,10 +377,10 @@ export default function TrainingScreen() {
                 onPress={() => router.push('/(app)/timeline' as any)}
                 style={styles.sectionHeader}
               >
-                <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
                   RECENT ACTIVITY
                 </VirraText>
-                <VirraText variant="mono" size={9} color={colors.muted}>VIEW ALL →</VirraText>
+                <VirraText variant="mono" size={11} color={colors.muted}>VIEW ALL →</VirraText>
               </Pressable>
 
               {recentActivities.length > 0 ? (
@@ -405,7 +405,7 @@ export default function TrainingScreen() {
               style={styles.manualLink}
               accessibilityRole="button"
             >
-              <VirraText variant="mono" size={9} color="rgba(244,237,224,0.25)">
+              <VirraText variant="mono" size={11} color="rgba(244,237,224,0.25)">
                 Didn't have your watch? Log manually →
               </VirraText>
             </Pressable>
@@ -436,7 +436,7 @@ function BlockStack({ blocks, cyclePhase, onAddBlock }: {
   ) as ComputedBlock[];
   return (
     <View style={stack.container}>
-      <VirraText variant="mono" size={9} color={colors.pulse} style={stack.title}>MY STACK</VirraText>
+      <VirraText variant="mono" size={11} color={colors.pulse} style={stack.title}>MY STACK</VirraText>
       {computed.map((b) => (
         <Pressable key={b.id} onPress={() => b.template_id && router.push(`/(app)/plan/${b.template_id}` as any)} accessibilityRole="button">
           <VirraCard style={stack.blockRow}>
@@ -446,12 +446,12 @@ function BlockStack({ blocks, cyclePhase, onAddBlock }: {
             <View style={stack.blockBody}>
               <View style={stack.titleRow}>
                 <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>{b.template?.name ?? b.modality}</VirraText>
-                {b.is_primary && (<VirraText variant="mono" size={8} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
+                {b.is_primary && (<VirraText variant="mono" size={10} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
               </View>
               <View style={stack.loadTrack}>
                 <View style={[stack.loadFill, { width: `${Math.round(b.effective_load * 100)}%` as any, backgroundColor: MODALITY_COLOR[b.modality] ?? colors.pulse }]} />
               </View>
-              <VirraText variant="mono" size={8} color={colors.muted}>
+              <VirraText variant="mono" size={10} color={colors.muted}>
                 {Math.round(b.effective_load * 100)}% load{b.effective_load < b.load_modifier ? ' · adjusted for stack' : ''}
               </VirraText>
             </View>
@@ -460,7 +460,7 @@ function BlockStack({ blocks, cyclePhase, onAddBlock }: {
       ))}
       <Pressable onPress={onAddBlock} style={stack.addRow} accessibilityRole="button">
         <SymbolView name="plus" size={11} tintColor={colors.muted} />
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>ADD PLAN</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>ADD PLAN</VirraText>
       </Pressable>
     </View>
   );
@@ -490,7 +490,7 @@ function ActivePlanCard({ plan, onBrowse }: { plan: UserPlan; onBrowse: () => vo
   return (
     <Pressable onPress={() => router.push(`/(app)/plan/${plan.template_id}` as any)}>
       <VirraCard style={styles.activePlanCard}>
-        <VirraText variant="mono" size={9} color={colors.pulse} style={styles.phaseLabel}>ACTIVE PLAN</VirraText>
+        <VirraText variant="mono" size={11} color={colors.pulse} style={styles.phaseLabel}>ACTIVE PLAN</VirraText>
 
         <VirraText variant="display" size={22} color={colors.breath} style={{ marginTop: spacing.xs }}>
           {plan.template.name}
@@ -508,7 +508,7 @@ function ActivePlanCard({ plan, onBrowse }: { plan: UserPlan; onBrowse: () => vo
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${progress * 100}%` as any }]} />
             </View>
-            <VirraText variant="mono" size={9} color={colors.muted}>
+            <VirraText variant="mono" size={11} color={colors.muted}>
               Week {weekNum} of {totalWeeks}
             </VirraText>
           </View>
@@ -516,20 +516,20 @@ function ActivePlanCard({ plan, onBrowse }: { plan: UserPlan; onBrowse: () => vo
 
         <View style={styles.planMeta}>
           {plan.template.sport_type && (
-            <VirraText variant="mono" size={9} color={colors.muted}>
+            <VirraText variant="mono" size={11} color={colors.muted}>
               {plan.template.sport_type.toUpperCase()}
               {plan.template.distance_goal ? ` · ${plan.template.distance_goal.replace(/_/g, ' ').toUpperCase()}` : ''}
             </VirraText>
           )}
           {plan.goal_date && (
-            <VirraText variant="mono" size={9} color={colors.muted}>
+            <VirraText variant="mono" size={11} color={colors.muted}>
               Goal: {new Date(plan.goal_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
             </VirraText>
           )}
         </View>
 
         <View style={styles.planFooter}>
-          <VirraText variant="mono" size={9} color="rgba(244,237,224,0.35)">Tap to view full plan</VirraText>
+          <VirraText variant="mono" size={11} color="rgba(244,237,224,0.35)">Tap to view full plan</VirraText>
           <SymbolView name="chevron.right" size={12} tintColor="rgba(244,237,224,0.35)" />
         </View>
       </VirraCard>
@@ -545,7 +545,7 @@ function TemplateCard({ template }: { template: PlanTemplate }) {
       <VirraCard style={styles.templateCard}>
         <View style={styles.templateHeader}>
           <View style={{ flex: 1 }}>
-            <VirraText variant="mono" size={9} color={colors.dawn} style={{ letterSpacing: 1.5 }}>
+            <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5 }}>
               {template.sport_type.toUpperCase()}{template.distance_goal ? ` · ${template.distance_goal.replace(/_/g, ' ').toUpperCase()}` : ''}
             </VirraText>
             <VirraText variant="bodyMedium" size={16} color={colors.breath} style={{ marginTop: 4 }}>

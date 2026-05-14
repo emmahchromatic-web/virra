@@ -89,7 +89,7 @@ export default function PermissionsStatusScreen() {
                     </VirraText>
                   </View>
                   <View style={[styles.badge, { borderColor: statusColor(status) }]}>
-                    <VirraText variant="mono" size={9} color={statusColor(status)}>
+                    <VirraText variant="mono" size={11} color={statusColor(status)}>
                       {STATUS_LABEL[status]}
                     </VirraText>
                   </View>

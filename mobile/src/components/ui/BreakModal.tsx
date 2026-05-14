@@ -90,7 +90,7 @@ function CalendarPicker({
       {/* Day headers */}
       <View style={cal.row}>
         {CAL_DAYS.map((d, i) => (
-          <VirraText key={i} variant="mono" size={9} color={colors.muted} style={cal.cell}>{d}</VirraText>
+          <VirraText key={i} variant="mono" size={11} color={colors.muted} style={cal.cell}>{d}</VirraText>
         ))}
       </View>
 
@@ -234,7 +234,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
       <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 560 }}>
 
         {/* DATE RANGE */}
-        <VirraText variant="mono" size={9} color={colors.muted} style={brk.sectionLabel}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={brk.sectionLabel}>
           BREAK PERIOD
         </VirraText>
 
@@ -242,7 +242,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
           style={[brk.dateRow, showStartPicker && brk.dateRowActive]}
           onPress={() => { setShowStartPicker((v) => !v); setShowEndPicker(false); }}
         >
-          <VirraText variant="mono" size={9} color={colors.muted}>FROM</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted}>FROM</VirraText>
           <View style={brk.dateRight}>
             <VirraText variant="mono" size={13} color={colors.breath}>{fmtDate(breakStart)}</VirraText>
             <SymbolView name="calendar" size={13} tintColor={colors.pulse} />
@@ -264,7 +264,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
           style={[brk.dateRow, showEndPicker && brk.dateRowActive, { marginTop: spacing.xs }]}
           onPress={() => { setShowEndPicker((v) => !v); setShowStartPicker(false); }}
         >
-          <VirraText variant="mono" size={9} color={colors.muted}>TO</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted}>TO</VirraText>
           <View style={brk.dateRight}>
             <VirraText variant="mono" size={13} color={colors.breath}>{fmtDate(breakEnd)}</VirraText>
             <SymbolView name="calendar" size={13} tintColor={colors.pulse} />
@@ -282,13 +282,13 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
         )}
 
         {/* AFFECTS */}
-        <VirraText variant="mono" size={9} color={colors.muted} style={[brk.sectionLabel, { marginTop: spacing.md }]}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={[brk.sectionLabel, { marginTop: spacing.md }]}>
           AFFECTS
         </VirraText>
         {!blocksLoaded ? (
-          <VirraText variant="mono" size={9} color={colors.muted}>Loading plans…</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted}>Loading plans…</VirraText>
         ) : activeBlocks.length === 0 ? (
-          <VirraText variant="mono" size={9} color={colors.muted}>No active plans</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted}>No active plans</VirraText>
         ) : (
           activeBlocks.map((b) => (
             <Pressable key={b.id} style={brk.blockRow} onPress={() => toggleBlock(b.id)}>
@@ -305,7 +305,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
               <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
                 {b.template?.name ?? b.modality.charAt(0).toUpperCase() + b.modality.slice(1)}
                 {!b.is_primary && (
-                  <VirraText variant="mono" size={9} color={colors.muted}>{' · Supp'}</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted}>{' · Supp'}</VirraText>
                 )}
               </VirraText>
             </Pressable>
@@ -313,7 +313,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
         )}
 
         {/* MODE */}
-        <VirraText variant="mono" size={9} color={colors.muted} style={[brk.sectionLabel, { marginTop: spacing.md }]}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={[brk.sectionLabel, { marginTop: spacing.md }]}>
           HOW TO HANDLE
         </VirraText>
         <View style={brk.modeRow}>
@@ -321,7 +321,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
             style={[brk.modePill, mode === 'reschedule' && brk.modePillActive]}
             onPress={() => setMode('reschedule')}
           >
-            <VirraText variant="mono" size={9} color={mode === 'reschedule' ? colors.mile : colors.muted}>
+            <VirraText variant="mono" size={11} color={mode === 'reschedule' ? colors.mile : colors.muted}>
               RESCHEDULE
             </VirraText>
           </Pressable>
@@ -329,12 +329,12 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
             style={[brk.modePill, mode === 'skip' && brk.modePillActive]}
             onPress={() => setMode('skip')}
           >
-            <VirraText variant="mono" size={9} color={mode === 'skip' ? colors.mile : colors.muted}>
+            <VirraText variant="mono" size={11} color={mode === 'skip' ? colors.mile : colors.muted}>
               SKIP
             </VirraText>
           </Pressable>
         </View>
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ marginTop: 4 }}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={{ marginTop: 4 }}>
           {mode === 'reschedule'
             ? 'Sessions slide forward · plan extends by the break length'
             : 'Sessions in break window are dropped · plan schedule unchanged'}

@@ -90,7 +90,7 @@ export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) 
 
       {/* Grams input */}
       <View style={s.inputGroup}>
-        <VirraText variant="mono" size={9} color={colors.muted} style={s.inputLabel}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={s.inputLabel}>
           GRAMS
         </VirraText>
         <TextInput

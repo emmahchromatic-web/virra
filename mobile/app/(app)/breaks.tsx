@@ -91,11 +91,11 @@ export default function BreaksScreen() {
                       </VirraText>
                       <View style={s.badges}>
                         <View style={s.badge}>
-                          <VirraText variant="mono" size={8} color={colors.muted}>
+                          <VirraText variant="mono" size={10} color={colors.muted}>
                             {b.mode === 'reschedule' ? 'RESCHEDULED' : 'SKIPPED'}
                           </VirraText>
                         </View>
-                        <VirraText variant="mono" size={8} color={colors.muted}>
+                        <VirraText variant="mono" size={10} color={colors.muted}>
                           {b.block_ids.length} block{b.block_ids.length !== 1 ? 's' : ''}
                         </VirraText>
                       </View>

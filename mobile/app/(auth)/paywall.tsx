@@ -112,7 +112,7 @@ export default function PaywallScreen() {
         />
 
         <View style={styles.legal}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.legalLabel}>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.legalLabel}>
             SUBSCRIPTION TERMS
           </VirraText>
           <VirraText variant="body" size={11} color={colors.muted} style={styles.legalBody}>

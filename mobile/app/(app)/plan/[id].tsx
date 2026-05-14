@@ -107,7 +107,7 @@ function SchedulePickerRow({
             >
               <VirraText
                 variant="mono"
-                size={9}
+                size={11}
                 color={isSelected ? colors.mile : isTaken ? 'rgba(244,237,224,0.25)' : colors.muted}
               >
                 {letter}
@@ -147,7 +147,7 @@ function VolumeChart({ weeks }: { weeks: WeekSession[] }) {
             <View style={chart.track}>
               <View style={[chart.fill, { height: `${ratio * 100}%` as any, backgroundColor: barColor }]} />
             </View>
-            <VirraText variant="mono" size={8} color={colors.muted} style={chart.num}>
+            <VirraText variant="mono" size={10} color={colors.muted} style={chart.num}>
               {w.week}
             </VirraText>
           </View>
@@ -435,7 +435,7 @@ export default function PlanDetailScreen() {
 
         {/* Title block */}
         <View style={styles.titleBlock}>
-          <VirraText variant="mono" size={9} color={colors.dawn} style={styles.tag}>
+          <VirraText variant="mono" size={11} color={colors.dawn} style={styles.tag}>
             {(SPORT_LABEL[plan.sport_type] ?? plan.sport_type).toUpperCase()}
             {plan.distance_goal ? ` · ${plan.distance_goal.replace(/_/g, ' ').toUpperCase()}` : ''}
             {plan.duration_weeks > 0 ? `  ·  ${plan.duration_weeks} WEEKS` : '  ·  ONGOING'}
@@ -457,7 +457,7 @@ export default function PlanDetailScreen() {
               <StatPill label="DURATION" value={`${plan.duration_weeks > 0 ? plan.duration_weeks : durationOverride}w`} />
             ) : (
               <View style={styles.statPill}>
-                <VirraText variant="mono" size={9} color={colors.muted}>DURATION</VirraText>
+                <VirraText variant="mono" size={11} color={colors.muted}>DURATION</VirraText>
                 <View style={styles.adjRow}>
                   <Pressable style={styles.adjBtn} onPress={() => setDurationOverride((v) => Math.max(4, v - 1))}
                     disabled={durationOverride <= 4} accessibilityRole="button" accessibilityLabel="Shorter">
@@ -475,7 +475,7 @@ export default function PlanDetailScreen() {
               <StatPill label="SESSIONS" value={`${sessionsPerWk}/wk`} />
             ) : (
               <View style={styles.statPill}>
-                <VirraText variant="mono" size={9} color={colors.muted}>SESSIONS</VirraText>
+                <VirraText variant="mono" size={11} color={colors.muted}>SESSIONS</VirraText>
                 <View style={styles.adjRow}>
                   <Pressable
                     style={styles.adjBtn}
@@ -514,7 +514,7 @@ export default function PlanDetailScreen() {
           <VirraCard style={styles.currentWeekCard} accent>
             <View style={styles.currentWeekHeader}>
               <View style={styles.currentWeekLeft}>
-                <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
                   CURRENT WEEK · WEEK {weekIndex + 1} OF {weeks.length}
                 </VirraText>
                 <VirraText variant="bodyMedium" size={18} color={PHASE_COLOR[currentWeek.label] ?? colors.breath}>
@@ -523,7 +523,7 @@ export default function PlanDetailScreen() {
               </View>
               {onTrackStatus && (
                 <View style={[styles.statusPill, { borderColor: onTrackColor }]}>
-                  <VirraText variant="mono" size={8} color={onTrackColor}>{onTrackStatus}</VirraText>
+                  <VirraText variant="mono" size={10} color={onTrackColor}>{onTrackStatus}</VirraText>
                 </View>
               )}
             </View>
@@ -539,17 +539,17 @@ export default function PlanDetailScreen() {
                     }]} />
                   </View>
                   <View style={styles.kmProgressLabels}>
-                    <VirraText variant="mono" size={9} color={colors.breath}>
+                    <VirraText variant="mono" size={11} color={colors.breath}>
                       {weekActualKm.toFixed(1)} km done
                     </VirraText>
-                    <VirraText variant="mono" size={9} color={colors.muted}>
+                    <VirraText variant="mono" size={11} color={colors.muted}>
                       {currentWeek.km} km planned
                     </VirraText>
                   </View>
                 </View>
 
                 {/* Day hint */}
-                <VirraText variant="mono" size={9} color={colors.muted}>
+                <VirraText variant="mono" size={11} color={colors.muted}>
                   Day {dayInWeek + 1} of 7
                   {expectedByNow > 0 && weekActualKm < currentWeek.km
                     ? `  ·  ${expectedByNow.toFixed(1)} km expected by now`
@@ -562,7 +562,7 @@ export default function PlanDetailScreen() {
             <View style={styles.chips}>
               {currentWeek.sessions.map((s, i) => (
                 <View key={i} style={styles.chip}>
-                  <VirraText variant="mono" size={9} color={colors.breath}>
+                  <VirraText variant="mono" size={11} color={colors.breath}>
                     {SESSION_LABEL[s] ?? s}
                   </VirraText>
                 </View>
@@ -573,7 +573,7 @@ export default function PlanDetailScreen() {
 
         {userPlan && planComplete && (
           <VirraCard style={styles.currentWeekCard} accent>
-            <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>PLAN COMPLETE</VirraText>
+            <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>PLAN COMPLETE</VirraText>
             <VirraText variant="serif" size={16} color={colors.breath} style={{ lineHeight: 24 }}>
               You've finished all {weeks.length} weeks. Time to pick your next challenge.
             </VirraText>
@@ -583,7 +583,7 @@ export default function PlanDetailScreen() {
         {/* Volume chart */}
         {displayWeeks.length > 0 && (
           <VirraCard style={styles.chartCard}>
-            <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+            <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
               {isStrength ? 'WEEKLY LOAD' : 'WEEKLY VOLUME'}
             </VirraText>
             <VolumeChart weeks={displayWeeks} />
@@ -591,7 +591,7 @@ export default function PlanDetailScreen() {
               {Object.entries(PHASE_COLOR).filter(([label]) => displayWeeks.some((w) => w.label === label)).map(([label, color]) => (
                 <View key={label} style={styles.legendItem}>
                   <View style={[styles.legendDot, { backgroundColor: color }]} />
-                  <VirraText variant="mono" size={8} color={colors.muted}>{label.toUpperCase()}</VirraText>
+                  <VirraText variant="mono" size={10} color={colors.muted}>{label.toUpperCase()}</VirraText>
                 </View>
               ))}
             </View>
@@ -601,7 +601,7 @@ export default function PlanDetailScreen() {
         {/* Week-by-week breakdown */}
         {displayWeeks.length > 0 && (
           <View style={styles.weekList}>
-            <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+            <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
               WEEK BY WEEK
             </VirraText>
             {displayWeeks.map((w) => {
@@ -610,7 +610,7 @@ export default function PlanDetailScreen() {
               <VirraCard key={w.week} style={[styles.weekCard, isCurrent && styles.weekCardCurrent]}>
                 <View style={styles.weekHeader}>
                   <View>
-                    <VirraText variant="mono" size={9} color={isCurrent ? colors.pulse : colors.muted}>
+                    <VirraText variant="mono" size={11} color={isCurrent ? colors.pulse : colors.muted}>
                       WEEK {w.week}{isCurrent ? ' · NOW' : ''}</VirraText>
                     <VirraText variant="bodyMedium" size={15} color={PHASE_COLOR[w.label] ?? colors.breath} style={{ marginTop: 2 }}>
                       {w.label}
@@ -619,14 +619,14 @@ export default function PlanDetailScreen() {
                   {!isStrength && (
                     <View style={styles.kmBadge}>
                       <VirraText variant="display" size={22} color={colors.breath}>{w.km}</VirraText>
-                      <VirraText variant="mono" size={9} color={colors.muted} style={{ alignSelf: 'flex-end', marginBottom: 2 }}>km</VirraText>
+                      <VirraText variant="mono" size={11} color={colors.muted} style={{ alignSelf: 'flex-end', marginBottom: 2 }}>km</VirraText>
                     </View>
                   )}
                 </View>
                 <View style={styles.chips}>
                   {w.sessions.map((s, i) => (
                     <View key={i} style={styles.chip}>
-                      <VirraText variant="mono" size={9} color={colors.breath}>
+                      <VirraText variant="mono" size={11} color={colors.breath}>
                         {SESSION_LABEL[s] ?? s}
                       </VirraText>
                     </View>
@@ -651,7 +651,7 @@ export default function PlanDetailScreen() {
               <VirraCard style={styles.raceCard} accent={raceOpen}>
                 <Pressable style={styles.raceToggle} onPress={() => setRaceOpen((v) => !v)}>
                   <View style={{ flex: 1 }}>
-                    <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+                    <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
                       RACE GOAL
                     </VirraText>
                     <VirraText variant="body" size={13} color={colors.breath}>
@@ -705,10 +705,10 @@ export default function PlanDetailScreen() {
             )}
             {dayAssignment.length > 0 && (
               <VirraCard style={{ gap: spacing.sm }}>
-                <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
                   SCHEDULE YOUR WEEK
                 </VirraText>
-                <VirraText variant="mono" size={8} color={colors.muted} style={{ marginTop: -spacing.xs }}>
+                <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: -spacing.xs }}>
                   ORANGE DOTS = DAYS WITH OTHER PLAN SESSIONS
                 </VirraText>
                 {dayAssignment.map((slot) => (
@@ -742,7 +742,7 @@ export default function PlanDetailScreen() {
 function StatPill({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.statPill}>
-      <VirraText variant="mono" size={9} color={colors.muted}>{label}</VirraText>
+      <VirraText variant="mono" size={11} color={colors.muted}>{label}</VirraText>
       <VirraText variant="display" size={20} color={colors.breath}>{value}</VirraText>
     </View>
   );

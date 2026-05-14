@@ -71,7 +71,7 @@ function parseDate(str: string): Date | null {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={field.container}>
-      <VirraText variant="mono" size={9} color={colors.muted} style={field.label}>{label}</VirraText>
+      <VirraText variant="mono" size={11} color={colors.muted} style={field.label}>{label}</VirraText>
       {children}
     </View>
   );
@@ -266,7 +266,7 @@ export default function ManualActivityScreen() {
                     accessibilityState={{ checked: active }}
                   >
                     <SymbolView name={icon} size={16} tintColor={active ? colors.mile : colors.muted} />
-                    <VirraText variant="mono" size={9} color={active ? colors.mile : colors.muted}>
+                    <VirraText variant="mono" size={11} color={active ? colors.mile : colors.muted}>
                       {label.toUpperCase()}
                     </VirraText>
                   </Pressable>
@@ -302,7 +302,7 @@ export default function ManualActivityScreen() {
                 keyboardType="numbers-and-punctuation"
               />
               {durationSec !== null && (
-                <VirraText variant="mono" size={9} color={colors.muted}>
+                <VirraText variant="mono" size={11} color={colors.muted}>
                   {formatDurationInput(durationSec)}
                 </VirraText>
               )}
@@ -322,7 +322,7 @@ export default function ManualActivityScreen() {
                     keyboardType="decimal-pad"
                   />
                   {durationSec && distance && parseFloat(distance) > 0 && (
-                    <VirraText variant="mono" size={9} color={colors.muted}>
+                    <VirraText variant="mono" size={11} color={colors.muted}>
                       {(() => {
                         const paceSecKm = durationSec / parseFloat(distance);
                         const m = Math.floor(paceSecKm / 60);
@@ -367,7 +367,7 @@ export default function ManualActivityScreen() {
                         accessibilityRole="radio"
                         accessibilityState={{ checked: active }}
                       >
-                        <VirraText variant="mono" size={9} color={active ? colors.mile : colors.muted}>
+                        <VirraText variant="mono" size={11} color={active ? colors.mile : colors.muted}>
                           {label.toUpperCase()}
                         </VirraText>
                       </Pressable>
@@ -379,7 +379,7 @@ export default function ManualActivityScreen() {
               {/* Logged exercises */}
               {exercises.length > 0 && (
                 <VirraCard style={styles.formCard}>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
                     EXERCISES
                   </VirraText>
                   {exercises.map((ex, idx) => (
@@ -400,7 +400,7 @@ export default function ManualActivityScreen() {
 
               {/* Exercise builder */}
               <VirraCard style={styles.formCard}>
-                <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+                <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
                   ADD EXERCISE
                 </VirraText>
 
@@ -417,8 +417,8 @@ export default function ManualActivityScreen() {
 
                 {/* Set header */}
                 <View style={styles.setHeader}>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.setColReps}>REPS</VirraText>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.setColWeight}>KG</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.setColReps}>REPS</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.setColWeight}>KG</VirraText>
                   <View style={styles.setColRemove} />
                 </View>
 

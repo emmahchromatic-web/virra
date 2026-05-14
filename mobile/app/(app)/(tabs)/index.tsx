@@ -219,17 +219,17 @@ export default function DashboardScreen() {
               <View style={styles.statsRow}>
                 <View style={styles.stat}>
                   <VirraText variant="display" size={32} color={meta.color}>{cycleInfo.dayOfCycle}</VirraText>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAY</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.statLabel}>DAY</VirraText>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.stat}>
                   <VirraText variant="display" size={32} color={meta.color}>{cycleInfo.daysUntilNextPeriod}</VirraText>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAYS LEFT</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.statLabel}>DAYS LEFT</VirraText>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.stat}>
                   <VirraText variant="display" size={32} color={meta.color}>{cycleInfo.cycleLength}</VirraText>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAY CYCLE</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.statLabel}>DAY CYCLE</VirraText>
                 </View>
               </View>
             </VirraCard>
@@ -245,7 +245,7 @@ export default function DashboardScreen() {
 
             {session && (
               <VirraCard style={{ paddingVertical: spacing.xs }}>
-                <VirraText variant="mono" size={9} color={colors.muted}
+                <VirraText variant="mono" size={11} color={colors.muted}
                   style={{ letterSpacing: 1.5, marginBottom: 2 }}>
                   THIS WEEK
                 </VirraText>

@@ -107,7 +107,7 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
         const todayFill     = day.isToday && hasSessions && modalityColor;
         return (
           <View key={iso} style={strip.col}>
-            <VirraText variant="mono" size={8} color={day.isToday ? colors.breath : colors.muted}>
+            <VirraText variant="mono" size={10} color={day.isToday ? colors.breath : colors.muted}>
               {DAY_LABELS[i]}
             </VirraText>
             <View style={[
@@ -136,7 +136,7 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
               </View>
             )}
             {day.isToday && todayLoad && (
-              <VirraText variant="mono" size={8} color={colors.muted}>
+              <VirraText variant="mono" size={10} color={colors.muted}>
                 {todayLoad === 'moderate' ? 'MOD' : todayLoad.toUpperCase()}
               </VirraText>
             )}

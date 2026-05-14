@@ -34,8 +34,8 @@ function MetricTile({
           </VirraText>
         )}
       </View>
-      <VirraText variant="mono" size={8} color={colors.muted} style={tile.label}>{label}</VirraText>
-      <VirraText variant="mono" size={8} color={colors.pulse} style={tile.sub}>{sub ?? ' '}</VirraText>
+      <VirraText variant="mono" size={10} color={colors.muted} style={tile.label}>{label}</VirraText>
+      <VirraText variant="mono" size={10} color={colors.pulse} style={tile.sub}>{sub ?? ' '}</VirraText>
     </View>
   );
 }
@@ -170,7 +170,7 @@ export default function InsightsScreen() {
 
         {/* THIS WEEK — Haiku narrative */}
         <VirraCard style={styles.narrativeCard}>
-          <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>THIS WEEK</VirraText>
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>THIS WEEK</VirraText>
           {loadingNarrative ? (
             <View style={styles.skeleton} />
           ) : overallText ? (
@@ -186,7 +186,7 @@ export default function InsightsScreen() {
 
         {/* Metric grid */}
         <VirraCard style={styles.metricsCard}>
-          <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>YOUR NUMBERS</VirraText>
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>YOUR NUMBERS</VirraText>
           <View style={styles.metricsGrid}>
             <MetricTile label="DAY STREAK"  value={loadingMetrics ? '—' : String(metrics?.streakDays ?? 0)} />
             <View style={styles.metricDividerV} />
@@ -215,7 +215,7 @@ export default function InsightsScreen() {
           {metrics?.droppedByModality && (
             <VirraText
               variant="mono"
-              size={9}
+              size={11}
               color={colors.muted}
               style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}
             >
@@ -229,7 +229,7 @@ export default function InsightsScreen() {
         {/* Training narrative */}
         {trainingText && (
           <VirraCard style={{ gap: spacing.xs }}>
-            <VirraText variant="mono" size={9} color={phaseColor} style={styles.sectionLabel}>TRAINING</VirraText>
+            <VirraText variant="mono" size={11} color={phaseColor} style={styles.sectionLabel}>TRAINING</VirraText>
             <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
               {trainingText}
             </VirraText>
@@ -239,7 +239,7 @@ export default function InsightsScreen() {
         {/* Nutrition narrative */}
         {nutritionText && (
           <VirraCard style={{ gap: spacing.xs }}>
-            <VirraText variant="mono" size={9} color={phaseColor} style={styles.sectionLabel}>NUTRITION</VirraText>
+            <VirraText variant="mono" size={11} color={phaseColor} style={styles.sectionLabel}>NUTRITION</VirraText>
             <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
               {nutritionText}
             </VirraText>
@@ -261,7 +261,7 @@ export default function InsightsScreen() {
           }
           return (
             <VirraCard style={{ gap: spacing.xs }}>
-              <VirraText variant="mono" size={9} color={phaseColor} style={styles.sectionLabel}>FUELLING</VirraText>
+              <VirraText variant="mono" size={11} color={phaseColor} style={styles.sectionLabel}>FUELLING</VirraText>
               <VirraText variant="body" size={13} color="rgba(244,237,224,0.8)" style={{ lineHeight: 20 }}>
                 {text}
               </VirraText>
@@ -272,7 +272,7 @@ export default function InsightsScreen() {
         {/* Phase-pace breakdown */}
         {metrics && metrics.phasePaces.length > 0 && (
           <VirraCard style={styles.paceCard}>
-            <VirraText variant="mono" size={9} color={colors.pulse} style={styles.sectionLabel}>
+            <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
               PACE BY PHASE
             </VirraText>
             {[...metrics.phasePaces]
@@ -286,7 +286,7 @@ export default function InsightsScreen() {
                   <VirraText variant="display" size={16} color={PHASE_COLOR[pp.phase] ?? colors.breath}>
                     {formatPaceMmSs(pp.avgPaceSecPerKm)}
                   </VirraText>
-                  <VirraText variant="mono" size={8} color={colors.muted} style={styles.paceCount}>
+                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.paceCount}>
                     {pp.activityCount} runs
                   </VirraText>
                 </View>
@@ -297,7 +297,7 @@ export default function InsightsScreen() {
         {/* Recovery — symptom trend */}
         {metrics?.symptomTrend && (
           <VirraCard style={{ gap: spacing.sm }}>
-            <VirraText variant="mono" size={9} color={colors.breath} style={styles.sectionLabel}>RECOVERY</VirraText>
+            <VirraText variant="mono" size={11} color={colors.breath} style={styles.sectionLabel}>RECOVERY</VirraText>
             {(['energy','mood','sleep'] as const).map((key) => {
               const label     = key === 'sleep' ? 'SLEEP' : key.toUpperCase();
               const value     = metrics.symptomTrend![key];
@@ -305,7 +305,7 @@ export default function InsightsScreen() {
               const barColor  = value >= 7 ? colors.pulse : value >= 4 ? colors.dawn : colors.heat;
               return (
                 <View key={key} style={styles.symptomRow}>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.symptomLabel}>{label}</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.symptomLabel}>{label}</VirraText>
                   <View style={styles.symptomBar}>
                     <View style={[styles.symptomFill, { width: `${pct * 100}%` as any, backgroundColor: barColor }]} />
                   </View>
@@ -313,14 +313,14 @@ export default function InsightsScreen() {
                 </View>
               );
             })}
-            <VirraText variant="mono" size={8} color={colors.muted} style={{ marginTop: 2 }}>7-DAY AVERAGE · 1–10 SCALE</VirraText>
+            <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: 2 }}>7-DAY AVERAGE · 1–10 SCALE</VirraText>
           </VirraCard>
         )}
 
         {/* Upcoming — sessions + events */}
         <VirraCard style={{ gap: spacing.sm }}>
           <View style={styles.upcomingHeader}>
-            <VirraText variant="mono" size={9} color={colors.muted} style={styles.sectionLabel}>UPCOMING 14 DAYS</VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted} style={styles.sectionLabel}>UPCOMING 14 DAYS</VirraText>
             <Pressable
               onPress={() => setShowAddEvent(true)}
               style={styles.addEventBtn}
@@ -331,7 +331,7 @@ export default function InsightsScreen() {
             </Pressable>
           </View>
           {upcomingSessions.length === 0 && upcomingEvents.length === 0 ? (
-            <VirraText variant="mono" size={9} color={colors.muted}>No sessions or events planned.</VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted}>No sessions or events planned.</VirraText>
           ) : (
             [...upcomingSessions.map((s: any) => ({ ...s, _type: 'session' as const })),
              ...upcomingEvents.map((e: any) => ({ ...e, _type: 'event' as const, scheduled_date: e.event_date }))]
@@ -343,7 +343,7 @@ export default function InsightsScreen() {
                     size={12}
                     tintColor={item._type === 'event' ? colors.dawn : colors.pulse}
                   />
-                  <VirraText variant="mono" size={9} color={colors.muted} style={{ minWidth: 52 }}>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={{ minWidth: 52 }}>
                     {item.scheduled_date.slice(5)}
                   </VirraText>
                   <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
@@ -359,7 +359,7 @@ export default function InsightsScreen() {
 
         {/* Footer */}
         {generatedAt && (
-          <VirraText variant="mono" size={8} color="rgba(244,237,224,0.2)" style={styles.footer}>
+          <VirraText variant="mono" size={10} color="rgba(244,237,224,0.2)" style={styles.footer}>
             UPDATED {relativeTime(generatedAt).toUpperCase()}
           </VirraText>
         )}

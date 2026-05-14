@@ -73,7 +73,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
     <VirraModal visible={visible} onClose={onClose} title="Add Event">
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={modal.field}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={modal.label}>EVENT NAME</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={modal.label}>EVENT NAME</VirraText>
           <TextInput
             style={modal.input}
             value={name}
@@ -86,7 +86,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
         </View>
 
         <View style={[modal.field, { marginTop: spacing.md }]}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={modal.label}>DISTANCE</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={modal.label}>DISTANCE</VirraText>
           <View style={modal.pillRow}>
             {DISTANCE_OPTIONS.map(({ value, label }) => (
               <Pressable
@@ -98,7 +98,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
               >
                 <VirraText
                   variant="mono"
-                  size={9}
+                  size={11}
                   color={distanceGoal === value ? colors.mile : colors.muted}
                 >
                   {label}
@@ -109,7 +109,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
         </View>
 
         <View style={[modal.field, { marginTop: spacing.md }]}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={modal.label}>DATE</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={modal.label}>DATE</VirraText>
           <Pressable style={modal.datePicker} onPress={() => setShowPicker(true)} accessibilityRole="button">
             <VirraText variant="mono" size={13} color={colors.breath}>
               {dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}

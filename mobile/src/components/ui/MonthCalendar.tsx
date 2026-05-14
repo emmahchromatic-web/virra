@@ -103,7 +103,7 @@ export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: 
     <View style={cal.container}>
       <View style={cal.headerRow}>
         {DAY_HEADER.map((d, i) => (
-          <VirraText key={i} variant="mono" size={9} color={colors.muted} style={cal.headerCell}>{d}</VirraText>
+          <VirraText key={i} variant="mono" size={11} color={colors.muted} style={cal.headerCell}>{d}</VirraText>
         ))}
       </View>
       {weeks.map((week, wi) => (
@@ -153,7 +153,7 @@ export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: 
                 {(eventMap[iso] ?? []).length > 0 && (
                   <SymbolView
                     name="flag.fill"
-                    size={8}
+                    size={10}
                     tintColor={(eventMap[iso][0].priority === 1 ? colors.heat : colors.dawn) as any}
                   />
                 )}

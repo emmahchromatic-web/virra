@@ -46,7 +46,7 @@ function MacroBar({ label, actual, target, color, height }: {
   return (
     <View style={macro.row}>
       {label ? (
-        <VirraText variant="mono" size={9} color={colors.muted} style={macro.label}>{label}</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted} style={macro.label}>{label}</VirraText>
       ) : (
         <View style={macro.label} />
       )}
@@ -57,7 +57,7 @@ function MacroBar({ label, actual, target, color, height }: {
         )}
       </View>
       {label ? (
-        <VirraText variant="mono" size={9} color={over ? colors.heat : colors.muted} style={macro.value}>
+        <VirraText variant="mono" size={11} color={over ? colors.heat : colors.muted} style={macro.value}>
           {Math.round(actual)}/{target}g
         </VirraText>
       ) : (
@@ -88,7 +88,7 @@ function WhyCard({ body }: { body: string }) {
   return (
     <Pressable onPress={() => setOpen((v) => !v)} style={why.wrap} accessibilityRole="button">
       <View style={why.row}>
-        <VirraText variant="mono" size={9} color="rgba(244,237,224,0.35)" style={why.label}>
+        <VirraText variant="mono" size={11} color="rgba(244,237,224,0.35)" style={why.label}>
           WHY?
         </VirraText>
         <SymbolView
@@ -295,7 +295,7 @@ export default function NutritionScreen() {
 
         {/* Training load selector */}
         <View style={styles.loadRow}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.loadLabel}>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.loadLabel}>
             TODAY'S LOAD
           </VirraText>
           <View style={styles.loadChips}>
@@ -312,7 +312,7 @@ export default function NutritionScreen() {
             ))}
           </View>
           {dailyContext && load === dailyContext.inferred_load && (
-            <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1 }}>
+            <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1 }}>
               {dailyContext.source_label
                 ? `AUTO-SET · ${dailyContext.source_label.toUpperCase()}`
                 : 'AUTO-SET · REST DAY'}

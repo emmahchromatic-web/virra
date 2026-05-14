@@ -59,7 +59,7 @@ function ActivityRingTile({ ring }: { ring: Props }) {
   return (
     <View style={styles.tile}>
       <ActivityRing {...ring} />
-      <VirraText variant="mono" size={7} color={colors.muted} style={styles.tileLabel}>
+      <VirraText variant="mono" size={9} color={colors.muted} style={styles.tileLabel}>
         {ring.label}
       </VirraText>
     </View>

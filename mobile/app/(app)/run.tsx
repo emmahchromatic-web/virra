@@ -281,7 +281,7 @@ export default function RunTrackerScreen() {
             <SymbolView name="xmark" size={18} tintColor={colors.muted} />
           </Pressable>
         )}
-        <VirraText variant="mono" size={9} color={colors.pulse} style={styles.headerTitle}>
+        <VirraText variant="mono" size={11} color={colors.pulse} style={styles.headerTitle}>
           {runState === 'idle'     ? 'RUN TRACKER' :
            runState === 'active'   ? 'RUNNING' :
            runState === 'paused'   ? 'PAUSED' :
@@ -303,24 +303,24 @@ export default function RunTrackerScreen() {
         {runState !== 'idle' && (
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <VirraText variant="mono" size={9} color={colors.muted}>TIME</VirraText>
+              <VirraText variant="mono" size={11} color={colors.muted}>TIME</VirraText>
               <VirraText variant="display" size={24} color={colors.breath}>{formatDuration(elapsedS)}</VirraText>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <VirraText variant="mono" size={9} color={colors.muted}>PACE</VirraText>
+              <VirraText variant="mono" size={11} color={colors.muted}>PACE</VirraText>
               <VirraText variant="display" size={24} color={colors.breath}>
                 {formatPace(runState === 'active' ? (currentPace ?? avgPace) : avgPace)}
               </VirraText>
-              <VirraText variant="mono" size={8} color={colors.muted}>/KM</VirraText>
+              <VirraText variant="mono" size={10} color={colors.muted}>/KM</VirraText>
             </View>
             {runState === 'active' && currentPace && (
               <>
                 <View style={styles.statDivider} />
                 <View style={styles.stat}>
-                  <VirraText variant="mono" size={9} color={colors.muted}>AVG</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted}>AVG</VirraText>
                   <VirraText variant="display" size={24} color={colors.breath}>{formatPace(avgPace)}</VirraText>
-                  <VirraText variant="mono" size={8} color={colors.muted}>/KM</VirraText>
+                  <VirraText variant="mono" size={10} color={colors.muted}>/KM</VirraText>
                 </View>
               </>
             )}
@@ -368,7 +368,7 @@ export default function RunTrackerScreen() {
             {/* Splits */}
             {splits.length > 0 && (
               <View style={styles.splitsBlock}>
-                <VirraText variant="mono" size={9} color={colors.pulse} style={styles.splitsLabel}>SPLITS</VirraText>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.splitsLabel}>SPLITS</VirraText>
                 {splits.map((s, i) => (
                   <View key={i} style={styles.splitRow}>
                     <VirraText variant="mono" size={11} color={colors.muted}>KM {i + 1}</VirraText>

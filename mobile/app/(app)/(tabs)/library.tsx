@@ -27,7 +27,7 @@ function ArticleRow({ article }: { article: Article }) {
         <View style={styles.articleInner}>
           <View style={{ flex: 1, gap: 6 }}>
             {categoryTag && (
-              <VirraText variant="mono" size={9} color={colors.dawn} style={styles.articleTag}>
+              <VirraText variant="mono" size={11} color={colors.dawn} style={styles.articleTag}>
                 {categoryTag.toUpperCase()}
               </VirraText>
             )}

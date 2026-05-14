@@ -111,7 +111,7 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
           <VirraText variant="bodyMedium" size={14} color={colors.breath}>
             {s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1)}
             {'  '}
-            <VirraText variant="mono" size={9} color={colors.muted}>
+            <VirraText variant="mono" size={11} color={colors.muted}>
               {s.modality.toUpperCase()}
             </VirraText>
           </VirraText>
@@ -119,7 +119,7 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
             <View style={modal.actions}>
               <Pressable style={modal.actionBtn} onPress={() => handleDrop(s)} disabled={busy}>
                 <SymbolView name="xmark.circle" size={13} tintColor={colors.heat} />
-                <VirraText variant="mono" size={9} color={colors.heat}>DROP</VirraText>
+                <VirraText variant="mono" size={11} color={colors.heat}>DROP</VirraText>
               </Pressable>
               {noFreeDay[s.id] ? (
                 <VirraText variant="body" size={10} color={colors.muted} style={{ flex: 1 }}>
@@ -128,20 +128,20 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
               ) : (
                 <Pressable style={modal.actionBtn} onPress={() => handleMoveThisWeek(s)} disabled={busy}>
                   <SymbolView name="arrow.left.arrow.right" size={13} tintColor={colors.muted} />
-                  <VirraText variant="mono" size={9} color={colors.muted}>MOVE THIS WEEK</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted}>MOVE THIS WEEK</VirraText>
                 </Pressable>
               )}
               <Pressable style={modal.actionBtn} onPress={() => handleCatchup(s)} disabled={busy}>
                 <SymbolView name="calendar.badge.plus" size={13} tintColor={colors.pulse} />
-                <VirraText variant="mono" size={9} color={colors.pulse}>CATCH-UP</VirraText>
+                <VirraText variant="mono" size={11} color={colors.pulse}>CATCH-UP</VirraText>
               </Pressable>
             </View>
           )}
           {s.status === 'completed' && (
-            <VirraText variant="mono" size={9} color={colors.pulse}>COMPLETED</VirraText>
+            <VirraText variant="mono" size={11} color={colors.pulse}>COMPLETED</VirraText>
           )}
           {s.status === 'dropped' && (
-            <VirraText variant="mono" size={9} color={colors.muted}>DROPPED</VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted}>DROPPED</VirraText>
           )}
         </View>
       ))}

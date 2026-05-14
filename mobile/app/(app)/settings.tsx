@@ -59,14 +59,14 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
 
         <VirraCard style={s.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={s.cardLabel}>NOTIFICATIONS</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={s.cardLabel}>NOTIFICATIONS</VirraText>
           {NOTIF_ROWS.map((item, i) => (
             <React.Fragment key={item.slot}>
               {i > 0 && <View style={s.divider} />}
               <View style={s.notifRow}>
                 <View style={{ flex: 1 }}>
                   <VirraText variant="body" size={14} color={colors.breath}>{item.label}</VirraText>
-                  <VirraText variant="mono" size={9} color={colors.muted} style={s.sublabel}>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={s.sublabel}>
                     {item.sublabel}
                   </VirraText>
                 </View>
@@ -83,7 +83,7 @@ export default function SettingsScreen() {
         </VirraCard>
 
         <VirraCard style={s.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={s.cardLabel}>UNITS</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={s.cardLabel}>UNITS</VirraText>
           <View style={s.segmentRow}>
             {(['metric', 'imperial'] as UnitSystem[]).map((option) => (
               <Pressable
@@ -94,7 +94,7 @@ export default function SettingsScreen() {
                 <VirraText variant="mono" size={10} color={units === option ? colors.mile : colors.muted}>
                   {option === 'metric' ? 'METRIC' : 'IMPERIAL'}
                 </VirraText>
-                <VirraText variant="mono" size={8} color={units === option ? colors.mile : colors.border} style={{ marginTop: 2 }}>
+                <VirraText variant="mono" size={10} color={units === option ? colors.mile : colors.border} style={{ marginTop: 2 }}>
                   {option === 'metric' ? 'km · kg' : 'mi · lb'}
                 </VirraText>
               </Pressable>

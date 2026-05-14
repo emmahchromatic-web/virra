@@ -29,15 +29,15 @@ function FoodRow({ food, onSelect }: { food: VirraFood; onSelect: (food: VirraFo
       <View style={row.body}>
         <VirraText variant="bodyMedium" size={14} color={colors.breath}>{food.name}</VirraText>
         {food.detail && (
-          <VirraText variant="mono" size={9} color={colors.muted}>{food.detail.toUpperCase()}</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted}>{food.detail.toUpperCase()}</VirraText>
         )}
-        <VirraText variant="mono" size={9} color={colors.muted}>per 100g</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted}>per 100g</VirraText>
       </View>
       <View style={row.cals}>
         <VirraText variant="display" size={18} color={colors.pulse}>
           {food.calories}
         </VirraText>
-        <VirraText variant="mono" size={8} color={colors.muted}>kcal</VirraText>
+        <VirraText variant="mono" size={10} color={colors.muted}>kcal</VirraText>
       </View>
     </Pressable>
   );
@@ -67,7 +67,7 @@ function AddPanel({
     <VirraCard style={panel.container}>
       <VirraText variant="bodyMedium" size={15} color={colors.breath}>{food.name}</VirraText>
       {food.detail && (
-        <VirraText variant="mono" size={9} color={colors.muted}>{food.detail.toUpperCase()}</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted}>{food.detail.toUpperCase()}</VirraText>
       )}
 
       <View style={panel.row}>
@@ -100,7 +100,7 @@ function AddPanel({
           ] as const).map(({ label, value }) => (
             <View key={label} style={panel.macroItem}>
               <VirraText variant="display" size={16} color={colors.breath}>{formatMacro(value)}</VirraText>
-              <VirraText variant="mono" size={8} color={colors.muted}>{label}</VirraText>
+              <VirraText variant="mono" size={10} color={colors.muted}>{label}</VirraText>
             </View>
           ))}
         </View>
@@ -148,7 +148,7 @@ function ManualEntry({ onAdd, onCancel, adding }: {
       <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5 }}>LOG MANUALLY</VirraText>
       {fields.map(({ key, label, placeholder }) => (
         <View key={key} style={panel.row}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={panel.rowLabel}>{label}</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={panel.rowLabel}>{label}</VirraText>
           <TextInput
             style={[panel.input, panel.manualInput]}
             value={v[key]}
@@ -395,11 +395,11 @@ export default function FoodSearchScreen() {
               </VirraCard>
 
               <Pressable onPress={() => setManual(true)} style={styles.manualLink} accessibilityRole="button">
-                <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+                <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
                   NOT LISTED? LOG MANUALLY →
                 </VirraText>
               </Pressable>
-              <VirraText variant="mono" size={8} color={colors.muted} style={styles.offAttribution}>
+              <VirraText variant="mono" size={10} color={colors.muted} style={styles.offAttribution}>
                 FOOD DATA FROM OPEN FOOD FACTS · OPENFOODFACTS.ORG
               </VirraText>
             </>

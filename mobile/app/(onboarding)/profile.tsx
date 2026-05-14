@@ -57,14 +57,14 @@ export default function ProfileOnboardingScreen() {
           <SymbolView name="plus" size={12} tintColor={colors.mile} />
         </View>
       </Pressable>
-      <VirraText variant="mono" size={9} color={colors.muted} style={styles.avatarHint}>
+      <VirraText variant="mono" size={11} color={colors.muted} style={styles.avatarHint}>
         TAP TO ADD PHOTO · OPTIONAL
       </VirraText>
 
       {/* Name inputs */}
       <View style={styles.inputs}>
         <View style={styles.inputWrap}>
-          <VirraText variant="mono" size={9} color={colors.pulse} style={styles.inputLabel}>FIRST NAME</VirraText>
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.inputLabel}>FIRST NAME</VirraText>
           <TextInput
             value={firstName}
             onChangeText={setFirstName}
@@ -78,7 +78,7 @@ export default function ProfileOnboardingScreen() {
           />
         </View>
         <View style={styles.inputWrap}>
-          <VirraText variant="mono" size={9} color={colors.pulse} style={styles.inputLabel}>LAST NAME</VirraText>
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.inputLabel}>LAST NAME</VirraText>
           <TextInput
             value={lastName}
             onChangeText={setLastName}

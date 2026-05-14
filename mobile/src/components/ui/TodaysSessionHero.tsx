@@ -40,7 +40,7 @@ function StatusBadge({ status }: StatusBadgeProps) {
   return (
     <View style={[styles.badge, { borderColor: color }]}>
       <SymbolView name={icon} size={11} tintColor={color} />
-      <VirraText variant="mono" size={9} color={color}>{text}</VirraText>
+      <VirraText variant="mono" size={11} color={color}>{text}</VirraText>
     </View>
   );
 }
@@ -53,7 +53,7 @@ export function TodaysSessionHero({ sessions }: Props) {
   if (sessions.length === 0) {
     return (
       <VirraCard style={styles.card}>
-        <VirraText variant="mono" size={9} color={colors.pulse} style={styles.kicker}>
+        <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
           TODAY
         </VirraText>
         <VirraText variant="serif" size={17} color={colors.breath} style={{ lineHeight: 24 }}>
@@ -68,7 +68,7 @@ export function TodaysSessionHero({ sessions }: Props) {
 
   return (
     <VirraCard style={styles.card}>
-      <VirraText variant="mono" size={9} color={colors.pulse} style={styles.kicker}>
+      <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
         TODAY · {sessions.length > 1 ? `${sessions.length} SESSIONS` : '1 SESSION'}
       </VirraText>
       {sessions.map((s, i) => (
@@ -90,7 +90,7 @@ export function TodaysSessionHero({ sessions }: Props) {
               {s.status === 'completed' && s.actual_duration_s ? ` · ${formatDuration(s.actual_duration_s)}` : ''}
             </VirraText>
             {s.cycle_reason_short && (
-              <VirraText variant="mono" size={9} color={colors.pulse} style={{ marginTop: 2 }}>
+              <VirraText variant="mono" size={11} color={colors.pulse} style={{ marginTop: 2 }}>
                 {s.cycle_adjusted_pace_secs
                   ? `${s.cycle_pace_arrow ?? '↓'} ${formatPace(s.cycle_adjusted_pace_secs)} · `
                   : ''}

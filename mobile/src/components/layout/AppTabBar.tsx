@@ -41,7 +41,7 @@ function TabButton({ route, routeIndex, state, navigation }: {
       accessibilityState={{ selected: focused }}
     >
       <SymbolView name={icon} size={22} tintColor={color} />
-      <VirraText variant="label" size={8} color={color}>{label}</VirraText>
+      <VirraText variant="label" size={10} color={color}>{label}</VirraText>
     </Pressable>
   );
 }

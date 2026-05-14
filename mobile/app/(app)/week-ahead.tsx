@@ -182,8 +182,8 @@ export default function WeekAheadScreen() {
 
       <View style={s.body}>
         <View style={s.meta}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={s.range}>{fmtRange(monday)}</VirraText>
-          <VirraText variant="mono" size={9} color={colors.muted}>
+          <VirraText variant="mono" size={11} color={colors.muted} style={s.range}>{fmtRange(monday)}</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted}>
             {totalSessions} SESSION{totalSessions !== 1 ? 'S' : ''} · {restDays} REST DAY{restDays !== 1 ? 'S' : ''}
           </VirraText>
         </View>
@@ -196,7 +196,7 @@ export default function WeekAheadScreen() {
 
                 {/* Date column */}
                 <View style={s.dateCol}>
-                  <VirraText variant="mono" size={8} color={colors.muted}>{day.dayName}</VirraText>
+                  <VirraText variant="mono" size={10} color={colors.muted}>{day.dayName}</VirraText>
                   <VirraText variant="display" size={18}
                     color={day.sessions.length > 0 ? colors.breath : LOAD_COLOR.rest}>
                     {day.date}
@@ -208,7 +208,7 @@ export default function WeekAheadScreen() {
                   {day.sessions.length === 0 ? (
                     <View style={s.sessItem}>
                       <SymbolView name="moon.zzz" size={11} tintColor={LOAD_COLOR.rest} />
-                      <VirraText variant="mono" size={9} color={LOAD_COLOR.rest}>REST DAY</VirraText>
+                      <VirraText variant="mono" size={11} color={LOAD_COLOR.rest}>REST DAY</VirraText>
                     </View>
                   ) : (
                     day.sessions.map((sess, si) => (
@@ -228,13 +228,13 @@ export default function WeekAheadScreen() {
 
                 {/* Nutrition column */}
                 <View style={s.nutritionCol}>
-                  <VirraText variant="mono" size={9} color={LOAD_COLOR[day.load]}>
+                  <VirraText variant="mono" size={11} color={LOAD_COLOR[day.load]}>
                     {LOAD_SHORT[day.load]}
                   </VirraText>
                   <VirraText variant="mono" size={10} color={colors.breath}>
                     {day.calories.toLocaleString()}
                   </VirraText>
-                  <VirraText variant="mono" size={7} color={colors.muted}>KCAL</VirraText>
+                  <VirraText variant="mono" size={9} color={colors.muted}>KCAL</VirraText>
                 </View>
 
                 {/* Actions column — stacked */}
@@ -248,7 +248,7 @@ export default function WeekAheadScreen() {
                         hitSlop={4}
                       >
                         <SymbolView name="arrow.right.circle" size={11} tintColor={colors.muted} />
-                        <VirraText variant="mono" size={7} color={colors.muted}>+1WK</VirraText>
+                        <VirraText variant="mono" size={9} color={colors.muted}>+1WK</VirraText>
                       </Pressable>
                       <Pressable
                         style={s.actionBtn}
@@ -257,7 +257,7 @@ export default function WeekAheadScreen() {
                         hitSlop={4}
                       >
                         <SymbolView name="xmark.circle" size={11} tintColor={colors.heat} />
-                        <VirraText variant="mono" size={7} color={colors.heat}>DROP</VirraText>
+                        <VirraText variant="mono" size={9} color={colors.heat}>DROP</VirraText>
                       </Pressable>
                     </View>
                   ))}

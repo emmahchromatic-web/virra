@@ -26,7 +26,7 @@ function Row({ label, value, onPress }: { label: string; value: string; onPress?
   return (
     <Pressable onPress={onPress} disabled={!onPress} style={row.wrap}>
       <View style={{ flex: 1 }}>
-        <VirraText variant="mono" size={9} color={colors.muted} style={row.label}>{label}</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted} style={row.label}>{label}</VirraText>
         <VirraText variant="body" size={15} color={colors.breath} style={{ marginTop: 2 }}>{value}</VirraText>
       </View>
       {onPress && <SymbolView name="chevron.right" size={14} tintColor={colors.muted} />}
@@ -253,7 +253,7 @@ export default function ProfileScreen() {
             <View style={styles.identityText}>
               <VirraText variant="display" size={18} color={colors.breath}>{displayName}</VirraText>
               {uploadingAvatar && (
-                <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1, marginTop: 2 }}>
+                <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1, marginTop: 2 }}>
                   UPDATING PHOTO…
                 </VirraText>
               )}
@@ -262,12 +262,12 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>ACCOUNT</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>ACCOUNT</VirraText>
           <Row label="EMAIL" value={session?.user.email ?? '—'} />
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>SUBSCRIPTION</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>SUBSCRIPTION</VirraText>
           <Row
             label="STATUS"
             value={subLabel[status] ?? status}
@@ -276,7 +276,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>CYCLE</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>CYCLE</VirraText>
           <Row
             label="CYCLE PROFILE"
             value={CYCLE_PROFILE_LABEL[cycleProfile]}
@@ -302,7 +302,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>TRAINING</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>TRAINING</VirraText>
           <Row
             label="DAILY STEPS TARGET"
             value={stepsTarget.toLocaleString()}
@@ -316,7 +316,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>DEVICE</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>DEVICE</VirraText>
           <Row
             label="PERMISSIONS"
             value={`${permissionsSummary.granted} of ${permissionsSummary.total} granted`}
@@ -325,7 +325,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={9} color={colors.muted} style={styles.cardLabel}>HELP &amp; LEGAL</VirraText>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>HELP &amp; LEGAL</VirraText>
           <Row
             label="HEALTH &amp; MEDICAL"
             value="Educational use only · tap to read"
@@ -438,7 +438,7 @@ export default function ProfileScreen() {
         onClose={() => setCreditsModalVisible(false)}
         title="Credits"
       >
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
           FOOD DATABASE
         </VirraText>
         <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: 2 }}>
@@ -450,14 +450,14 @@ export default function ProfileScreen() {
           </VirraText>
         </Pressable>
 
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
           TYPEFACES
         </VirraText>
         <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: 2 }}>
           Big Shoulders Display, Fraunces, Inter, and Space Mono — distributed by Google Fonts under the SIL Open Font License.
         </VirraText>
 
-        <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
+        <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
           BUILT WITH
         </VirraText>
         <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: 2 }}>

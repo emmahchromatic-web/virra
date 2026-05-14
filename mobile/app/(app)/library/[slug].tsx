@@ -82,7 +82,7 @@ export default function ArticleScreen() {
           {article.tags.length > 0 && (
             <View style={styles.tags}>
               {article.tags.map((tag) => (
-                <VirraText key={tag} variant="mono" size={9} color={colors.pulse} style={styles.tag}>
+                <VirraText key={tag} variant="mono" size={11} color={colors.pulse} style={styles.tag}>
                   {tag.toUpperCase()}
                 </VirraText>
               ))}
@@ -95,7 +95,7 @@ export default function ArticleScreen() {
             {renderBody(article.body_md)}
           </View>
           <View style={styles.disclaimer}>
-            <VirraText variant="mono" size={9} color={colors.muted} style={styles.disclaimerLabel}>
+            <VirraText variant="mono" size={11} color={colors.muted} style={styles.disclaimerLabel}>
               EDUCATIONAL CONTENT
             </VirraText>
             <VirraText variant="body" size={12} color={colors.muted} style={styles.disclaimerBody}>

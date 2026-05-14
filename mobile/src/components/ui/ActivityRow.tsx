@@ -81,7 +81,7 @@ export function ActivityRow({ activity }: { activity: Activity }) {
           <VirraText variant="bodyMedium" size={15} color={colors.breath}>{name}</VirraText>
           {activity.phase_at_time && (
             <View style={[styles.phasePill, { borderColor: phaseColor }]}>
-              <VirraText variant="mono" size={7} color={phaseColor} style={styles.phaseText}>
+              <VirraText variant="mono" size={9} color={phaseColor} style={styles.phaseText}>
                 {activity.phase_at_time.toUpperCase()}
               </VirraText>
             </View>
