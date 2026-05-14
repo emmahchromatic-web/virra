@@ -274,21 +274,39 @@ export async function scheduleTrialReminders(trialEnd: Date): Promise<void> {
   }
 }
 
+// Cancel today's key plus any stale per-day keys for this slot that may still
+// have a pending notification scheduled to fire today (legacy of the
+// "bump to tomorrow" logic). Safe to call from any completion path.
+async function cancelTodayAndStale(slot: string): Promise<void> {
+  const todayISO = today();
+  await cancelStored(storageKey(slot, todayISO));
+  try {
+    const allKeys = await AsyncStorage.getAllKeys();
+    const prefix = `notif_${slot}_`;
+    const stale = allKeys.filter((k) => {
+      if (!k.startsWith(prefix)) return false;
+      const datePart = k.slice(prefix.length);
+      return /^\d{4}-\d{2}-\d{2}$/.test(datePart) && datePart < todayISO;
+    });
+    for (const key of stale) await cancelStored(key);
+  } catch { /* best-effort cleanup */ }
+}
+
 /** Cancel today's training reminder — call when any workout is logged. */
 export async function cancelTrainingReminderToday(): Promise<void> {
-  await cancelStored(storageKey('training', today()));
+  await cancelTodayAndStale('training');
 }
 
 /** Cancel today's meal-slot reminder — call when a food entry is added. */
 export async function cancelNutritionReminderForMeal(
   meal: 'breakfast' | 'lunch' | 'dinner',
 ): Promise<void> {
-  await cancelStored(storageKey(`nutrition_${meal}`, today()));
+  await cancelTodayAndStale(`nutrition_${meal}`);
 }
 
 /** Cancel today's check-in reminder — call after check-in is submitted. */
 export async function cancelCheckinReminderToday(): Promise<void> {
-  await cancelStored(storageKey('checkin', today()));
+  await cancelTodayAndStale('checkin');
 }
 
 /** Cancel both trial reminders — call when subscription becomes active. */
