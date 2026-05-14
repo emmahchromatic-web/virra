@@ -19,20 +19,33 @@ const PHASE_COLOR: Record<string, string> = {
   luteal:     colors.breath,
 };
 
-function MetricTile({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function MetricTile({
+  label, value, unit, sub,
+}: { label: string; value: string; unit?: string; sub?: string }) {
+  // Always render the sub slot — empty tiles use a non-breaking space so every
+  // tile in a row has the same baseline height and the row aligns cleanly.
   return (
     <View style={tile.wrap}>
-      <VirraText variant="display" size={28} color={colors.breath}>{value}</VirraText>
+      <View style={tile.valueRow}>
+        <VirraText variant="display" size={28} color={colors.breath}>{value}</VirraText>
+        {unit && (
+          <VirraText variant="display" size={14} color={colors.muted} style={tile.unit}>
+            {unit}
+          </VirraText>
+        )}
+      </View>
       <VirraText variant="mono" size={8} color={colors.muted} style={tile.label}>{label}</VirraText>
-      {sub && <VirraText variant="mono" size={8} color={colors.pulse} style={tile.sub}>{sub}</VirraText>}
+      <VirraText variant="mono" size={8} color={colors.pulse} style={tile.sub}>{sub ?? ' '}</VirraText>
     </View>
   );
 }
 
 const tile = StyleSheet.create({
-  wrap:  { flex: 1, alignItems: 'center', gap: 3, paddingVertical: spacing.sm },
-  label: { letterSpacing: 1.5, textAlign: 'center' },
-  sub:   { letterSpacing: 1 },
+  wrap:     { flex: 1, alignItems: 'center', gap: 3, paddingVertical: spacing.sm },
+  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 2 },
+  unit:     { marginLeft: 2 },
+  label:    { letterSpacing: 1.5, textAlign: 'center' },
+  sub:      { letterSpacing: 1 },
 });
 
 export default function InsightsScreen() {
@@ -174,23 +187,25 @@ export default function InsightsScreen() {
           <View style={styles.metricsGrid}>
             <MetricTile label="DAY STREAK"  value={loadingMetrics ? '—' : String(metrics?.streakDays ?? 0)} />
             <View style={styles.metricDividerV} />
-            <MetricTile label="THIS WEEK"   value={loadingMetrics ? '—' : `${metrics?.weeklyKm ?? 0} km`} />
+            <MetricTile label="THIS WEEK"   value={loadingMetrics ? '—' : String(metrics?.weeklyKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
             <View style={styles.metricDividerV} />
-            <MetricTile label="THIS MONTH"  value={loadingMetrics ? '—' : `${metrics?.monthlyKm ?? 0} km`} />
+            <MetricTile label="THIS MONTH"  value={loadingMetrics ? '—' : String(metrics?.monthlyKm ?? 0)} unit={loadingMetrics ? undefined : 'km'} />
           </View>
           <View style={styles.metricDividerH} />
           <View style={styles.metricsGrid}>
             <MetricTile
               label="ADHERENCE"
-              value={loadingMetrics ? '—' : metrics?.trainingAdherencePct != null ? `${metrics.trainingAdherencePct}%` : '—'}
+              value={loadingMetrics ? '—' : metrics?.trainingAdherencePct != null ? String(metrics.trainingAdherencePct) : '—'}
+              unit={!loadingMetrics && metrics?.trainingAdherencePct != null ? '%' : undefined}
               sub="LAST 28 DAYS"
             />
             <View style={styles.metricDividerV} />
-            <MetricTile label="ALL TIME"    value={loadingMetrics ? '—' : `${metrics?.totalKm ?? 0} km`} />
+            <MetricTile label="ALL TIME"    value={loadingMetrics ? '—' : String(metrics?.totalKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
             <View style={styles.metricDividerV} />
             <MetricTile
               label="NUTRITION"
-              value={loadingMetrics ? '—' : metrics?.nutritionCompliancePct != null ? `${metrics.nutritionCompliancePct}%` : '—'}
+              value={loadingMetrics ? '—' : metrics?.nutritionCompliancePct != null ? String(metrics.nutritionCompliancePct) : '—'}
+              unit={!loadingMetrics && metrics?.nutritionCompliancePct != null ? '%' : undefined}
               sub="COMPLIANCE"
             />
           </View>

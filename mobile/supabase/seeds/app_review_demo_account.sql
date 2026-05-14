@@ -172,29 +172,63 @@ select
 from new_block b, session_grid sg
 join day_map dm on dm.slot = sg.slot;
 
--- 7. Food entries for the last 3 days — populates the Nutrition tab
+-- 7. Food entries for the last 7 days — populates the Nutrition tab and the
+--    Nutrition Compliance metric on the Insights screen. Calories scale with
+--    each day's target so 6 of 7 days land within ±10% of target. One day
+--    (current_date - 4) is deliberately under-fueled to keep the metric
+--    around 86% rather than a perfect 100%.
 delete from public.food_entries
 where log_id in (
   select id from public.nutrition_logs where user_id = :'user_id_param'
 );
 
 with target_logs as (
-  select id from public.nutrition_logs
+  select id,
+    (targets_json->>'calories')::numeric as cal_target,
+    recorded_on
+  from public.nutrition_logs
   where user_id = :'user_id_param'
-  and recorded_on >= current_date - 2
+  and recorded_on >= current_date - 6
+  and recorded_on != current_date - 4
 )
 insert into public.food_entries (
   log_id, meal_type, food_name, quantity_g, carbs_g, protein_g, fat_g, fibre_g, calories
 )
-select tl.id, m.meal_type, m.food_name, m.qty, m.carbs, m.protein, m.fat, m.fibre, m.kcal
+select
+  tl.id, m.meal_type, m.food_name,
+  round(m.qty     * tl.cal_target / 2400.0),
+  round(m.carbs   * tl.cal_target / 2400.0, 1),
+  round(m.protein * tl.cal_target / 2400.0, 1),
+  round(m.fat     * tl.cal_target / 2400.0, 1),
+  round(m.fibre   * tl.cal_target / 2400.0, 1),
+  round(m.kcal    * tl.cal_target / 2400.0)
 from target_logs tl,
 lateral (values
-  ('breakfast', 'Porridge with banana and honey',  250, 65,  9,  4,  6, 350),
-  ('breakfast', 'Greek yoghurt and berries',       150, 14, 12,  4,  3, 140),
-  ('lunch',     'Chicken and quinoa salad',        380, 55, 38, 14,  8, 520),
-  ('snack',     'Flat white and almonds',          140, 12,  8, 18,  3, 240),
-  ('dinner',    'Salmon, sweet potato and greens', 420, 48, 36, 22,  9, 580)
+  ('breakfast', 'Porridge with banana and honey',   250, 70,  10,  6, 7, 380),
+  ('breakfast', 'Greek yoghurt and berries',        180, 16,  14,  4, 3, 210),
+  ('snack',     'Flat white and almonds',           140, 12,   8, 18, 3, 260),
+  ('lunch',     'Chicken and quinoa salad',         420, 60,  42, 16, 9, 580),
+  ('lunch',     'Sourdough and butter',              60, 22,   4,  5, 1, 160),
+  ('snack',     'Apple and peanut butter',          150, 22,   4,  9, 4, 180),
+  ('dinner',    'Salmon, sweet potato and greens',  450, 50,  40, 22, 9, 600),
+  ('dinner',    'Dark chocolate squares',            30, 12,   1,  6, 2,  30)
 ) as m(meal_type, food_name, qty, carbs, protein, fat, fibre, kcal);
+
+-- One deliberately under-fueled day so compliance lands at ~86% not 100%
+insert into public.food_entries (
+  log_id, meal_type, food_name, quantity_g, carbs_g, protein_g, fat_g, fibre_g, calories
+)
+select nl.id, m.meal_type, m.food_name, m.qty, m.carbs, m.protein, m.fat, m.fibre, m.kcal
+from public.nutrition_logs nl,
+lateral (values
+  ('breakfast', 'Porridge with banana and honey',  220, 60,  9, 5, 6, 340),
+  ('snack',     'Flat white',                       80, 10,  6, 8, 0, 140),
+  ('lunch',     'Chicken and quinoa salad',        380, 55, 38, 14, 8, 520),
+  ('snack',     'Apple',                           160, 22,  1,  0, 4,  90),
+  ('dinner',    'Soup and bread roll',             400, 55, 18, 14, 6, 480)
+) as m(meal_type, food_name, qty, carbs, protein, fat, fibre, kcal)
+where nl.user_id = :'user_id_param'
+and nl.recorded_on = current_date - 4;
 
 commit;
 

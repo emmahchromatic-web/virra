@@ -177,10 +177,15 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
           return acc;
         }, {});
 
-  // Nutrition compliance — days where actual calories within 10% of target
+  // Nutrition compliance — per-day score weighted by how close to target the
+  // day landed, then averaged. On-target = 1.0; at the 10% threshold = 0.0;
+  // beyond = 0.0 (clipped). This rewards days that hit the goal more strongly
+  // than days that scrape into the threshold band, and produces a smoother
+  // signal than a binary in/out-of-10% count.
+  const COMPLIANCE_THRESHOLD = 0.10;
   const nutritionLogs = nutritionLogsRes.data ?? [];
-  let compliantDays = 0;
-  let loggedDays    = 0;
+  let complianceScoreSum = 0;
+  let loggedDays         = 0;
   for (const log of nutritionLogs as any[]) {
     const targetCal: number = (log.targets_json as any)?.calories ?? 0;
     if (!targetCal) continue;
@@ -188,11 +193,13 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
       .reduce((s: number, e: any) => s + (e.calories ?? 0), 0);
     if (actualCal > 0) {
       loggedDays++;
-      if (Math.abs(actualCal - targetCal) / targetCal <= 0.10) compliantDays++;
+      const pctOff   = Math.abs(actualCal - targetCal) / targetCal;
+      const dayScore = Math.max(0, 1 - pctOff / COMPLIANCE_THRESHOLD);
+      complianceScoreSum += dayScore;
     }
   }
   const nutritionCompliancePct = loggedDays > 0
-    ? Math.round((compliantDays / loggedDays) * 100)
+    ? Math.round((complianceScoreSum / loggedDays) * 100)
     : null;
 
   // Fuelling alignment — compares actual intake against inferred_load target (not user-selected)
