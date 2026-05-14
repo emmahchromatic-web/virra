@@ -20,12 +20,21 @@ Working document. ASC app already exists: **ID `6768433819`**, Apple ID `dickens
 - [ ] Age rating questionnaire
 
 ### Phase 2 — Visual assets
-- [ ] Screenshots — 6.7" (1290×2796) — up to 10
-- [ ] Screenshots — 6.5" (1242×2688) — up to 10
-- [ ] Screenshots — 5.5" (1242×2208) — only if supporting older iPhones (optional in 2026)
+- [ ] Screenshots — **6.9" (1320×2868) from iPhone 16 Pro Max** — preferred, up to 10
+- [ ] Screenshots — 6.7" (1290×2796) from iPhone 15 Pro Max / 16 Plus — accepted alternative, up to 10
+- ASC auto-downscales these for older devices — submitting 6.5" / 5.5" separately is no longer required
 - [ ] App preview video (optional, recommended for retention)
 - [x] App icon — light/dark/tinted variants (done, shipped 2026-05-13)
 - [x] Splash screen — Splash.png (done)
+
+Capture command (after booting iPhone 16 Pro Max simulator + signing in to the demo account):
+
+```bash
+python3 tools/frame_screenshots.py --asc --screens \
+  onboarding,dashboard,training,nutrition,cycle,insights,paywall
+```
+
+Files land in `docs/app-store/screenshots/` numbered for deterministic upload order.
 
 ### Phase 3 — App Privacy ("nutrition label")
 - [ ] Complete the privacy questionnaire in ASC

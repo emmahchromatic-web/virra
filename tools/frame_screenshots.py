@@ -3,7 +3,8 @@
 frame_screenshots.py  —  Screenshot the Simulator for App Store Connect or marketing
 
 ── App Store Connect (raw native-resolution PNG, ready to upload) ────────────
-  Boot a 6.7" or 6.9" simulator (iPhone 15 Pro Max / 16 Pro Max / 16 Plus),
+  Boot iPhone 16 Pro Max  (6.9" tier, 1320×2868 — preferred for ASC 2026)
+  or iPhone 15 Pro Max    (6.7" tier, 1290×2796 — also accepted),
   navigate to a screen, then:
 
     python3 tools/frame_screenshots.py --capture dashboard --asc
@@ -151,14 +152,15 @@ def to_webp(png_path: Path):
 
 # ── Simulator helpers ─────────────────────────────────────────────────────────
 
-# Apple-accepted screenshot sizes for App Store Connect.
-# Apple cross-accepts these for both 6.7" and 6.9" tiers, but the device the
-# image originated from must match one of the rows for ASC to take it cleanly.
+# Apple-accepted screenshot sizes for App Store Connect, portrait orientation.
+# As of 2026 Apple requires ONE of the 6.9" or 6.7" tiers; older tiers are
+# accepted in their respective ASC slots but no longer required separately
+# because ASC auto-downscales for smaller devices.
 ASC_SPEC_SIZES = {
-    (1290, 2796): '6.7" / 6.9" (iPhone 15/16 Pro Max, 16 Plus)',
-    (1320, 2868): '6.9" (iPhone 16 Pro Max — newer native)',
-    (1284, 2778): '6.5" / 6.7" (iPhone 11 Pro Max, XS Max, 15 Plus)',
-    # Portrait orientation only — Apple wants portrait for fitness/health apps
+    (1320, 2868): '6.9"  preferred  (iPhone 16 Pro Max)',
+    (1290, 2796): '6.7"  accepted   (iPhone 14/15 Pro Max, 15/16 Plus)',
+    (1284, 2778): '6.7"  legacy     (iPhone 12/13 Pro Max)',
+    (1242, 2688): '6.5"  legacy     (iPhone XS Max, 11 Pro Max)',
 }
 
 
@@ -203,16 +205,15 @@ def asc_validate(png_path: Path) -> tuple[int, int, str]:
     w, h = img.size
     label = ASC_SPEC_SIZES.get((w, h))
     if label:
-        print(f"  ASC ✓  {w}×{h}  ({label})")
+        print(f"  ASC ✓  {w}×{h}  {label}")
     else:
         print(
             f"  ASC ✗  {w}×{h} is NOT an accepted App Store Connect size.\n"
-            f"     Accepted sizes (portrait): " +
+            f"     Accepted (portrait): " +
             ', '.join(f"{a}×{b}" for a, b in ASC_SPEC_SIZES)
         )
         print(
-            f"     → Boot one of: iPhone 16 Pro Max, iPhone 15 Pro Max, iPhone 16 Plus, "
-            f"iPhone 15 Plus, iPhone 11 Pro Max"
+            f"     → Boot iPhone 16 Pro Max (preferred) or iPhone 15 Pro Max"
         )
     return w, h, label or 'unaccepted'
 
