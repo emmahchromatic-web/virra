@@ -197,7 +197,7 @@ export async function moveSession(
 ): Promise<void> {
   const { data: orig, error: fetchErr } = await supabase
     .from('planned_sessions')
-    .select('week_number, modality, session_label, block_id')
+    .select('week_number, modality, session_label, block_id, run_structure, strength_structure')
     .eq('id', sessionId)
     .single();
   if (fetchErr || !orig) throw new Error(fetchErr?.message ?? 'Session not found');
@@ -209,14 +209,16 @@ export async function moveSession(
   const { data: newRow, error: insertErr } = await supabase
     .from('planned_sessions')
     .insert({
-      user_id:        userId,
-      block_id:       orig.block_id,
-      scheduled_date: newDate,
-      week_number:    orig.week_number,
-      day_of_week:    newDow,
-      modality:       orig.modality,
-      session_label:  orig.session_label,
-      status:         'planned',
+      user_id:            userId,
+      block_id:           (orig as any).block_id,
+      scheduled_date:     newDate,
+      week_number:        (orig as any).week_number,
+      day_of_week:        newDow,
+      modality:           (orig as any).modality,
+      session_label:      (orig as any).session_label,
+      status:             'planned',
+      run_structure:      (orig as any).run_structure,
+      strength_structure: (orig as any).strength_structure,
     })
     .select('id')
     .single();

@@ -64,3 +64,4 @@ describe('generateSchedule — structure attachment', () => {
     expect(rows[0].run_structure).toBeUndefined();
   });
 });
+
