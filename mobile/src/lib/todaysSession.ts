@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
-import { modulateForCycle, type SessionType } from './cycleModulation';
+import { modulateForCycle, modulateRunStructure, type SessionType } from './cycleModulation';
+import { summariseRunStructure, summariseStrengthStructure } from './workoutStructure';
 import { useCycleStore } from '@/store/cycle';
 
 export interface TodaysSession {
@@ -16,6 +17,8 @@ export interface TodaysSession {
   cycle_adjusted_pace_secs: number | null; // null if no modulation OR no pace target
   cycle_reason_short:       string | null; // first sentence of the modulation reason
   cycle_pace_arrow:         '↑' | '↓' | null; // direction of pace adjustment
+  // Phase I — one-line workout structure summary (null when no structure stored yet)
+  structure_summary: string | null;
 }
 
 interface PlannedSessionRow {
@@ -24,6 +27,8 @@ interface PlannedSessionRow {
   session_label:  string;
   status:         TodaysSession['status'];
   activity_id:    string | null;
+  run_structure?:      import('./workoutStructure').RunWorkoutStructure | null;
+  strength_structure?: import('./workoutStructure').StrengthWorkoutStructure | null;
 }
 
 function mapLabelToSessionType(label: string): SessionType {
@@ -55,7 +60,7 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
 
   const { data: planned, error } = await supabase
     .from('planned_sessions')
-    .select('id, modality, session_label, status, activity_id')
+    .select('id, modality, session_label, status, activity_id, run_structure, strength_structure')
     .eq('user_id', userId)
     .eq('scheduled_date', today)
     .neq('status', 'moved')
@@ -145,6 +150,14 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
       }
     }
 
+    let structure_summary: string | null = null;
+    if (r.modality === 'run' && r.run_structure) {
+      const modulated = modulateRunStructure(r.run_structure, cyclePhase, cycleProfile).adjusted;
+      structure_summary = summariseRunStructure(modulated);
+    } else if (r.modality === 'strength' && r.strength_structure) {
+      structure_summary = summariseStrengthStructure(r.strength_structure);
+    }
+
     return {
       id:                    r.id,
       modality:              r.modality,
@@ -157,6 +170,7 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
       cycle_adjusted_pace_secs,
       cycle_reason_short,
       cycle_pace_arrow,
+      structure_summary,
     };
   });
 }
