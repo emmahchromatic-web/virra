@@ -7,3 +7,5 @@ alter table public.planned_sessions
 
 comment on column public.planned_sessions.run_structure is
   'Plan-owned run workout structure (steps, repeats, targets). Generated at insert time by runWorkoutGenerator.ts. Null for non-run sessions or pre-Phase-I rows pending lazy backfill.';
+
+notify pgrst, 'reload schema';
