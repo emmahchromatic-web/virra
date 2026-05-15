@@ -1,4 +1,4 @@
-import { inferWorkoutType } from '@/lib/runWorkoutGenerator';
+import { inferWorkoutType, paceForBand, generateRunStructure } from '@/lib/runWorkoutGenerator';
 
 describe('inferWorkoutType', () => {
   test('maps "easy" to easy', () => {
@@ -29,12 +29,16 @@ describe('inferWorkoutType', () => {
   test('falls back to easy', () => {
     expect(inferWorkoutType('shakeout')).toBe('easy');
   });
+  test('maps "negative splits" to negative_split', () => {
+    expect(inferWorkoutType('negative splits')).toBe('negative_split');
+  });
+  test('maps "run walk" to run_walk', () => {
+    expect(inferWorkoutType('run walk')).toBe('run_walk');
+  });
 });
 
-import { generateRunStructure } from '@/lib/runWorkoutGenerator';
-
 describe('generateRunStructure — simple workouts', () => {
-  test('easy 5km has warmup + steady + cooldown summing to 5km', () => {
+  test('easy 5km has warmup + work + cooldown steps summing to 5km', () => {
     const s = generateRunStructure({
       session_label: 'easy', baseline_pace_secs: 360, distance_km: 5,
     });
@@ -133,6 +137,26 @@ describe('generateRunStructure — intervals', () => {
     expect(s.steps[0].kind).toBe('warmup');
     expect(s.steps[s.steps.length - 1].kind).toBe('cooldown');
   });
+
+  test('intervals 8km step IDs are in positional order (s1=warmup, s2=repeat, s3/s4=sub, s5=cooldown)', () => {
+    const s = generateRunStructure({
+      session_label: 'intervals', baseline_pace_secs: 360, distance_km: 8,
+    });
+    expect(s.steps[0].id).toBe('s1');
+    expect(s.steps[1].id).toBe('s2');
+    expect(s.steps[1].sub_steps![0].id).toBe('s3');
+    expect(s.steps[1].sub_steps![1].id).toBe('s4');
+    expect(s.steps[2].id).toBe('s5');
+  });
+
+  test('intervals 8km total_distance_m is computed from rep structure (7800)', () => {
+    // wu=1500, cd=1300, remaining=max(2000,8000-2800)=5200,
+    // repCount=max(3,min(8,round(5200/1000)))=5, repeatDist=5×1000=5000, total=7800
+    const s = generateRunStructure({
+      session_label: 'intervals', baseline_pace_secs: 360, distance_km: 8,
+    });
+    expect(s.total_distance_m).toBe(7800);
+  });
 });
 
 describe('generateRunStructure — progression / negative_split', () => {
@@ -172,5 +196,23 @@ describe('generateRunStructure — run_walk', () => {
     expect(repeat!.sub_steps![0].target.pace_band).toBe('easy');
     expect(repeat!.sub_steps![1].target.pace_band).toBe('recovery');
     expect(repeat!.sub_steps![1].target.duration_s).toBeGreaterThan(0);
+  });
+
+  test('run_walk 5km total_distance_m is derived from time × pace × reps (5217)', () => {
+    // easyPace=round(360×1.15)=414, runMperRep=(240/414)×1000≈579.71,
+    // reps=max(3,round(5000/579.71))=9, total=round(579.71×9)=5217
+    const s = generateRunStructure({
+      session_label: 'run_walk', baseline_pace_secs: 360, distance_km: 5,
+    });
+    expect(s.total_distance_m).toBe(5217);
+  });
+});
+
+describe('paceForBand', () => {
+  test('multiplies baseline by easy band multiplier', () => {
+    expect(paceForBand(360, 'easy')).toBe(414); // 360 * 1.15 = 414
+  });
+  test('threshold is faster than baseline', () => {
+    expect(paceForBand(360, 'threshold')).toBe(324); // 360 * 0.90 = 324
   });
 });

@@ -43,6 +43,17 @@ export interface GenerateRunInput {
 const WARMUP_M   = 1500;
 const COOLDOWN_M = 1300;
 
+// intervals branch constants
+const INTERVAL_WORK_M         = 800;
+const INTERVAL_REST_M         = 200;
+const INTERVAL_REP_MIN        = 3;
+const INTERVAL_REP_MAX        = 8;
+const INTERVAL_MIN_REMAINING_M = 2000;
+
+// run_walk branch constants
+const RUN_WALK_RUN_S  = 240;
+const RUN_WALK_WALK_S = 60;
+
 function bandForType(t: RunWorkoutType): PaceBand {
   switch (t) {
     case 'easy':            return 'easy';
@@ -128,36 +139,41 @@ export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructu
   }
 
   if (type === 'intervals') {
+    // total_distance_m is computed from the rep structure (warmup + repCount × (work+rest) + cooldown),
+    // so it may differ from the input distance_km. Repeat count is bounded INTERVAL_REP_MIN..INTERVAL_REP_MAX.
     const wu = WARMUP_M;
     const cd = COOLDOWN_M;
-    const remaining = Math.max(2000, totalM - wu - cd);
-    const workRep = 800;
-    const restRep = 200;
-    const repCount = Math.max(3, Math.min(8, Math.round(remaining / (workRep + restRep))));
+    const remaining = Math.max(INTERVAL_MIN_REMAINING_M, totalM - wu - cd);
+    const repCount = Math.max(
+      INTERVAL_REP_MIN,
+      Math.min(INTERVAL_REP_MAX, Math.round(remaining / (INTERVAL_WORK_M + INTERVAL_REST_M))),
+    );
+    const repeatDistance = repCount * (INTERVAL_WORK_M + INTERVAL_REST_M);
+    const warmupStep: RunStep = {
+      id: id(), kind: 'warmup', label: 'warmup',
+      target: { distance_m: wu, pace_band: 'easy',
+                pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') },
+    };
     const repeatStep: RunStep = {
       id: id(), kind: 'repeat', repeat_count: repCount, target: {},
       sub_steps: [
-        { id: id(), kind: 'work', label: `${workRep}m`,
-          target: { distance_m: workRep, pace_band: 'vo2',
+        { id: id(), kind: 'work', label: `${INTERVAL_WORK_M}m`,
+          target: { distance_m: INTERVAL_WORK_M, pace_band: 'vo2',
                     pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'vo2') } },
         { id: id(), kind: 'rest', label: 'float',
-          target: { distance_m: restRep, pace_band: 'recovery',
+          target: { distance_m: INTERVAL_REST_M, pace_band: 'recovery',
                     pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'recovery') } },
       ],
     };
-    const repeatDistance = repCount * (workRep + restRep);
+    const cooldownStep: RunStep = {
+      id: id(), kind: 'cooldown', label: 'cooldown',
+      target: { distance_m: cd, pace_band: 'easy',
+                pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') },
+    };
     return {
       version: 1, workout_type: 'intervals',
       total_distance_m: wu + repeatDistance + cd,
-      steps: [
-        { id: id(), kind: 'warmup', label: 'warmup',
-          target: { distance_m: wu, pace_band: 'easy',
-                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
-        repeatStep,
-        { id: id(), kind: 'cooldown', label: 'cooldown',
-          target: { distance_m: cd, pace_band: 'easy',
-                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
-      ],
+      steps: [warmupStep, repeatStep, cooldownStep],
     };
   }
 
@@ -212,18 +228,17 @@ export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructu
   }
 
   if (type === 'run_walk') {
+    // total_distance_m is derived from time × pace × reps, so it approximates input.distance_km but won't match exactly.
     const easyPace = paceForBand(input.baseline_pace_secs, 'easy');
-    const runDurS = 4 * 60;
-    const walkDurS = 60;
-    const runMperRep = (runDurS / easyPace) * 1000;
+    const runMperRep = (RUN_WALK_RUN_S / easyPace) * 1000;
     const reps = Math.max(3, Math.round(totalM / runMperRep));
     const repeatStep: RunStep = {
       id: id(), kind: 'repeat', repeat_count: reps, target: {},
       sub_steps: [
         { id: id(), kind: 'work', label: 'run',
-          target: { duration_s: runDurS, pace_band: 'easy', pace_secs_per_km: easyPace } },
+          target: { duration_s: RUN_WALK_RUN_S, pace_band: 'easy', pace_secs_per_km: easyPace } },
         { id: id(), kind: 'rest', label: 'walk',
-          target: { duration_s: walkDurS, pace_band: 'recovery',
+          target: { duration_s: RUN_WALK_WALK_S, pace_band: 'recovery',
                     pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'recovery') } },
       ],
     };
