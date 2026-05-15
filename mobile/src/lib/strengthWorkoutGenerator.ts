@@ -12,6 +12,7 @@ export interface GenerateStrengthInput {
 }
 
 const SESSION_SIZE = 5;
+const SECONDS_PER_SET = 45;
 
 function makeIdFactory(): () => string {
   let i = 0;
@@ -80,7 +81,7 @@ export function generateStrengthStructure(input: GenerateStrengthInput): Strengt
 
   const estMinutes = Math.round(
     exercises.reduce((acc, ex) => {
-      const setTime = ex.target_sets.length * (45 + ex.rest_seconds);
+      const setTime = ex.target_sets.length * (SECONDS_PER_SET + ex.rest_seconds);
       return acc + setTime;
     }, 0) / 60,
   );
