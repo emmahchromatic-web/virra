@@ -97,6 +97,16 @@ export function TodaysSessionHero({ sessions }: Props) {
                 {s.cycle_reason_short.toLowerCase()}
               </VirraText>
             )}
+            {s.structure_summary && (
+              <VirraText
+                variant="mono"
+                size={11}
+                color={colors.muted}
+                style={{ marginTop: 2 }}
+              >
+                {s.structure_summary}
+              </VirraText>
+            )}
           </View>
           <StatusBadge status={s.status} />
         </View>
