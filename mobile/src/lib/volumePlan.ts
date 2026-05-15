@@ -3,8 +3,9 @@ import type { CyclePhase } from './cycleEngine';
 import { getCycleInfo } from './cycleEngine';
 import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
 import type { ModulationResult, SessionType, SessionPaceTarget } from './cycleModulation';
-import { modulateForCycle } from './cycleModulation';
+import { modulateForCycle, modulateRunStructure } from './cycleModulation';
 import type { CycleProfile } from '@/store/cycle';
+import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
 
 // ---- Interfaces ----
 
@@ -42,6 +43,9 @@ export interface RunSessionDetail {
   actual_pace_secs:   number | null;
   actual_distance_km: number | null;
   cycle_modulation:   ModulationResult | null;
+  // Phase I — workout structure
+  structure:           RunWorkoutStructure | null;
+  modulated_structure: RunWorkoutStructure | null;
 }
 
 export interface StrengthSessionDetail {
@@ -51,6 +55,8 @@ export interface StrengthSessionDetail {
   estimated_minutes:  number;
   status:             string;
   cycle_modulation:   ModulationResult | null;
+  // Phase I — workout structure
+  structure:          StrengthWorkoutStructure | null;
 }
 
 export type SessionDetail = RunSessionDetail | StrengthSessionDetail;
@@ -484,6 +490,13 @@ export async function getDaySessionDetail(
   const phase          = cycleStore.phase;
   const phase_guidance = PHASE_GUIDANCE[phase ?? ''] ?? '';
 
+  // For structure modulation, use the phase predicted for the specific date
+  // (not necessarily today's phase)
+  const dateForPhase = new Date(`${dateISO}T00:00:00`);
+  const phaseForDate: CyclePhase | null = cycleStore.periodStart
+    ? getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, dateForPhase).phase
+    : null;
+
   const EMPTY_PLAN: VolumePlanResult = {
     weeks: [], total_km: 0, completed_km: 0, remaining_km: 0, deficit_message: null,
   };
@@ -491,7 +504,7 @@ export async function getDaySessionDetail(
   // Fetch planned sessions for this date
   const { data: daySessions, error: daySessionsErr } = await supabase
     .from('planned_sessions')
-    .select('id, session_label, modality, status, week_number, block_id, activity_id')
+    .select('id, session_label, modality, status, week_number, block_id, activity_id, run_structure, strength_structure')
     .eq('user_id', userId)
     .eq('scheduled_date', dateISO)
     .neq('status', 'moved');
@@ -621,6 +634,15 @@ export async function getDaySessionDetail(
           cycle_profile,
         );
 
+        const sRow = s as typeof s & {
+          run_structure:      RunWorkoutStructure | null;
+          strength_structure: StrengthWorkoutStructure | null;
+        };
+        const structure = sRow.run_structure ?? null;
+        const modulated_structure = structure
+          ? modulateRunStructure(structure, phaseForDate, cycle_profile).adjusted
+          : null;
+
         allSessions.push({
           kind:               'run',
           planned_session_id: s.id,
@@ -633,6 +655,8 @@ export async function getDaySessionDetail(
           actual_pace_secs,
           actual_distance_km,
           cycle_modulation,
+          structure,
+          modulated_structure,
         });
       }
     }
@@ -650,6 +674,10 @@ export async function getDaySessionDetail(
         phase,
         cycle_profile,
       );
+      const sRow = s as typeof s & {
+        run_structure:      RunWorkoutStructure | null;
+        strength_structure: StrengthWorkoutStructure | null;
+      };
       allSessions.push({
         kind:               'strength',
         planned_session_id: s.id,
@@ -657,6 +685,7 @@ export async function getDaySessionDetail(
         estimated_minutes,
         status:             s.status,
         cycle_modulation,
+        structure:          sRow.strength_structure ?? null,
       });
     }
   }

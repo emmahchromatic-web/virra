@@ -55,6 +55,19 @@ describe('modulateRunStructure', () => {
   });
 });
 
+describe('modulateRunStructure — read-time integration', () => {
+  test('modulateRunStructure applied to read-time structure produces faster work step in ovulatory', () => {
+    const structure: RunWorkoutStructure = {
+      version: 1 as const, workout_type: 'tempo' as const, total_distance_m: 8000,
+      steps: [
+        { id: 'a', kind: 'work' as const, target: { distance_m: 5200, pace_secs_per_km: 342, pace_band: 'tempo' as const } },
+      ],
+    };
+    const { adjusted } = modulateRunStructure(structure, 'ovulatory', 'natural');
+    expect(adjusted.steps[0].target.pace_secs_per_km!).toBeLessThan(342);
+  });
+});
+
 describe('modulateRunStructure — repeat structures', () => {
   test('repeat sub_steps are modulated', () => {
     const intervalStructure: RunWorkoutStructure = {
