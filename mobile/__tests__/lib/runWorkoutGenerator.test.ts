@@ -30,3 +30,47 @@ describe('inferWorkoutType', () => {
     expect(inferWorkoutType('shakeout')).toBe('easy');
   });
 });
+
+import { generateRunStructure } from '@/lib/runWorkoutGenerator';
+
+describe('generateRunStructure — simple workouts', () => {
+  test('easy 5km has warmup + steady + cooldown summing to 5km', () => {
+    const s = generateRunStructure({
+      session_label: 'easy', baseline_pace_secs: 360, distance_km: 5,
+    });
+    expect(s.workout_type).toBe('easy');
+    expect(s.total_distance_m).toBe(5000);
+    expect(s.steps.map((st) => st.kind)).toEqual(['warmup', 'work', 'cooldown']);
+    const sum = s.steps.reduce((acc, st) => acc + (st.target.distance_m ?? 0), 0);
+    expect(sum).toBe(5000);
+  });
+
+  test('long 18km uses easy pace band for work step', () => {
+    const s = generateRunStructure({
+      session_label: 'long', baseline_pace_secs: 360, distance_km: 18,
+    });
+    expect(s.workout_type).toBe('long');
+    expect(s.total_distance_m).toBe(18000);
+    const work = s.steps.find((st) => st.kind === 'work');
+    expect(work?.target.pace_band).toBe('easy');
+  });
+
+  test('recovery 4km uses recovery band', () => {
+    const s = generateRunStructure({
+      session_label: 'recovery', baseline_pace_secs: 360, distance_km: 4,
+    });
+    expect(s.workout_type).toBe('recovery');
+    const work = s.steps.find((st) => st.kind === 'work');
+    expect(work?.target.pace_band).toBe('recovery');
+  });
+
+  test('race 10km is a single work step without warmup/cooldown', () => {
+    const s = generateRunStructure({
+      session_label: 'race', baseline_pace_secs: 360, distance_km: 10,
+    });
+    expect(s.workout_type).toBe('race');
+    expect(s.steps).toHaveLength(1);
+    expect(s.steps[0].kind).toBe('work');
+    expect(s.steps[0].target.distance_m).toBe(10000);
+  });
+});

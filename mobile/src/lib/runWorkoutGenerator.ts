@@ -40,6 +40,72 @@ export interface GenerateRunInput {
   distance_km:        number;
 }
 
+const WARMUP_M   = 1500;
+const COOLDOWN_M = 1300;
+
+function bandForType(t: RunWorkoutType): PaceBand {
+  switch (t) {
+    case 'easy':            return 'easy';
+    case 'long':            return 'easy';
+    case 'recovery':        return 'recovery';
+    case 'tempo':           return 'tempo';
+    case 'threshold':       return 'threshold';
+    case 'intervals':       return 'vo2';
+    case 'progression':     return 'steady';
+    case 'race':            return 'threshold';
+    case 'run_walk':        return 'easy';
+    case 'negative_split':  return 'steady';
+  }
+}
+
 export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructure {
-  throw new Error('generateRunStructure not yet implemented for ' + input.session_label);
+  const id = makeIdFactory();
+  const type = inferWorkoutType(input.session_label);
+  const totalM = Math.round(input.distance_km * 1000);
+
+  if (type === 'race') {
+    return {
+      version: 1, workout_type: 'race', total_distance_m: totalM,
+      steps: [{
+        id: id(), kind: 'work', label: 'race effort',
+        target: {
+          distance_m: totalM,
+          pace_band: bandForType('race'),
+          pace_secs_per_km: paceForBand(input.baseline_pace_secs, bandForType('race')),
+        },
+      }],
+    };
+  }
+
+  if (type === 'easy' || type === 'long' || type === 'recovery') {
+    const useFrame = totalM >= 4000 && type !== 'recovery';
+    const wu = useFrame ? Math.min(WARMUP_M,  Math.floor(totalM * 0.15)) : 0;
+    const cd = useFrame ? Math.min(COOLDOWN_M, Math.floor(totalM * 0.15)) : 0;
+    const workM = totalM - wu - cd;
+    const band = bandForType(type);
+    const steps: RunStep[] = [];
+    if (wu > 0) {
+      steps.push({
+        id: id(), kind: 'warmup', label: 'warmup',
+        target: { distance_m: wu, pace_band: 'easy',
+                  pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') },
+      });
+    }
+    steps.push({
+      id: id(), kind: 'work', label: type === 'long' ? 'long run' : type,
+      target: { distance_m: workM, pace_band: band,
+                pace_secs_per_km: paceForBand(input.baseline_pace_secs, band) },
+    });
+    if (cd > 0) {
+      steps.push({
+        id: id(), kind: 'cooldown', label: 'cooldown',
+        target: { distance_m: cd, pace_band: 'easy',
+                  pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') },
+      });
+    }
+    return { version: 1, workout_type: type, total_distance_m: totalM, steps };
+  }
+
+  // Unreachable — all RunWorkoutType cases handled above.
+  throw new Error(`generateRunStructure: unhandled workout_type ${type}`);
 }
