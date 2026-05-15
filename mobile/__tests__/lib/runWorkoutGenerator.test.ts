@@ -158,3 +158,19 @@ describe('generateRunStructure — progression / negative_split', () => {
     expect(works[1].target.pace_secs_per_km!).toBeLessThan(works[0].target.pace_secs_per_km!);
   });
 });
+
+describe('generateRunStructure — run_walk', () => {
+  test('run_walk produces a repeat with run + walk sub-steps', () => {
+    const s = generateRunStructure({
+      session_label: 'run_walk', baseline_pace_secs: 360, distance_km: 5,
+    });
+    expect(s.workout_type).toBe('run_walk');
+    const repeat = s.steps.find((st) => st.kind === 'repeat');
+    expect(repeat).toBeDefined();
+    expect(repeat!.repeat_count).toBeGreaterThanOrEqual(3);
+    expect(repeat!.sub_steps).toHaveLength(2);
+    expect(repeat!.sub_steps![0].target.pace_band).toBe('easy');
+    expect(repeat!.sub_steps![1].target.pace_band).toBe('recovery');
+    expect(repeat!.sub_steps![1].target.duration_s).toBeGreaterThan(0);
+  });
+});

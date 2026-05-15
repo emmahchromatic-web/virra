@@ -211,6 +211,29 @@ export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructu
     };
   }
 
+  if (type === 'run_walk') {
+    const easyPace = paceForBand(input.baseline_pace_secs, 'easy');
+    const runDurS = 4 * 60;
+    const walkDurS = 60;
+    const runMperRep = (runDurS / easyPace) * 1000;
+    const reps = Math.max(3, Math.round(totalM / runMperRep));
+    const repeatStep: RunStep = {
+      id: id(), kind: 'repeat', repeat_count: reps, target: {},
+      sub_steps: [
+        { id: id(), kind: 'work', label: 'run',
+          target: { duration_s: runDurS, pace_band: 'easy', pace_secs_per_km: easyPace } },
+        { id: id(), kind: 'rest', label: 'walk',
+          target: { duration_s: walkDurS, pace_band: 'recovery',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'recovery') } },
+      ],
+    };
+    return {
+      version: 1, workout_type: 'run_walk',
+      total_distance_m: Math.round(runMperRep * reps),
+      steps: [repeatStep],
+    };
+  }
+
   // Unreachable — all RunWorkoutType cases handled above.
   throw new Error(`generateRunStructure: unhandled workout_type ${type}`);
 }
