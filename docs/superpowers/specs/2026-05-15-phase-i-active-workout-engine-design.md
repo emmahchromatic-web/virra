@@ -26,7 +26,28 @@ This shifts the architecture so that:
 
 **Plan-owned, surface-rendered.** Every workout — its structure (warmup, intervals, cooldown for runs; exercise list with target sets/reps for strength) — lives on the `planned_session` row. Every surface (dashboard hero, calendar modal, Insights lookahead, Play live screen, pre-workout preview) reads from the same shape. Mutations (move, swap, drop, complete) write through `planned_sessions` and are reflected everywhere on next read.
 
+### What's baked vs what's layered
+
+**Baked at plan-creation time** (write-time, lives in the JSONB):
+- Workout shape — steps, repeats, distances/durations, exercise list
+- Base pace target per step (derived from baseline pace + workout type)
+- Total distance, estimated minutes, anchor day-of-week
+
+**Layered at read time:**
+- Cycle-phase pace adjustment per step
+- WHY THIS PACE narrative string
+
+### Read-time modulation, with predicted phase for future dates
+
 Cycle modulation continues to apply at read time (already proven in `getTodaysSessions` and `SessionDetailModal`), but now applies *per step* of a structured workout rather than only to the headline pace.
+
+Crucially, the **lookahead surfaces (Insights 14-day, MonthCalendar, pre-workout preview when opened in advance) modulate using the phase predicted for the session's scheduled date**, not today's phase. The cycle engine already supports this via `getCycleInfo(periodStart, cycleLength, futureDate)`. Result: lookahead is never "TBD" — it always shows a meaningful pace target, transparently provisional. When the day arrives, if the actual period start drifted from prediction, the rendered pace recomputes to match the actual phase, and the WHY card already carries that nuance.
+
+Why this beats baking pace at write-time:
+- Phase prediction drifts from reality. Read-time always uses current cycle state — accurate, never stale.
+- Cycle profile updates (length change in cycle-settings) cascade to every future planned session for free, no cache invalidation pass.
+- The user-facing concern is about *shape* not *pace* — shape is baked, pace is overlayed.
+- It matches the read pattern the rest of the app already uses (`volumePlan`, `loadScale` per block in Phase E).
 
 ---
 
