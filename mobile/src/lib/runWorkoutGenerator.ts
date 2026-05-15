@@ -161,6 +161,56 @@ export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructu
     };
   }
 
+  if (type === 'progression') {
+    const wu = Math.min(WARMUP_M, Math.floor(totalM * 0.15));
+    const cd = Math.min(COOLDOWN_M, Math.floor(totalM * 0.15));
+    const workTotal = totalM - wu - cd;
+    const seg = Math.floor(workTotal / 3);
+    const bands: PaceBand[] = ['easy', 'steady', 'tempo'];
+    const workSteps: RunStep[] = bands.map((b, i) => ({
+      id: id(), kind: 'work', label: `segment ${i + 1}`,
+      target: { distance_m: i === 2 ? workTotal - seg * 2 : seg,
+                pace_band: b,
+                pace_secs_per_km: paceForBand(input.baseline_pace_secs, b) },
+    }));
+    return {
+      version: 1, workout_type: 'progression', total_distance_m: totalM,
+      steps: [
+        { id: id(), kind: 'warmup', label: 'warmup',
+          target: { distance_m: wu, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+        ...workSteps,
+        { id: id(), kind: 'cooldown', label: 'cooldown',
+          target: { distance_m: cd, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+      ],
+    };
+  }
+
+  if (type === 'negative_split') {
+    const wu = Math.min(WARMUP_M, Math.floor(totalM * 0.12));
+    const cd = Math.min(COOLDOWN_M, Math.floor(totalM * 0.12));
+    const workTotal = totalM - wu - cd;
+    const half = Math.floor(workTotal / 2);
+    return {
+      version: 1, workout_type: 'negative_split', total_distance_m: totalM,
+      steps: [
+        { id: id(), kind: 'warmup', label: 'warmup',
+          target: { distance_m: wu, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+        { id: id(), kind: 'work', label: 'first half',
+          target: { distance_m: half, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+        { id: id(), kind: 'work', label: 'second half',
+          target: { distance_m: workTotal - half, pace_band: 'tempo',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'tempo') } },
+        { id: id(), kind: 'cooldown', label: 'cooldown',
+          target: { distance_m: cd, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+      ],
+    };
+  }
+
   // Unreachable — all RunWorkoutType cases handled above.
   throw new Error(`generateRunStructure: unhandled workout_type ${type}`);
 }

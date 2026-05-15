@@ -134,3 +134,27 @@ describe('generateRunStructure — intervals', () => {
     expect(s.steps[s.steps.length - 1].kind).toBe('cooldown');
   });
 });
+
+describe('generateRunStructure — progression / negative_split', () => {
+  test('progression 9km has three increasing-pace work segments', () => {
+    const s = generateRunStructure({
+      session_label: 'progression', baseline_pace_secs: 360, distance_km: 9,
+    });
+    expect(s.workout_type).toBe('progression');
+    const works = s.steps.filter((st) => st.kind === 'work');
+    expect(works).toHaveLength(3);
+    const paces = works.map((w) => w.target.pace_secs_per_km!);
+    expect(paces[1]).toBeLessThan(paces[0]);
+    expect(paces[2]).toBeLessThan(paces[1]);
+  });
+
+  test('negative_split 12km has two halves, second faster than first', () => {
+    const s = generateRunStructure({
+      session_label: 'negative splits', baseline_pace_secs: 360, distance_km: 12,
+    });
+    expect(s.workout_type).toBe('negative_split');
+    const works = s.steps.filter((st) => st.kind === 'work');
+    expect(works).toHaveLength(2);
+    expect(works[1].target.pace_secs_per_km!).toBeLessThan(works[0].target.pace_secs_per_km!);
+  });
+});
