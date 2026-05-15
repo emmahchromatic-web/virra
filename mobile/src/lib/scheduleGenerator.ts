@@ -158,9 +158,10 @@ export async function generateAndSaveSchedule(
   slotAssignments?: SessionSlot[],
   maxWeeks?:        number,
   phaseSegments?:   PhaseSegment[],
+  context?:         GenerateContext,
 ): Promise<void> {
   if (!sessionsJson.length) return;
-  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, slotAssignments, maxWeeks);
+  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, slotAssignments, maxWeeks, context);
   if (!rows.length) return;
 
   function resolvePhase(scheduled_date: string): BlockPhase | null {

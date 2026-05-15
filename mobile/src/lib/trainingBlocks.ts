@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { generateAndSaveSchedule, type SessionSlot } from './scheduleGenerator';
+import { generateAndSaveSchedule, type SessionSlot, type GenerateContext } from './scheduleGenerator';
 import { recomputeSeasonForUser } from './seasonEngine';
 import { useCycleStore } from '@/store/cycle';
 
@@ -125,6 +125,14 @@ export async function addBlock(
       .eq('id', opts.templateId)
       .single();
     if (tmpl?.sessions_json) {
+      // Fetch baseline pace for workout structure generation
+      const { data: profileRow } = await supabase
+        .from('user_profiles')
+        .select('baseline_pace_seconds_per_km')
+        .eq('id', userId)
+        .maybeSingle();
+      const baselinePaceSecs = profileRow?.baseline_pace_seconds_per_km ?? 360;
+
       await generateAndSaveSchedule(
         userId,
         blockId,
@@ -133,6 +141,8 @@ export async function addBlock(
         tmpl.sessions_json as any,
         opts.slotAssignments,
         opts.maxWeeks,
+        undefined, // phaseSegments not used by this caller
+        { baseline_pace_secs: baselinePaceSecs } satisfies GenerateContext,
       );
     }
   }

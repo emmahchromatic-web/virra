@@ -1,6 +1,6 @@
 import type { CycleProfile } from '@/store/cycle';
 import { supabase } from './supabase';
-import { generateAndSaveSchedule, type WeekSession } from './scheduleGenerator';
+import { generateAndSaveSchedule, type WeekSession, type GenerateContext } from './scheduleGenerator';
 
 export type BlockPhase = 'recovery' | 'base' | 'build' | 'peak' | 'taper' | 'race';
 export type Priority   = 1 | 2 | 3;
@@ -274,7 +274,17 @@ export async function applySeasonChain(
       .eq('id', event.id);
   }
 
-  // 3. For each block, find a matching plan_template + create training_block + generate sessions
+  // 3. Fetch baseline pace once for workout structure generation
+  const { data: profileRow } = await supabase
+    .from('user_profiles')
+    .select('baseline_pace_seconds_per_km')
+    .eq('id', userId)
+    .maybeSingle();
+  const generateContext: GenerateContext = {
+    baseline_pace_secs: profileRow?.baseline_pace_seconds_per_km ?? 360,
+  };
+
+  // 4. For each block, find a matching plan_template + create training_block + generate sessions
   for (const block of chain) {
     const { data: tmpl } = await supabase
       .from('plan_templates')
@@ -316,6 +326,7 @@ export async function applySeasonChain(
       /* slotAssignments */ undefined,
       /* maxWeeks */         undefined,
       block.phase_segments,
+      generateContext,
     );
   }
 
