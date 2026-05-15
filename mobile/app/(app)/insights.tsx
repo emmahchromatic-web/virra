@@ -7,6 +7,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { computeInsightMetrics, formatPaceMmSs, type InsightMetrics } from '@/lib/insightMetrics';
+import { summariseRunStructure, summariseStrengthStructure } from '@/lib/workoutStructure';
+import { modulateRunStructure } from '@/lib/cycleModulation';
+import { getCycleInfo } from '@/lib/cycleEngine';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -50,7 +53,7 @@ const tile = StyleSheet.create({
 
 export default function InsightsScreen() {
   const { session }   = useAuthStore();
-  const { cycleInfo } = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength, cycleProfile } = useCycleStore();
 
   const [metrics,          setMetrics]          = useState<InsightMetrics | null>(null);
   const [overallText,      setOverallText]      = useState<string | null>(null);
@@ -82,7 +85,7 @@ export default function InsightsScreen() {
 
       supabase
         .from('planned_sessions')
-        .select('scheduled_date, modality, session_label, status')
+        .select('scheduled_date, modality, session_label, status, run_structure, strength_structure')
         .eq('user_id', session.user.id)
         .gte('scheduled_date', today)
         .lte('scheduled_date', future14)
@@ -137,6 +140,22 @@ export default function InsightsScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const phaseColor = cycleInfo ? PHASE_COLOR[cycleInfo.phase] : colors.pulse;
+
+  function summaryFor(s: any): string | null {
+    if (s._type !== 'session') return null;
+    if (s.modality === 'run' && s.run_structure) {
+      const date = new Date(`${s.scheduled_date}T00:00:00`);
+      const phaseForDate = periodStart
+        ? getCycleInfo(periodStart, cycleLength ?? 28, date).phase
+        : null;
+      const modulated = modulateRunStructure(s.run_structure, phaseForDate, cycleProfile ?? 'natural').adjusted;
+      return summariseRunStructure(modulated);
+    }
+    if (s.modality === 'strength' && s.strength_structure) {
+      return summariseStrengthStructure(s.strength_structure);
+    }
+    return null;
+  }
 
   function relativeTime(iso: string | null): string {
     if (!iso) return '';
@@ -337,21 +356,31 @@ export default function InsightsScreen() {
              ...upcomingEvents.map((e: any) => ({ ...e, _type: 'event' as const, scheduled_date: e.event_date }))]
               .sort((a, b) => (a.scheduled_date > b.scheduled_date ? 1 : -1))
               .map((item, i) => (
-                <View key={i} style={styles.upcomingRow}>
-                  <SymbolView
-                    name={item._type === 'event' ? 'calendar.badge.clock' : 'figure.run'}
-                    size={12}
-                    tintColor={item._type === 'event' ? colors.dawn : colors.pulse}
-                  />
-                  <VirraText variant="mono" size={11} color={colors.muted} style={{ minWidth: 52 }}>
-                    {item.scheduled_date.slice(5)}
-                  </VirraText>
-                  <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
-                    {item._type === 'event'
-                      ? item.name
-                      : `${item.session_label.charAt(0).toUpperCase() + item.session_label.slice(1)} ${item.modality}`
-                    }
-                  </VirraText>
+                <View key={i} style={styles.upcomingItem}>
+                  <View style={styles.upcomingRow}>
+                    <SymbolView
+                      name={item._type === 'event' ? 'calendar.badge.clock' : 'figure.run'}
+                      size={12}
+                      tintColor={item._type === 'event' ? colors.dawn : colors.pulse}
+                    />
+                    <VirraText variant="mono" size={11} color={colors.muted} style={{ minWidth: 52 }}>
+                      {item.scheduled_date.slice(5)}
+                    </VirraText>
+                    <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
+                      {item._type === 'event'
+                        ? item.name
+                        : `${item.session_label.charAt(0).toUpperCase() + item.session_label.slice(1)} ${item.modality}`
+                      }
+                    </VirraText>
+                  </View>
+                  {(() => {
+                    const summary = summaryFor(item);
+                    return summary ? (
+                      <VirraText variant="mono" size={10} color={colors.muted} style={styles.upcomingSummary}>
+                        {summary}
+                      </VirraText>
+                    ) : null;
+                  })()}
                 </View>
               ))
           )}
@@ -403,6 +432,8 @@ const styles = StyleSheet.create({
   symptomFill:     { height: '100%', borderRadius: 2 },
   upcomingHeader:  { flexDirection: 'row', alignItems: 'center' },
   addEventBtn:     { marginLeft: 'auto', padding: spacing.xs },
-  upcomingRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 },
+  upcomingItem:    { gap: 2, paddingVertical: 4 },
+  upcomingRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 0 },
+  upcomingSummary: { paddingLeft: 76, paddingBottom: 2 },
   footer:          { textAlign: 'center', letterSpacing: 2 },
 });
