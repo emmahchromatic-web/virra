@@ -6,6 +6,7 @@ import type { ModulationResult, SessionType, SessionPaceTarget } from './cycleMo
 import { modulateForCycle, modulateRunStructure } from './cycleModulation';
 import type { CycleProfile } from '@/store/cycle';
 import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
+import { hydratePlannedSessionStructures, persistHydratedRows } from './hydratePlannedSessions';
 
 // ---- Interfaces ----
 
@@ -520,6 +521,38 @@ export async function getDaySessionDetail(
 
   if (eventsErr) console.error('[volumePlan] getDaySessionDetail user_events fetch:', eventsErr.message);
 
+  // Hydrate legacy rows missing workout structure (fire-and-forget persist)
+  const { data: profileForCtx } = await supabase
+    .from('user_profiles')
+    .select('baseline_pace_seconds_per_km, weekly_mileage_km')
+    .eq('id', userId)
+    .maybeSingle();
+  const baselinePaceSecs = profileForCtx?.baseline_pace_seconds_per_km ?? 360;
+  const weeklyKm         = profileForCtx?.weekly_mileage_km ?? 30;
+
+  const hydrated = daySessions?.length
+    ? hydratePlannedSessionStructures(
+        daySessions.map((s: any) => ({
+          id:                 s.id,
+          modality:           s.modality,
+          session_label:      s.session_label,
+          run_structure:      s.run_structure ?? null,
+          strength_structure: s.strength_structure ?? null,
+        })),
+        { baseline_pace_secs: baselinePaceSecs, weekly_km: weeklyKm },
+      )
+    : [];
+
+  persistHydratedRows(hydrated, supabase as any).catch(() => {});
+
+  const structureById: Record<string, { run_structure: any; strength_structure: any }> = {};
+  for (const h of hydrated) {
+    structureById[h.id] = {
+      run_structure:      h.run_structure ?? null,
+      strength_structure: h.strength_structure ?? null,
+    };
+  }
+
   if (!daySessions?.length) {
     return {
       date:                   dateISO,
@@ -638,7 +671,7 @@ export async function getDaySessionDetail(
           run_structure:      RunWorkoutStructure | null;
           strength_structure: StrengthWorkoutStructure | null;
         };
-        const structure = sRow.run_structure ?? null;
+        const structure = (structureById[s.id]?.run_structure ?? sRow.run_structure) ?? null;
         const modulated_structure = structure
           ? modulateRunStructure(structure, phaseForDate, cycle_profile).adjusted
           : null;
@@ -685,7 +718,7 @@ export async function getDaySessionDetail(
         estimated_minutes,
         status:             s.status,
         cycle_modulation,
-        structure:          sRow.strength_structure ?? null,
+        structure:          (structureById[s.id]?.strength_structure ?? sRow.strength_structure) ?? null,
       });
     }
   }

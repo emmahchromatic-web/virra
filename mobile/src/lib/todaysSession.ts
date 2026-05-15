@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { modulateForCycle, modulateRunStructure, type SessionType } from './cycleModulation';
 import { summariseRunStructure, summariseStrengthStructure } from './workoutStructure';
 import { useCycleStore } from '@/store/cycle';
+import { hydratePlannedSessionStructures, persistHydratedRows } from './hydratePlannedSessions';
 
 export interface TodaysSession {
   id:             string;
@@ -81,7 +82,7 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
       : Promise.resolve({ data: [] }),
     supabase
       .from('user_profiles')
-      .select('baseline_pace_seconds_per_km')
+      .select('baseline_pace_seconds_per_km, weekly_mileage_km')
       .eq('id', userId)
       .maybeSingle(),
     supabase
@@ -97,6 +98,30 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
   );
 
   const baselinePace: number = profileResult.data?.baseline_pace_seconds_per_km ?? 360;
+  const weeklyKm:    number = profileResult.data?.weekly_mileage_km ?? 30;
+
+  const hydrated = hydratePlannedSessionStructures(
+    rows.map((r) => ({
+      id:                 r.id,
+      modality:           r.modality,
+      session_label:      r.session_label,
+      run_structure:      r.run_structure ?? null,
+      strength_structure: r.strength_structure ?? null,
+    })),
+    { baseline_pace_secs: baselinePace, weekly_km: weeklyKm },
+  );
+
+  // Fire-and-forget persistence
+  persistHydratedRows(hydrated, supabase as any).catch(() => {});
+
+  // Merge hydrated structures back onto the planned rows (preserves status/activity_id)
+  const structureById: Record<string, { run_structure: any; strength_structure: any }> = {};
+  for (const h of hydrated) {
+    structureById[h.id] = {
+      run_structure:      h.run_structure ?? null,
+      strength_structure: h.strength_structure ?? null,
+    };
+  }
 
   // Also surface any activity logged today that DIDN'T link to a planned session —
   // gives the lenient completion match a chance to recover if the auto-linker missed it.
@@ -150,12 +175,15 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
       }
     }
 
+    const hydratedRun      = structureById[r.id]?.run_structure ?? r.run_structure;
+    const hydratedStrength = structureById[r.id]?.strength_structure ?? r.strength_structure;
+
     let structure_summary: string | null = null;
-    if (r.modality === 'run' && r.run_structure) {
-      const modulated = modulateRunStructure(r.run_structure, cyclePhase, cycleProfile).adjusted;
+    if (r.modality === 'run' && hydratedRun) {
+      const modulated = modulateRunStructure(hydratedRun, cyclePhase, cycleProfile).adjusted;
       structure_summary = summariseRunStructure(modulated);
-    } else if (r.modality === 'strength' && r.strength_structure) {
-      structure_summary = summariseStrengthStructure(r.strength_structure);
+    } else if (r.modality === 'strength' && hydratedStrength) {
+      structure_summary = summariseStrengthStructure(hydratedStrength);
     }
 
     return {
