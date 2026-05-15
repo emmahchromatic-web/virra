@@ -95,3 +95,42 @@ describe('generateRunStructure — tempo and threshold', () => {
     expect(work?.target.pace_band).toBe('threshold');
   });
 });
+
+describe('generateRunStructure — intervals', () => {
+  test('intervals 8km produces a repeat with work/rest sub-steps', () => {
+    const s = generateRunStructure({
+      session_label: 'intervals', baseline_pace_secs: 360, distance_km: 8,
+    });
+    expect(s.workout_type).toBe('intervals');
+    const repeat = s.steps.find((st) => st.kind === 'repeat');
+    expect(repeat).toBeDefined();
+    expect(repeat!.repeat_count).toBeGreaterThanOrEqual(3);
+    expect(repeat!.sub_steps).toHaveLength(2);
+    expect(repeat!.sub_steps![0].kind).toBe('work');
+    expect(repeat!.sub_steps![1].kind).toBe('rest');
+  });
+
+  test('intervals work step uses vo2 pace band', () => {
+    const s = generateRunStructure({
+      session_label: 'intervals', baseline_pace_secs: 360, distance_km: 8,
+    });
+    const repeat = s.steps.find((st) => st.kind === 'repeat')!;
+    expect(repeat.sub_steps![0].target.pace_band).toBe('vo2');
+  });
+
+  test('intervals rest step uses recovery pace band', () => {
+    const s = generateRunStructure({
+      session_label: 'intervals', baseline_pace_secs: 360, distance_km: 8,
+    });
+    const repeat = s.steps.find((st) => st.kind === 'repeat')!;
+    expect(repeat.sub_steps![1].target.pace_band).toBe('recovery');
+  });
+
+  test('intervals structure is wrapped by warmup + cooldown', () => {
+    const s = generateRunStructure({
+      session_label: 'intervals', baseline_pace_secs: 360, distance_km: 8,
+    });
+    expect(s.steps[0].kind).toBe('warmup');
+    expect(s.steps[s.steps.length - 1].kind).toBe('cooldown');
+  });
+});

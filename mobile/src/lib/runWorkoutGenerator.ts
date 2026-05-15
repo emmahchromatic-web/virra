@@ -127,6 +127,40 @@ export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructu
     };
   }
 
+  if (type === 'intervals') {
+    const wu = WARMUP_M;
+    const cd = COOLDOWN_M;
+    const remaining = Math.max(2000, totalM - wu - cd);
+    const workRep = 800;
+    const restRep = 200;
+    const repCount = Math.max(3, Math.min(8, Math.round(remaining / (workRep + restRep))));
+    const repeatStep: RunStep = {
+      id: id(), kind: 'repeat', repeat_count: repCount, target: {},
+      sub_steps: [
+        { id: id(), kind: 'work', label: `${workRep}m`,
+          target: { distance_m: workRep, pace_band: 'vo2',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'vo2') } },
+        { id: id(), kind: 'rest', label: 'float',
+          target: { distance_m: restRep, pace_band: 'recovery',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'recovery') } },
+      ],
+    };
+    const repeatDistance = repCount * (workRep + restRep);
+    return {
+      version: 1, workout_type: 'intervals',
+      total_distance_m: wu + repeatDistance + cd,
+      steps: [
+        { id: id(), kind: 'warmup', label: 'warmup',
+          target: { distance_m: wu, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+        repeatStep,
+        { id: id(), kind: 'cooldown', label: 'cooldown',
+          target: { distance_m: cd, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+      ],
+    };
+  }
+
   // Unreachable — all RunWorkoutType cases handled above.
   throw new Error(`generateRunStructure: unhandled workout_type ${type}`);
 }
