@@ -117,6 +117,56 @@ export function modulateForCycle(
   };
 }
 
+import type { RunWorkoutStructure, RunStep } from './workoutStructure';
+
+/**
+ * Apply cycle modulation to every pace target in a run structure.
+ * Recurses into `repeat.sub_steps`. Steps without a `pace_secs_per_km`
+ * target (e.g. duration-only walk segments) pass through unchanged.
+ *
+ * The first non-null modulation reason encountered is surfaced as the
+ * aggregate `reason`. Pass `null` profile to default to 'natural'.
+ */
+export function modulateRunStructure(
+  structure: RunWorkoutStructure,
+  phase:     CyclePhase | null,
+  profile:   CycleProfile | null,
+): { adjusted: RunWorkoutStructure; reason: string | null } {
+  let firstReason: string | null = null;
+  const effectiveProfile: CycleProfile = profile ?? 'natural';
+
+  function modulateStep(step: RunStep): RunStep {
+    if (step.kind === 'repeat' && step.sub_steps) {
+      return { ...step, sub_steps: step.sub_steps.map(modulateStep) };
+    }
+    const pace = step.target.pace_secs_per_km;
+    if (pace == null) return step;
+
+    // Map step kind + pace band → SessionType for the existing modulation MATRIX.
+    const sessionType: SessionType =
+      step.kind === 'work' && step.target.pace_band === 'vo2'       ? 'intervals' :
+      step.kind === 'work' && step.target.pace_band === 'tempo'     ? 'tempo' :
+      step.kind === 'work' && step.target.pace_band === 'threshold' ? 'tempo' :
+      step.target.pace_band === 'recovery'                          ? 'easy' :
+                                                                      'easy';
+
+    const r = modulateForCycle(
+      { pace_seconds_per_km: pace, intensity_label: step.label ?? step.kind },
+      sessionType,
+      phase,
+      effectiveProfile,
+    );
+    if (r.reason && !firstReason) firstReason = r.reason;
+    const newPace = r.adjusted_target.pace_seconds_per_km;
+    return { ...step, target: { ...step.target, pace_secs_per_km: newPace ?? pace } };
+  }
+
+  return {
+    adjusted: { ...structure, steps: structure.steps.map(modulateStep) },
+    reason:   firstReason,
+  };
+}
+
 export function shouldAnchorKeySession(session_type: SessionType): boolean {
   return session_type === 'long' || session_type === 'tempo' || session_type === 'intervals' || session_type === 'strength';
 }
