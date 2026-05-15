@@ -1,5 +1,9 @@
 import { supabase } from './supabase';
 import type { BlockPhase, PhaseSegment } from './seasonEngine';
+import { generateRunStructure } from './runWorkoutGenerator';
+import { generateStrengthStructure } from './strengthWorkoutGenerator';
+import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
+import type { SessionType as StrengthSessionType } from './strengthTypes';
 
 export const DAY_TEMPLATES: Record<number, number[]> = {
   1: [0],
@@ -64,6 +68,12 @@ export interface PlannedSessionInsert {
   modality:       string;
   session_label:  string;
   status:         'planned';
+  run_structure?:      RunWorkoutStructure;
+  strength_structure?: StrengthWorkoutStructure;
+}
+
+export interface GenerateContext {
+  baseline_pace_secs: number;
 }
 
 export function generateSchedule(
@@ -74,6 +84,7 @@ export function generateSchedule(
   sessionsJson:     WeekSession[],
   slotAssignments?: SessionSlot[],
   maxWeeks?:        number,
+  context?:         GenerateContext,
 ): PlannedSessionInsert[] {
   const origin  = mondayOf(startsOn);
   const rows: PlannedSessionInsert[] = [];
@@ -92,7 +103,7 @@ export function generateSchedule(
 
     if (slots.length === 0) return;
     slots.forEach((slot) => {
-      rows.push({
+      const row: PlannedSessionInsert = {
         user_id:        userId,
         block_id:       blockId,
         scheduled_date: toISO(addDays(origin, weekIndex * 7 + slot.day)),
@@ -101,7 +112,38 @@ export function generateSchedule(
         modality,
         session_label:  slot.label,
         status:         'planned',
-      });
+      };
+
+      if (context) {
+        if (modality === 'run') {
+          // Estimate this session's distance from the week's total.
+          // Long runs take ~35% of weekly volume; the rest split evenly.
+          const sessions = week.sessions;
+          const hasLong  = sessions.includes('long');
+          const runSessionCount = sessions.filter(
+            (s) => !['lower', 'upper', 'general'].includes(s),
+          ).length || 1;
+          const longShare = hasLong ? week.km * 0.35 : 0;
+          const otherCount = hasLong ? runSessionCount - 1 : runSessionCount;
+          const distance_km =
+            slot.label === 'long'
+              ? Math.round(longShare * 10) / 10
+              : Math.max(3, Math.round(((week.km - longShare) / Math.max(1, otherCount)) * 10) / 10);
+          row.run_structure = generateRunStructure({
+            session_label:      slot.label,
+            baseline_pace_secs: context.baseline_pace_secs,
+            distance_km,
+          });
+        } else if (modality === 'strength') {
+          row.strength_structure = generateStrengthStructure({
+            session_type:           slot.label as StrengthSessionType,
+            phase:                  null,
+            recent_primary_muscles: [],
+          });
+        }
+      }
+
+      rows.push(row);
     });
   });
   return rows;
