@@ -381,6 +381,13 @@ create table common_foods (
 
 ---
 
+### Phase I — Active Workout Engine (in progress)
+- ✅ Sub-project 1 (Data Foundation): plan-owned `run_structure` and `strength_structure` JSONB on `planned_sessions`, per-modality pure generators (`runWorkoutGenerator.ts`, `strengthWorkoutGenerator.ts`), `scheduleGenerator` writes structure on insert, `moveSession` preserves it, lazy backfill (`hydratePlannedSessions.ts`), cycle modulation per step at read time via `modulateRunStructure`, structure summaries surfaced on dashboard hero / SessionDetailModal step-by-step / Insights lookahead with predicted-phase
+- [ ] Sub-project 2 (Active Surfaces): pre-workout preview screen, Play CTA routing (Ia), structured run live execution (Ib live), strength live screen (Ic)
+- [ ] Sub-project 3 (Substitution): workout swap mechanics (Id)
+
+---
+
 ## Phase 2 (post-launch — not in scope for MVP)
 
 - Multi-sport structured plans (schema already ready — just needs plan content)
