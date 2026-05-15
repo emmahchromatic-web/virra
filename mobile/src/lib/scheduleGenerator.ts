@@ -127,7 +127,7 @@ export function generateSchedule(
           const otherCount = hasLong ? runSessionCount - 1 : runSessionCount;
           const distance_km =
             slot.label === 'long'
-              ? Math.round(longShare * 10) / 10
+              ? Math.max(3, Math.round(longShare * 10) / 10)
               : Math.max(3, Math.round(((week.km - longShare) / Math.max(1, otherCount)) * 10) / 10);
           row.run_structure = generateRunStructure({
             session_label:      slot.label,
