@@ -42,6 +42,41 @@ const PHASE_COLOR: Record<string, string> = {
   menstrual:  colors.muted,
 };
 
+function renderRunStep(
+  step: { id: string; kind: string; label?: string; target: any; repeat_count?: number; sub_steps?: any[] },
+  depth: number = 0,
+): React.ReactNode {
+  if (step.kind === 'repeat') {
+    return (
+      <View key={step.id} style={[modal.stepRow, { paddingLeft: depth * 12 }]}>
+        <VirraText variant="mono" size={11} color={colors.pulse}>
+          {step.repeat_count} ×
+        </VirraText>
+        <View style={modal.repeatChildren}>
+          {step.sub_steps?.map((ss: any) => renderRunStep(ss, depth + 1))}
+        </View>
+      </View>
+    );
+  }
+  const distM = step.target.distance_m;
+  const durS  = step.target.duration_s;
+  const pace  = step.target.pace_secs_per_km;
+  const distText = distM
+    ? distM >= 1000 ? `${(distM / 1000).toFixed(1)}km` : `${distM}m`
+    : durS ? `${Math.round(durS / 60)}min` : '';
+  const paceText = pace ? ` @ ${formatPace(pace)}/km` : '';
+  return (
+    <View key={step.id} style={[modal.stepRow, { paddingLeft: depth * 12 }]}>
+      <VirraText variant="mono" size={11} color={colors.muted} style={modal.stepKind}>
+        {step.kind.toUpperCase()}
+      </VirraText>
+      <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
+        {step.label ? `${step.label} · ` : ''}{distText}{paceText}
+      </VirraText>
+    </View>
+  );
+}
+
 export function SessionDetailModal({ visible, date, userId, cycleStore, onClose, onMutate }: Props) {
   const [detail, setDetail]       = useState<DayDetail | null>(null);
   const [loading, setLoading]     = useState(false);
@@ -157,13 +192,21 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
 
         {isRun && s.status !== 'dropped' && (
           <>
-            <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
-              {s.status === 'completed' && r.actual_distance_km
-                ? `${r.actual_distance_km.toFixed(1)}km · ${r.actual_pace_secs ? formatPace(r.actual_pace_secs) : '—'} · actual`
-                : r.base_distance_km
-                  ? `${r.base_distance_km.toFixed(1)} → ${r.distance_km.toFixed(1)}km · ${formatPace(displayPaceSecs)} · ~${r.estimated_minutes}min`
-                  : `${r.distance_km.toFixed(1)}km · ${formatPace(displayPaceSecs)} · ~${r.estimated_minutes}min`}
-            </VirraText>
+            {(s as RunSessionDetail).modulated_structure ? (
+              <View style={modal.stepList}>
+                {(s as RunSessionDetail).modulated_structure!.steps.map((step) =>
+                  renderRunStep(step as any)
+                )}
+              </View>
+            ) : (
+              <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
+                {s.status === 'completed' && r.actual_distance_km
+                  ? `${r.actual_distance_km.toFixed(1)}km · ${r.actual_pace_secs ? formatPace(r.actual_pace_secs) : '—'} · actual`
+                  : r.base_distance_km
+                    ? `${r.base_distance_km.toFixed(1)} → ${r.distance_km.toFixed(1)}km · ${formatPace(displayPaceSecs)} · ~${r.estimated_minutes}min`
+                    : `${r.distance_km.toFixed(1)}km · ${formatPace(displayPaceSecs)} · ~${r.estimated_minutes}min`}
+              </VirraText>
+            )}
             {hasWhyCard && adjustedPaceSecs != null && basePaceSecs != null && adjustedPaceSecs !== basePaceSecs && s.status !== 'completed' && (
               <VirraText variant="mono" size={11} color={colors.muted} style={modal.adjustedFrom}>
                 ADJUSTED FROM {formatPace(basePaceSecs)}/km
@@ -346,4 +389,8 @@ const modal = StyleSheet.create({
   whyLabel:     { letterSpacing: 1.5 },
   whyText:      { lineHeight: 20 },
   adjustedFrom: { letterSpacing: 1, marginTop: 2 },
+  stepList:     { gap: 2, marginTop: spacing.xs },
+  stepRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
+  stepKind:     { width: 70 },
+  repeatChildren: { flex: 1, gap: 2 },
 });
