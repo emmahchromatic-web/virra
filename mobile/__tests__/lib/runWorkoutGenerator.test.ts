@@ -74,3 +74,24 @@ describe('generateRunStructure — simple workouts', () => {
     expect(s.steps[0].target.distance_m).toBe(10000);
   });
 });
+
+describe('generateRunStructure — tempo and threshold', () => {
+  test('tempo 8km is warmup + tempo block + cooldown', () => {
+    const s = generateRunStructure({
+      session_label: 'tempo', baseline_pace_secs: 360, distance_km: 8,
+    });
+    expect(s.workout_type).toBe('tempo');
+    expect(s.steps.map((st) => st.kind)).toEqual(['warmup', 'work', 'cooldown']);
+    const work = s.steps.find((st) => st.kind === 'work');
+    expect(work?.target.pace_band).toBe('tempo');
+    expect(work?.target.pace_secs_per_km).toBeLessThan(360);
+  });
+
+  test('threshold 8km uses threshold pace band', () => {
+    const s = generateRunStructure({
+      session_label: 'threshold', baseline_pace_secs: 360, distance_km: 8,
+    });
+    const work = s.steps.find((st) => st.kind === 'work');
+    expect(work?.target.pace_band).toBe('threshold');
+  });
+});

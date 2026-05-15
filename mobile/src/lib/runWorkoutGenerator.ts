@@ -106,6 +106,27 @@ export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructu
     return { version: 1, workout_type: type, total_distance_m: totalM, steps };
   }
 
+  if (type === 'tempo' || type === 'threshold') {
+    const wu = Math.min(WARMUP_M,  Math.floor(totalM * 0.18));
+    const cd = Math.min(COOLDOWN_M, Math.floor(totalM * 0.16));
+    const workM = totalM - wu - cd;
+    const band = bandForType(type);
+    return {
+      version: 1, workout_type: type, total_distance_m: totalM,
+      steps: [
+        { id: id(), kind: 'warmup', label: 'warmup',
+          target: { distance_m: wu, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+        { id: id(), kind: 'work', label: type,
+          target: { distance_m: workM, pace_band: band,
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, band) } },
+        { id: id(), kind: 'cooldown', label: 'cooldown',
+          target: { distance_m: cd, pace_band: 'easy',
+                    pace_secs_per_km: paceForBand(input.baseline_pace_secs, 'easy') } },
+      ],
+    };
+  }
+
   // Unreachable — all RunWorkoutType cases handled above.
   throw new Error(`generateRunStructure: unhandled workout_type ${type}`);
 }
