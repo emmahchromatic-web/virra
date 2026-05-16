@@ -64,7 +64,7 @@ function renderRunStep(
   const distText = distM
     ? distM >= 1000 ? `${(distM / 1000).toFixed(1)}km` : `${distM}m`
     : durS ? `${Math.round(durS / 60)}min` : '';
-  const paceText = pace ? ` @ ${formatPace(pace)}/km` : '';
+  const paceText = pace ? ` @ ${formatPace(pace)}` : '';
   return (
     <View key={step.id} style={[modal.stepRow, { paddingLeft: depth * 12 }]}>
       <VirraText variant="mono" size={11} color={colors.muted} style={modal.stepKind}>
@@ -209,7 +209,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
             )}
             {hasWhyCard && adjustedPaceSecs != null && basePaceSecs != null && adjustedPaceSecs !== basePaceSecs && s.status !== 'completed' && (
               <VirraText variant="mono" size={11} color={colors.muted} style={modal.adjustedFrom}>
-                ADJUSTED FROM {formatPace(basePaceSecs)}/km
+                ADJUSTED FROM {formatPace(basePaceSecs)}
               </VirraText>
             )}
           </>
