@@ -10,6 +10,8 @@ interface VirraTextProps {
   size?:         number;
   uppercase?:    boolean;
   numberOfLines?: number;
+  adjustsFontSizeToFit?: boolean;
+  minimumFontScale?:     number;
   style?:        TextStyle | TextStyle[];
   children:      React.ReactNode;
 }
@@ -23,10 +25,12 @@ const variantStyles: Record<Variant, TextStyle> = {
   label:      { fontFamily: fonts.mono,       fontSize: 9,  letterSpacing: 1.5, textTransform: 'uppercase' },
 };
 
-export function VirraText({ variant = 'body', color, size, uppercase, numberOfLines, style, children }: VirraTextProps) {
+export function VirraText({ variant = 'body', color, size, uppercase, numberOfLines, adjustsFontSizeToFit, minimumFontScale, style, children }: VirraTextProps) {
   return (
     <Text
       numberOfLines={numberOfLines}
+      adjustsFontSizeToFit={adjustsFontSizeToFit}
+      minimumFontScale={minimumFontScale}
       style={[
         variantStyles[variant],
         { color: color ?? colors.breath },

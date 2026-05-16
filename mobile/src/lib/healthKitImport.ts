@@ -4,7 +4,8 @@ import { supabase } from './supabase';
 import { getCycleInfo } from './cycleEngine';
 import { cancelTrainingReminderToday } from './notifications';
 
-const ANCHOR_KEY = 'hk_workout_anchor_v1';
+const ANCHOR_KEY        = 'hk_workout_anchor_v1';
+const REIMPORT_FLAG_KEY = 'hk_reimport_subtype_v1';
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 
@@ -19,6 +20,53 @@ function mapActivityType(name: string): ActivityType {
   ) return 'strength';
   if (name === 'Yoga') return 'yoga';
   return 'other';
+}
+
+/**
+ * Canonical lowercase sub-type from a HealthKit activity name.
+ * Returns null when the broad activity_type already conveys the specifics
+ * (e.g. a plain "Running" → activity_type 'run', no sub_type needed).
+ */
+function mapSubType(name: string): string | null {
+  if (!name) return null;
+  switch (name) {
+    case 'TrailRunning':                return 'trail_run';
+    case 'OpenWaterSwimming':           return 'open_water_swim';
+    case 'Hiking':                      return 'hike';
+    case 'Walking':                     return 'walk';
+    case 'Cycling':                     return 'cycle';
+    case 'HandCycling':                 return 'handcycle';
+    case 'Rowing':                      return 'row';
+    case 'Elliptical':                  return 'elliptical';
+    case 'StairClimbing':
+    case 'Stairs':
+    case 'StepTraining':
+    case 'StairStepper':                return 'stairs';
+    case 'CardioDance':
+    case 'SocialDance':                 return 'dance';
+    case 'Boxing':
+    case 'Kickboxing':
+    case 'MartialArts':                 return 'martial';
+    case 'Climbing':
+    case 'TraditionalClimbing':         return 'climb';
+    case 'CrossCountrySkiing':
+    case 'DownhillSkiing':
+    case 'Snowboarding':
+    case 'SnowSports':                  return 'ski';
+    case 'SkatingSports':               return 'skate';
+    case 'PaddleSports':
+    case 'Paddling':                    return 'paddle';
+    case 'SurfingSports':               return 'surf';
+    case 'Tennis':                      return 'tennis';
+    case 'Golf':                        return 'golf';
+    case 'Pilates':                     return 'pilates';
+    case 'HighIntensityIntervalTraining': return 'hiit';
+    case 'CrossTraining':               return 'cross_train';
+    case 'MixedCardio':                 return 'mixed_cardio';
+    case 'FunctionalStrengthTraining':
+    case 'TraditionalStrengthTraining': return null; // already labelled "Strength"
+    default:                            return null;
+  }
 }
 
 interface ImportContext {
@@ -36,6 +84,14 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
     Constants = require('react-native-health').Constants;
   } catch {
     return 0;
+  }
+
+  // One-shot anchor reset so existing rows imported before the sub_type column
+  // pick it up on next observer fire. Idempotent — only resets once per install.
+  const reimportDone = await AsyncStorage.getItem(REIMPORT_FLAG_KEY);
+  if (!reimportDone) {
+    await AsyncStorage.removeItem(ANCHOR_KEY);
+    await AsyncStorage.setItem(REIMPORT_FLAG_KEY, '1');
   }
 
   const anchor   = await AsyncStorage.getItem(ANCHOR_KEY);
@@ -57,8 +113,17 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
 
         for (const w of workouts) {
           const startedAt    = new Date(w.start);
-          const activityType = mapActivityType(w.activityName ?? '');
-          const distanceM    = activityType === 'run' || activityType === 'swim'
+          const hkName       = w.activityName ?? '';
+          const activityType = mapActivityType(hkName);
+          const subType      = mapSubType(hkName);
+          // Distance is meaningful for any aerobic locomotion, not just run/swim
+          const carriesDistance = activityType === 'run'
+            || activityType === 'swim'
+            || subType === 'hike'
+            || subType === 'walk'
+            || subType === 'cycle'
+            || subType === 'handcycle';
+          const distanceM = carriesDistance
             ? Math.round((w.distance ?? 0) * 1609.344) // miles → metres
             : null;
 
@@ -77,13 +142,14 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
               {
                 user_id:          ctx.userId,
                 activity_type:    activityType,
+                sub_type:         subType,
                 started_at:       startedAt.toISOString(),
                 duration_seconds: Math.round(w.duration ?? 0),
                 distance_meters:  distanceM,
                 phase_at_time:    phaseAtTime,
                 hk_uuid:          hkUuid,
               },
-              { onConflict: 'user_id,started_at', ignoreDuplicates: true }
+              { onConflict: 'user_id,started_at', ignoreDuplicates: false }
             )
             .select('id')
             .single();

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, ScrollView, Pressable, TextInput, StyleSheet, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
@@ -50,12 +50,39 @@ export default function CheckInScreen() {
   const { session } = useAuthStore();
   const { cycleInfo } = useCycleStore();
 
-  const [energy,   setEnergy]   = useState(3);
-  const [mood,     setMood]     = useState(3);
-  const [sleep,    setSleep]    = useState(3);
-  const [symptoms, setSymptoms] = useState<Set<string>>(new Set());
-  const [notes,    setNotes]    = useState('');
-  const [saving,   setSaving]   = useState(false);
+  const [energy,    setEnergy]    = useState(3);
+  const [mood,      setMood]      = useState(3);
+  const [sleep,     setSleep]     = useState(3);
+  const [symptoms,  setSymptoms]  = useState<Set<string>>(new Set());
+  const [notes,     setNotes]     = useState('');
+  const [saving,    setSaving]    = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const [hasExisting, setHasExisting] = useState(false);
+
+  useEffect(() => {
+    if (!session) { setLoading(false); return; }
+    const today = new Date().toISOString().split('T')[0];
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('symptom_logs')
+        .select('energy, mood, sleep_quality, symptoms, notes')
+        .eq('user_id', session.user.id)
+        .eq('recorded_on', today)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data) {
+        if (typeof data.energy === 'number')        setEnergy(data.energy);
+        if (typeof data.mood === 'number')          setMood(data.mood);
+        if (typeof data.sleep_quality === 'number') setSleep(data.sleep_quality);
+        if (Array.isArray(data.symptoms))           setSymptoms(new Set(data.symptoms));
+        if (typeof data.notes === 'string')         setNotes(data.notes);
+        setHasExisting(true);
+      }
+      setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, [session]);
 
   function toggleSymptom(s: string) {
     setSymptoms((prev) => {
@@ -82,6 +109,7 @@ export default function CheckInScreen() {
     if (error) {
       Alert.alert('Could not save', error.message);
     } else {
+      setHasExisting(true);
       cancelCheckinReminderToday();
       router.back();
     }
@@ -105,6 +133,19 @@ export default function CheckInScreen() {
         </View>
       )}
 
+      {hasExisting && !loading && (
+        <View style={styles.editingHint}>
+          <VirraText variant="mono" size={10} color={colors.muted} style={styles.badgeText}>
+            EDITING TODAY'S CHECK-IN — LAST SAVE IS USED
+          </VirraText>
+        </View>
+      )}
+
+      {loading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={colors.pulse} />
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <VirraText variant="bodyMedium" color={colors.breath} style={styles.sectionTitle}>
@@ -154,8 +195,14 @@ export default function CheckInScreen() {
           />
         </View>
 
-        <VirraButton label="Save check-in" onPress={handleSave} loading={saving} style={styles.cta} />
+        <VirraButton
+          label={hasExisting ? 'Update check-in' : 'Save check-in'}
+          onPress={handleSave}
+          loading={saving}
+          style={styles.cta}
+        />
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -165,6 +212,8 @@ const styles = StyleSheet.create({
   header:       { height: 52, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: spacing.lg },
   backBtn:      { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   phaseBadge:   { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  editingHint:  { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  loading:      { flex: 1, alignItems: 'center', justifyContent: 'center' },
   badgeText:    { letterSpacing: 1.5 },
   scroll:       { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
   section:      { gap: spacing.md },

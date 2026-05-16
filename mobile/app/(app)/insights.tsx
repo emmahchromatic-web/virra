@@ -324,11 +324,11 @@ export default function InsightsScreen() {
               const barColor  = value >= 7 ? colors.pulse : value >= 4 ? colors.dawn : colors.heat;
               return (
                 <View key={key} style={styles.symptomRow}>
-                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.symptomLabel}>{label}</VirraText>
+                  <VirraText variant="mono" size={11} color={colors.muted} style={styles.symptomLabel} numberOfLines={1}>{label}</VirraText>
                   <View style={styles.symptomBar}>
                     <View style={[styles.symptomFill, { width: `${pct * 100}%` as any, backgroundColor: barColor }]} />
                   </View>
-                  <VirraText variant="mono" size={10} color={barColor}>{value}</VirraText>
+                  <VirraText variant="mono" size={10} color={barColor} numberOfLines={1} style={styles.symptomValue}>{value}</VirraText>
                 </View>
               );
             })}
@@ -427,9 +427,16 @@ const styles = StyleSheet.create({
   pacePhaseLabel:  { flex: 1 },
   paceCount:       { minWidth: 44, textAlign: 'right' },
   symptomRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  symptomLabel:    { width: 44, letterSpacing: 1 },
-  symptomBar:      { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border, overflow: 'hidden' },
+  // Fixed-width label column so every bar starts at the same x — keeps the
+  // three bars equal in length. Wide enough for the longest mono label
+  // ("ENERGY") at size 11 with letterSpacing 1.
+  symptomLabel:    { width: 56, letterSpacing: 1 },
+  symptomBar:      { flex: 1, flexShrink: 1, height: 4, borderRadius: 2, backgroundColor: colors.border, overflow: 'hidden' },
   symptomFill:     { height: '100%', borderRadius: 2 },
+  // Right-aligned fixed column so single- and double-digit values both sit
+  // flush right. marginLeft adds breathing room between the bar end and the
+  // numeric value.
+  symptomValue:    { width: 22, marginLeft: spacing.xs, textAlign: 'right' },
   upcomingHeader:  { flexDirection: 'row', alignItems: 'center' },
   addEventBtn:     { marginLeft: 'auto', padding: spacing.xs },
   upcomingItem:    { gap: 2, paddingVertical: 4 },

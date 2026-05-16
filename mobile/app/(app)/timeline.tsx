@@ -45,7 +45,7 @@ export default function TimelineScreen() {
     const offset = reset ? 0 : page * PAGE_SIZE;
     const { data } = await supabase
       .from('activities')
-      .select('id, activity_type, started_at, duration_seconds, distance_meters, phase_at_time, run_details(avg_pace_seconds_per_km)')
+      .select('id, activity_type, sub_type, started_at, duration_seconds, distance_meters, phase_at_time, run_details(avg_pace_seconds_per_km)')
       .eq('user_id', session.user.id)
       .order('started_at', { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);

@@ -23,7 +23,10 @@ export function VirraModal({ visible, onClose, title, children, style }: Props) 
     >
       <BlurView intensity={50} tint="dark" style={styles.backdrop}>
         <Pressable style={[StyleSheet.absoluteFill, { zIndex: 0 }]} onPress={onClose} />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.kav}
+        >
           <View style={[styles.card, style]}>
             {title && (
               <VirraText variant="mono" size={10} color={colors.pulse} style={styles.title}>
@@ -41,18 +44,28 @@ export function VirraModal({ visible, onClose, title, children, style }: Props) 
 const styles = StyleSheet.create({
   backdrop: {
     flex:              1,
-    alignItems:        'center',
+    alignItems:        'stretch',  // children fill horizontally
     justifyContent:    'center',
-    paddingHorizontal: spacing.lg,
+    // Pages pad cards by spacing.lg (24pt). Modals sit 2pt further inset on
+    // each side — 4pt narrower than the standard card overall — so the
+    // hierarchy reads as distinct without losing meaningful content width.
+    paddingHorizontal: spacing.lg + 2,
     position:          'relative',
   },
+  // KeyboardAvoidingView has no intrinsic width on iOS, so it collapses to
+  // its content unless we stretch it. Without this, the card sized to its
+  // text content instead of filling the backdrop's inset.
+  kav: {
+    alignSelf: 'stretch',
+  },
   card: {
-    width:           '100%',
     backgroundColor: colors.mist,
     borderRadius:    radius.lg,
     borderWidth:     1,
     borderColor:     colors.border,
-    padding:         spacing.lg,
+    // Match standard VirraCard inner padding so modal content has the same
+    // breathing room as page cards.
+    padding:         spacing.md,
     gap:             spacing.md,
     zIndex:          1,
   },

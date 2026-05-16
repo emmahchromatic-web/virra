@@ -149,6 +149,16 @@ export function generateSchedule(
   return rows;
 }
 
+function resolvePhaseForDate(
+  scheduled_date: string,
+  phaseSegments?: PhaseSegment[],
+): BlockPhase | null {
+  if (!phaseSegments) return null;
+  return phaseSegments.find(
+    (s) => scheduled_date >= s.starts_on && scheduled_date <= s.ends_on,
+  )?.phase ?? null;
+}
+
 export async function generateAndSaveSchedule(
   userId:           string,
   blockId:          string,
@@ -164,16 +174,9 @@ export async function generateAndSaveSchedule(
   const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, slotAssignments, maxWeeks, context);
   if (!rows.length) return;
 
-  function resolvePhase(scheduled_date: string): BlockPhase | null {
-    if (!phaseSegments) return null;
-    return phaseSegments.find(
-      (s) => scheduled_date >= s.starts_on && scheduled_date <= s.ends_on,
-    )?.phase ?? null;
-  }
-
   const rowsWithPhase = rows.map((row) => ({
     ...row,
-    phase: resolvePhase(row.scheduled_date),
+    phase: resolvePhaseForDate(row.scheduled_date, phaseSegments),
   }));
 
   for (let i = 0; i < rowsWithPhase.length; i += 200) {

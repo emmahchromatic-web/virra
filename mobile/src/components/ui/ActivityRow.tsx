@@ -9,6 +9,7 @@ export type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 export interface Activity {
   id:               string;
   activity_type:    ActivityType;
+  sub_type?:        string | null;
   started_at:       string;
   duration_seconds: number;
   distance_meters:  number | null;
@@ -30,6 +31,58 @@ const ACTIVITY_NAME: Record<ActivityType, string> = {
   strength: 'Strength',
   yoga:     'Yoga',
   other:    'Workout',
+};
+
+// Sub-type label + matching SF Symbol when present.
+// Keep in sync with mapSubType() in healthKitImport.ts.
+type SymName = React.ComponentProps<typeof SymbolView>['name'];
+const SUB_TYPE_LABEL: Record<string, string> = {
+  trail_run:        'Trail Run',
+  open_water_swim:  'Open Water Swim',
+  hike:             'Hike',
+  walk:             'Walk',
+  cycle:            'Cycle',
+  handcycle:        'Hand Cycle',
+  row:              'Row',
+  elliptical:       'Elliptical',
+  stairs:           'Stairs',
+  dance:            'Dance',
+  martial:          'Martial Arts',
+  climb:            'Climb',
+  ski:              'Ski',
+  skate:            'Skate',
+  paddle:           'Paddle',
+  surf:             'Surf',
+  tennis:           'Tennis',
+  golf:             'Golf',
+  pilates:          'Pilates',
+  hiit:             'HIIT',
+  cross_train:      'Cross Train',
+  mixed_cardio:     'Mixed Cardio',
+};
+const SUB_TYPE_ICON: Record<string, SymName> = {
+  trail_run:        'figure.run',
+  open_water_swim:  'figure.open.water.swim',
+  hike:             'figure.hiking',
+  walk:             'figure.walk',
+  cycle:            'bicycle',
+  handcycle:        'figure.outdoor.cycle',
+  row:              'figure.rower',
+  elliptical:       'figure.elliptical',
+  stairs:           'figure.stair.stepper',
+  dance:            'figure.dance',
+  martial:          'figure.martial.arts',
+  climb:            'figure.climbing',
+  ski:              'figure.skiing.downhill',
+  skate:            'figure.skating',
+  paddle:           'figure.outdoor.rowing',
+  surf:             'figure.surfing',
+  tennis:           'figure.tennis',
+  golf:             'figure.golf',
+  pilates:          'figure.pilates',
+  hiit:             'figure.highintensity.intervaltraining',
+  cross_train:      'figure.cross.training',
+  mixed_cardio:     'figure.mixed.cardio',
 };
 
 export const PHASE_COLOR: Record<string, string> = {
@@ -57,8 +110,9 @@ export function formatPace(secPerKm: number | null): string | null {
 
 export function ActivityRow({ activity }: { activity: Activity }) {
   const type       = activity.activity_type;
-  const icon       = ACTIVITY_ICON[type];
-  const name       = ACTIVITY_NAME[type];
+  const sub        = activity.sub_type ?? null;
+  const icon       = sub ? (SUB_TYPE_ICON[sub]  ?? ACTIVITY_ICON[type]) : ACTIVITY_ICON[type];
+  const name       = sub ? (SUB_TYPE_LABEL[sub] ?? ACTIVITY_NAME[type]) : ACTIVITY_NAME[type];
   const distKm     = activity.distance_meters ? (activity.distance_meters / 1000).toFixed(2) : null;
   const pace       = type === 'run'
     ? formatPace(activity.run_details?.[0]?.avg_pace_seconds_per_km ?? null)

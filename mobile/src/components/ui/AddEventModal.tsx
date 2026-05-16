@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, TextInput, Alert, Pressable, StyleSheet, ScrollView } from 'react-native';
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { recomputeSeasonForUser } from '@/lib/seasonEngine';
@@ -9,15 +8,16 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraModal } from './VirraModal';
 import { VirraButton } from './VirraButton';
 import { VirraText } from './VirraText';
+import { CalendarPicker, toLocalISO } from './CalendarPicker';
 
 type DistanceGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'ultra';
 
-const DISTANCE_OPTIONS: { value: DistanceGoal; label: string }[] = [
-  { value: '5k',            label: '5K'    },
-  { value: '10k',           label: '10K'   },
-  { value: 'half_marathon', label: 'HALF'  },
-  { value: 'marathon',      label: 'MARA'  },
-  { value: 'ultra',         label: 'ULTRA' },
+const DISTANCE_OPTIONS: { value: DistanceGoal; label: string; hint: string }[] = [
+  { value: '5k',            label: '5K',            hint: 'Quick event'           },
+  { value: '10k',           label: '10K',           hint: 'Short race'            },
+  { value: 'half_marathon', label: 'Half Marathon', hint: '21.1 km'               },
+  { value: 'marathon',      label: 'Marathon',      hint: '42.2 km'               },
+  { value: 'ultra',         label: 'Ultra',         hint: 'Beyond marathon'       },
 ];
 
 const SHORT_RACE_PLACEHOLDER: Partial<Record<DistanceGoal, string>> = {
@@ -32,16 +32,16 @@ interface Props {
   onSaved: () => void;
 }
 
-function todayISO(): string {
-  return new Date().toLocaleDateString('en-CA');
-}
-
 export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
-  const [name,         setName]         = useState('');
-  const [distanceGoal, setDistanceGoal] = useState<DistanceGoal>('marathon');
-  const [dateObj,      setDateObj]      = useState(() => new Date());
-  const [showPicker,   setShowPicker]   = useState(false);
-  const [saving,       setSaving]       = useState(false);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [name,           setName]           = useState('');
+  const [distanceGoal,   setDistanceGoal]   = useState<DistanceGoal>('marathon');
+  const [dateObj,        setDateObj]        = useState<Date>(today);
+  const [showDistance,   setShowDistance]   = useState(false);
+  const [showDate,       setShowDate]       = useState(false);
+  const [saving,         setSaving]         = useState(false);
 
   async function handleSave() {
     const trimmed = name.trim();
@@ -50,97 +50,130 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
     const { error } = await supabase.from('user_events').insert({
       user_id:       userId,
       name:          trimmed,
-      event_date:    dateObj.toLocaleDateString('en-CA'),
+      event_date:    toLocalISO(dateObj),
       distance_goal: distanceGoal,
     });
     setSaving(false);
     if (error) { Alert.alert('Could not save event', error.message); return; }
     // Fire-and-forget: auto-create season if 2+ future events now exist
-    const today = new Date().toLocaleDateString('en-CA');
     const cycleProfile = useCycleStore.getState().cycleProfile;
-    recomputeSeasonForUser(userId, today, cycleProfile).catch((e) => {
+    recomputeSeasonForUser(userId, toLocalISO(today), cycleProfile).catch((e) => {
       console.warn('[seasonEngine] recompute failed', e);
     });
     setName('');
     setDistanceGoal('marathon');
-    setDateObj(new Date());
+    setDateObj(today);
+    setShowDistance(false);
+    setShowDate(false);
     onSaved();
   }
 
   const namePlaceholder = SHORT_RACE_PLACEHOLDER[distanceGoal] ?? 'Race, holiday, event…';
+  const selectedDistance = DISTANCE_OPTIONS.find((o) => o.value === distanceGoal)!;
+
+  const fmtDate = (d: Date) =>
+    d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase();
 
   return (
     <VirraModal visible={visible} onClose={onClose} title="Add Event">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={modal.field}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={modal.label}>EVENT NAME</VirraText>
-          <TextInput
-            style={modal.input}
-            value={name}
-            onChangeText={setName}
-            placeholder={namePlaceholder}
-            placeholderTextColor={colors.muted}
-            autoFocus
-            returnKeyType="next"
-          />
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
 
-        <View style={[modal.field, { marginTop: spacing.md }]}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={modal.label}>DISTANCE</VirraText>
-          <View style={modal.pillRow}>
-            {DISTANCE_OPTIONS.map(({ value, label }) => (
-              <Pressable
-                key={value}
-                style={[modal.pill, distanceGoal === value && modal.pillActive]}
-                onPress={() => setDistanceGoal(value)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: distanceGoal === value }}
-              >
-                <VirraText
-                  variant="mono"
-                  size={11}
-                  color={distanceGoal === value ? colors.mile : colors.muted}
-                >
-                  {label}
-                </VirraText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+        {/* EVENT NAME */}
+        <VirraText variant="mono" size={11} color={colors.muted} style={s.sectionLabel}>
+          EVENT NAME
+        </VirraText>
+        <TextInput
+          style={s.input}
+          value={name}
+          onChangeText={setName}
+          placeholder={namePlaceholder}
+          placeholderTextColor={colors.muted}
+          autoFocus
+          returnKeyType="next"
+        />
 
-        <View style={[modal.field, { marginTop: spacing.md }]}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={modal.label}>DATE</VirraText>
-          <Pressable style={modal.datePicker} onPress={() => setShowPicker(true)} accessibilityRole="button">
-            <VirraText variant="mono" size={13} color={colors.breath}>
-              {dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </VirraText>
-            <SymbolView name="calendar" size={14} tintColor={colors.muted} />
-          </Pressable>
-          {showPicker && (
-            <DateTimePicker
-              value={dateObj}
-              mode="date"
-              display="spinner"
-              minimumDate={new Date()}
-              onChange={(_: DateTimePickerEvent, selected?: Date) => {
-                setShowPicker(false);
-                if (selected) setDateObj(selected);
-              }}
+        {/* DISTANCE */}
+        <VirraText variant="mono" size={11} color={colors.muted} style={[s.sectionLabel, { marginTop: spacing.md }]}>
+          DISTANCE
+        </VirraText>
+        <Pressable
+          style={[s.row, showDistance && s.rowActive]}
+          onPress={() => { setShowDistance((v) => !v); setShowDate(false); }}
+        >
+          <VirraText variant="mono" size={13} color={colors.breath}>{selectedDistance.label.toUpperCase()}</VirraText>
+          <View style={s.rowRight}>
+            <VirraText variant="mono" size={11} color={colors.muted}>{selectedDistance.hint.toUpperCase()}</VirraText>
+            <SymbolView
+              name={showDistance ? 'chevron.up' : 'chevron.down'}
+              size={13}
+              tintColor={colors.pulse}
             />
-          )}
-        </View>
+          </View>
+        </Pressable>
+        {showDistance && (
+          <View style={s.dropdown}>
+            {DISTANCE_OPTIONS.map((opt, idx) => {
+              const selected = opt.value === distanceGoal;
+              return (
+                <Pressable
+                  key={opt.value}
+                  style={[s.optionRow, idx > 0 && s.optionRowDivider]}
+                  onPress={() => { setDistanceGoal(opt.value); setShowDistance(false); }}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <VirraText variant="bodyMedium" size={14} color={selected ? colors.pulse : colors.breath}>
+                      {opt.label}
+                    </VirraText>
+                    <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: 2, letterSpacing: 1 }}>
+                      {opt.hint.toUpperCase()}
+                    </VirraText>
+                  </View>
+                  {selected && (
+                    <SymbolView name="checkmark" size={14} tintColor={colors.pulse} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+
+        {/* DATE */}
+        <VirraText variant="mono" size={11} color={colors.muted} style={[s.sectionLabel, { marginTop: spacing.md }]}>
+          DATE
+        </VirraText>
+        <Pressable
+          style={[s.row, showDate && s.rowActive]}
+          onPress={() => { setShowDate((v) => !v); setShowDistance(false); }}
+        >
+          <VirraText variant="mono" size={13} color={colors.breath}>{fmtDate(dateObj)}</VirraText>
+          <SymbolView name="calendar" size={13} tintColor={colors.pulse} />
+        </Pressable>
+        {showDate && (
+          <CalendarPicker
+            value={dateObj}
+            minDate={today}
+            onSelect={(d) => { setDateObj(d); setShowDate(false); }}
+          />
+        )}
+
+        <View style={{ height: spacing.md }} />
       </ScrollView>
 
-      <VirraButton label={saving ? 'Saving…' : 'Save Event'} onPress={handleSave} disabled={saving} style={{ marginTop: spacing.md }} />
+      <VirraButton
+        label={saving ? 'Saving…' : 'Save Event'}
+        onPress={handleSave}
+        disabled={saving}
+      />
       <VirraButton label="Cancel" variant="ghost" onPress={onClose} style={{ marginTop: spacing.xs }} />
     </VirraModal>
   );
 }
 
-const modal = StyleSheet.create({
-  field:      { gap: spacing.xs },
-  label:      { letterSpacing: 1.5 },
-  input:      {
+const s = StyleSheet.create({
+  sectionLabel: { letterSpacing: 1.5, marginBottom: spacing.xs },
+  input: {
     backgroundColor: colors.mist,
     borderRadius: radius.md,
     paddingVertical: spacing.sm,
@@ -151,30 +184,35 @@ const modal = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  datePicker: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.mist,
-    borderRadius: radius.md,
-    paddingVertical: spacing.sm,
+  row: {
+    flexDirection:    'row',
+    justifyContent:   'space-between',
+    alignItems:       'center',
+    paddingVertical:  spacing.sm,
     paddingHorizontal: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor:  colors.mist,
+    borderRadius:     radius.md,
+    borderWidth:      1,
+    borderColor:      colors.border,
   },
-  pillRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
+  rowActive:  { borderColor: colors.pulse },
+  rowRight:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dropdown: {
+    marginTop:        spacing.xs,
+    backgroundColor:  colors.mist,
+    borderRadius:     radius.md,
+    borderWidth:      1,
+    borderColor:      colors.border,
+    overflow:         'hidden',
   },
-  pill: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.mist,
+  optionRow: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    paddingVertical:  spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  pillActive: {
-    backgroundColor: colors.pulse,
-    borderColor: colors.pulse,
+  optionRowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
 });
