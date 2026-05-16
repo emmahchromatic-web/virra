@@ -488,15 +488,18 @@ export async function getDaySessionDetail(
   cycleStore:    { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null },
   cycle_profile: CycleProfile = 'natural',
 ): Promise<DayDetail> {
-  const phase          = cycleStore.phase;
-  const phase_guidance = PHASE_GUIDANCE[phase ?? ''] ?? '';
+  // Today's phase is used for block-load stacking and goal-pace forecasting
+  // (those are forward-looking, "what's my current readiness" concerns).
+  const phaseToday = cycleStore.phase;
 
-  // For structure modulation, use the phase predicted for the specific date
-  // (not necessarily today's phase)
+  // For everything tied to THIS date — the banner, per-session pace modulation,
+  // and the volume-adjustment note — use the phase predicted for the date.
   const dateForPhase = new Date(`${dateISO}T00:00:00`);
   const phaseForDate: CyclePhase | null = cycleStore.periodStart
     ? getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, dateForPhase).phase
     : null;
+
+  const phase_guidance = PHASE_GUIDANCE[phaseForDate ?? ''] ?? '';
 
   const EMPTY_PLAN: VolumePlanResult = {
     weeks: [], total_km: 0, completed_km: 0, remaining_km: 0, deficit_message: null,
@@ -558,10 +561,10 @@ export async function getDaySessionDetail(
       date:                   dateISO,
       sessions:               [],
       events:                 (events ?? []) as UserEvent[],
-      phase,
+      phase:                  phaseForDate,
       phase_guidance,
       volume_plan:            EMPTY_PLAN,
-      volume_adjustment_note: buildVolumeAdjustmentNote(1.0, phase),
+      volume_adjustment_note: buildVolumeAdjustmentNote(1.0, phaseForDate),
     };
   }
 
@@ -577,7 +580,7 @@ export async function getDaySessionDetail(
   let computedBlocks: ReturnType<typeof computeBlockLoad> = [];
   try {
     allActiveBlocks = await getActiveBlocks(userId);
-    computedBlocks  = computeBlockLoad(allActiveBlocks, phase ?? 'follicular');
+    computedBlocks  = computeBlockLoad(allActiveBlocks, phaseToday ?? 'follicular');
   } catch (e) {
     console.error('[volumePlan] getDaySessionDetail getActiveBlocks:', e);
   }
@@ -598,7 +601,7 @@ export async function getDaySessionDetail(
       if (loadScale < minRunLoadScale) minRunLoadScale = loadScale;
 
       const [goalPace, plan] = await Promise.all([
-        getGoalPace(userId, blockId, phase),
+        getGoalPace(userId, blockId, phaseToday),
         getWeeklyVolumePlan(userId, blockId, {
           periodStart: cycleStore.periodStart,
           cycleLength: cycleStore.cycleLength,
@@ -625,7 +628,7 @@ export async function getDaySessionDetail(
 
       for (const s of runSessions) {
         const distance_km      = distMap[s.id] ?? 0;
-        const pace_target_secs = getSessionPaceTarget(goalPace.seconds_per_km, s.session_label, phase);
+        const pace_target_secs = getSessionPaceTarget(goalPace.seconds_per_km, s.session_label, phaseForDate);
         const estimated_minutes = pace_target_secs > 0
           ? Math.round(distance_km * pace_target_secs / 60)
           : 0;
@@ -663,7 +666,7 @@ export async function getDaySessionDetail(
         const cycle_modulation = modulateForCycle(
           run_base_target,
           run_session_type,
-          phase,
+          phaseForDate,
           cycle_profile,
         );
 
@@ -704,7 +707,7 @@ export async function getDaySessionDetail(
       const cycle_modulation = modulateForCycle(
         strength_base_target,
         strength_session_type,
-        phase,
+        phaseForDate,
         cycle_profile,
       );
       const sRow = s as typeof s & {
@@ -727,9 +730,9 @@ export async function getDaySessionDetail(
     date:                   dateISO,
     sessions:               allSessions,
     events:                 (events ?? []) as UserEvent[],
-    phase,
+    phase:                  phaseForDate,
     phase_guidance,
     volume_plan:            volumePlan,
-    volume_adjustment_note: buildVolumeAdjustmentNote(minRunLoadScale, phase),
+    volume_adjustment_note: buildVolumeAdjustmentNote(minRunLoadScale, phaseForDate),
   };
 }

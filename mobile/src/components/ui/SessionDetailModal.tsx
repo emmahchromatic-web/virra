@@ -65,13 +65,18 @@ function renderRunStep(
     ? distM >= 1000 ? `${(distM / 1000).toFixed(1)}km` : `${distM}m`
     : durS ? `${Math.round(durS / 60)}min` : '';
   const paceText = pace ? ` @ ${formatPace(pace)}` : '';
+  // Skip the label when it just repeats the kind (warmup, cooldown).
+  // Keep informative labels like "800m", "float", "first half", "tempo".
+  const labelText = step.label && step.label.toLowerCase() !== step.kind.toLowerCase()
+    ? `${step.label} · `
+    : '';
   return (
     <View key={step.id} style={[modal.stepRow, { paddingLeft: depth * 12 }]}>
       <VirraText variant="mono" size={11} color={colors.muted} style={modal.stepKind}>
         {step.kind.toUpperCase()}
       </VirraText>
       <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
-        {step.label ? `${step.label} · ` : ''}{distText}{paceText}
+        {labelText}{distText}{paceText}
       </VirraText>
     </View>
   );
@@ -181,14 +186,35 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
       ? adjustedPaceSecs
       : (isRun ? r.pace_target_secs : 0);
 
+    // Hero target: total distance from the structure if present (sum of all step
+    // distances, matching what the user sees in the step list); otherwise the
+    // planned distance for legacy rows.
+    const heroDistanceKm = isRun
+      ? (r.modulated_structure?.total_distance_m
+          ? r.modulated_structure.total_distance_m / 1000
+          : r.distance_km)
+      : 0;
+    const workoutTypeLabel = isRun && r.modulated_structure
+      ? r.modulated_structure.workout_type.replace('_', ' ').toUpperCase()
+      : s.session_label.toUpperCase();
+
     return (
       <View key={s.planned_session_id} style={[modal.card, i > 0 && modal.cardBorder]}>
-        <View style={modal.cardHeader}>
-          <VirraText variant="bodyMedium" size={14} color={colors.breath}>{label}</VirraText>
-          <VirraText variant="mono" size={11} color={colors.muted}>
-            {s.kind.toUpperCase()}
-          </VirraText>
-        </View>
+        {isRun ? (
+          <View style={modal.heroRow}>
+            <VirraText variant="display" size={28} color={colors.breath}>
+              {heroDistanceKm.toFixed(heroDistanceKm % 1 === 0 ? 0 : 1)}KM {workoutTypeLabel}
+            </VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted}>RUN</VirraText>
+          </View>
+        ) : (
+          <View style={modal.cardHeader}>
+            <VirraText variant="bodyMedium" size={14} color={colors.breath}>{label}</VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted}>
+              {s.kind.toUpperCase()}
+            </VirraText>
+          </View>
+        )}
 
         {isRun && s.status !== 'dropped' && (
           <>
@@ -347,12 +373,12 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
         </VirraText>
       )}
 
-      {/* Deficit coaching message */}
+      {/* Deficit coaching message — editorial tone */}
       {!loading && detail?.volume_plan.deficit_message && (
         <VirraText
-          variant="body"
-          size={13}
-          color={colors.dawn}
+          variant="serif"
+          size={15}
+          color="rgba(255,107,61,0.85)"
           style={modal.deficitMsg}
         >
           {detail.volume_plan.deficit_message}
@@ -384,7 +410,8 @@ const modal = StyleSheet.create({
     borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
   },
   statusRow:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  deficitMsg:   { marginTop: spacing.md, lineHeight: 20 },
+  deficitMsg:   { marginTop: spacing.md, lineHeight: 22, fontStyle: 'italic' },
+  heroRow:      { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.sm, marginBottom: spacing.xs },
   whyCard:      { gap: spacing.xs, marginTop: spacing.sm },
   whyLabel:     { letterSpacing: 1.5 },
   whyText:      { lineHeight: 20 },
