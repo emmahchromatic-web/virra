@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import { WeekStrip } from '@/components/ui/WeekStrip';
+import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { supabase } from '@/lib/supabase';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 
@@ -52,24 +53,6 @@ const PHASE_META: Record<CyclePhase, {
     color:     colors.breath,
   },
 };
-
-function CycleProgressBar({ dayOfCycle, cycleLength, phaseColor }: {
-  dayOfCycle: number; cycleLength: number; phaseColor: string;
-}) {
-  const pct = Math.min((dayOfCycle - 1) / cycleLength, 1);
-  return (
-    <View style={bar.track}>
-      <View style={[bar.fill, { width: `${pct * 100}%` as any, backgroundColor: phaseColor }]} />
-      <View style={[bar.dot, { left: `${pct * 100}%` as any, backgroundColor: phaseColor }]} />
-    </View>
-  );
-}
-
-const bar = StyleSheet.create({
-  track: { height: 3, backgroundColor: colors.border, borderRadius: radius.full, marginTop: spacing.md, position: 'relative', overflow: 'visible' },
-  fill:  { position: 'absolute', top: 0, left: 0, height: 3, borderRadius: radius.full },
-  dot:   { position: 'absolute', top: -4, width: 11, height: 11, borderRadius: radius.full, marginLeft: -5 },
-});
 
 function GuidanceCard({ title, body, accentColor, loading }: {
   title: string; body: string; accentColor: string; loading?: boolean;
