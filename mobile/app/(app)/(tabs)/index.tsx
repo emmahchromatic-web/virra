@@ -14,45 +14,9 @@ import { useProfileStore } from '@/store/profile';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import { WeekStrip } from '@/components/ui/WeekStrip';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
+import { PHASE_META } from '@/lib/phaseMeta';
 import { supabase } from '@/lib/supabase';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
-
-const PHASE_META: Record<CyclePhase, {
-  label:     string;
-  tagline:   string;
-  training:  string;
-  nutrition: string;
-  color:     string;
-}> = {
-  menstrual: {
-    label:     'Menstrual',
-    tagline:   'Rest, restore, and honour your body.',
-    training:  'Easy movement only — yoga, walking, or full rest. No hard efforts.',
-    nutrition: 'Iron-rich foods. Warming meals. Honour cravings without guilt.',
-    color:     colors.heat,
-  },
-  follicular: {
-    label:     'Follicular',
-    tagline:   'Energy is rising. Build on it.',
-    training:  'Ramp up intensity. Strength sessions and tempo runs respond well now.',
-    nutrition: 'Lean protein and complex carbs to fuel adaptation.',
-    color:     colors.dawn,
-  },
-  ovulatory: {
-    label:     'Ovulatory',
-    tagline:   'Peak window. Push hard.',
-    training:  'Highest-intensity workouts belong here. Your body is primed.',
-    nutrition: 'High-carb day. Your muscles are ready to use every gram.',
-    color:     colors.pulse,
-  },
-  luteal: {
-    label:     'Luteal',
-    tagline:   'Maintain, don\'t overreach.',
-    training:  'Moderate effort. Honour fatigue signals — they\'re real.',
-    nutrition: 'Carbs curb cravings and support mood. Magnesium helps sleep.',
-    color:     colors.breath,
-  },
-};
 
 function GuidanceCard({ title, body, accentColor, loading }: {
   title: string; body: string; accentColor: string; loading?: boolean;
