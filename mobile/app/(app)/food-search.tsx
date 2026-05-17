@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView,
   Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { searchCommonFoods, scaleFood, type VirraFood } from '@/lib/commonFoods';
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { lookupBarcode } from '@/lib/openFoodFacts';
+import { lookupBarcode, searchByName } from '@/lib/openFoodFacts';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -23,11 +23,22 @@ function formatMacro(n: number): string {
 
 // ---- Food row ----
 
-function FoodRow({ food, onSelect }: { food: VirraFood; onSelect: (food: VirraFood) => void }) {
+function FoodRow({ food, onSelect, showOffChip }: {
+  food: VirraFood;
+  onSelect: (food: VirraFood) => void;
+  showOffChip?: boolean;
+}) {
   return (
     <Pressable onPress={() => onSelect(food)} style={row.container}>
       <View style={row.body}>
-        <VirraText variant="bodyMedium" size={14} color={colors.breath}>{food.name}</VirraText>
+        <View style={row.nameLine}>
+          <VirraText variant="bodyMedium" size={14} color={colors.breath} style={row.name}>{food.name}</VirraText>
+          {showOffChip && (
+            <View style={row.offChip}>
+              <VirraText variant="mono" size={9} color={colors.mile} style={row.offChipLabel}>OFF</VirraText>
+            </View>
+          )}
+        </View>
         {food.detail && (
           <VirraText variant="mono" size={11} color={colors.muted}>{food.detail.toUpperCase()}</VirraText>
         )}
@@ -44,9 +55,13 @@ function FoodRow({ food, onSelect }: { food: VirraFood; onSelect: (food: VirraFo
 }
 
 const row = StyleSheet.create({
-  container: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
-  body:      { flex: 1, gap: 3 },
-  cals:      { alignItems: 'center', gap: 1, minWidth: 44 },
+  container:    { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
+  body:         { flex: 1, gap: 3 },
+  nameLine:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  name:         { flexShrink: 1 },
+  offChip:      { backgroundColor: colors.breath, paddingHorizontal: 6, paddingVertical: 2, borderRadius: radius.sm },
+  offChipLabel: { letterSpacing: 1.2 },
+  cals:         { alignItems: 'center', gap: 1, minWidth: 44 },
 });
 
 // ---- Add panel ----
@@ -188,19 +203,68 @@ export default function FoodSearchScreen() {
 
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState<VirraFood | null>(null);
+  const [selectedFromBarcode, setSelectedFromBarcode] = useState(false);
   const [manual,   setManual]   = useState(false);
   const [adding,   setAdding]   = useState(false);
   const [scanning,    setScanning]    = useState(false);
   const [identifying, setIdentifying] = useState(false);
   const scannedRef = useRef(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [remoteResults, setRemoteResults]     = useState<VirraFood[]>([]);
+  const [remoteSearching, setRemoteSearching] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const results = searchCommonFoods(query);
+  const localResults = searchCommonFoods(query);
+
+  // Wrapper used by the list rows — picking from the list resets the barcode-source flag.
+  const handleListSelect = (food: VirraFood) => {
+    setSelectedFromBarcode(false);
+    setSelected(food);
+  };
+  const handleSelectionCancel = () => {
+    setSelectedFromBarcode(false);
+    setSelected(null);
+  };
+
+  // OFF remote search: debounced 300ms, triggers when query is meaningfully long
+  // AND local matches are sparse. AbortController cancels stale requests.
+  useEffect(() => {
+    abortRef.current?.abort();
+    const q = query.trim();
+    if (q.length < 3 || localResults.length >= 5) {
+      setRemoteResults([]);
+      setRemoteSearching(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setRemoteSearching(true);
+    const timer = setTimeout(() => {
+      searchByName(q, { signal: ctrl.signal })
+        .then((res) => {
+          if (ctrl.signal.aborted) return;
+          setRemoteResults(res);
+          setRemoteSearching(false);
+        })
+        .catch((e: unknown) => {
+          if (ctrl.signal.aborted || (e instanceof Error && e.name === 'AbortError')) return;
+          setRemoteResults([]);
+          setRemoteSearching(false);
+        });
+    }, 300);
+    return () => { clearTimeout(timer); ctrl.abort(); };
+    // localResults.length is derived from query — query alone is the right dependency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   async function handleAdd(food: VirraFood, grams: number) {
     if (!logId) return;
     setAdding(true);
     const macros = scaleFood(food, grams);
+    // Repurpose the legacy `nutritionix_id` column as the OFF barcode/id, per CLAUDE.md.
+    const isOff   = food.id.startsWith('off-');
+    const offCode = isOff ? food.id.slice(4) : null;
+    const source  = selectedFromBarcode ? 'barcode' : isOff ? 'off' : 'common';
 
     const { error } = await supabase.from('food_entries').insert({
       log_id:    logId,
@@ -212,6 +276,8 @@ export default function FoodSearchScreen() {
       protein_g: macros.protein_g,
       fat_g:     macros.fat_g,
       fibre_g:   macros.fibre_g,
+      nutritionix_id: offCode,
+      source,
     });
     setAdding(false);
     if (error) { Alert.alert('Could not add food', error.message); return; }
@@ -235,6 +301,7 @@ export default function FoodSearchScreen() {
       protein_g: parseFloat(m.protein_g)  || 0,
       fat_g:     parseFloat(m.fat_g)      || 0,
       fibre_g:   parseFloat(m.fibre_g)    || 0,
+      source:    'manual',
     });
     setAdding(false);
     if (error) { Alert.alert('Could not add food', error.message); return; }
@@ -258,6 +325,7 @@ export default function FoodSearchScreen() {
     }
     setIdentifying(false);
     if (food) {
+      setSelectedFromBarcode(true);
       setSelected(food);
     } else {
       Alert.alert(
@@ -363,7 +431,7 @@ export default function FoodSearchScreen() {
             <AddPanel
               food={selected}
               onAdd={handleAdd}
-              onCancel={() => setSelected(null)}
+              onCancel={handleSelectionCancel}
               adding={adding}
             />
           )}
@@ -380,25 +448,69 @@ export default function FoodSearchScreen() {
           {/* Results list */}
           {!selected && !manual && (
             <>
-              <VirraCard style={styles.resultsCard}>
-                {results.map((food, i) => (
-                  <View key={food.id}>
-                    {i > 0 && <View style={styles.divider} />}
-                    <FoodRow food={food} onSelect={setSelected} />
+              {/* Action row — peer affordances to search */}
+              <View style={styles.actionRow}>
+                <VirraButton
+                  label="Describe a meal"
+                  variant="primary"
+                  onPress={() => router.push({ pathname: '/(app)/describe-meal', params: { logId: logId ?? '', mealType: mealType ?? 'snack' } })}
+                  style={{ flex: 1.4 }}
+                />
+                <VirraButton
+                  label="Log manually"
+                  variant="ghost"
+                  onPress={() => setManual(true)}
+                  style={{ flex: 1 }}
+                />
+              </View>
+
+              {localResults.length > 0 && (
+                <>
+                  {query.trim().length > 0 && (
+                    <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
+                      COMMON FOODS
+                    </VirraText>
+                  )}
+                  <VirraCard style={styles.resultsCard}>
+                    {localResults.map((food, i) => (
+                      <View key={food.id}>
+                        {i > 0 && <View style={styles.divider} />}
+                        <FoodRow food={food} onSelect={handleListSelect} />
+                      </View>
+                    ))}
+                  </VirraCard>
+                </>
+              )}
+
+              {(remoteResults.length > 0 || remoteSearching) && (
+                <>
+                  <View style={styles.sectionHeader}>
+                    <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
+                      OPEN FOOD FACTS
+                    </VirraText>
+                    {remoteSearching && <ActivityIndicator size="small" color={colors.muted} />}
                   </View>
-                ))}
-                {results.length === 0 && (
+                  {remoteResults.length > 0 && (
+                    <VirraCard style={styles.resultsCard}>
+                      {remoteResults.map((food, i) => (
+                        <View key={food.id}>
+                          {i > 0 && <View style={styles.divider} />}
+                          <FoodRow food={food} onSelect={setSelected} showOffChip />
+                        </View>
+                      ))}
+                    </VirraCard>
+                  )}
+                </>
+              )}
+
+              {localResults.length === 0 && remoteResults.length === 0 && !remoteSearching && query.trim().length > 0 && (
+                <VirraCard style={styles.resultsCard}>
                   <VirraText variant="body" size={14} color={colors.muted} style={styles.empty}>
                     No results for "{query}"
                   </VirraText>
-                )}
-              </VirraCard>
+                </VirraCard>
+              )}
 
-              <Pressable onPress={() => setManual(true)} style={styles.manualLink} accessibilityRole="button">
-                <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-                  NOT LISTED? LOG MANUALLY →
-                </VirraText>
-              </Pressable>
               <VirraText variant="mono" size={10} color={colors.muted} style={styles.offAttribution}>
                 FOOD DATA FROM OPEN FOOD FACTS · OPENFOODFACTS.ORG
               </VirraText>
@@ -427,11 +539,13 @@ const styles = StyleSheet.create({
   inputWrap:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.mist, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border },
   input:       { flex: 1, color: colors.breath, fontFamily: fonts.body, fontSize: 15, paddingVertical: 2 },
   scroll:      { padding: spacing.lg, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
-  resultsCard: { gap: 0, paddingVertical: 0 },
-  divider:     { height: 1, backgroundColor: colors.border },
-  empty:       { textAlign: 'center', paddingVertical: spacing.md },
-  manualLink:  { alignItems: 'center', paddingVertical: spacing.xs },
-  barcodeBtn:  { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  resultsCard:   { gap: 0, paddingVertical: 0 },
+  divider:       { height: 1, backgroundColor: colors.border },
+  empty:         { textAlign: 'center', paddingVertical: spacing.md },
+  actionRow:     { flexDirection: 'row', gap: spacing.sm },
+  barcodeBtn:    { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.xs, marginTop: spacing.xs },
+  sectionLabel:  { letterSpacing: 1.5, paddingHorizontal: spacing.xs },
   offAttribution: {
     textAlign:     'center',
     letterSpacing: 1.5,

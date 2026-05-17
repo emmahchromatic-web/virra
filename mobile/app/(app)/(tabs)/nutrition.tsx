@@ -29,6 +29,7 @@ interface FoodEntry {
   fat_g:      number;
   fibre_g:    number;
   quantity_g: number | null;
+  source:     'manual' | 'common' | 'off' | 'barcode' | 'haiku';
 }
 
 function MacroBar({ label, actual, target, color, height }: {
@@ -159,11 +160,18 @@ function FoodEntryRow({ entry, onEdit, onDelete }: FoodEntryRowProps) {
         delayLongPress={400}
         style={({ pressed }) => [styles.entryRow, pressed && { opacity: 0.7 }]}
         accessibilityRole="button"
-        accessibilityLabel={`Edit ${entry.food_name}`}
+        accessibilityLabel={`Edit ${entry.food_name}${entry.source === 'haiku' ? ' (estimated)' : ''}`}
       >
-        <VirraText variant="body" size={14} color={colors.breath} style={{ flex: 1 }}>
-          {entry.food_name}
-        </VirraText>
+        <View style={row.nameLine}>
+          <VirraText variant="body" size={14} color={colors.breath} style={row.name}>
+            {entry.food_name}
+          </VirraText>
+          {entry.source === 'haiku' && (
+            <View style={row.estChip}>
+              <VirraText variant="mono" size={9} color={colors.breath} style={row.estChipLabel}>EST.</VirraText>
+            </View>
+          )}
+        </View>
         <VirraText variant="mono" size={12} color={colors.muted}>
           {Math.round(entry.calories)} kcal
         </VirraText>
@@ -180,6 +188,25 @@ const row = StyleSheet.create({
     justifyContent:  'center',
   },
   deleteLabel: {
+    letterSpacing: 1.5,
+  },
+  nameLine: {
+    flex:           1,
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            8,
+    flexWrap:       'wrap',
+  },
+  name: {
+    flexShrink: 1,
+  },
+  estChip: {
+    backgroundColor:   colors.heat,
+    paddingHorizontal: 6,
+    paddingVertical:   2,
+    borderRadius:      4,
+  },
+  estChipLabel: {
     letterSpacing: 1.5,
   },
 });
@@ -220,7 +247,7 @@ export default function NutritionScreen() {
     if (session && logId) {
       supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source')
         .eq('log_id', logId)
         .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
     }
@@ -263,7 +290,7 @@ export default function NutritionScreen() {
       setLogId(log.id);
       const { data: food } = await supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source')
         .eq('log_id', log.id);
       setEntries((food as FoodEntry[]) ?? []);
     }
@@ -282,7 +309,7 @@ export default function NutritionScreen() {
     if (!logId) return;
     supabase
       .from('food_entries')
-      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g')
+      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source')
       .eq('log_id', logId)
       .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
   }

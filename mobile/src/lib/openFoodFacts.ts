@@ -1,17 +1,52 @@
 import { type VirraFood } from './commonFoods';
 
-const OFF_BASE = 'https://world.openfoodfacts.org/api/v2/product';
-const OFF_FIELDS = 'product_name,product_name_en,brands,nutriments';
+const OFF_HOST = 'https://world.openfoodfacts.org';
+const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments';
 const USER_AGENT = 'Virra-iOS/1.0 (food logger; hello@virra.app)';
 
 // Throws on network failure (caller can distinguish offline vs not-found).
 // Returns null when barcode exists in OFF but has insufficient data.
 export async function lookupBarcode(barcode: string): Promise<VirraFood | null> {
-  const res = await fetch(`${OFF_BASE}/${barcode}.json?fields=${OFF_FIELDS}`, {
+  const res = await fetch(`${OFF_HOST}/api/v2/product/${barcode}.json?fields=${OFF_FIELDS}`, {
     headers: { 'User-Agent': USER_AGENT },
   });
   if (!res.ok) return null;
-  return parseOFFProduct(await res.json(), barcode);
+  const json = await safeJson(res);
+  return json ? parseOFFProduct(json, barcode) : null;
+}
+
+// Search OFF by free-text name. Returns up to `pageSize` results with usable kcal.
+// Throws on network failure or abort.
+//
+// Uses cgi/search.pl rather than /api/v2/search — the v2 endpoint silently ignores
+// search_terms and returns the full database in arbitrary order. The cgi endpoint
+// is the canonical free-text route per OFF's wiki and honours sort_by relevance.
+export async function searchByName(
+  query: string,
+  opts?: { pageSize?: number; signal?: AbortSignal },
+): Promise<VirraFood[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const pageSize = opts?.pageSize ?? 20;
+  const url =
+    `${OFF_HOST}/cgi/search.pl?search_terms=${encodeURIComponent(trimmed)}` +
+    `&search_simple=1&action=process&json=1` +
+    `&sort_by=unique_scans_n` +
+    `&page_size=${pageSize}&fields=${OFF_FIELDS}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+    signal: opts?.signal,
+  });
+  if (!res.ok) return [];
+  const json = await safeJson(res);
+  return json ? parseOFFSearchResults(json) : [];
+}
+
+// OFF returns an HTML "temporarily unavailable" page on heavy load instead of JSON.
+// Swallow the parse error and treat as empty so the caller doesn't crash.
+async function safeJson(res: Response): Promise<unknown | null> {
+  try { return await res.json(); }
+  catch { return null; }
 }
 
 export function parseOFFProduct(data: unknown, barcode: string): VirraFood | null {
@@ -22,6 +57,28 @@ export function parseOFFProduct(data: unknown, barcode: string): VirraFood | nul
   const p = d.product as Record<string, unknown> | undefined;
   if (!p) return null;
 
+  return productToVirraFood(p, `off-${barcode}`);
+}
+
+export function parseOFFSearchResults(data: unknown): VirraFood[] {
+  if (typeof data !== 'object' || data === null) return [];
+  const d = data as Record<string, unknown>;
+  const products = Array.isArray(d.products) ? d.products : [];
+  const out: VirraFood[] = [];
+  for (const raw of products) {
+    if (typeof raw !== 'object' || raw === null) continue;
+    const p = raw as Record<string, unknown>;
+    const code = typeof p.code === 'string' && p.code.trim() ? p.code.trim() : undefined;
+    if (!code) continue;
+    const food = productToVirraFood(p, `off-${code}`);
+    // Skip products with no usable kcal — they're noise.
+    if (!food || food.calories <= 0) continue;
+    out.push(food);
+  }
+  return out;
+}
+
+function productToVirraFood(p: Record<string, unknown>, id: string): VirraFood | null {
   const name = ((p.product_name_en ?? p.product_name) as string | undefined)?.trim();
   if (!name) return null;
 
@@ -37,7 +94,7 @@ export function parseOFFProduct(data: unknown, barcode: string): VirraFood | nul
     : undefined;
 
   return {
-    id:        `off-${barcode}`,
+    id,
     name,
     detail:    brand,
     serving_g: 100,
