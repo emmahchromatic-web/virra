@@ -71,6 +71,18 @@ function num(n: unknown, fallback = 0): number {
   return isFinite(x) ? Math.max(0, Math.round(x * 10) / 10) : fallback;
 }
 
+// Normalise + SHA-256 the description so trivially-different inputs hit the
+// same cache row. "Pulled  pork BBQ Burger " and "pulled pork bbq burger"
+// should resolve to one estimate.
+async function hashDescription(description: string): Promise<string> {
+  const normalised = description.trim().toLowerCase().replace(/\s+/g, " ");
+  const bytes = new TextEncoder().encode(normalised);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 function sanitiseItems(raw: unknown): EstimateItem[] {
   if (!Array.isArray(raw)) return [];
   const out: EstimateItem[] = [];
@@ -121,12 +133,37 @@ Deno.serve(async (req: Request): Promise<Response> => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  let body: { description?: string };
+  let body: { description?: string; force_refresh?: boolean };
   try { body = await req.json(); } catch { return err("Invalid JSON", 400); }
 
-  const description = (body.description ?? "").trim();
+  const description  = (body.description ?? "").trim();
+  const forceRefresh = body.force_refresh === true;
   if (!description) return err("Description required", 400);
   if (description.length > 500) return err("Description too long (max 500 chars)", 400);
+
+  const descHash = await hashDescription(description);
+
+  // --- Cache lookup (global, skipped when re-estimating) ---
+  if (!forceRefresh) {
+    const { data: cached } = await supabase
+      .from("haiku_meal_cache")
+      .select("result")
+      .eq("hash", descHash)
+      .maybeSingle();
+
+    if (cached?.result) {
+      // Best-effort last_used bump so we know the cache row is still hot
+      // (for any future pruning policy). Don't block the response on it.
+      supabase
+        .from("haiku_meal_cache")
+        .update({ last_used_at: new Date().toISOString() })
+        .eq("hash", descHash)
+        .then(({ error: bumpErr }) => {
+          if (bumpErr) console.warn("[estimate-meal] cache bump failed:", bumpErr.message);
+        });
+      return new Response(JSON.stringify(cached.result), { headers: JSON_HEADERS });
+    }
+  }
 
   // --- Rate limit: 5 Haiku-sourced inserts per user per minute ---
   const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
@@ -204,6 +241,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
     overall_confidence: overall,
     notes,
   };
+
+  // Persist for future cache hits. Only when we actually got items back —
+  // failed parses or empty responses aren't worth caching. Upsert handles
+  // the race where two parallel calls landed on the same description.
+  if (items.length > 0) {
+    const { error: cacheErr } = await supabase
+      .from("haiku_meal_cache")
+      .upsert(
+        {
+          hash:         descHash,
+          description,
+          result:       response,
+          last_used_at: new Date().toISOString(),
+        },
+        { onConflict: "hash" },
+      );
+    if (cacheErr) console.warn("[estimate-meal] cache write failed:", cacheErr.message);
+  }
 
   return new Response(JSON.stringify(response), { headers: JSON_HEADERS });
 });

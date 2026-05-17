@@ -20,16 +20,18 @@ const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type MealType = typeof MEAL_TYPES[number];
 
 interface FoodEntry {
-  id:         string;
-  meal_type:  MealType;
-  food_name:  string;
-  calories:   number;
-  carbs_g:    number;
-  protein_g:  number;
-  fat_g:      number;
-  fibre_g:    number;
-  quantity_g: number | null;
-  source:     'manual' | 'common' | 'off' | 'barcode' | 'haiku';
+  id:           string;
+  meal_type:    MealType;
+  food_name:    string;
+  calories:     number;
+  carbs_g:      number;
+  protein_g:    number;
+  fat_g:        number;
+  fibre_g:      number;
+  quantity_g:   number | null;
+  source:       'manual' | 'common' | 'off' | 'barcode' | 'haiku';
+  haiku_input:  string | null;
+  log_id:       string;
 }
 
 function MacroBar({ label, actual, target, color, height }: {
@@ -247,7 +249,7 @@ export default function NutritionScreen() {
     if (session && logId) {
       supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source, haiku_input, log_id')
         .eq('log_id', logId)
         .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
     }
@@ -290,7 +292,7 @@ export default function NutritionScreen() {
       setLogId(log.id);
       const { data: food } = await supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source, haiku_input, log_id')
         .eq('log_id', log.id);
       setEntries((food as FoodEntry[]) ?? []);
     }
@@ -309,7 +311,7 @@ export default function NutritionScreen() {
     if (!logId) return;
     supabase
       .from('food_entries')
-      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source')
+      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source, haiku_input, log_id')
       .eq('log_id', logId)
       .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
   }

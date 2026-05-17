@@ -214,7 +214,7 @@ export default function FoodSearchScreen() {
   const [remoteSearching, setRemoteSearching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  const localResults = searchCommonFoods(query);
+  const localResults = searchCommonFoods(query, mealType);
 
   // Wrapper used by the list rows — picking from the list resets the barcode-source flag.
   const handleListSelect = (food: VirraFood) => {

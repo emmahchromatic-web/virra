@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView,
   Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
@@ -7,6 +7,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
+import { useAuthStore } from '@/store/auth';
+import { useProfileStore } from '@/store/profile';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -163,16 +165,47 @@ const itemRow = StyleSheet.create({
   macroInput:   { color: colors.breath, fontFamily: fonts.mono, fontSize: 14, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, textAlign: 'center' },
 });
 
+// ---- Disclosure fact row ----
+
+function DisclosureFact({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={discFact.row}>
+      <VirraText variant="mono" size={9} color={colors.pulse} style={discFact.label}>{label}</VirraText>
+      <VirraText variant="body" size={13} color={colors.breath}>{value}</VirraText>
+    </View>
+  );
+}
+
+const discFact = StyleSheet.create({
+  row:   { gap: 4 },
+  label: { letterSpacing: 1.5 },
+});
+
 // ---- Screen ----
 
 export default function DescribeMealScreen() {
-  const { logId, mealType } = useLocalSearchParams<{ logId: string; mealType: MealType }>();
+  const { logId, mealType, prefillHaikuInput, replaceHaikuInput } = useLocalSearchParams<{
+    logId:              string;
+    mealType:           MealType;
+    prefillHaikuInput?: string;
+    replaceHaikuInput?: string;
+  }>();
+  const userId                            = useAuthStore((s) => s.user?.id);
+  const disclosureAckAt                   = useProfileStore((s) => s.haikuDisclosureAcknowledgedAt);
+  const acknowledgeHaikuDisclosure        = useProfileStore((s) => s.acknowledgeHaikuDisclosure);
 
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(prefillHaikuInput ?? '');
   const [estimating, setEstimating]   = useState(false);
   const [items, setItems]             = useState<EstimateItem[] | null>(null);
   const [notes, setNotes]             = useState<string | null>(null);
   const [saving, setSaving]           = useState(false);
+  const inputRef                      = useRef<TextInput | null>(null);
+  const showDisclosure                = !disclosureAckAt;
+  const isReplaceMode                 = !!replaceHaikuInput;
+
+  async function handleAcknowledge() {
+    if (userId) await acknowledgeHaikuDisclosure(userId);
+  }
 
   async function handleEstimate() {
     const trimmed = description.trim();
@@ -183,7 +216,9 @@ export default function DescribeMealScreen() {
     setEstimating(true);
     try {
       const { data, error } = await supabase.functions.invoke<EstimateResponse>('estimate-meal', {
-        body: { description: trimmed },
+        // Re-estimate path bypasses cache — otherwise an unchanged description would
+        // return identical numbers, which defeats the "look at this with fresh eyes" intent.
+        body: { description: trimmed, force_refresh: isReplaceMode },
       });
       if (error) {
         // supabase-js's error.message is unhelpful ("Failed to send a request to the Edge Function").
@@ -215,6 +250,19 @@ export default function DescribeMealScreen() {
     if (!logId || !items || items.length === 0) return;
     setSaving(true);
     const haikuInput = description.trim();
+
+    // Replace mode: wipe the prior rows from this same description on this log
+    // before inserting the new estimate. A failed delete is non-fatal — we
+    // continue to insert; user can hand-delete duplicates if it matters.
+    if (isReplaceMode && replaceHaikuInput) {
+      const { error: delErr } = await supabase
+        .from('food_entries')
+        .delete()
+        .eq('log_id', logId)
+        .eq('haiku_input', replaceHaikuInput);
+      if (delErr) console.warn('[describe-meal] failed to remove prior haiku rows:', delErr.message);
+    }
+
     const rows = items.map((item) => ({
       log_id:      logId,
       meal_type:   mealType,
@@ -255,7 +303,7 @@ export default function DescribeMealScreen() {
             <SymbolView name="xmark" size={18} tintColor={colors.muted} />
           </Pressable>
           <VirraText variant="mono" size={10} color={colors.muted}>
-            DESCRIBE MEAL · {(mealType ?? 'meal').toUpperCase()}
+            {isReplaceMode ? 'RE-ESTIMATE' : 'DESCRIBE MEAL'} · {(mealType ?? 'meal').toUpperCase()}
           </VirraText>
           <View style={{ width: 32 }} />
         </View>
@@ -265,13 +313,46 @@ export default function DescribeMealScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {!items ? (
+          {showDisclosure ? (
+            <>
+              <VirraCard style={styles.disclosureCard}>
+                <View style={styles.disclosureIcon}>
+                  <SymbolView name="sparkles" size={22} tintColor={colors.pulse} />
+                </View>
+                <VirraText variant="display" size={26} color={colors.breath}>
+                  ABOUT THIS ESTIMATOR
+                </VirraText>
+                <VirraText variant="body" size={14} color={colors.breath} style={styles.disclosureLead}>
+                  We send your meal description to Anthropic&apos;s Claude AI, which estimates the
+                  macros and calories. Estimates are educated guesses — you can edit any value
+                  before saving.
+                </VirraText>
+
+                <View style={styles.disclosureFacts}>
+                  <DisclosureFact label="WHAT WE SEND"     value="Only the words you type. Nothing else." />
+                  <DisclosureFact label="WHAT WE STORE"    value="The description and the result, on your account." />
+                  <DisclosureFact label="WHAT WE NEVER SEND" value="Your name, email, cycle data, or health history." />
+                </View>
+
+                <VirraText variant="mono" size={10} color={colors.muted} style={styles.disclosureFootnote}>
+                  YOU&apos;LL ONLY SEE THIS ONCE
+                </VirraText>
+              </VirraCard>
+
+              <VirraButton
+                label="I understand"
+                onPress={handleAcknowledge}
+                disabled={!userId}
+              />
+            </>
+          ) : !items ? (
             <>
               <VirraCard style={styles.inputCard}>
                 <VirraText variant="mono" size={10} color={colors.muted} style={styles.inputLabel}>
                   WHAT DID YOU EAT?
                 </VirraText>
                 <TextInput
+                  ref={inputRef}
                   style={styles.bigInput}
                   value={description}
                   onChangeText={setDescription}
@@ -282,9 +363,25 @@ export default function DescribeMealScreen() {
                   maxLength={500}
                   returnKeyType="default"
                 />
-                <VirraText variant="mono" size={10} color={colors.muted} style={styles.hint}>
-                  {description.length}/500 · ESTIMATES ONLY — TAP TO REFINE AFTER
-                </VirraText>
+
+                <View style={styles.inputFooter}>
+                  <Pressable
+                    onPress={() => inputRef.current?.focus()}
+                    style={styles.micBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel="Speak the description"
+                    accessibilityHint="Focuses the input so you can tap the microphone on the keyboard to dictate"
+                    hitSlop={8}
+                  >
+                    <SymbolView name="mic.fill" size={13} tintColor={colors.pulse} />
+                    <VirraText variant="mono" size={10} color={colors.pulse} style={styles.micLabel}>
+                      SPEAK IT
+                    </VirraText>
+                  </Pressable>
+                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.hint}>
+                    {description.length}/500 · ESTIMATES ONLY
+                  </VirraText>
+                </View>
               </VirraCard>
 
               <VirraButton
@@ -319,7 +416,11 @@ export default function DescribeMealScreen() {
               <View style={styles.actionRow}>
                 <VirraButton label="Try again" variant="ghost" onPress={handleRetry} style={{ flex: 1 }} />
                 <VirraButton
-                  label={`Save ${items.length} ${items.length === 1 ? 'item' : 'items'}`}
+                  label={
+                    isReplaceMode
+                      ? `Replace with ${items.length} ${items.length === 1 ? 'item' : 'items'}`
+                      : `Save ${items.length} ${items.length === 1 ? 'item' : 'items'}`
+                  }
                   onPress={handleSaveAll}
                   loading={saving}
                   disabled={saving || items.length === 0}
@@ -351,9 +452,17 @@ const styles = StyleSheet.create({
   inputCard:      { gap: spacing.sm },
   inputLabel:     { letterSpacing: 1.5 },
   bigInput:       { minHeight: 96, color: colors.breath, fontFamily: fonts.serif, fontSize: 16, lineHeight: 22, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, textAlignVertical: 'top' },
-  hint:           { letterSpacing: 1.2 },
-  notes:          { backgroundColor: colors.mist, padding: spacing.md, borderRadius: radius.md, borderLeftWidth: 3, borderLeftColor: colors.dawn, gap: spacing.xs },
-  notesLabel:     { letterSpacing: 1.5 },
-  actionRow:      { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  estimatingHint: { alignItems: 'center', paddingVertical: spacing.lg },
+  inputFooter:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
+  micBtn:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
+  micLabel:       { letterSpacing: 1.5 },
+  hint:           { letterSpacing: 1.2, flexShrink: 1, textAlign: 'right' },
+  notes:               { backgroundColor: colors.mist, padding: spacing.md, borderRadius: radius.md, borderLeftWidth: 3, borderLeftColor: colors.dawn, gap: spacing.xs },
+  notesLabel:          { letterSpacing: 1.5 },
+  actionRow:           { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  estimatingHint:      { alignItems: 'center', paddingVertical: spacing.lg },
+  disclosureCard:      { gap: spacing.md, paddingVertical: spacing.lg },
+  disclosureIcon:      { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mile, alignItems: 'center', justifyContent: 'center' },
+  disclosureLead:      { lineHeight: 20 },
+  disclosureFacts:     { gap: spacing.md, marginTop: spacing.xs, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
+  disclosureFootnote:  { letterSpacing: 1.5, textAlign: 'center', marginTop: spacing.xs },
 });
