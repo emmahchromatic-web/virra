@@ -10,6 +10,7 @@ import { useProfileStore } from '@/store/profile';
 import { useNotificationsStore } from '@/store/notifications';
 import { getEntitlementInfo } from '@/lib/revenuecat';
 import { importNewWorkouts } from '@/lib/healthKitImport';
+import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
 
@@ -46,7 +47,7 @@ export default function AppLayout() {
   const { session, isLoading } = useAuthStore();
   const { setStatus, isActive, status: subStatus, trialEnd } = useSubscriptionStore();
   const { loadFromSupabase, periodStart, cycleLength } = useCycleStore();
-  const { load: loadProfile } = useProfileStore();
+  const { load: loadProfile, trackWeight } = useProfileStore();
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
   useEffect(() => {
@@ -91,6 +92,13 @@ export default function AppLayout() {
         periodStart: periodStart ?? null,
         cycleLength: cycleLength ?? 28,
       });
+      if (trackWeight) {
+        importNewWeightSamples({
+          userId:      session!.user.id,
+          periodStart: periodStart ?? null,
+          cycleLength: cycleLength ?? 28,
+        });
+      }
     }
 
     async function reconcilePresented() {
@@ -147,7 +155,7 @@ export default function AppLayout() {
     });
 
     return () => { sub.remove(); notifSub.remove(); receiveSub.remove(); };
-  }, [session?.user.id, periodStart, cycleLength]);
+  }, [session?.user.id, periodStart, cycleLength, trackWeight]);
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
