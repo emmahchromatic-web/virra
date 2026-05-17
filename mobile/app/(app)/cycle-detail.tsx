@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
+import { useProfileStore } from '@/store/profile';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { resetCycleToToday } from '@/lib/resetCycle';
+import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { CycleMonthCalendar } from '@/components/ui/CycleMonthCalendar';
+import { CycleWeightChart, type WeightReading } from '@/components/ui/CycleWeightChart';
+import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
 const WEIGHT_REASONING: Record<CyclePhase, string> = {
@@ -27,7 +31,27 @@ const ACTION_HEIGHT       = 52;
 export default function CycleDetailScreen() {
   const { session } = useAuthStore();
   const { cycleInfo, cycleProfile, periodStart, cycleLength } = useCycleStore();
+  const trackWeight      = useProfileStore((s) => s.trackWeight);
+  const weightBaselineKg = useProfileStore((s) => s.weightBaselineKg);
   const [resetting, setResetting] = useState(false);
+  const [readings, setReadings]   = useState<WeightReading[]>([]);
+  const [addOpen,  setAddOpen]    = useState(false);
+
+  useEffect(() => {
+    if (!session || !trackWeight) { setReadings([]); return; }
+    let cancelled = false;
+    (async () => {
+      const cutoff = new Date(Date.now() - 90 * 86400000).toLocaleDateString('en-CA');
+      const { data } = await supabase
+        .from('body_weights')
+        .select('recorded_on, weight_kg')
+        .eq('user_id', session.user.id)
+        .gte('recorded_on', cutoff)
+        .order('recorded_on', { ascending: true });
+      if (!cancelled) setReadings((data ?? []) as WeightReading[]);
+    })();
+    return () => { cancelled = true; };
+  }, [session?.user.id, trackWeight, addOpen]);
 
   const meta      = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
   const isNatural = cycleProfile === 'natural' || cycleProfile === 'irregular';
@@ -123,20 +147,24 @@ export default function CycleDetailScreen() {
               <CycleMonthCalendar periodStart={periodStart!} cycleLength={cycleLength} />
             </VirraCard>
 
-            <VirraCard>
-              <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
-                WEIGHT
-              </VirraText>
-              <VirraText variant="body" size={13} color={colors.muted} style={{ marginBottom: spacing.sm }}>
-                How your weight moves through your cycle
-              </VirraText>
-              <VirraText variant="body" size={14} color={colors.breath}>
-                Weight tracking is off. We're saving this surface for Virra's cycle-aware
-                weight insight — coming soon. When it's on, you'll see your weight delta from
-                baseline charted across the current cycle, with the same phase-band colouring
-                as the calendar above.
-              </VirraText>
-            </VirraCard>
+            {trackWeight && periodStart && (
+              <VirraCard>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
+                    WEIGHT · KG FROM BASELINE
+                  </VirraText>
+                  <Pressable onPress={() => setAddOpen(true)} hitSlop={8} accessibilityRole="button">
+                    <VirraText variant="mono" size={10} color={colors.pulse}>+ ADD WEIGHT</VirraText>
+                  </Pressable>
+                </View>
+                <CycleWeightChart
+                  baselineKg={weightBaselineKg}
+                  readings={readings}
+                  periodStart={periodStart}
+                  cycleLength={cycleLength}
+                />
+              </VirraCard>
+            )}
 
             <VirraCard>
               <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
@@ -175,6 +203,13 @@ export default function CycleDetailScreen() {
           </>
         )}
       </ScrollView>
+      {session && (
+        <AddWeightModal
+          visible={addOpen}
+          userId={session.user.id}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
