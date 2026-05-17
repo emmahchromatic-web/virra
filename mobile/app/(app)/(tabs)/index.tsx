@@ -14,6 +14,7 @@ import { useProfileStore } from '@/store/profile';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import { WeekStrip } from '@/components/ui/WeekStrip';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
+import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { supabase } from '@/lib/supabase';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
@@ -69,6 +70,7 @@ export default function DashboardScreen() {
   const { cycleInfo, cycleProfile } = useCycleStore();
   const { session } = useAuthStore();
   const { stepsTarget } = useProfileStore();
+  const trackWeight = useProfileStore((s) => s.trackWeight);
   const meta = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
 
   const appState        = useRef<AppStateStatus>(AppState.currentState);
@@ -77,6 +79,23 @@ export default function DashboardScreen() {
   const [inferredLoad, setInferredLoad] = useState<TrainingLoad>('easy');
   const [insightTexts,   setInsightTexts]   = useState<{ training: string; nutrition: string } | null>(null);
   const [insightLoading, setInsightLoading] = useState(false);
+  const [latestKg,       setLatestKg]       = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!session || !trackWeight) { setLatestKg(null); return; }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('body_weights')
+        .select('weight_kg')
+        .eq('user_id', session.user.id)
+        .order('recorded_on', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) setLatestKg(data?.weight_kg ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [session?.user.id, trackWeight]);
 
   const loadInsight = useCallback(async () => {
     if (!session || !cycleInfo) return;
@@ -196,6 +215,8 @@ export default function DashboardScreen() {
                 />
               </VirraCard>
             </View>
+
+            <WeightGlanceCard latestKg={latestKg} />
 
             {session && (
               <VirraCard style={{ paddingVertical: spacing.xs }}>
