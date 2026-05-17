@@ -42,6 +42,19 @@ function dayOfCycleFor(date: Date, periodStart: Date, cycleLength: number): { da
   return { day, cycleOffset };
 }
 
+// The store's `periodStart` is the latest logged period — it may be several cycles
+// behind today. The chart needs a periodStart anchored to the cycle that contains
+// today so cycleOffset 0 = current, -1 = prior, -2 = two-prior.
+function anchorToCurrentCycle(periodStart: Date, cycleLength: number, today: Date): Date {
+  const ms      = today.getTime() - periodStart.getTime();
+  const elapsed = Math.floor(ms / 86400000);
+  const n       = Math.floor(elapsed / cycleLength);
+  if (n === 0) return periodStart;
+  const d = new Date(periodStart);
+  d.setDate(periodStart.getDate() + n * cycleLength);
+  return d;
+}
+
 function phaseForDay(day: number, cycleLength: number): CyclePhase {
   if (day <= 5) return 'menstrual';
   const ov = cycleLength - 14;
@@ -58,12 +71,13 @@ function bandPath(cycleLength: number): string {
 }
 
 export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLength, today = new Date() }: Props) {
-  const todayInfo   = dayOfCycleFor(today, periodStart, cycleLength);
+  const anchor      = anchorToCurrentCycle(periodStart, cycleLength, today);
+  const todayInfo   = dayOfCycleFor(today, anchor, cycleLength);
   const calibrating = baselineKg === null;
 
   const buckets: Record<number, WeightReading[]> = { 0: [], [-1]: [], [-2]: [] };
   for (const r of readings) {
-    const info = dayOfCycleFor(new Date(r.recorded_on), periodStart, cycleLength);
+    const info = dayOfCycleFor(new Date(r.recorded_on), anchor, cycleLength);
     if (info.cycleOffset <= 0 && info.cycleOffset >= -2) {
       buckets[info.cycleOffset].push(r);
     }
