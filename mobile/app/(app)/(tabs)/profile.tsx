@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, Alert, TextInput, Image, Linking,
+  Pressable, Alert, TextInput, Image, Linking, Switch,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,6 +19,7 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraModal } from '@/components/ui/VirraModal';
 import { BreakModal } from '@/components/ui/BreakModal';
+import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
 import { getPermissionsStatus } from '@/lib/permissionsConfig';
 
@@ -52,7 +53,7 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
-  const { firstName, lastName, avatarUrl, stepsTarget, save: saveProfile } = useProfileStore();
+  const { firstName, lastName, avatarUrl, stepsTarget, save: saveProfile, trackWeight, weightExplainerDismissedAt } = useProfileStore();
 
   const [saving,  setSaving]  = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -71,6 +72,19 @@ export default function ProfileScreen() {
   const [deleting,           setDeleting]           = useState(false);
   const [medicalModalVisible, setMedicalModalVisible] = useState(false);
   const [creditsModalVisible, setCreditsModalVisible] = useState(false);
+  const [showExplainer, setShowExplainer] = useState(false);
+
+  async function handleToggleWeight(next: boolean) {
+    if (!session) return;
+    if (next && !weightExplainerDismissedAt) setShowExplainer(true);
+    await saveProfile(session.user.id, { trackWeight: next });
+  }
+
+  async function handleDismissExplainer() {
+    if (!session) return;
+    setShowExplainer(false);
+    await saveProfile(session.user.id, { weightExplainerDismissedAt: new Date().toISOString() });
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -276,6 +290,24 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>BODY METRICS</VirraText>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm }}>
+            <View style={{ flex: 1, paddingRight: spacing.md }}>
+              <VirraText variant="body" size={15} color={colors.breath}>Track weight</VirraText>
+              <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: 2 }}>
+                {trackWeight ? 'Synced from Apple Health' : 'Off — no weight data syncs or displays'}
+              </VirraText>
+            </View>
+            <Switch
+              value={trackWeight}
+              onValueChange={handleToggleWeight}
+              trackColor={{ true: colors.pulse, false: colors.border }}
+              thumbColor={colors.breath}
+            />
+          </View>
+        </VirraCard>
+
+        <VirraCard style={styles.card}>
           <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>CYCLE</VirraText>
           <Row
             label="CYCLE PROFILE"
@@ -388,6 +420,8 @@ export default function ProfileScreen() {
           />
         )}
       </ScrollView>
+
+      <WeightExplainerModal visible={showExplainer} onDismiss={handleDismissExplainer} />
 
       {/* Cycle length modal */}
       <VirraModal
