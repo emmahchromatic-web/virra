@@ -154,6 +154,12 @@ export default function DashboardScreen() {
             </View>
 
             <View style={styles.heroRow}>
+            <Pressable
+              style={{ flex: 1 }}
+              onPress={() => router.push('/(app)/cycle-detail' as any)}
+              accessibilityRole="button"
+              accessibilityLabel="Open cycle detail"
+            >
             <VirraCard style={[styles.heroCard, { flex: 1 }]}>
               <VirraText variant="serif" size={22} color={colors.breath} style={styles.tagline}>
                 {meta.tagline}
@@ -180,6 +186,7 @@ export default function DashboardScreen() {
                 </View>
               </View>
             </VirraCard>
+            </Pressable>
               <VirraCard style={styles.ringsCard}>
                 <ActivityRings
                   steps={steps}
