@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
+import { useNotificationsStore } from '@/store/notifications';
 import { getEntitlementInfo } from '@/lib/revenuecat';
 import { importNewWorkouts } from '@/lib/healthKitImport';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
@@ -92,6 +93,26 @@ export default function AppLayout() {
       });
     }
 
+    async function reconcilePresented() {
+      try {
+        const presented = await Notifications.getPresentedNotificationsAsync();
+        const add = useNotificationsStore.getState().add;
+        for (const n of presented) {
+          const c = n.request.content;
+          add({
+            id:    n.request.identifier,
+            title: typeof c.title === 'string' ? c.title : '',
+            body:  typeof c.body  === 'string' ? c.body  : '',
+            data:  (c.data as Record<string, unknown> | null) ?? null,
+          });
+        }
+      } catch {
+        // getPresentedNotificationsAsync is iOS-only and best-effort; ignore failures.
+      }
+    }
+
+    useNotificationsStore.getState().hydrate().then(reconcilePresented);
+
     runImport();
     scheduleDailyReminders(session.user.id);
     scheduleWeeklyPlanReminder();
@@ -103,8 +124,20 @@ export default function AppLayout() {
         scheduleDailyReminders(session.user.id);
         scheduleWeeklyPlanReminder();
         maybeShowWeekAhead();
+        reconcilePresented();
       }
       appState.current = next;
+    });
+
+    // Capture every delivered notification into the inbox
+    const receiveSub = Notifications.addNotificationReceivedListener((event) => {
+      const c = event.request.content;
+      useNotificationsStore.getState().add({
+        id:    event.request.identifier,
+        title: typeof c.title === 'string' ? c.title : '',
+        body:  typeof c.body  === 'string' ? c.body  : '',
+        data:  (c.data as Record<string, unknown> | null) ?? null,
+      });
     });
 
     // Navigate to week-ahead when tapping the weekly planning notification
@@ -113,7 +146,7 @@ export default function AppLayout() {
       if (screen === 'week-ahead') router.push('/(app)/week-ahead' as any);
     });
 
-    return () => { sub.remove(); notifSub.remove(); };
+    return () => { sub.remove(); notifSub.remove(); receiveSub.remove(); };
   }, [session?.user.id, periodStart, cycleLength]);
 
   return (
@@ -132,6 +165,7 @@ export default function AppLayout() {
       <Stack.Screen name="breaks"          options={{ presentation: 'card'  }} />
       <Stack.Screen name="week-ahead"      options={{ presentation: 'card'  }} />
       <Stack.Screen name="settings"        options={{ presentation: 'card'  }} />
+      <Stack.Screen name="notifications"   options={{ presentation: 'card'  }} />
     </Stack>
   );
 }
