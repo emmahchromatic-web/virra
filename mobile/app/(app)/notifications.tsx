@@ -33,15 +33,14 @@ export default function NotificationsScreen() {
   const markAllRead = useNotificationsStore((s) => s.markAllRead);
   const clear       = useNotificationsStore((s) => s.clear);
 
-  // Freeze a snapshot of which items were unread on entry so the user can still
-  // see the dots while viewing the screen. The store is updated immediately so
-  // the bell flips to outline.
-  const unreadOnMount = useRef<Set<string>>(new Set());
+  // Freeze a snapshot of which items were unread at mount so the user can still
+  // see the dots while viewing the screen. Initialised inline (not in an effect)
+  // so the snapshot is correct on the very first render — no one-frame flash.
+  const unreadOnMount = useRef<Set<string>>(
+    new Set(items.filter((it) => it.readAt === null).map((it) => it.id)),
+  );
   useEffect(() => {
-    unreadOnMount.current = new Set(items.filter((it) => it.readAt === null).map((it) => it.id));
     markAllRead();
-    // We intentionally read `items` from state once on mount; do NOT add it to
-    // deps or the snapshot would refresh and the dots would disappear.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
