@@ -123,6 +123,34 @@ Targets are the product of **cycle phase × training load** — not cycle phase 
 
 **Modals (global):** Run Tracker · Manual Activity (fallback) · Food Entry · Daily Check-in · Fitness Update (engine-triggered)
 
+### Sub-menu screen pattern (card-presentation screens)
+
+Every card-presentation screen reached from Dashboard, Training, Profile, etc. uses the **same inline header** — never `AppHeader`. `AppHeader` is reserved for the top-level tab screens (Dashboard, Training, Nutrition, Library) where it shows the VIRRA logo and the profile/bell buttons.
+
+Sub-menu header is a single flex row, three columns:
+
+```tsx
+<View style={s.header}>
+  <Pressable style={s.headerBtn} onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+    <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
+  </Pressable>
+  <VirraText variant="display" size={24} color={colors.pulse}>Title</VirraText>
+  <View style={s.headerBtn} />   {/* spacer, or a right-side action icon */}
+</View>
+```
+
+```ts
+header:    { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+headerBtn: { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
+```
+
+Rules:
+- Title is **Title Case**, never SCREAMING — the `display` variant uppercases via CSS. Passing "NOTIFICATIONS" double-uppercases conceptually and reads wrong in code review.
+- Left slot is always `chevron.left`, muted tint — back/close action. Even modal-feeling utility screens (subscription, notifications, breaks) use chevron, not `xmark`, to stay consistent. `xmark` is reserved for true full-screen modals (run, food-search, manual-activity).
+- Right slot is a spacer (same `headerBtn` style with no children) when there's no top-level action, or a single `SymbolView` action icon (`plus`, `ellipsis`, etc.) when there is.
+- Use `SafeAreaView edges={['top']}` from `react-native-safe-area-context` as the screen root.
+- Examples to copy from: `app/(app)/subscription.tsx`, `app/(app)/breaks.tsx`, `app/(app)/insights.tsx`, `app/(app)/cycle-settings.tsx`, `app/(app)/notifications.tsx`.
+
 ### Onboarding (7 steps, new users only)
 1. Welcome — value prop
 2. Fitness Assessment — self-reported baseline, dynamically revised
