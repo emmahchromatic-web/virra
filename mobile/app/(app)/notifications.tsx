@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AppHeader } from '@/components/layout/AppHeader';
+import { SymbolView } from 'expo-symbols';
 import { VirraText } from '@/components/ui/VirraText';
 import { colors, fonts, spacing } from '@/constants/theme';
 import { useNotificationsStore, NotificationItem } from '@/store/notifications';
@@ -63,7 +64,13 @@ export default function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <AppHeader title="NOTIFICATIONS" />
+      <View style={styles.header}>
+        <Pressable style={styles.headerBtn} onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+          <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
+        </Pressable>
+        <VirraText variant="display" size={24} color={colors.pulse}>Notifications</VirraText>
+        <View style={styles.headerBtn} />
+      </View>
       {sorted.length > 0 && (
         <View style={styles.toolbar}>
           <Pressable onPress={confirmClear} accessibilityRole="button" accessibilityLabel="Clear all notifications">
@@ -91,6 +98,8 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   screen:    { flex: 1, backgroundColor: colors.mile },
+  header:    { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  headerBtn: { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   toolbar:   { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   list:      { paddingBottom: spacing.xl },
   empty:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
