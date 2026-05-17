@@ -118,7 +118,7 @@ export default function CycleDetailScreen() {
 
             <VirraCard>
               <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
-                THIS MONTH
+                CYCLE CALENDAR
               </VirraText>
               <CycleMonthCalendar periodStart={periodStart!} cycleLength={cycleLength} />
             </VirraCard>
