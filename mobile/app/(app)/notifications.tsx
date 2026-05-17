@@ -1,0 +1,104 @@
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { AppHeader } from '@/components/layout/AppHeader';
+import { VirraText } from '@/components/ui/VirraText';
+import { colors, fonts, spacing } from '@/constants/theme';
+import { useNotificationsStore, NotificationItem } from '@/store/notifications';
+import { formatRelativeTime } from '@/lib/relativeTime';
+
+function Row({ item, showUnreadDot }: { item: NotificationItem; showUnreadDot: boolean }) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.dotCol}>
+        {showUnreadDot && <View style={styles.dot} />}
+      </View>
+      <View style={styles.body}>
+        <VirraText variant="bodyMedium" color={colors.breath}>{item.title || ' '}</VirraText>
+        {item.body.length > 0 && (
+          <VirraText variant="body" color={colors.muted} numberOfLines={3} style={styles.bodyText}>
+            {item.body}
+          </VirraText>
+        )}
+      </View>
+      <View style={styles.tsCol}>
+        <VirraText variant="mono" color={colors.muted}>{formatRelativeTime(item.deliveredAt)}</VirraText>
+      </View>
+    </View>
+  );
+}
+
+export default function NotificationsScreen() {
+  const items       = useNotificationsStore((s) => s.items);
+  const markAllRead = useNotificationsStore((s) => s.markAllRead);
+  const clear       = useNotificationsStore((s) => s.clear);
+
+  // Freeze a snapshot of which items were unread on entry so the user can still
+  // see the dots while viewing the screen. The store is updated immediately so
+  // the bell flips to outline.
+  const unreadOnMount = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    unreadOnMount.current = new Set(items.filter((it) => it.readAt === null).map((it) => it.id));
+    markAllRead();
+    // We intentionally read `items` from state once on mount; do NOT add it to
+    // deps or the snapshot would refresh and the dots would disappear.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Re-sort defensively in case persistence rehydrated out of order.
+  const sorted = useMemo(
+    () => [...items].sort((a, b) => b.deliveredAt.localeCompare(a.deliveredAt)),
+    [items],
+  );
+
+  const confirmClear = () => {
+    Alert.alert(
+      'Clear all notifications?',
+      'This removes the inbox history on this device. Notifications already delivered by the OS are unaffected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear',  style: 'destructive', onPress: () => { clear(); } },
+      ],
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.screen} edges={['top']}>
+      <AppHeader title="NOTIFICATIONS" />
+      {sorted.length > 0 && (
+        <View style={styles.toolbar}>
+          <Pressable onPress={confirmClear} accessibilityRole="button" accessibilityLabel="Clear all notifications">
+            <VirraText variant="mono" color={colors.muted}>CLEAR ALL</VirraText>
+          </Pressable>
+        </View>
+      )}
+      {sorted.length === 0 ? (
+        <View style={styles.empty}>
+          <VirraText variant="serif" color={colors.muted}>No notifications yet.</VirraText>
+        </View>
+      ) : (
+        <FlatList
+          data={sorted}
+          keyExtractor={(it) => it.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <Row item={item} showUnreadDot={unreadOnMount.current.has(item.id)} />
+          )}
+        />
+      )}
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen:    { flex: 1, backgroundColor: colors.mile },
+  toolbar:   { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
+  list:      { paddingBottom: spacing.xl },
+  empty:     { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  row:       { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.mist },
+  dotCol:    { width: 16, alignItems: 'flex-start', paddingTop: 6 },
+  dot:       { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.pulse },
+  body:      { flex: 1, paddingRight: spacing.md },
+  bodyText:  { marginTop: 2, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 },
+  tsCol:     { paddingTop: 4, minWidth: 64, alignItems: 'flex-end' },
+});
