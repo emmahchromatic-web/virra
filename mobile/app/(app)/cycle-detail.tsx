@@ -11,7 +11,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
-import { CycleCalendar } from '@/components/ui/CycleCalendar';
+import { CycleMonthCalendar } from '@/components/ui/CycleMonthCalendar';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
 const WEIGHT_REASONING: Record<CyclePhase, string> = {
@@ -20,6 +20,9 @@ const WEIGHT_REASONING: Record<CyclePhase, string> = {
   ovulatory:  'A small lift around ovulation is normal. Hormones drive a brief water rise.',
   luteal:     'Expect a 1–2 kg lift before your period. This is water retention, not fat gain.',
 };
+
+const COACHING_CARD_WIDTH = 260;
+const ACTION_HEIGHT       = 52;
 
 export default function CycleDetailScreen() {
   const { session } = useAuthStore();
@@ -84,9 +87,9 @@ export default function CycleDetailScreen() {
               <VirraButton
                 label="UPDATE CYCLE"
                 onPress={() => router.push('/(app)/cycle-settings')}
-                style={{ flex: 2 }}
+                style={[styles.actionBtn, { flex: 2 }]}
               />
-              <View style={{ flex: 1 }}>
+              <View style={[styles.actionBtn, { flex: 1 }]}>
                 <PeriodButton onPress={() => {}} disabled />
               </View>
             </View>
@@ -115,9 +118,9 @@ export default function CycleDetailScreen() {
 
             <VirraCard>
               <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
-                THIS CYCLE
+                THIS MONTH
               </VirraText>
-              <CycleCalendar periodStart={periodStart!} cycleLength={cycleLength} />
+              <CycleMonthCalendar periodStart={periodStart!} cycleLength={cycleLength} />
             </VirraCard>
 
             <VirraCard>
@@ -144,23 +147,31 @@ export default function CycleDetailScreen() {
               </VirraText>
             </VirraCard>
 
+            <View>
+              <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
+                THIS PHASE
+              </VirraText>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.coachingRow}
+              >
+                <CoachingCard title="Training"  body={meta!.training}  accent={meta!.color} />
+                <CoachingCard title="Nutrition" body={meta!.nutrition} accent={meta!.color} />
+                <CoachingCard title="Lifestyle" body={meta!.lifestyle} accent={meta!.color} />
+              </ScrollView>
+            </View>
+
             <View style={styles.actionRow}>
               <VirraButton
                 label="UPDATE CYCLE"
                 onPress={() => router.push('/(app)/cycle-settings')}
-                style={{ flex: 2 }}
+                style={[styles.actionBtn, { flex: 2 }]}
               />
-              <View style={{ flex: 1 }}>
+              <View style={[styles.actionBtn, { flex: 1 }]}>
                 <PeriodButton onPress={handleReset} loading={resetting} />
               </View>
             </View>
-
-            <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
-              THIS PHASE
-            </VirraText>
-            <CoachingCard title="Training"  body={meta!.training}  accent={meta!.color} />
-            <CoachingCard title="Nutrition" body={meta!.nutrition} accent={meta!.color} />
-            <CoachingCard title="Lifestyle" body={meta!.lifestyle} accent={meta!.color} />
           </>
         )}
       </ScrollView>
@@ -179,7 +190,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
 
 function CoachingCard({ title, body, accent }: { title: string; body: string; accent: string }) {
   return (
-    <VirraCard style={{ marginBottom: spacing.sm }}>
+    <VirraCard style={styles.coachingCard}>
       <VirraText variant="mono" size={10} color={accent} style={styles.cardLabel}>
         {title.toUpperCase()}
       </VirraText>
@@ -229,12 +240,17 @@ const styles = StyleSheet.create({
   statDivider:  { width: 1, height: 28, backgroundColor: colors.border },
   statLabel:    { letterSpacing: 1.5, marginTop: 2 },
   cardLabel:    { letterSpacing: 1.5, marginBottom: spacing.xs },
-  sectionLabel: { letterSpacing: 1.5, marginTop: spacing.md, marginBottom: spacing.xs },
-  actionRow:    { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  sectionLabel: { letterSpacing: 1.5, marginBottom: spacing.xs, paddingHorizontal: spacing.xs },
+
+  coachingRow:  { gap: spacing.sm, paddingRight: spacing.lg },
+  coachingCard: { width: COACHING_CARD_WIDTH },
+
+  actionRow:    { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, height: ACTION_HEIGHT },
+  actionBtn:    { height: ACTION_HEIGHT },
 });
 
 const periodStyles = StyleSheet.create({
-  base:     { backgroundColor: colors.heat, paddingVertical: spacing.md, paddingHorizontal: spacing.sm, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', height: '100%' },
+  base:     { flex: 1, backgroundColor: colors.heat, paddingHorizontal: spacing.sm, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   disabled: { opacity: 0.45 },
   pressed:  { opacity: 0.82 },
 });
