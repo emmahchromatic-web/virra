@@ -20,3 +20,11 @@ export function classifyReading(delta: number, phase: CyclePhase): BandPosition 
   if (delta > upper) return 'above';
   return 'in_band';
 }
+
+export const STEADY_BAND: WeightBand = { lower: -0.5, upper: 0.5 };
+
+export function classifySteady(delta: number): BandPosition {
+  if (delta < STEADY_BAND.lower) return 'below';
+  if (delta > STEADY_BAND.upper) return 'above';
+  return 'in_band';
+}
