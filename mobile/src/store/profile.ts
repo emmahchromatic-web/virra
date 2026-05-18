@@ -2,13 +2,15 @@ import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
 export interface ProfilePatch {
-  firstName?:                   string;
-  lastName?:                    string;
-  avatarUrl?:                   string | null;
-  stepsTarget?:                 number;
-  trackWeight?:                 boolean;
-  weightBaselineKg?:            number | null;
-  weightExplainerDismissedAt?:  string | null;
+  firstName?:                       string;
+  lastName?:                        string;
+  avatarUrl?:                       string | null;
+  stepsTarget?:                     number;
+  trackWeight?:                     boolean;
+  weightBaselineKg?:                number | null;
+  weightExplainerDismissedAt?:      string | null;
+  weightSteadyBaselineKg?:          number | null;
+  weightSteadyBaselineComputedAt?:  string | null;
 }
 
 interface ProfileState {
@@ -20,6 +22,8 @@ interface ProfileState {
   trackWeight:                     boolean;
   weightBaselineKg:                number | null;
   weightExplainerDismissedAt:      string | null;
+  weightSteadyBaselineKg:          number | null;
+  weightSteadyBaselineComputedAt:  string | null;
   isLoaded:                        boolean;
   load:                            (userId: string) => Promise<void>;
   save:                            (userId: string, patch: ProfilePatch) => Promise<void>;
@@ -33,28 +37,32 @@ export const useProfileStore = create<ProfileState>((set) => ({
   avatarUrl:                     null,
   stepsTarget:                   8000,
   haikuDisclosureAcknowledgedAt: null,
-  trackWeight:                   false,
-  weightBaselineKg:              null,
-  weightExplainerDismissedAt:    null,
-  isLoaded:                      false,
+  trackWeight:                    false,
+  weightBaselineKg:               null,
+  weightExplainerDismissedAt:     null,
+  weightSteadyBaselineKg:         null,
+  weightSteadyBaselineComputedAt: null,
+  isLoaded:                       false,
 
   load: async (userId) => {
     const { data } = await supabase
       .from('user_profiles')
-      .select('first_name, last_name, avatar_url, steps_target, haiku_disclosure_acknowledged_at, track_weight, weight_baseline_kg, weight_explainer_dismissed_at')
+      .select('first_name, last_name, avatar_url, steps_target, haiku_disclosure_acknowledged_at, track_weight, weight_baseline_kg, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
       .eq('id', userId)
       .maybeSingle();
     if (data) {
       set({
-        firstName:                     data.first_name   ?? '',
-        lastName:                      data.last_name    ?? '',
-        avatarUrl:                     data.avatar_url   ?? null,
-        stepsTarget:                   data.steps_target ?? 8000,
-        haikuDisclosureAcknowledgedAt: data.haiku_disclosure_acknowledged_at ?? null,
-        trackWeight:                   data.track_weight ?? false,
-        weightBaselineKg:              data.weight_baseline_kg ?? null,
-        weightExplainerDismissedAt:    data.weight_explainer_dismissed_at ?? null,
-        isLoaded:                      true,
+        firstName:                      data.first_name   ?? '',
+        lastName:                       data.last_name    ?? '',
+        avatarUrl:                      data.avatar_url   ?? null,
+        stepsTarget:                    data.steps_target ?? 8000,
+        haikuDisclosureAcknowledgedAt:  data.haiku_disclosure_acknowledged_at ?? null,
+        trackWeight:                    data.track_weight ?? false,
+        weightBaselineKg:               data.weight_baseline_kg ?? null,
+        weightExplainerDismissedAt:     data.weight_explainer_dismissed_at ?? null,
+        weightSteadyBaselineKg:         data.weight_steady_baseline_kg ?? null,
+        weightSteadyBaselineComputedAt: data.weight_steady_baseline_computed_at ?? null,
+        isLoaded:                       true,
       });
     } else {
       set({ isLoaded: true });
@@ -68,8 +76,10 @@ export const useProfileStore = create<ProfileState>((set) => ({
     if (patch.avatarUrl                  !== undefined) update.avatar_url                    = patch.avatarUrl;
     if (patch.stepsTarget                !== undefined) update.steps_target                  = patch.stepsTarget;
     if (patch.trackWeight                !== undefined) update.track_weight                  = patch.trackWeight;
-    if (patch.weightBaselineKg           !== undefined) update.weight_baseline_kg            = patch.weightBaselineKg;
-    if (patch.weightExplainerDismissedAt !== undefined) update.weight_explainer_dismissed_at = patch.weightExplainerDismissedAt;
+    if (patch.weightBaselineKg               !== undefined) update.weight_baseline_kg                = patch.weightBaselineKg;
+    if (patch.weightExplainerDismissedAt     !== undefined) update.weight_explainer_dismissed_at     = patch.weightExplainerDismissedAt;
+    if (patch.weightSteadyBaselineKg         !== undefined) update.weight_steady_baseline_kg         = patch.weightSteadyBaselineKg;
+    if (patch.weightSteadyBaselineComputedAt !== undefined) update.weight_steady_baseline_computed_at = patch.weightSteadyBaselineComputedAt;
 
     const { error } = await supabase
       .from('user_profiles')
@@ -79,24 +89,28 @@ export const useProfileStore = create<ProfileState>((set) => ({
     if (error) throw new Error(error.message);
 
     set((s) => ({
-      firstName:                  patch.firstName                  ?? s.firstName,
-      lastName:                   patch.lastName                   ?? s.lastName,
-      avatarUrl:                  patch.avatarUrl                  !== undefined ? patch.avatarUrl                  : s.avatarUrl,
-      stepsTarget:                patch.stepsTarget                ?? s.stepsTarget,
-      trackWeight:                patch.trackWeight                ?? s.trackWeight,
-      weightBaselineKg:           patch.weightBaselineKg           !== undefined ? patch.weightBaselineKg           : s.weightBaselineKg,
-      weightExplainerDismissedAt: patch.weightExplainerDismissedAt !== undefined ? patch.weightExplainerDismissedAt : s.weightExplainerDismissedAt,
+      firstName:                      patch.firstName                      ?? s.firstName,
+      lastName:                       patch.lastName                       ?? s.lastName,
+      avatarUrl:                      patch.avatarUrl                      !== undefined ? patch.avatarUrl                      : s.avatarUrl,
+      stepsTarget:                    patch.stepsTarget                    ?? s.stepsTarget,
+      trackWeight:                    patch.trackWeight                    ?? s.trackWeight,
+      weightBaselineKg:               patch.weightBaselineKg               !== undefined ? patch.weightBaselineKg               : s.weightBaselineKg,
+      weightExplainerDismissedAt:     patch.weightExplainerDismissedAt     !== undefined ? patch.weightExplainerDismissedAt     : s.weightExplainerDismissedAt,
+      weightSteadyBaselineKg:         patch.weightSteadyBaselineKg         !== undefined ? patch.weightSteadyBaselineKg         : s.weightSteadyBaselineKg,
+      weightSteadyBaselineComputedAt: patch.weightSteadyBaselineComputedAt !== undefined ? patch.weightSteadyBaselineComputedAt : s.weightSteadyBaselineComputedAt,
     }));
   },
 
   setLocal: (patch) => set((s) => ({
-    firstName:                  patch.firstName                  ?? s.firstName,
-    lastName:                   patch.lastName                   ?? s.lastName,
-    avatarUrl:                  patch.avatarUrl                  !== undefined ? patch.avatarUrl                  : s.avatarUrl,
-    stepsTarget:                patch.stepsTarget                ?? s.stepsTarget,
-    trackWeight:                patch.trackWeight                ?? s.trackWeight,
-    weightBaselineKg:           patch.weightBaselineKg           !== undefined ? patch.weightBaselineKg           : s.weightBaselineKg,
-    weightExplainerDismissedAt: patch.weightExplainerDismissedAt !== undefined ? patch.weightExplainerDismissedAt : s.weightExplainerDismissedAt,
+    firstName:                      patch.firstName                      ?? s.firstName,
+    lastName:                       patch.lastName                       ?? s.lastName,
+    avatarUrl:                      patch.avatarUrl                      !== undefined ? patch.avatarUrl                      : s.avatarUrl,
+    stepsTarget:                    patch.stepsTarget                    ?? s.stepsTarget,
+    trackWeight:                    patch.trackWeight                    ?? s.trackWeight,
+    weightBaselineKg:               patch.weightBaselineKg               !== undefined ? patch.weightBaselineKg               : s.weightBaselineKg,
+    weightExplainerDismissedAt:     patch.weightExplainerDismissedAt     !== undefined ? patch.weightExplainerDismissedAt     : s.weightExplainerDismissedAt,
+    weightSteadyBaselineKg:         patch.weightSteadyBaselineKg         !== undefined ? patch.weightSteadyBaselineKg         : s.weightSteadyBaselineKg,
+    weightSteadyBaselineComputedAt: patch.weightSteadyBaselineComputedAt !== undefined ? patch.weightSteadyBaselineComputedAt : s.weightSteadyBaselineComputedAt,
   })),
 
   acknowledgeHaikuDisclosure: async (userId) => {
