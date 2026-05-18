@@ -23,7 +23,10 @@
     "astro": "^6.2.1",
     "astro-portabletext": "^0.13.0",
     "googleapis": "^171.4.0",
-    "resend": "^6.12.3"
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "resend": "^6.12.3",
+    "styled-components": "^6.4.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

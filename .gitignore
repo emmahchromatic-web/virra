@@ -22,4 +22,4 @@ Simulator\ Screenshot\ *.png
 skills-lock.json
 *.xlsx
 mobile/supabase/.temp/
-
+.sanity/
