@@ -4,13 +4,14 @@ import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
 
 jest.mock('@/store/profile', () => ({
   useProfileStore: (selector: any) => selector({
-    trackWeight:      false,
-    weightBaselineKg: null,
+    trackWeight:            false,
+    weightBaselineKg:       null,
+    weightSteadyBaselineKg: null,
   }),
 }));
 
 jest.mock('@/store/cycle', () => ({
-  useCycleStore: (selector: any) => selector({ cycleInfo: null }),
+  useCycleStore: (selector: any) => selector({ cycleProfile: 'natural', cycleInfo: null }),
 }));
 
 describe('WeightGlanceCard (off)', () => {

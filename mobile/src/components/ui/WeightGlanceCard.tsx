@@ -6,7 +6,11 @@ import { VirraText } from './VirraText';
 import { VirraCard } from './VirraCard';
 import { useProfileStore } from '@/store/profile';
 import { useCycleStore } from '@/store/cycle';
-import { EXPECTED_BAND, classifyReading, type BandPosition } from '@/lib/weightBand';
+import {
+  EXPECTED_BAND, STEADY_BAND,
+  classifyReading, classifySteady,
+  type BandPosition,
+} from '@/lib/weightBand';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
 interface Props {
@@ -34,11 +38,17 @@ const BELOW_BAND: Record<CyclePhase, string> = {
   luteal:     'Below the typical luteal range. If training is high, you may need more carbs.',
 };
 
+const STEADY_COPY: Record<BandPosition, string> = {
+  in_band: 'Within your usual daily range.',
+  above:   'A touch above your steady line. One day isn\'t a trend — water, salt, or food timing can do this.',
+  below:   'A touch below your steady line. If training has been heavy, check fuelling.',
+};
+
 const PHASE_LABEL: Record<CyclePhase, string> = {
   menstrual: 'MENSTRUAL', follicular: 'FOLLICULAR', ovulatory: 'OVULATORY', luteal: 'LUTEAL',
 };
 
-function copyFor(position: BandPosition, phase: CyclePhase): string {
+function cycleCopyFor(position: BandPosition, phase: CyclePhase): string {
   if (position === 'above') return ABOVE_BAND[phase];
   if (position === 'below') return BELOW_BAND[phase];
   return IN_BAND[phase];
@@ -53,10 +63,22 @@ function formatDelta(d: number): string {
   return `${sign}${Math.abs(d).toFixed(1)} kg`;
 }
 
-function MiniBand({ phase, delta }: { phase: CyclePhase; delta: number }) {
+function CycleMiniBand({ phase, delta }: { phase: CyclePhase; delta: number }) {
   const min = -1, max = 3;
   const pct = (v: number) => Math.max(0, Math.min(1, (v - min) / (max - min)));
   const { lower, upper } = EXPECTED_BAND[phase];
+  return (
+    <View style={mini.track}>
+      <View style={[mini.band, { left: `${pct(lower) * 100}%`, right: `${(1 - pct(upper)) * 100}%` }]} />
+      <View style={[mini.marker, { left: `${pct(delta) * 100}%` }]} />
+    </View>
+  );
+}
+
+function SteadyMiniBand({ delta }: { delta: number }) {
+  const min = -1.5, max = 1.5;
+  const pct = (v: number) => Math.max(0, Math.min(1, (v - min) / (max - min)));
+  const { lower, upper } = STEADY_BAND;
   return (
     <View style={mini.track}>
       <View style={[mini.band, { left: `${pct(lower) * 100}%`, right: `${(1 - pct(upper)) * 100}%` }]} />
@@ -72,22 +94,82 @@ const mini = StyleSheet.create({
 });
 
 export function WeightGlanceCard({ latestKg }: Props) {
-  const trackWeight = useProfileStore((s) => s.trackWeight);
-  const baseline    = useProfileStore((s) => s.weightBaselineKg);
-  const cycleInfo   = useCycleStore((s) => s.cycleInfo);
+  const trackWeight    = useProfileStore((s) => s.trackWeight);
+  const cycleBaseline  = useProfileStore((s) => s.weightBaselineKg);
+  const steadyBaseline = useProfileStore((s) => s.weightSteadyBaselineKg);
+  const cycleProfile   = useCycleStore((s) => s.cycleProfile);
+  const cycleInfo      = useCycleStore((s) => s.cycleInfo);
 
   if (!trackWeight) return null;
   if (latestKg === null) return null;
 
-  const phase = cycleInfo?.phase ?? 'follicular';
+  const isCycleMode = cycleProfile === 'natural' || cycleProfile === 'irregular';
 
-  if (baseline === null) {
+  if (isCycleMode) {
+    const phase    = cycleInfo?.phase ?? 'follicular';
+    const route    = '/(app)/cycle-detail';
+    const baseline = cycleBaseline;
+    if (baseline === null) {
+      return (
+        <Pressable onPress={() => router.push(route as any)}>
+          <VirraCard>
+            <View style={styles.row}>
+              <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
+                WEIGHT · {PHASE_LABEL[phase]}
+              </VirraText>
+              <View style={[styles.pill, { borderColor: colors.muted }]}>
+                <VirraText variant="mono" size={10} color={colors.muted}>CALIBRATING</VirraText>
+              </View>
+            </View>
+            <VirraText variant="display" size={28} color={colors.breath}>{latestKg.toFixed(1)} kg</VirraText>
+            <VirraText variant="body" size={13} color={colors.muted}>
+              We need a few more cycles before the band becomes reliable.
+            </VirraText>
+          </VirraCard>
+        </Pressable>
+      );
+    }
+    const delta       = Math.round((latestKg - baseline) * 10) / 10;
+    const position    = classifyReading(delta, phase);
+    const statusLabel = position === 'in_band' ? 'IN BAND' : position === 'above' ? 'ABOVE BAND' : 'BELOW BAND';
     return (
-      <Pressable onPress={() => router.push('/(app)/cycle-detail' as any)}>
+      <Pressable onPress={() => router.push(route as any)}>
         <VirraCard>
           <View style={styles.row}>
             <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
               WEIGHT · {PHASE_LABEL[phase]}
+            </VirraText>
+            <View style={[styles.pill, { borderColor: pillColor(position) }]}>
+              <VirraText variant="mono" size={10} color={pillColor(position)}>{statusLabel}</VirraText>
+            </View>
+          </View>
+          <VirraText variant="display" size={32} color={colors.pulse}>{formatDelta(delta)}</VirraText>
+          <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+            FROM YOUR FOLLICULAR BASELINE
+          </VirraText>
+          <View style={styles.bandWrap}>
+            <CycleMiniBand phase={phase} delta={delta} />
+            <View style={styles.bandAxis}>
+              <VirraText variant="mono" size={9} color={colors.muted}>-1 kg</VirraText>
+              <VirraText variant="mono" size={9} color={colors.muted}>+3 kg</VirraText>
+            </View>
+          </View>
+          <VirraText variant="body" size={14} color={colors.breath}>{cycleCopyFor(position, phase)}</VirraText>
+        </VirraCard>
+      </Pressable>
+    );
+  }
+
+  // Steady mode (hormonal / perimenopause / menopause)
+  const route    = '/(app)/weight';
+  const baseline = steadyBaseline;
+  if (baseline === null) {
+    return (
+      <Pressable onPress={() => router.push(route as any)}>
+        <VirraCard>
+          <View style={styles.row}>
+            <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
+              WEIGHT · TODAY
             </VirraText>
             <View style={[styles.pill, { borderColor: colors.muted }]}>
               <VirraText variant="mono" size={10} color={colors.muted}>CALIBRATING</VirraText>
@@ -95,23 +177,21 @@ export function WeightGlanceCard({ latestKg }: Props) {
           </View>
           <VirraText variant="display" size={28} color={colors.breath}>{latestKg.toFixed(1)} kg</VirraText>
           <VirraText variant="body" size={13} color={colors.muted}>
-            We need a few more cycles before the band becomes reliable.
+            We need ~30 days of readings before the steady line becomes reliable.
           </VirraText>
         </VirraCard>
       </Pressable>
     );
   }
-
-  const delta    = Math.round((latestKg - baseline) * 10) / 10;
-  const position = classifyReading(delta, phase);
-  const statusLabel = position === 'in_band' ? 'IN BAND' : position === 'above' ? 'ABOVE BAND' : 'BELOW BAND';
-
+  const delta       = Math.round((latestKg - baseline) * 10) / 10;
+  const position    = classifySteady(delta);
+  const statusLabel = position === 'in_band' ? 'STEADY' : position === 'above' ? 'ABOVE LINE' : 'BELOW LINE';
   return (
-    <Pressable onPress={() => router.push('/(app)/cycle-detail' as any)}>
+    <Pressable onPress={() => router.push(route as any)}>
       <VirraCard>
         <View style={styles.row}>
           <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
-            WEIGHT · {PHASE_LABEL[phase]}
+            WEIGHT · TODAY
           </VirraText>
           <View style={[styles.pill, { borderColor: pillColor(position) }]}>
             <VirraText variant="mono" size={10} color={pillColor(position)}>{statusLabel}</VirraText>
@@ -119,16 +199,16 @@ export function WeightGlanceCard({ latestKg }: Props) {
         </View>
         <VirraText variant="display" size={32} color={colors.pulse}>{formatDelta(delta)}</VirraText>
         <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-          FROM YOUR FOLLICULAR BASELINE
+          FROM YOUR STEADY BASELINE
         </VirraText>
         <View style={styles.bandWrap}>
-          <MiniBand phase={phase} delta={delta} />
+          <SteadyMiniBand delta={delta} />
           <View style={styles.bandAxis}>
-            <VirraText variant="mono" size={9} color={colors.muted}>-1 kg</VirraText>
-            <VirraText variant="mono" size={9} color={colors.muted}>+3 kg</VirraText>
+            <VirraText variant="mono" size={9} color={colors.muted}>-1.5 kg</VirraText>
+            <VirraText variant="mono" size={9} color={colors.muted}>+1.5 kg</VirraText>
           </View>
         </View>
-        <VirraText variant="body" size={14} color={colors.breath}>{copyFor(position, phase)}</VirraText>
+        <VirraText variant="body" size={14} color={colors.breath}>{STEADY_COPY[position]}</VirraText>
       </VirraCard>
     </Pressable>
   );

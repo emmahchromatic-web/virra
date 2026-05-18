@@ -4,13 +4,15 @@ import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
 
 jest.mock('@/store/profile', () => ({
   useProfileStore: (selector: any) => selector({
-    trackWeight:      true,
-    weightBaselineKg: null,
+    trackWeight:            true,
+    weightBaselineKg:       null,
+    weightSteadyBaselineKg: null,
   }),
 }));
 
 jest.mock('@/store/cycle', () => ({
   useCycleStore: (selector: any) => selector({
+    cycleProfile: 'natural',
     cycleInfo: { phase: 'follicular', dayOfCycle: 9, daysUntilNextPeriod: 19, cycleLength: 28 },
   }),
 }));
