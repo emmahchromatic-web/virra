@@ -2,7 +2,7 @@ import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { getCycleInfo } from '@/lib/cycleEngine';
-import { computeBaseline } from '@/lib/weightBaseline';
+import { recomputeBaseline } from '@/lib/weightBaselineDispatcher';
 
 const ANCHOR_KEY = 'hk_weight_anchor_v1';
 
@@ -105,7 +105,7 @@ export async function importNewWeightSamples(ctx: ImportContext): Promise<number
   const newest = samples[samples.length - 1].endDate;
   await AsyncStorage.setItem(ANCHOR_KEY, newest);
 
-  await computeBaseline(ctx.userId).catch((e) => {
+  await recomputeBaseline(ctx.userId).catch((e) => {
     console.warn('[healthKitWeight] baseline recompute failed:', e.message);
   });
 

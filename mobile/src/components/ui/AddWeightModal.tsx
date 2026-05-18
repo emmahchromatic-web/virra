@@ -5,7 +5,7 @@ import { VirraText } from './VirraText';
 import { supabase } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo, type CyclePhase } from '@/lib/cycleEngine';
-import { computeBaseline } from '@/lib/weightBaseline';
+import { recomputeBaseline } from '@/lib/weightBaselineDispatcher';
 
 interface Props {
   visible: boolean;
@@ -54,7 +54,7 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
       return;
     }
 
-    await computeBaseline(userId).catch(() => {});
+    await recomputeBaseline(userId).catch(() => {});
     setValue('');
     onClose();
   }

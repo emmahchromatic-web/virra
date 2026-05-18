@@ -10,8 +10,8 @@ jest.mock('@/lib/supabase', () => {
   };
 });
 
-jest.mock('@/lib/weightBaseline', () => ({
-  computeBaseline: jest.fn().mockResolvedValue(60.5),
+jest.mock('@/lib/weightBaselineDispatcher', () => ({
+  recomputeBaseline: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@/store/cycle', () => ({
@@ -21,12 +21,12 @@ jest.mock('@/store/cycle', () => ({
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const supabaseMock = require('@/lib/supabase');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const baselineMock = require('@/lib/weightBaseline');
+const baselineMock = require('@/lib/weightBaselineDispatcher');
 
 describe('AddWeightModal', () => {
   beforeEach(() => {
     supabaseMock.__insert.mockClear();
-    baselineMock.computeBaseline.mockClear();
+    baselineMock.recomputeBaseline.mockClear();
   });
 
   it('renders nothing when visible is false', () => {
@@ -48,7 +48,7 @@ describe('AddWeightModal', () => {
     expect(row.user_id).toBe('u');
     expect(row.weight_kg).toBeCloseTo(60.5);
     expect(row.source).toBe('manual');
-    expect(baselineMock.computeBaseline).toHaveBeenCalledWith('u');
+    expect(baselineMock.recomputeBaseline).toHaveBeenCalledWith('u');
     expect(onClose).toHaveBeenCalled();
   });
 
