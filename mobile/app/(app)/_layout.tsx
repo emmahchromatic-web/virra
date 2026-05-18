@@ -173,6 +173,7 @@ export default function AppLayout() {
       <Stack.Screen name="subscription"    options={{ presentation: 'card'  }} />
       <Stack.Screen name="breaks"          options={{ presentation: 'card'  }} />
       <Stack.Screen name="week-ahead"      options={{ presentation: 'card'  }} />
+      <Stack.Screen name="week-move"       options={{ presentation: 'card'  }} />
       <Stack.Screen name="settings"        options={{ presentation: 'card'  }} />
       <Stack.Screen name="notifications"   options={{ presentation: 'card'  }} />
     </Stack>

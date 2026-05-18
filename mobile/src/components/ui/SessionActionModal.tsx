@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { View, Pressable, StyleSheet, Alert } from 'react-native';
+import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraModal } from './VirraModal';
 import { VirraText } from './VirraText';
 import { VirraButton } from './VirraButton';
 import { dropSession, moveSession } from '@/lib/scheduleGenerator';
-import { supabase } from '@/lib/supabase';
 import type { CalendarSession } from './MonthCalendar';
 
 interface Props {
@@ -24,19 +24,10 @@ function shiftDate(iso: string, days: number): string {
   return d.toISOString().split('T')[0];
 }
 
-function mondayOfISO(iso: string): string {
-  const d   = new Date(`${iso}T00:00:00Z`);
-  const day = d.getUTCDay();
-  d.setUTCDate(d.getUTCDate() + (day === 0 ? -6 : 1 - day));
-  return d.toISOString().split('T')[0];
-}
-
 export function SessionActionModal({ visible, date, sessions, userId, onClose, onMutate }: Props) {
   const [busy, setBusy] = useState(false);
-  const [noFreeDay, setNoFreeDay] = useState<Record<string, boolean>>({});
 
   function handleClose() {
-    setNoFreeDay({});
     onClose();
   }
 
@@ -50,45 +41,9 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
     finally { setBusy(false); }
   }
 
-  async function handleMoveThisWeek(s: CalendarSession) {
-    setBusy(true);
-    try {
-      const monday    = mondayOfISO(date);
-      const jsDay     = new Date(`${date}T00:00:00Z`).getUTCDay();
-      const dayIdx    = jsDay === 0 ? 6 : jsDay - 1;
-      const weekDates = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
-
-      const { data: occupied, error: queryErr } = await supabase
-        .from('planned_sessions')
-        .select('scheduled_date')
-        .eq('user_id', userId)
-        .eq('modality', s.modality)
-        .eq('session_label', s.session_label)
-        .in('status', ['planned', 'completed'])
-        .in('scheduled_date', weekDates);
-
-      if (queryErr) {
-        Alert.alert('Could not check availability', queryErr.message);
-        return;
-      }
-
-      const occupiedSet = new Set((occupied ?? []).map((r) => r.scheduled_date));
-      occupiedSet.add(date);
-
-      const freeDay = weekDates.slice(dayIdx + 1).find((d) => !occupiedSet.has(d));
-      if (!freeDay) {
-        setNoFreeDay((prev) => ({ ...prev, [s.id]: true }));
-        return;
-      }
-
-      await moveSession(s.id, freeDay, userId);
-      onMutate();
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Unknown error';
-      Alert.alert('Could not move session', msg);
-    } finally {
-      setBusy(false);
-    }
+  function handleMoveThisWeek(s: CalendarSession) {
+    onClose();
+    router.push(`/(app)/week-move?session=${s.id}&date=${date}` as any);
   }
 
   async function handleCatchup(s: CalendarSession) {
@@ -121,16 +76,10 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
                 <SymbolView name="xmark.circle" size={13} tintColor={colors.heat} />
                 <VirraText variant="mono" size={11} color={colors.heat}>DROP</VirraText>
               </Pressable>
-              {noFreeDay[s.id] ? (
-                <VirraText variant="body" size={10} color={colors.muted} style={{ flex: 1 }}>
-                  No free day this week — use Catch-Up to reschedule next week.
-                </VirraText>
-              ) : (
-                <Pressable style={modal.actionBtn} onPress={() => handleMoveThisWeek(s)} disabled={busy}>
-                  <SymbolView name="arrow.left.arrow.right" size={13} tintColor={colors.muted} />
-                  <VirraText variant="mono" size={11} color={colors.muted}>MOVE THIS WEEK</VirraText>
-                </Pressable>
-              )}
+              <Pressable style={modal.actionBtn} onPress={() => handleMoveThisWeek(s)} disabled={busy}>
+                <SymbolView name="arrow.left.arrow.right" size={13} tintColor={colors.muted} />
+                <VirraText variant="mono" size={11} color={colors.muted}>MOVE THIS WEEK</VirraText>
+              </Pressable>
               <Pressable style={modal.actionBtn} onPress={() => handleCatchup(s)} disabled={busy}>
                 <SymbolView name="calendar.badge.plus" size={13} tintColor={colors.pulse} />
                 <VirraText variant="mono" size={11} color={colors.pulse}>CATCH-UP</VirraText>
