@@ -421,7 +421,11 @@ export default function ProfileScreen() {
         )}
       </ScrollView>
 
-      <WeightExplainerModal visible={showExplainer} onDismiss={handleDismissExplainer} />
+      <WeightExplainerModal
+        visible={showExplainer}
+        mode={(cycleProfile === 'natural' || cycleProfile === 'irregular') ? 'cycle' : 'steady'}
+        onDismiss={handleDismissExplainer}
+      />
 
       {/* Cycle length modal */}
       <VirraModal

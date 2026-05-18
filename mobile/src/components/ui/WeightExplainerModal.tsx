@@ -3,12 +3,33 @@ import { Modal, View, StyleSheet, Pressable } from 'react-native';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 
+export type WeightExplainerMode = 'cycle' | 'steady';
+
 interface Props {
   visible:   boolean;
+  mode:      WeightExplainerMode;
   onDismiss: () => void;
 }
 
-export function WeightExplainerModal({ visible, onDismiss }: Props) {
+const COPY: Record<WeightExplainerMode, { editorial: string; body: string }> = {
+  cycle: {
+    editorial:
+      'Your weight rises and falls with your cycle. We track the shape of that, so you can see what\'s water, what\'s normal, and when something is actually worth noticing.',
+    body:
+      'No goal weight. No streaks. No daily prompt.\n' +
+      'Calibrating — we need ~3 cycles of readings before insights are reliable.',
+  },
+  steady: {
+    editorial:
+      'Your weight bounces day-to-day from water, food timing, and hydration. We track the trend, not the day-to-day — so you can see what\'s noise and what\'s real.',
+    body:
+      'No goal weight. No streaks. No daily prompt.\n' +
+      'Calibrating — we need ~30 days of readings before the steady line becomes reliable.',
+  },
+};
+
+export function WeightExplainerModal({ visible, mode, onDismiss }: Props) {
+  const copy = COPY[mode];
   return (
     <Modal visible={visible} animationType="fade" transparent>
       <View style={styles.overlay}>
@@ -17,13 +38,10 @@ export function WeightExplainerModal({ visible, onDismiss }: Props) {
             THIS ISN'T A WEIGHT LOSS FEATURE
           </VirraText>
           <VirraText variant="serif" size={18} color={colors.breath} style={styles.editorial}>
-            Your weight rises and falls with your cycle. We track the shape of that,
-            so you can see what's water, what's normal, and when something is actually
-            worth noticing.
+            {copy.editorial}
           </VirraText>
           <VirraText variant="body" size={13} color={colors.muted} style={styles.body}>
-            No goal weight. No streaks. No daily prompt.{'\n'}
-            Calibrating — we need ~3 cycles of readings before insights are reliable.
+            {copy.body}
           </VirraText>
           <Pressable style={styles.button} onPress={onDismiss} accessibilityRole="button">
             <VirraText variant="mono" size={12} color={colors.mile}>Got it</VirraText>
