@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Animated, View, StyleSheet } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SFSymbol } from 'expo-symbols';
 import {
   LongPressGestureHandler,
   PanGestureHandler,
@@ -37,7 +37,7 @@ const MODALITY_COLOUR: Record<DraggableSession['modality'], string> = {
   other:    colors.muted,
 };
 
-const MODALITY_ICON: Record<DraggableSession['modality'], string> = {
+const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
   run:      'figure.run',
   strength: 'dumbbell',
   swim:     'figure.pool.swim',
