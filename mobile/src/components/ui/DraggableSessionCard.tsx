@@ -1,12 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Animated, View, StyleSheet } from 'react-native';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
-import {
-  LongPressGestureHandler,
-  State,
-  type LongPressGestureHandlerStateChangeEvent,
-  type LongPressGestureHandlerGestureEvent,
-} from 'react-native-gesture-handler';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 
@@ -64,8 +59,9 @@ const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
 };
 
 export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanEnd, grabbed, enabled }: Props) {
-  const scale     = useRef(new Animated.Value(1)).current;
-  const grabbedRef = useRef(grabbed);
+  const scale       = useRef(new Animated.Value(1)).current;
+  const grabbedRef  = useRef(grabbed);
+  const sessionId   = session.id;
 
   useEffect(() => { grabbedRef.current = grabbed; }, [grabbed]);
 
@@ -78,30 +74,29 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
     }
   }, [grabbed]);
 
-  function handleStateChange(e: LongPressGestureHandlerStateChangeEvent) {
-    const s = e.nativeEvent.state;
-    if (s === State.ACTIVE) {
-      onLongPress(session.id, e.nativeEvent.absoluteY);
-    } else if (s === State.END || s === State.CANCELLED || s === State.FAILED) {
-      if (grabbedRef.current) {
-        onPanEnd(session.id, 0, e.nativeEvent.absoluteY);
+  const gesture = Gesture.LongPress()
+    .minDuration(350)
+    .maxDistance(10000)
+    .enabled(enabled)
+    .onStart((e) => {
+      onLongPress(sessionId, e.absoluteY);
+    })
+    .onTouchesMove((e) => {
+      if (!grabbedRef.current) return;
+      const t = e.allTouches[0];
+      if (t) onPanUpdate(sessionId, 0, t.absoluteY);
+    })
+    .onEnd((e, success) => {
+      if (success && grabbedRef.current) {
+        onPanEnd(sessionId, 0, e.absoluteY);
+      } else if (grabbedRef.current) {
+        // Cancelled (finger left screen / system interrupt) — treat like a drop
+        onPanEnd(sessionId, 0, e.absoluteY);
       }
-    }
-  }
-
-  function handleGestureEvent(e: LongPressGestureHandlerGestureEvent) {
-    if (!grabbedRef.current) return;
-    onPanUpdate(session.id, 0, e.nativeEvent.absoluteY);
-  }
+    });
 
   return (
-    <LongPressGestureHandler
-      minDurationMs={350}
-      maxDist={10000}
-      onHandlerStateChange={handleStateChange}
-      onGestureEvent={handleGestureEvent}
-      enabled={enabled}
-    >
+    <GestureDetector gesture={gesture}>
       <Animated.View
         style={[
           styles.card,
@@ -123,7 +118,7 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
           </View>
         </View>
       </Animated.View>
-    </LongPressGestureHandler>
+    </GestureDetector>
   );
 }
 
