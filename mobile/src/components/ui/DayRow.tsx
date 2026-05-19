@@ -34,8 +34,10 @@ export function DayRow({ date, weekdayLabel, isToday, highlighted, children, onM
         {weekdayLabel}{isToday ? ' · TODAY' : ''}
       </VirraText>
       {empty ? (
-        <View style={styles.empty}>
-          <VirraText variant="mono" size={10} color={colors.muted}>EMPTY</VirraText>
+        <View style={[styles.empty, highlighted && styles.emptyActive]}>
+          <VirraText variant="mono" size={11} color={highlighted ? colors.pulse : colors.muted}>
+            {highlighted ? 'DROP HERE' : 'REST DAY'}
+          </VirraText>
         </View>
       ) : (
         <View style={styles.cards}>{children}</View>
@@ -49,5 +51,6 @@ const styles = StyleSheet.create({
   highlighted:{ borderColor: colors.pulse, borderRadius: radius.sm },
   kicker:     { letterSpacing: 1.5 },
   cards:      { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, overflow: 'visible' },
-  empty:      { height: 52, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  empty:      { height: 52, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(28,28,36,0.4)' },
+  emptyActive:{ borderStyle: 'solid', borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.08)' },
 });

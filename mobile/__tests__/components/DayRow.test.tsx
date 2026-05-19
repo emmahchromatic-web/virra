@@ -45,6 +45,6 @@ describe('DayRow', () => {
         {[]}
       </DayRow>
     );
-    expect(getByText('EMPTY')).toBeTruthy();
+    expect(getByText('REST DAY')).toBeTruthy();
   });
 });
