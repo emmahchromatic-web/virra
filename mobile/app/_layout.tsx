@@ -31,16 +31,10 @@ import { configureRevenueCat } from '@/lib/revenuecat';
 import { colors } from '@/constants/theme';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
 
-const BOOT_T0 = Date.now();
-function bootMark(label: string) {
-  console.log(`[boot] +${Date.now() - BOOT_T0}ms ${label}`);
-}
-
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
   // undefined = not yet loaded; null = no session; Session = authenticated
   const [initialSession, setInitialSession] = useState<Session | null | undefined>(undefined);
-  const [routed, setRouted] = useState(false);
 
   const [fontsLoaded] = useFonts({
     BigShouldersDisplay_700Bold,
@@ -54,13 +48,9 @@ export default function RootLayout() {
     SpaceMono_700Bold,
   });
 
-  useEffect(() => { if (fontsLoaded) bootMark('fonts loaded'); }, [fontsLoaded]);
-
   // Step 1: load session, independent of fonts
   useEffect(() => {
-    bootMark('getSession start');
     supabase.auth.getSession().then(({ data: { session } }) => {
-      bootMark(`getSession resolved (session=${session ? 'yes' : 'no'})`);
       setSession(session);
       setInitialSession(session ?? null);
     });
@@ -76,32 +66,24 @@ export default function RootLayout() {
     if (!fontsLoaded || initialSession === undefined) return;
 
     if (!initialSession) {
-      bootMark('routing → /(auth)');
       router.replace('/(auth)');
-      setRouted(true);
       return;
     }
 
     (async () => {
-      bootMark('user_profiles fetch start');
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('user_profiles')
         .select('id')
         .eq('id', initialSession.user.id)
         .maybeSingle();
-      bootMark(`user_profiles fetch done${error ? ` (error: ${error.message})` : ''}`);
 
       if (!data) {
-        bootMark('routing → /(onboarding)/welcome');
         router.replace('/(onboarding)/welcome');
-        setRouted(true);
         return;
       }
       const route = await getPostAuthRoute();
-      bootMark(`routing → ${route}`);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       router.replace(route as any);
-      setRouted(true);
     })();
   }, [fontsLoaded, initialSession]);
 
@@ -109,19 +91,18 @@ export default function RootLayout() {
     if (user?.id) configureRevenueCat(user.id);
   }, [user?.id]);
 
-  // Hold the native splash until routing has actually fired. Hiding it
-  // earlier reveals a blank dark frame while user_profiles is still being
-  // fetched — which reads as "stuck on splash" to the user. We instead hide
-  // it the moment the route is about to mount, so the splash → real UI
-  // transition is atomic.
+  // Hide the native splash once both fonts and session are ready and routing
+  // has fired. This is the atomic transition from splash → real UI; without it
+  // the splash would either persist forever or hide too early and reveal a
+  // white frame between splash and the first rendered screen.
+  const ready = fontsLoaded && initialSession !== undefined;
   useEffect(() => {
-    if (routed) {
-      bootMark('hiding native splash');
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [routed]);
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
 
-  if (!routed) {
+  // While not ready, render a mile-coloured View instead of null so any frame
+  // before the splash hides (or any hot-reload gap) is dark, not white.
+  if (!ready) {
     return <View style={{ flex: 1, backgroundColor: colors.mile }} />;
   }
 
