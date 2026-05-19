@@ -49,5 +49,5 @@ const styles = StyleSheet.create({
   highlighted:{ borderColor: colors.pulse, borderRadius: radius.sm },
   kicker:     { letterSpacing: 1.5 },
   cards:      { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, overflow: 'visible' },
-  empty:      { height: 32, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  empty:      { height: 52, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
 });

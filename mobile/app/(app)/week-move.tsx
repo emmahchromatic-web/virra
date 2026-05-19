@@ -212,7 +212,11 @@ export default function WeekMoveScreen() {
           <View style={styles.headerBtn} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={!grabbedId}
+        >
           {week.map((d) => {
             const grabbed = grabbedId ? rows.find((r) => r.id === grabbedId) : null;
             const showGhost = !!(grabbed && hoverDate === d && d !== grabbed.scheduled_date);
@@ -251,19 +255,19 @@ export default function WeekMoveScreen() {
               </DayRow>
             );
           })}
-
-          <View style={styles.actions}>
-            <VirraButton label="CATCH UP NEXT WEEK" onPress={handleCatchup} style={{ flex: 1 }} disabled={busy || !focusedSessionId} />
-            <Pressable
-              style={[styles.dropBtn, busy && styles.disabled]}
-              onPress={handleDrop}
-              disabled={busy || !focusedSessionId}
-              accessibilityRole="button"
-            >
-              <VirraText variant="mono" size={11} color={colors.mile}>DROP</VirraText>
-            </Pressable>
-          </View>
         </ScrollView>
+
+        <View style={styles.actions}>
+          <VirraButton label="CATCH UP NEXT WEEK" onPress={handleCatchup} style={{ flex: 1 }} disabled={busy || !focusedSessionId} />
+          <Pressable
+            style={[styles.dropBtn, busy && styles.disabled]}
+            onPress={handleDrop}
+            disabled={busy || !focusedSessionId}
+            accessibilityRole="button"
+          >
+            <VirraText variant="mono" size={11} color={colors.mile}>DROP</VirraText>
+          </Pressable>
+        </View>
 
         <SwapPickerSheet
           visible={pickerTarget !== null}
@@ -282,8 +286,8 @@ const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: colors.mile },
   header:    { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   headerBtn: { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
-  content:   { paddingBottom: spacing.md },
-  actions:   { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, paddingHorizontal: spacing.lg, height: 48 },
+  content:   { paddingBottom: spacing.sm },
+  actions:   { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, height: 48 + spacing.md },
   dropBtn:   { flex: 1, backgroundColor: colors.heat, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   disabled:  { opacity: 0.45 },
 });
