@@ -16,9 +16,12 @@ export function DayRow({ date, weekdayLabel, isToday, highlighted, children, onM
   const rowRef = useRef<View>(null);
 
   function handleLayout(_: LayoutChangeEvent) {
-    if (!rowRef.current) return;
-    rowRef.current.measureInWindow((_x, y, _w, h) => {
-      onMeasure(date, y, y + h);
+    // onLayout fires before the view is actually placed in the window on iOS,
+    // so measureInWindow inside it returns (0,0,0,0). Defer to the next frame.
+    requestAnimationFrame(() => {
+      rowRef.current?.measureInWindow((_x, y, _w, h) => {
+        onMeasure(date, y, y + h);
+      });
     });
   }
 
