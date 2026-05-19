@@ -12,7 +12,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { DayRow } from '@/components/ui/DayRow';
-import { DraggableSessionCard, type DraggableSession } from '@/components/ui/DraggableSessionCard';
+import { DraggableSessionCard, SessionCardGhost, hapticImpact, type DraggableSession } from '@/components/ui/DraggableSessionCard';
 import { SwapPickerSheet, type SwapTarget } from '@/components/ui/SwapPickerSheet';
 
 interface PlannedRow {
@@ -91,7 +91,14 @@ export default function WeekMoveScreen() {
 
   function handlePanUpdate(_id: string, _ty: number, absY: number) {
     if (!grabbedId) return;
-    setHoverDate(findRowAtY(rowBoundsRef.current, absY));
+    const grabbed = rows.find((r) => r.id === grabbedId);
+    const next = findRowAtY(rowBoundsRef.current, absY);
+    // Only highlight other days (no ghost over origin)
+    const validNext = next && grabbed && next !== grabbed.scheduled_date ? next : null;
+    if (validNext !== hoverDate) {
+      if (validNext) hapticImpact('light');
+      setHoverDate(validNext);
+    }
   }
 
   async function handlePanEnd(id: string, _ty: number, absY: number) {
@@ -107,11 +114,13 @@ export default function WeekMoveScreen() {
     const targetSessions = groups[target] ?? [];
 
     if (targetSessions.length === 0) {
+      hapticImpact('medium');
       await commit(() => moveSession(id, target, auth!.user.id));
       setGrabbedId(null);
       return;
     }
     if (targetSessions.length === 1) {
+      hapticImpact('medium');
       const other = targetSessions[0];
       await commit(() => swapSessions(id, other.id, source.scheduled_date, target, auth!.user.id));
       setGrabbedId(null);
@@ -204,34 +213,44 @@ export default function WeekMoveScreen() {
         </View>
 
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          {week.map((d) => (
-            <DayRow
-              key={d}
-              date={d}
-              weekdayLabel={dayLabel(d)}
-              isToday={d === today}
-              highlighted={hoverDate === d}
-              onMeasure={handleMeasure}
-            >
-              {groups[d].map((s) => (
-                <DraggableSessionCard
-                  key={s.id}
-                  session={{
-                    id:                s.id,
-                    modality:          s.modality,
-                    session_label:     s.session_label,
-                    estimated_minutes: DEFAULT_MIN,
-                    isFocused:         s.id === focusedSessionId,
-                  }}
-                  onLongPress={handleLongPress}
-                  onPanUpdate={handlePanUpdate}
-                  onPanEnd={handlePanEnd}
-                  grabbed={grabbedId === s.id}
-                  enabled={!busy}
-                />
-              ))}
-            </DayRow>
-          ))}
+          {week.map((d) => {
+            const grabbed = grabbedId ? rows.find((r) => r.id === grabbedId) : null;
+            const showGhost = !!(grabbed && hoverDate === d && d !== grabbed.scheduled_date);
+            return (
+              <DayRow
+                key={d}
+                date={d}
+                weekdayLabel={dayLabel(d)}
+                isToday={d === today}
+                highlighted={hoverDate === d}
+                onMeasure={handleMeasure}
+              >
+                {groups[d].map((s) => (
+                  <DraggableSessionCard
+                    key={s.id}
+                    session={{
+                      id:                s.id,
+                      modality:          s.modality,
+                      session_label:     s.session_label,
+                      estimated_minutes: DEFAULT_MIN,
+                      isFocused:         s.id === focusedSessionId,
+                    }}
+                    onLongPress={handleLongPress}
+                    onPanUpdate={handlePanUpdate}
+                    onPanEnd={handlePanEnd}
+                    grabbed={grabbedId === s.id}
+                    enabled={!busy}
+                  />
+                ))}
+                {showGhost && grabbed && (
+                  <SessionCardGhost
+                    modality={grabbed.modality}
+                    session_label={grabbed.session_label}
+                  />
+                )}
+              </DayRow>
+            );
+          })}
 
           <View style={styles.actions}>
             <VirraButton label="CATCH UP NEXT WEEK" onPress={handleCatchup} style={{ flex: 1 }} disabled={busy || !focusedSessionId} />

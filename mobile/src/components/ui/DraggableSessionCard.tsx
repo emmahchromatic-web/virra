@@ -12,6 +12,26 @@ import {
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 
+// Soft require — existing dev builds without expo-haptics still load.
+// Haptics start firing once a fresh native build ships.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Haptics: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  Haptics = require('expo-haptics');
+} catch {
+  Haptics = null;
+}
+
+export function hapticImpact(style: 'light' | 'medium' = 'medium'): void {
+  if (!Haptics) return;
+  const lookup = {
+    light:  Haptics.ImpactFeedbackStyle?.Light,
+    medium: Haptics.ImpactFeedbackStyle?.Medium,
+  };
+  Haptics.impactAsync?.(lookup[style]).catch(() => {});
+}
+
 export interface DraggableSession {
   id:                string;
   modality:          'run' | 'strength' | 'swim' | 'yoga' | 'other';
@@ -46,21 +66,16 @@ const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
 };
 
 export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanEnd, grabbed, enabled }: Props) {
-  const translateY  = useRef(new Animated.Value(0)).current;
-  const translateX  = useRef(new Animated.Value(0)).current;
   const scale       = useRef(new Animated.Value(1)).current;
   const longPressRef = useRef(null);
   const panRef       = useRef(null);
 
   useEffect(() => {
-    if (!grabbed) {
-      Animated.parallel([
-        Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(translateX, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(scale,      { toValue: 1, duration: 200, useNativeDriver: true }),
-      ]).start();
+    if (grabbed) {
+      hapticImpact('medium');
+      Animated.spring(scale, { toValue: 1.04, useNativeDriver: true }).start();
     } else {
-      Animated.spring(scale, { toValue: 1.05, useNativeDriver: true }).start();
+      Animated.timing(scale, { toValue: 1, duration: 160, useNativeDriver: true }).start();
     }
   }, [grabbed]);
 
@@ -72,8 +87,6 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
 
   function handlePanEvent(e: PanGestureHandlerGestureEvent) {
     if (!grabbed) return;
-    translateX.setValue(e.nativeEvent.translationX);
-    translateY.setValue(e.nativeEvent.translationY);
     onPanUpdate(session.id, e.nativeEvent.translationY, e.nativeEvent.absoluteY);
   }
 
@@ -89,7 +102,7 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
     <LongPressGestureHandler
       ref={longPressRef}
       simultaneousHandlers={panRef}
-      minDurationMs={400}
+      minDurationMs={350}
       onHandlerStateChange={handleLongPressStateChange}
       enabled={enabled}
     >
@@ -105,8 +118,8 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
             style={[
               styles.card,
               session.isFocused && styles.focused,
-              { transform: [{ translateX }, { translateY }, { scale }] },
               grabbed && styles.elevated,
+              { transform: [{ scale }] },
             ]}
           >
             <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[session.modality] }]} />
@@ -128,6 +141,30 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
   );
 }
 
+interface GhostProps {
+  modality:      DraggableSession['modality'];
+  session_label: string;
+}
+
+export function SessionCardGhost({ modality, session_label }: GhostProps) {
+  return (
+    <View style={[styles.card, styles.ghost]} pointerEvents="none">
+      <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[modality] }]} />
+      <View style={styles.body}>
+        <VirraText variant="bodyMedium" size={14} color={colors.breath} numberOfLines={1}>
+          {session_label}
+        </VirraText>
+        <View style={styles.meta}>
+          <SymbolView name={MODALITY_ICON[modality]} size={11} tintColor={colors.muted} />
+          <VirraText variant="mono" size={10} color={colors.muted}>
+            {modality.toUpperCase()}
+          </VirraText>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     width: 140, height: 52,
@@ -141,4 +178,5 @@ const styles = StyleSheet.create({
   meta:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   focused: { borderWidth: 2, borderColor: colors.pulse },
   elevated:{ shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, zIndex: 100 },
+  ghost:   { opacity: 0.6, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.pulse },
 });
