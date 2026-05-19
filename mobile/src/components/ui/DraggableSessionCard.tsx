@@ -3,11 +3,9 @@ import { Animated, View, StyleSheet } from 'react-native';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import {
   LongPressGestureHandler,
-  PanGestureHandler,
   State,
-  type PanGestureHandlerStateChangeEvent,
-  type PanGestureHandlerGestureEvent,
   type LongPressGestureHandlerStateChangeEvent,
+  type LongPressGestureHandlerGestureEvent,
 } from 'react-native-gesture-handler';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -66,9 +64,10 @@ const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
 };
 
 export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanEnd, grabbed, enabled }: Props) {
-  const scale       = useRef(new Animated.Value(1)).current;
-  const longPressRef = useRef(null);
-  const panRef       = useRef(null);
+  const scale     = useRef(new Animated.Value(1)).current;
+  const grabbedRef = useRef(grabbed);
+
+  useEffect(() => { grabbedRef.current = grabbed; }, [grabbed]);
 
   useEffect(() => {
     if (grabbed) {
@@ -79,63 +78,50 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
     }
   }, [grabbed]);
 
-  function handleLongPressStateChange(e: LongPressGestureHandlerStateChangeEvent) {
-    if (e.nativeEvent.state === State.ACTIVE) {
+  function handleStateChange(e: LongPressGestureHandlerStateChangeEvent) {
+    const s = e.nativeEvent.state;
+    if (s === State.ACTIVE) {
       onLongPress(session.id, e.nativeEvent.absoluteY);
-    }
-  }
-
-  function handlePanEvent(e: PanGestureHandlerGestureEvent) {
-    if (!grabbed) return;
-    onPanUpdate(session.id, e.nativeEvent.translationY, e.nativeEvent.absoluteY);
-  }
-
-  function handlePanStateChange(e: PanGestureHandlerStateChangeEvent) {
-    if (e.nativeEvent.state === State.END || e.nativeEvent.state === State.CANCELLED) {
-      if (grabbed) {
-        onPanEnd(session.id, e.nativeEvent.translationY, e.nativeEvent.absoluteY);
+    } else if (s === State.END || s === State.CANCELLED || s === State.FAILED) {
+      if (grabbedRef.current) {
+        onPanEnd(session.id, 0, e.nativeEvent.absoluteY);
       }
     }
   }
 
+  function handleGestureEvent(e: LongPressGestureHandlerGestureEvent) {
+    if (!grabbedRef.current) return;
+    onPanUpdate(session.id, 0, e.nativeEvent.absoluteY);
+  }
+
   return (
     <LongPressGestureHandler
-      ref={longPressRef}
-      simultaneousHandlers={panRef}
       minDurationMs={350}
-      onHandlerStateChange={handleLongPressStateChange}
+      maxDist={10000}
+      onHandlerStateChange={handleStateChange}
+      onGestureEvent={handleGestureEvent}
       enabled={enabled}
     >
-      <Animated.View>
-        <PanGestureHandler
-          ref={panRef}
-          simultaneousHandlers={longPressRef}
-          onGestureEvent={handlePanEvent}
-          onHandlerStateChange={handlePanStateChange}
-          enabled={enabled}
-        >
-          <Animated.View
-            style={[
-              styles.card,
-              session.isFocused && styles.focused,
-              grabbed && styles.elevated,
-              { transform: [{ scale }] },
-            ]}
-          >
-            <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[session.modality] }]} />
-            <View style={styles.body}>
-              <VirraText variant="bodyMedium" size={14} color={colors.breath} numberOfLines={1}>
-                {session.session_label}
-              </VirraText>
-              <View style={styles.meta}>
-                <SymbolView name={MODALITY_ICON[session.modality]} size={11} tintColor={colors.muted} />
-                <VirraText variant="mono" size={10} color={colors.muted}>
-                  {session.modality.toUpperCase()} · {session.estimated_minutes} MIN
-                </VirraText>
-              </View>
-            </View>
-          </Animated.View>
-        </PanGestureHandler>
+      <Animated.View
+        style={[
+          styles.card,
+          session.isFocused && styles.focused,
+          grabbed && styles.elevated,
+          { transform: [{ scale }] },
+        ]}
+      >
+        <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[session.modality] }]} />
+        <View style={styles.body}>
+          <VirraText variant="bodyMedium" size={14} color={colors.breath} numberOfLines={1}>
+            {session.session_label}
+          </VirraText>
+          <View style={styles.meta}>
+            <SymbolView name={MODALITY_ICON[session.modality]} size={11} tintColor={colors.muted} />
+            <VirraText variant="mono" size={10} color={colors.muted}>
+              {session.modality.toUpperCase()} · {session.estimated_minutes} MIN
+            </VirraText>
+          </View>
+        </View>
       </Animated.View>
     </LongPressGestureHandler>
   );
