@@ -97,19 +97,24 @@ export default function WeekMoveScreen() {
   async function handlePanEnd(id: string, _ty: number, absY: number) {
     const target = findRowAtY(rowBoundsRef.current, absY);
     const source = rows.find((r) => r.id === id);
-    setGrabbedId(null);
     setHoverDate(null);
-    if (!target || !source || target === source.scheduled_date) return;
+
+    if (!target || !source || target === source.scheduled_date) {
+      setGrabbedId(null);
+      return;
+    }
 
     const targetSessions = groups[target] ?? [];
 
     if (targetSessions.length === 0) {
       await commit(() => moveSession(id, target, auth!.user.id));
+      setGrabbedId(null);
       return;
     }
     if (targetSessions.length === 1) {
       const other = targetSessions[0];
       await commit(() => swapSessions(id, other.id, source.scheduled_date, target, auth!.user.id));
+      setGrabbedId(null);
       return;
     }
     setPickerTarget({
@@ -132,21 +137,26 @@ export default function WeekMoveScreen() {
     }
   }
 
-  function handleSheetSwap(otherId: string) {
+  async function handleSheetSwap(otherId: string) {
     if (!pickerTarget) return;
     const { date, droppedId, sourceDate } = pickerTarget;
     setPickerTarget(null);
-    commit(() => swapSessions(droppedId, otherId, sourceDate, date, auth!.user.id));
+    await commit(() => swapSessions(droppedId, otherId, sourceDate, date, auth!.user.id));
+    setGrabbedId(null);
   }
 
-  function handleSheetAdd() {
+  async function handleSheetAdd() {
     if (!pickerTarget) return;
     const { date, droppedId } = pickerTarget;
     setPickerTarget(null);
-    commit(() => moveSession(droppedId, date, auth!.user.id));
+    await commit(() => moveSession(droppedId, date, auth!.user.id));
+    setGrabbedId(null);
   }
 
-  function handleSheetCancel() { setPickerTarget(null); }
+  function handleSheetCancel() {
+    setPickerTarget(null);
+    setGrabbedId(null);
+  }
 
   function handleCatchup() {
     if (!focusedSessionId || !focusedDate) return;

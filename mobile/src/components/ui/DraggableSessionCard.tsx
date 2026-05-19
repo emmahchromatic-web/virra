@@ -46,9 +46,11 @@ const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
 };
 
 export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanEnd, grabbed, enabled }: Props) {
-  const translateY = useRef(new Animated.Value(0)).current;
-  const translateX = useRef(new Animated.Value(0)).current;
-  const scale      = useRef(new Animated.Value(1)).current;
+  const translateY  = useRef(new Animated.Value(0)).current;
+  const translateX  = useRef(new Animated.Value(0)).current;
+  const scale       = useRef(new Animated.Value(1)).current;
+  const longPressRef = useRef(null);
+  const panRef       = useRef(null);
 
   useEffect(() => {
     if (!grabbed) {
@@ -85,15 +87,19 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
 
   return (
     <LongPressGestureHandler
+      ref={longPressRef}
+      simultaneousHandlers={panRef}
       minDurationMs={400}
       onHandlerStateChange={handleLongPressStateChange}
       enabled={enabled}
     >
       <Animated.View>
         <PanGestureHandler
+          ref={panRef}
+          simultaneousHandlers={longPressRef}
           onGestureEvent={handlePanEvent}
           onHandlerStateChange={handlePanStateChange}
-          enabled={enabled && grabbed}
+          enabled={enabled}
         >
           <Animated.View
             style={[
