@@ -124,7 +124,7 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
 
 const styles = StyleSheet.create({
   card: {
-    width: 140, height: 64,
+    width: 140, height: 52,
     backgroundColor: colors.mist,
     borderRadius: radius.md,
     flexDirection: 'row',

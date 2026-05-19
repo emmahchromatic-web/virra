@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { View, StyleSheet, ScrollView, LayoutChangeEvent } from 'react-native';
+import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 
@@ -38,22 +38,16 @@ export function DayRow({ date, weekdayLabel, isToday, highlighted, children, onM
           <VirraText variant="mono" size={10} color={colors.muted}>EMPTY</VirraText>
         </View>
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
-        >
-          {children}
-        </ScrollView>
+        <View style={styles.cards}>{children}</View>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row:        { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, gap: spacing.xs, borderWidth: 2, borderColor: 'transparent' },
+  row:        { paddingVertical: spacing.xs, paddingHorizontal: spacing.lg, gap: 2, borderWidth: 2, borderColor: 'transparent', overflow: 'visible' },
   highlighted:{ borderColor: colors.pulse, borderRadius: radius.sm },
   kicker:     { letterSpacing: 1.5 },
-  scroll:     { gap: spacing.sm, paddingVertical: spacing.xs },
-  empty:      { height: 64, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  cards:      { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, overflow: 'visible' },
+  empty:      { height: 32, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
 });

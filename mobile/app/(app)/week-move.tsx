@@ -251,10 +251,10 @@ export default function WeekMoveScreen() {
 
 const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: colors.mile },
-  header:    { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
+  header:    { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   headerBtn: { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
-  content:   { paddingBottom: spacing.xxl, gap: 2 },
-  actions:   { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, paddingHorizontal: spacing.lg, height: 52 },
+  content:   { paddingBottom: spacing.md },
+  actions:   { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, paddingHorizontal: spacing.lg, height: 48 },
   dropBtn:   { flex: 1, backgroundColor: colors.heat, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   disabled:  { opacity: 0.45 },
 });
