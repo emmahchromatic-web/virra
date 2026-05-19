@@ -59,11 +59,8 @@ const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
 };
 
 export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanEnd, grabbed, enabled }: Props) {
-  const scale       = useRef(new Animated.Value(1)).current;
-  const grabbedRef  = useRef(grabbed);
-  const sessionId   = session.id;
-
-  useEffect(() => { grabbedRef.current = grabbed; }, [grabbed]);
+  const scale     = useRef(new Animated.Value(1)).current;
+  const sessionId = session.id;
 
   useEffect(() => {
     if (grabbed) {
@@ -74,25 +71,17 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
     }
   }, [grabbed]);
 
-  const gesture = Gesture.LongPress()
-    .minDuration(350)
-    .maxDistance(10000)
+  const gesture = Gesture.Pan()
+    .activateAfterLongPress(350)
     .enabled(enabled)
     .onStart((e) => {
       onLongPress(sessionId, e.absoluteY);
     })
-    .onTouchesMove((e) => {
-      if (!grabbedRef.current) return;
-      const t = e.allTouches[0];
-      if (t) onPanUpdate(sessionId, 0, t.absoluteY);
+    .onUpdate((e) => {
+      onPanUpdate(sessionId, e.translationY, e.absoluteY);
     })
-    .onEnd((e, success) => {
-      if (success && grabbedRef.current) {
-        onPanEnd(sessionId, 0, e.absoluteY);
-      } else if (grabbedRef.current) {
-        // Cancelled (finger left screen / system interrupt) — treat like a drop
-        onPanEnd(sessionId, 0, e.absoluteY);
-      }
+    .onEnd((e) => {
+      onPanEnd(sessionId, e.translationY, e.absoluteY);
     });
 
   return (
