@@ -81,6 +81,7 @@ export default function WeekMoveScreen() {
   const groups = groupSessionsByDay(rows, week);
 
   function handleMeasure(date: string, top: number, bottom: number) {
+    console.log('[drag] measure', date, 'top=', top, 'bottom=', bottom);
     rowBoundsRef.current[date] = { top, bottom };
   }
 
@@ -94,13 +95,18 @@ export default function WeekMoveScreen() {
   useEffect(() => { hoverDateRef.current = hoverDate; }, [hoverDate]);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
 
+  const lookupCountRef = useRef(0);
   function handlePanUpdate(id: string, _ty: number, absY: number) {
     const grabbed = rowsRef.current.find((r) => r.id === id);
     if (!grabbed) return;
     const next = findRowAtY(rowBoundsRef.current, absY);
     const validNext = next && next !== grabbed.scheduled_date ? next : null;
+    // Log first lookup + any time validNext changes
+    if (lookupCountRef.current < 1 || validNext !== hoverDateRef.current) {
+      lookupCountRef.current += 1;
+      console.log('[drag] lookup absY=', absY, 'next=', next, 'src=', grabbed.scheduled_date, 'valid=', validNext, 'boundsKeys=', Object.keys(rowBoundsRef.current).length);
+    }
     if (validNext !== hoverDateRef.current) {
-      console.log('[drag] hover →', validNext, 'absY=', absY, 'bounds=', JSON.stringify(rowBoundsRef.current));
       if (validNext) hapticImpact('light');
       setHoverDate(validNext);
     }
