@@ -414,6 +414,44 @@ create table common_foods (
 - [ ] Sub-project 2 (Active Surfaces): pre-workout preview screen, Play CTA routing (Ia), structured run live execution (Ib live), strength live screen (Ic)
 - [ ] Sub-project 3 (Substitution): workout swap mechanics (Id)
 
+### Phase J — Local Cache + Offline Resilience (deferred)
+
+Two coupled aims: (1) cut cold-start time so screens paint immediately on launch instead of waiting on Supabase round-trips, and (2) keep the app usable on low/no signal — runs in the park, tube journeys, holiday travel. Most of Virra's value is daily decisions (today's session, today's targets, current cycle phase) — all of which the user already saw yesterday. There's no good reason for them to wait on the network to see them again.
+
+**Core architectural principles:**
+
+1. **Write-through cache via Zustand `persist` middleware over AsyncStorage.** Each store that holds screen-driving state (`auth`, `profile`, `cycle`, today's `planned_sessions`, active `training_blocks`, `seasons`, latest `nutrition_log`, `insights_cache`) wraps its state in `persist()`. First render hydrates from local storage synchronously — UI paints immediately. A background fetch then refreshes the store, which auto-persists. No spinner, no splash hang, no network dependency for the warm path. MMKV is the upgrade target if AsyncStorage hydration ever measures as a real bottleneck; not worth the native module for v1.
+
+2. **Cache-first rendering, network-after refresh.** The pattern everywhere: render from store immediately, kick off the network fetch in parallel, let it update the store when it returns. Never block the UI on a fetch when stale data exists.
+
+3. **Stale-data discipline.** Cache is safe to render for visual state (cycle phase, today's plan, profile name, this week's sessions, last known weight band). Cache is NOT authoritative for: subscription gating (RevenueCat is source of truth, always hit fresh), HealthKit (always observe), money flows, and conflict-prone writes. Each store declares its safety class so we never accidentally gate a paywall on stale data.
+
+4. **Write queue for offline mutations.** When the user logs food, completes a session, marks a check-in, or drops/moves a planned session offline, the mutation is enqueued to AsyncStorage with a monotonic ID + payload + retry count. On next foreground with network, the queue drains in order. Each mutation type has a server-side idempotency key (e.g., the local UUID) so retries don't double-write. Conflicts (server says session already completed) resolve by trusting the server.
+
+5. **Hydration-first routing.** The boot-blocking `user_profiles` round-trip in `app/_layout.tsx` is replaced by reading the persisted `profile` store. If hydrated profile says `onboarding_complete: true`, route straight to `(app)/(tabs)`. The network fetch still runs but no longer blocks the route decision. Cold start should drop from 2-5s to <500ms on a warm install.
+
+6. **Offline state surfacing.** When the device is offline, a subtle banner ("OFFLINE — changes will sync when you reconnect") appears on screens that accept writes. No modal blocks, no error toasts. The user keeps working; the queue handles the rest.
+
+**Surfaces / store changes:**
+
+| Store | Persist | Safety class | Notes |
+|---|---|---|---|
+| `auth` | ✅ already (Supabase handles JWT in AsyncStorage) | — | No change needed; just verify warm-path |
+| `profile` | new | safe-cache | Persist `onboarding_complete`, `fitness_level`, `running_goal`, `track_weight`, name, avatar |
+| `cycle` | new | safe-cache | `periodStart`, `cycleLength`, current phase — already in Zustand, just add persist middleware |
+| `subscription` | new | **NOT cacheable for gating** | Persist `status` for display only; always hit RevenueCat for gates |
+| `notifications` | ✅ already | safe-cache | Existing pattern is the template |
+| new `today` store | new | safe-cache | Today's planned sessions + nutrition targets + check-in status |
+| new `week` store | new | safe-cache | This week's planned sessions for dashboard week-strip + training tab |
+| new `season` store | new | safe-cache | Active season + upcoming events (rarely changes) |
+| new `mutationQueue` store | new | write-queue | Offline writes + drain logic |
+
+**Schema additions:** None on Supabase. All persistence is client-side AsyncStorage. Optionally a `mutation_log` table server-side if we want a server-visible audit of queued offline mutations — defer until/unless we see real conflicts in practice.
+
+**Why deferred:** This is meaningful surface area (every store touched, every fetch path audited for cache-first rendering, the offline write-queue from scratch) and the app currently works fine when online. Splash latency is a real but tractable problem we've already mitigated via the routed-not-ready hold. Phase J becomes load-bearing once: (a) users start travelling/training in low-signal environments enough that offline writes drop, or (b) cold-start measurement shows the user_profiles fetch as the dominant cost. Activate it post-launch when those signals are clear.
+
+**How to apply:** When this phase activates, run brainstorming first. Likely three sub-projects: **Ja** persist middleware on boot-critical stores + hydration-first routing (the cold-start win); **Jb** new today/week/season stores with cache-first rendering pattern across Dashboard, Training, Insights (the offline-read win); **Jc** mutation queue + offline banner + drain-on-foreground (the offline-write win). Ja is the foundation and ships fast; Jb extends the pattern; Jc is the most architecturally novel piece. Don't try to land all three in one plan — the write-queue alone deserves its own spec.
+
 ---
 
 ## Phase 2 (post-launch — not in scope for MVP)
