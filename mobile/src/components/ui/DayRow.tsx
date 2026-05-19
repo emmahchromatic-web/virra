@@ -45,7 +45,7 @@ export function DayRow({ date, weekdayLabel, isToday, highlighted, children, onM
 }
 
 const styles = StyleSheet.create({
-  row:        { paddingVertical: spacing.xs, paddingHorizontal: spacing.lg, gap: 2, borderWidth: 2, borderColor: 'transparent', overflow: 'visible' },
+  row:        { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, gap: 4, borderWidth: 2, borderColor: 'transparent', overflow: 'visible' },
   highlighted:{ borderColor: colors.pulse, borderRadius: radius.sm },
   kicker:     { letterSpacing: 1.5 },
   cards:      { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, overflow: 'visible' },

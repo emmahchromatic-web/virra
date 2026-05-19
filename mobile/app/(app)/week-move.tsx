@@ -89,13 +89,18 @@ export default function WeekMoveScreen() {
     setGrabbedId(id);
   }
 
-  function handlePanUpdate(_id: string, _ty: number, absY: number) {
-    if (!grabbedId) return;
-    const grabbed = rows.find((r) => r.id === grabbedId);
+  const hoverDateRef = useRef<string | null>(null);
+  const rowsRef      = useRef<PlannedRow[]>([]);
+  useEffect(() => { hoverDateRef.current = hoverDate; }, [hoverDate]);
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
+
+  function handlePanUpdate(id: string, _ty: number, absY: number) {
+    const grabbed = rowsRef.current.find((r) => r.id === id);
+    if (!grabbed) return;
     const next = findRowAtY(rowBoundsRef.current, absY);
-    // Only highlight other days (no ghost over origin)
-    const validNext = next && grabbed && next !== grabbed.scheduled_date ? next : null;
-    if (validNext !== hoverDate) {
+    const validNext = next && next !== grabbed.scheduled_date ? next : null;
+    if (validNext !== hoverDateRef.current) {
+      console.log('[drag] hover →', validNext, 'absY=', absY, 'bounds=', JSON.stringify(rowBoundsRef.current));
       if (validNext) hapticImpact('light');
       setHoverDate(validNext);
     }

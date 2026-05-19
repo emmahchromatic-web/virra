@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { Animated, View, StyleSheet } from 'react-native';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -62,6 +62,13 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
   const scale     = useRef(new Animated.Value(1)).current;
   const sessionId = session.id;
 
+  // Stable refs so the Gesture callbacks always see the latest screen-level
+  // handlers — RNGH doesn't hot-swap callbacks on an active touch.
+  const cbRef = useRef({ onLongPress, onPanUpdate, onPanEnd });
+  useEffect(() => {
+    cbRef.current = { onLongPress, onPanUpdate, onPanEnd };
+  }, [onLongPress, onPanUpdate, onPanEnd]);
+
   useEffect(() => {
     if (grabbed) {
       hapticImpact('medium');
@@ -71,18 +78,27 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
     }
   }, [grabbed]);
 
-  const gesture = Gesture.Pan()
-    .activateAfterLongPress(350)
-    .enabled(enabled)
-    .onStart((e) => {
-      onLongPress(sessionId, e.absoluteY);
-    })
-    .onUpdate((e) => {
-      onPanUpdate(sessionId, e.translationY, e.absoluteY);
-    })
-    .onEnd((e) => {
-      onPanEnd(sessionId, e.translationY, e.absoluteY);
-    });
+  const gesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activateAfterLongPress(350)
+        .onStart((e) => {
+          console.log('[drag] onStart', sessionId, 'absY=', e.absoluteY);
+          cbRef.current.onLongPress(sessionId, e.absoluteY);
+        })
+        .onUpdate((e) => {
+          console.log('[drag] onUpdate absY=', e.absoluteY);
+          cbRef.current.onPanUpdate(sessionId, e.translationY, e.absoluteY);
+        })
+        .onEnd((e) => {
+          console.log('[drag] onEnd absY=', e.absoluteY);
+          cbRef.current.onPanEnd(sessionId, e.translationY, e.absoluteY);
+        }),
+    [sessionId],
+  );
+
+  // Update enabled dynamically without recreating the gesture
+  useEffect(() => { gesture.enabled(enabled); }, [enabled, gesture]);
 
   return (
     <GestureDetector gesture={gesture}>
