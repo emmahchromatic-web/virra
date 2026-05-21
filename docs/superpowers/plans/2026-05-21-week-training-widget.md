@@ -109,10 +109,10 @@ describe('deriveDayState', () => {
       .toEqual({ kind: 'planned_multi', a: 'run', b: 'other' });
   });
 
-  test('3 sessions, top 2 both done, 3rd missed → completed_multi', () => {
+  test('3 sessions, top 2 done + 3rd missed → mixed (full-list rule)', () => {
     expect(deriveDayState(
       [done('run'), done('strength'), planned('yoga')], true))
-      .toEqual({ kind: 'completed_multi', a: 'run', b: 'strength' });
+      .toEqual({ kind: 'mixed', completed: 'run' });
   });
 });
 ```

@@ -100,7 +100,9 @@ Rules (encoded as a pure function so they can be unit-tested). Let `total` = num
 | 2+    | 0          | false  | `planned_multi(a, b)`          |
 | 2+    | 0 < done < total | any | `mixed(top completed modality)` |
 
-`a` and `b` are the first two sessions by modality priority order: `run > strength > swim > yoga > other`. Any 3rd+ session in a multi-session day is dropped at this surface — the full picture lives one tap away on the Training tab. The top-2 subset is selected from the full session list **before** the done/missed split; if a day has 3 sessions and the dropped one was the only completed one, the visible state is `planned_multi`, not `mixed`. This is acceptable — a 3-session day exceeds the strip's resolution and the Training tab is one tap away.
+`a` and `b` are the first two sessions by modality priority order: `run > strength > swim > yoga > other`. Any 3rd+ session in a multi-session day is dropped from the visual at this surface — the full picture lives one tap away on the Training tab.
+
+**State is determined from the full session list, not the top-2 subset.** If a day has 3 sessions and any of them is missed while at least one is completed, the state is `mixed`, regardless of whether the missed session lands in the top-2 modality slice. This keeps the rule simple and avoids hiding partial completion behind a "looks done" half-circle pair.
 
 "Today" is treated as not-past for `isPast`. A completed-today session shows as `completed` (the `done = total` rule matches regardless of `isPast`). A not-yet-done session scheduled for today renders as `planned`, never `missed`.
 
