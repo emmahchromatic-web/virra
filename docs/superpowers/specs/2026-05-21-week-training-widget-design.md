@@ -114,7 +114,7 @@ All circles are 32px diameter (unchanged from current).
 |---|---|
 | `rest` | empty slot, no circle drawn |
 | `planned(modality)` | bordered circle (`colors.border`, 1px) + modality icon centred, tinted in modality colour |
-| `planned_multi(a, b)` | two half-circles side by side; left filled in `a`'s modality colour with a small modality icon (10px) tinted in `colors.mile`; right filled in `b`'s modality colour with the same treatment. Icons are the visual discriminator between planned-multi and completed-multi. |
+| `planned_multi(a, b)` | bordered circle (`colors.border`, 1px) containing two modality icons (11px) side by side, each tinted in its own modality colour. No fill. The outline-and-icons treatment is consistent with single-session `planned`; the presence of two icons (rather than one) discriminates planned-multi from planned. Completed-multi remains the filled treatment. |
 | `completed(modality)` | filled circle in modality colour, no icon, no border |
 | `completed_multi(a, b)` | two half-circles side by side, both filled in their modality colours, no icons |
 | `missed` | bordered circle + thin horizontal bar centred inside (10w × 2h, `colors.muted`, 1px rounded ends) |
