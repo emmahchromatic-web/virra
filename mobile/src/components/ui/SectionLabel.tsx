@@ -18,8 +18,17 @@ interface Props {
 // above every section across the app. Default styling: size 11, color pulse,
 // letterSpacing 1.5. Use tone="muted" for sub-labels (e.g. those paired with
 // a status pill inside the same card, where the pill is the visual anchor).
+//
+// Luteal-phase guard: PHASE_META.color for luteal is `colors.breath`, which
+// is *also* the primary body text colour. So whenever a caller threads a
+// phase color into a kicker (e.g. CoachingCard, Insights phase sections,
+// Dashboard guidance), luteal would collapse the kicker into the surrounding
+// paragraph — the whole hierarchy disappears. Fall back to pulse in that
+// case so the kicker always reads as a kicker, regardless of which phase the
+// user happens to be in.
 export function SectionLabel({ children, tone = 'primary', color, style }: Props) {
-  const resolved = color ?? (tone === 'primary' ? colors.pulse : colors.muted);
+  const requested = color ?? (tone === 'primary' ? colors.pulse : colors.muted);
+  const resolved  = requested === colors.breath ? colors.pulse : requested;
   return (
     <VirraText
       variant="mono"
