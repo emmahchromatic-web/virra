@@ -48,53 +48,59 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
   const [hasPlan,   setHasPlan]   = useState<boolean>(true); // optimistic
   const [todayLoad, setTodayLoad] = useState<TrainingLoad | null>(null);
 
-  useFocusEffect(useCallback(() => { load(); }, [userId, phase]));
+  useFocusEffect(useCallback(() => {
+    let cancelled = false;
+    loadGuarded();
+    return () => { cancelled = true; };
 
-  async function load() {
-    const monday   = getMondayISO();
-    const sunday   = offsetISO(monday, 6);
-    const todayISO = localDateISO(new Date());
+    async function loadGuarded() {
+      const monday   = getMondayISO();
+      const sunday   = offsetISO(monday, 6);
+      const todayISO = localDateISO(new Date());
 
-    const [{ data: sessions }, { data: blocks }] = await Promise.all([
-      supabase
-        .from('planned_sessions')
-        .select('id, scheduled_date, modality, status')
-        .eq('user_id', userId)
-        .gte('scheduled_date', monday)
-        .lte('scheduled_date', sunday)
-        .in('status', ['planned', 'completed'])
-        .order('scheduled_date'),
-      supabase
-        .from('training_blocks')
-        .select('id')
-        .eq('user_id', userId)
-        .lte('starts_on', todayISO)
-        .gte('ends_on',   todayISO)
-        .limit(1),
-    ]);
+      const [{ data: sessions }, { data: blocks }] = await Promise.all([
+        supabase
+          .from('planned_sessions')
+          .select('id, scheduled_date, modality, status')
+          .eq('user_id', userId)
+          .gte('scheduled_date', monday)
+          .lte('scheduled_date', sunday)
+          .in('status', ['planned', 'completed'])
+          .order('scheduled_date'),
+        supabase
+          .from('training_blocks')
+          .select('id')
+          .eq('user_id', userId)
+          .lte('starts_on', todayISO)
+          .or(`ends_on.is.null,ends_on.gte.${todayISO}`)
+          .limit(1),
+      ]);
+      if (cancelled) return;
 
-    const sessionsByDay: Record<string, FetchedSession[]> = {};
-    for (let i = 0; i < 7; i++) sessionsByDay[offsetISO(monday, i)] = [];
-    for (const s of (sessions ?? [])) {
-      sessionsByDay[s.scheduled_date]?.push(s as FetchedSession);
+      const sessionsByDay: Record<string, FetchedSession[]> = {};
+      for (let i = 0; i < 7; i++) sessionsByDay[offsetISO(monday, i)] = [];
+      for (const s of (sessions ?? [])) {
+        sessionsByDay[s.scheduled_date]?.push(s as FetchedSession);
+      }
+
+      const nextStates: DayState[] = [];
+      for (let i = 0; i < 7; i++) {
+        const iso    = offsetISO(monday, i);
+        const isPast = iso < todayISO;
+        nextStates.push(deriveDayState(sessionsByDay[iso], isPast));
+      }
+      setStates(nextStates);
+      setHasPlan((blocks ?? []).length > 0);
+
+      try {
+        const ctx = await getDailyTrainingContext(userId, todayISO, phase ?? null);
+        if (cancelled) return;
+        setTodayLoad(ctx.inferred_load);
+      } catch {
+        // Non-critical — load label omitted on error
+      }
     }
-
-    const nextStates: DayState[] = [];
-    for (let i = 0; i < 7; i++) {
-      const iso       = offsetISO(monday, i);
-      const isPast    = iso < todayISO;
-      nextStates.push(deriveDayState(sessionsByDay[iso], isPast));
-    }
-    setStates(nextStates);
-    setHasPlan((blocks ?? []).length > 0);
-
-    try {
-      const ctx = await getDailyTrainingContext(userId, todayISO, phase ?? null);
-      setTodayLoad(ctx.inferred_load);
-    } catch {
-      // Non-critical — load label omitted on error
-    }
-  }
+  }, [userId, phase]));
 
   const tIndex = todayIndexMonZero();
 
