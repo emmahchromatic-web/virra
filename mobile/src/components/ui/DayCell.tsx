@@ -69,8 +69,12 @@ function renderInner(state: DayState): React.ReactNode {
     case 'planned_multi':
       return (
         <View style={cell.circle}>
-          <View style={[cell.half, cell.halfLeft,  { backgroundColor: MODALITY_COLOR[state.a] }]} />
-          <View style={[cell.half, cell.halfRight, { backgroundColor: MODALITY_COLOR[state.b] }]} />
+          <View style={[cell.half, cell.halfLeft,  { backgroundColor: MODALITY_COLOR[state.a] }]}>
+            <SymbolView name={MODALITY_ICON[state.a]} size={10} tintColor={colors.mile} />
+          </View>
+          <View style={[cell.half, cell.halfRight, { backgroundColor: MODALITY_COLOR[state.b] }]}>
+            <SymbolView name={MODALITY_ICON[state.b]} size={10} tintColor={colors.mile} />
+          </View>
         </View>
       );
 
