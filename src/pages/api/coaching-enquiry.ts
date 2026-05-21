@@ -37,11 +37,21 @@ export const POST: APIRoute = async ({ request }) => {
     newsletter: body.newsletter ?? false,
   };
 
-  await Promise.all([
+  const [notify, autoReply, sheet] = await Promise.allSettled([
     sendCoachingNotification(fields),
     sendCoachingAutoReply(fields.name, fields.email),
     appendCoachingEnquiry(fields),
   ]);
+
+  if (notify.status === 'rejected') console.error('coaching-enquiry: notification email failed', notify.reason);
+  if (autoReply.status === 'rejected') console.error('coaching-enquiry: auto-reply email failed', autoReply.reason);
+  if (sheet.status === 'rejected') console.error('coaching-enquiry: sheet append failed', sheet.reason);
+
+  // Notification email is the only thing Emma actually needs to act on the enquiry.
+  // Sheet + auto-reply are nice-to-haves — don't show the user an error if they fail.
+  if (notify.status === 'rejected') {
+    return new Response(JSON.stringify({ error: 'Notification email failed' }), { status: 500 });
+  }
 
   return new Response(JSON.stringify({ success: true }), { status: 200 });
 };

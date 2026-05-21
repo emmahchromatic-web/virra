@@ -430,9 +430,20 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
     border-radius: 2px;
     outline: none;
     transition: border-color 0.2s;
+    line-height: 1.4;
+    box-sizing: border-box;
   }
   input:focus, select:focus, textarea:focus { border-color: var(--pulse); }
-  select { cursor: pointer; }
+  select {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 44px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5L6 6.5L11 1.5' stroke='%23F4EDE0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 16px center;
+  }
   textarea { resize: vertical; }
   label.full { display: flex; flex-direction: column; }
   .checkbox-label {
