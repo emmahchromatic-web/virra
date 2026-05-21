@@ -33,8 +33,9 @@ function pillColor(pos: BandPosition): string {
 
 export default function WeightScreen() {
   const { session }    = useAuthStore();
-  const trackWeight    = useProfileStore((s) => s.trackWeight);
-  const steadyBaseline = useProfileStore((s) => s.weightSteadyBaselineKg);
+  const trackWeight       = useProfileStore((s) => s.trackWeight);
+  const steadyBaseline    = useProfileStore((s) => s.weightSteadyBaselineKg);
+  const weightDataVersion = useProfileStore((s) => s.weightDataVersion);
 
   const [readings, setReadings] = useState<WeightReading[]>([]);
   const [addOpen,  setAddOpen]  = useState(false);
@@ -54,7 +55,7 @@ export default function WeightScreen() {
       if (!cancelled) setReadings((data ?? []) as WeightReading[]);
     })();
     return () => { cancelled = true; };
-  }, [session?.user.id, trackWeight, addOpen]);
+  }, [session?.user.id, trackWeight, addOpen, weightDataVersion]);
 
   const latest      = readings.length ? readings[readings.length - 1] : null;
   const latestKg    = latest?.weight_kg ?? null;

@@ -24,10 +24,13 @@ interface ProfileState {
   weightExplainerDismissedAt:      string | null;
   weightSteadyBaselineKg:          number | null;
   weightSteadyBaselineComputedAt:  string | null;
+  // Incremented after a HK weight import finishes so chart screens re-fetch.
+  weightDataVersion:               number;
   isLoaded:                        boolean;
   load:                            (userId: string) => Promise<void>;
   save:                            (userId: string, patch: ProfilePatch) => Promise<void>;
   setLocal:                        (patch: ProfilePatch) => void;
+  bumpWeightDataVersion:           () => void;
   acknowledgeHaikuDisclosure:      (userId: string) => Promise<void>;
 }
 
@@ -42,6 +45,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   weightExplainerDismissedAt:     null,
   weightSteadyBaselineKg:         null,
   weightSteadyBaselineComputedAt: null,
+  weightDataVersion:              0,
   isLoaded:                       false,
 
   load: async (userId) => {
@@ -112,6 +116,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
     weightSteadyBaselineKg:         patch.weightSteadyBaselineKg         !== undefined ? patch.weightSteadyBaselineKg         : s.weightSteadyBaselineKg,
     weightSteadyBaselineComputedAt: patch.weightSteadyBaselineComputedAt !== undefined ? patch.weightSteadyBaselineComputedAt : s.weightSteadyBaselineComputedAt,
   })),
+
+  bumpWeightDataVersion: () => set((s) => ({ weightDataVersion: s.weightDataVersion + 1 })),
 
   acknowledgeHaikuDisclosure: async (userId) => {
     const now = new Date().toISOString();

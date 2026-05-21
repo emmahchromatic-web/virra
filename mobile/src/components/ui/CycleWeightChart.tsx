@@ -94,7 +94,7 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
       {calibrating && (
         <View style={styles.ribbon}>
           <VirraText variant="mono" size={9} color={colors.muted}>
-            CALIBRATING — KEEP LOGGING, BAND APPEARS AFTER ~3 CYCLES
+            CALIBRATING — KEEP LOGGING{'\n'}BAND APPEARS AFTER ~3 CYCLES
           </VirraText>
         </View>
       )}
@@ -111,8 +111,8 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
         {[-1, 0, 1, 2, 3].map((y) => (
           <SvgText
             key={`label-${y}`}
-            x={PAD_L - 10} y={yForDelta(y) + 4}
-            fill="rgba(244,237,224,0.4)" fontSize={10} fontFamily="SpaceMono_400Regular"
+            x={PAD_L - 10} y={yForDelta(y) + 6}
+            fill="rgba(244,237,224,0.5)" fontSize={18} fontFamily="SpaceMono_400Regular"
             textAnchor="end"
           >{y >= 0 ? `+${y}` : String(y)}</SvgText>
         ))}
@@ -127,8 +127,8 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
               stroke="rgba(212,255,38,0.6)" strokeWidth={1} strokeDasharray="3,3"
             />
             <SvgText
-              x={xForDay(todayInfo.day, cycleLength)} y={PAD_T - 10}
-              fill={colors.pulse} fontSize={9} fontFamily="SpaceMono_400Regular"
+              x={xForDay(todayInfo.day, cycleLength)} y={PAD_T - 12}
+              fill={colors.pulse} fontSize={16} fontFamily="SpaceMono_400Regular"
               textAnchor="middle"
             >TODAY · D{todayInfo.day}</SvgText>
           </>
@@ -154,8 +154,8 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
         {[1, 6, 14, 17, cycleLength].map((d) => (
           <SvgText
             key={`x-${d}`}
-            x={xForDay(d, cycleLength)} y={VB_H - PAD_B + 16}
-            fill="rgba(244,237,224,0.3)" fontSize={9} fontFamily="SpaceMono_400Regular"
+            x={xForDay(d, cycleLength)} y={VB_H - PAD_B + 24}
+            fill="rgba(244,237,224,0.5)" fontSize={16} fontFamily="SpaceMono_400Regular"
             textAnchor="middle"
           >{d}</SvgText>
         ))}

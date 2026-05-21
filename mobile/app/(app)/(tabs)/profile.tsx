@@ -22,6 +22,7 @@ import { BreakModal } from '@/components/ui/BreakModal';
 import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
 import { getPermissionsStatus } from '@/lib/permissionsConfig';
+import { enableWeightTracking, readWeightSyncDiagnostic, type WeightSyncDiagnostic } from '@/lib/healthKitWeight';
 
 function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
@@ -53,7 +54,10 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
-  const { firstName, lastName, avatarUrl, stepsTarget, save: saveProfile, trackWeight, weightExplainerDismissedAt } = useProfileStore();
+  const { firstName, lastName, avatarUrl, stepsTarget, save: saveProfile, trackWeight, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
+  const [weightSyncing, setWeightSyncing] = useState(false);
+  const [weightSyncNote, setWeightSyncNote] = useState<string | null>(null);
+  const [weightDiag, setWeightDiag] = useState<WeightSyncDiagnostic | null>(null);
 
   const [saving,  setSaving]  = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -75,10 +79,45 @@ export default function ProfileScreen() {
   const [showExplainer, setShowExplainer] = useState(false);
 
   async function handleToggleWeight(next: boolean) {
-    if (!session) return;
+    if (!session || weightSyncing) return;
     if (next && !weightExplainerDismissedAt) setShowExplainer(true);
     await saveProfile(session.user.id, { trackWeight: next });
+    if (!next) {
+      setWeightSyncNote(null);
+      return;
+    }
+    setWeightSyncing(true);
+    setWeightSyncNote(null);
+    try {
+      const imported = await enableWeightTracking({
+        userId:      session.user.id,
+        periodStart: periodStart ?? null,
+        cycleLength: cycleLength ?? 28,
+      });
+      bumpWeightDataVersion();
+      setWeightSyncNote(
+        imported > 0
+          ? `Synced ${imported} reading${imported === 1 ? '' : 's'} from Apple Health.`
+          : 'No readings found in Apple Health. Add a reading manually, or check Settings → Privacy → Health to allow Weight.',
+      );
+      setWeightDiag(await readWeightSyncDiagnostic());
+    } catch (e) {
+      setWeightSyncNote('Could not reach Apple Health. We’ll keep trying in the background.');
+    } finally {
+      setWeightSyncing(false);
+    }
   }
+
+  // Surface the most recent HK weight-sync diagnostic so we can tell at a
+  // glance whether the bridge ran, what it returned, and whether anything
+  // landed in Supabase. This view is intentionally chatty during the
+  // Phase G rollout — once stable we can move it behind a debug flag.
+  useEffect(() => {
+    if (!trackWeight) { setWeightDiag(null); return; }
+    let cancelled = false;
+    readWeightSyncDiagnostic().then((d) => { if (!cancelled) setWeightDiag(d); });
+    return () => { cancelled = true; };
+  }, [trackWeight]);
 
   async function handleDismissExplainer() {
     if (!session) return;
@@ -295,16 +334,53 @@ export default function ProfileScreen() {
             <View style={{ flex: 1, paddingRight: spacing.md }}>
               <VirraText variant="body" size={15} color={colors.breath}>Track weight</VirraText>
               <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: 2 }}>
-                {trackWeight ? 'Synced from Apple Health' : 'Off — no weight data syncs or displays'}
+                {weightSyncing
+                  ? 'Syncing from Apple Health…'
+                  : trackWeight
+                    ? 'Synced from Apple Health'
+                    : 'Off — no weight data syncs or displays'}
               </VirraText>
             </View>
             <Switch
               value={trackWeight}
               onValueChange={handleToggleWeight}
+              disabled={weightSyncing}
               trackColor={{ true: colors.pulse, false: colors.border }}
               thumbColor={colors.breath}
             />
           </View>
+          {weightSyncNote && (
+            <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: spacing.xs }}>
+              {weightSyncNote}
+            </VirraText>
+          )}
+          {trackWeight && weightDiag && (
+            <View style={{ marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <VirraText variant="mono" size={9} color={colors.muted} style={{ letterSpacing: 1.2 }}>
+                LAST APPLE HEALTH SYNC
+              </VirraText>
+              <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: spacing.xs }}>
+                {`when:    ${new Date(weightDiag.ranAt).toLocaleString('en-GB')}`}
+              </VirraText>
+              <VirraText variant="mono" size={10} color={colors.muted}>
+                {`bridge:  ${weightDiag.bridgeReady ? 'ready' : 'unavailable'}`}
+              </VirraText>
+              <VirraText variant="mono" size={10} color={colors.muted}>
+                {`window:  ${weightDiag.startDate ? new Date(weightDiag.startDate).toLocaleDateString('en-GB') : '—'} → now`}
+              </VirraText>
+              <VirraText variant="mono" size={10} color={colors.muted}>
+                {`samples: ${weightDiag.samples}`}
+              </VirraText>
+              <VirraText variant="mono" size={10} color={colors.muted}>
+                {`stored:  ${weightDiag.imported}`}
+              </VirraText>
+              {weightDiag.error && (
+                <VirraText variant="mono" size={10} color={colors.dawn} style={{ marginTop: spacing.xs }}>
+                  {`error:   ${weightDiag.error}`}
+                </VirraText>
+              )}
+            </View>
+          )}
         </VirraCard>
 
         <VirraCard style={styles.card}>

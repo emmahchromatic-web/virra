@@ -70,7 +70,8 @@ export default function DashboardScreen() {
   const { cycleInfo, cycleProfile } = useCycleStore();
   const { session } = useAuthStore();
   const { stepsTarget } = useProfileStore();
-  const trackWeight = useProfileStore((s) => s.trackWeight);
+  const trackWeight       = useProfileStore((s) => s.trackWeight);
+  const weightDataVersion = useProfileStore((s) => s.weightDataVersion);
   const meta = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
 
   const appState        = useRef<AppStateStatus>(AppState.currentState);
@@ -95,7 +96,7 @@ export default function DashboardScreen() {
       if (!cancelled) setLatestKg(data?.weight_kg ?? null);
     })();
     return () => { cancelled = true; };
-  }, [session?.user.id, trackWeight]);
+  }, [session?.user.id, trackWeight, weightDataVersion]);
 
   const loadInsight = useCallback(async () => {
     if (!session || !cycleInfo) return;

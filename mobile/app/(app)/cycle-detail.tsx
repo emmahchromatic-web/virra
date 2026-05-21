@@ -31,8 +31,9 @@ const ACTION_HEIGHT       = 52;
 export default function CycleDetailScreen() {
   const { session } = useAuthStore();
   const { cycleInfo, cycleProfile, periodStart, cycleLength } = useCycleStore();
-  const trackWeight      = useProfileStore((s) => s.trackWeight);
-  const weightBaselineKg = useProfileStore((s) => s.weightBaselineKg);
+  const trackWeight       = useProfileStore((s) => s.trackWeight);
+  const weightBaselineKg  = useProfileStore((s) => s.weightBaselineKg);
+  const weightDataVersion = useProfileStore((s) => s.weightDataVersion);
   const [resetting, setResetting] = useState(false);
   const [readings, setReadings]   = useState<WeightReading[]>([]);
   const [addOpen,  setAddOpen]    = useState(false);
@@ -51,7 +52,7 @@ export default function CycleDetailScreen() {
       if (!cancelled) setReadings((data ?? []) as WeightReading[]);
     })();
     return () => { cancelled = true; };
-  }, [session?.user.id, trackWeight, addOpen]);
+  }, [session?.user.id, trackWeight, addOpen, weightDataVersion]);
 
   const meta      = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
   const isNatural = cycleProfile === 'natural' || cycleProfile === 'irregular';

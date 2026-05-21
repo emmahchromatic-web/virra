@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Modal, View, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
+import { VirraModal } from './VirraModal';
 import { supabase } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo, type CyclePhase } from '@/lib/cycleEngine';
@@ -20,6 +21,12 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
   function isValid(): boolean {
     const n = parseFloat(value);
     return Number.isFinite(n) && n > 0 && n < 500;
+  }
+
+  function handleClose() {
+    if (saving) return;
+    setValue('');
+    onClose();
   }
 
   async function handleSave() {
@@ -60,46 +67,38 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.overlay}>
-        <View style={styles.card}>
-          <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
-            ADD WEIGHT
-          </VirraText>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              keyboardType="decimal-pad"
-              placeholder="kg"
-              placeholderTextColor={colors.muted}
-              value={value}
-              onChangeText={setValue}
-              autoFocus
-            />
-            <VirraText variant="mono" size={14} color={colors.muted}>KG</VirraText>
-          </View>
-          <View style={styles.actionRow}>
-            <Pressable style={styles.cancel} onPress={onClose} accessibilityRole="button">
-              <VirraText variant="mono" size={12} color={colors.breath}>Cancel</VirraText>
-            </Pressable>
-            <Pressable
-              style={[styles.save, !isValid() && styles.disabled]}
-              onPress={handleSave}
-              accessibilityRole="button"
-            >
-              <VirraText variant="mono" size={12} color={colors.mile}>Save</VirraText>
-            </Pressable>
-          </View>
-        </View>
+    <VirraModal visible={visible} onClose={handleClose} title="Add Weight">
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          keyboardType="decimal-pad"
+          placeholder="kg"
+          placeholderTextColor={colors.muted}
+          value={value}
+          onChangeText={setValue}
+          autoFocus
+        />
+        <VirraText variant="mono" size={14} color={colors.muted}>KG</VirraText>
       </View>
-    </Modal>
+      <View style={styles.actionRow}>
+        <Pressable style={styles.cancel} onPress={handleClose} accessibilityRole="button">
+          <VirraText variant="mono" size={12} color={colors.breath}>Cancel</VirraText>
+        </Pressable>
+        <Pressable
+          style={[styles.save, (!isValid() || saving) && styles.disabled]}
+          onPress={handleSave}
+          accessibilityRole="button"
+        >
+          <VirraText variant="mono" size={12} color={colors.mile}>
+            {saving ? 'Saving…' : 'Save'}
+          </VirraText>
+        </Pressable>
+      </View>
+    </VirraModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  card:     { backgroundColor: colors.mist, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
-  kicker:   { letterSpacing: 1.5 },
   inputRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: spacing.sm },
   input:    { flex: 1, color: colors.breath, fontFamily: 'BigShouldersDisplay_900Black', fontSize: 36 },
   actionRow:{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, height: 52 },
