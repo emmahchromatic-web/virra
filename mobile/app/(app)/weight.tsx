@@ -10,6 +10,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { WeightSteadyChart, type WeightReading } from '@/components/ui/WeightSteadyChart';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 import { classifySteady, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
 
 const REASONING: Record<BandPosition, string> = {
@@ -121,9 +122,7 @@ export default function WeightScreen() {
 
             <VirraCard>
               <View style={[styles.row, { marginBottom: spacing.xs }]}>
-                <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
-                  WEIGHT · KG FROM BASELINE
-                </VirraText>
+                <SectionLabel style={styles.kicker}>WEIGHT · KG FROM BASELINE</SectionLabel>
                 <Pressable onPress={() => setAddOpen(true)} hitSlop={8} accessibilityRole="button">
                   <VirraText variant="mono" size={10} color={colors.pulse}>+ ADD WEIGHT</VirraText>
                 </Pressable>
@@ -133,9 +132,7 @@ export default function WeightScreen() {
 
             {position && (
               <VirraCard>
-                <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
-                  WHAT TO EXPECT
-                </VirraText>
+                <SectionLabel style={styles.kicker}>WHAT TO EXPECT</SectionLabel>
                 <VirraText variant="body" size={14} color={colors.breath} style={{ marginTop: spacing.xs }}>
                   {REASONING[position]}
                 </VirraText>
@@ -145,9 +142,7 @@ export default function WeightScreen() {
             <Pressable onPress={() => setHowOpen((v) => !v)} accessibilityRole="button">
               <VirraCard>
                 <View style={styles.row}>
-                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
-                    HOW THIS WORKS
-                  </VirraText>
+                  <SectionLabel style={styles.kicker}>HOW THIS WORKS</SectionLabel>
                   <SymbolView name={howOpen ? 'chevron.up' : 'chevron.down'} size={14} tintColor={colors.muted} />
                 </View>
                 {howOpen && (

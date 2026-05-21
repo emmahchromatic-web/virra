@@ -19,6 +19,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraModal } from '@/components/ui/VirraModal';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BreakModal } from '@/components/ui/BreakModal';
 import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
@@ -318,12 +319,12 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>ACCOUNT</VirraText>
+          <SectionLabel style={styles.cardLabel}>ACCOUNT</SectionLabel>
           <Row label="EMAIL" value={session?.user.email ?? '—'} />
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>SUBSCRIPTION</VirraText>
+          <SectionLabel style={styles.cardLabel}>SUBSCRIPTION</SectionLabel>
           <Row
             label="STATUS"
             value={subLabel[status] ?? status}
@@ -332,7 +333,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>BODY METRICS</VirraText>
+          <SectionLabel style={styles.cardLabel}>BODY METRICS</SectionLabel>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm }}>
             <View style={{ flex: 1, paddingRight: spacing.md }}>
               <VirraText variant="body" size={15} color={colors.breath}>Track weight</VirraText>
@@ -387,7 +388,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>CYCLE</VirraText>
+          <SectionLabel style={styles.cardLabel}>CYCLE</SectionLabel>
           <Row
             label="CYCLE PROFILE"
             value={CYCLE_PROFILE_LABEL[cycleProfile]}
@@ -413,7 +414,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>TRAINING</VirraText>
+          <SectionLabel style={styles.cardLabel}>TRAINING</SectionLabel>
           <Row
             label="DAILY STEPS TARGET"
             value={stepsTarget.toLocaleString()}
@@ -427,7 +428,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>DEVICE</VirraText>
+          <SectionLabel style={styles.cardLabel}>DEVICE</SectionLabel>
           <Row
             label="PERMISSIONS"
             value={`${permissionsSummary.granted} of ${permissionsSummary.total} granted`}
@@ -436,7 +437,7 @@ export default function ProfileScreen() {
         </VirraCard>
 
         <VirraCard style={styles.card}>
-          <VirraText variant="mono" size={11} color={colors.muted} style={styles.cardLabel}>HELP &amp; LEGAL</VirraText>
+          <SectionLabel style={styles.cardLabel}>HELP &amp; LEGAL</SectionLabel>
           <Row
             label="HEALTH &amp; MEDICAL"
             value="Educational use only · tap to read"

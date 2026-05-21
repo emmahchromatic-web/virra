@@ -17,6 +17,7 @@ import { CycleMonthCalendar } from '@/components/ui/CycleMonthCalendar';
 import { CycleWeightChart, type WeightReading } from '@/components/ui/CycleWeightChart';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 
 const COACHING_CARD_WIDTH = 260;
 const ACTION_HEIGHT       = 52;
@@ -135,9 +136,7 @@ export default function CycleDetailScreen() {
             </VirraCard>
 
             <VirraCard>
-              <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
-                CYCLE CALENDAR
-              </VirraText>
+              <SectionLabel style={styles.cardLabel}>CYCLE CALENDAR</SectionLabel>
               <CycleMonthCalendar periodStart={periodStart!} cycleLength={cycleLength} />
             </VirraCard>
 
@@ -145,9 +144,7 @@ export default function CycleDetailScreen() {
               <>
                 <VirraCard>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-                    <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
-                      WEIGHT · KG FROM BASELINE
-                    </VirraText>
+                    <SectionLabel style={styles.cardLabel}>WEIGHT · KG FROM BASELINE</SectionLabel>
                     <Pressable onPress={() => setAddOpen(true)} hitSlop={8} accessibilityRole="button">
                       <VirraText variant="mono" size={10} color={colors.pulse}>+ ADD WEIGHT</VirraText>
                     </Pressable>
@@ -164,9 +161,7 @@ export default function CycleDetailScreen() {
             )}
 
             <View>
-              <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
-                THIS PHASE
-              </VirraText>
+              <SectionLabel style={styles.sectionLabel}>THIS PHASE</SectionLabel>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -214,9 +209,7 @@ function Stat({ value, label, color }: { value: number; label: string; color: st
 function CoachingCard({ title, body, accent }: { title: string; body: string; accent: string }) {
   return (
     <VirraCard style={styles.coachingCard}>
-      <VirraText variant="mono" size={10} color={accent} style={styles.cardLabel}>
-        {title.toUpperCase()}
-      </VirraText>
+      <SectionLabel color={accent} style={styles.cardLabel}>{title}</SectionLabel>
       <VirraText variant="body" size={14} color={colors.breath}>{body}</VirraText>
     </VirraCard>
   );

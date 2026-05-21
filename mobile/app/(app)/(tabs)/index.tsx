@@ -15,6 +15,7 @@ import type { TrainingLoad } from '@/lib/nutritionTargets';
 import { WeekStrip } from '@/components/ui/WeekStrip';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { supabase } from '@/lib/supabase';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
@@ -24,7 +25,7 @@ function GuidanceCard({ title, body, accentColor, loading }: {
 }) {
   return (
     <VirraCard style={guide.card}>
-      <VirraText variant="mono" size={10} color={accentColor} style={guide.label}>{title.toUpperCase()}</VirraText>
+      <SectionLabel color={accentColor} style={guide.label}>{title}</SectionLabel>
       {loading ? (
         <View style={guide.skeleton} />
       ) : (
@@ -234,10 +235,7 @@ export default function DashboardScreen() {
                 accessibilityLabel="This week's training — open Training tab"
               >
                 <VirraCard style={{ paddingVertical: spacing.xs }}>
-                  <VirraText variant="mono" size={11} color={colors.muted}
-                    style={{ letterSpacing: 1.5, marginBottom: 2 }}>
-                    THIS WEEK
-                  </VirraText>
+                  <SectionLabel style={{ marginBottom: 2 }}>THIS WEEK</SectionLabel>
                   <WeekStrip userId={session.user.id} phase={cycleInfo?.phase ?? null} />
                 </VirraCard>
               </Pressable>

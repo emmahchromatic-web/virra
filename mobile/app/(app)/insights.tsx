@@ -14,6 +14,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { AddEventModal } from '@/components/ui/AddEventModal';
+import { SectionLabel } from '@/components/ui/SectionLabel';
 
 const PHASE_COLOR: Record<string, string> = {
   menstrual:  colors.heat,
@@ -189,7 +190,7 @@ export default function InsightsScreen() {
 
         {/* THIS WEEK — Haiku narrative */}
         <VirraCard style={styles.narrativeCard}>
-          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>THIS WEEK</VirraText>
+          <SectionLabel style={styles.sectionLabel}>THIS WEEK</SectionLabel>
           {loadingNarrative ? (
             <View style={styles.skeleton} />
           ) : overallText ? (
@@ -205,7 +206,7 @@ export default function InsightsScreen() {
 
         {/* Metric grid */}
         <VirraCard style={styles.metricsCard}>
-          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>YOUR NUMBERS</VirraText>
+          <SectionLabel style={styles.sectionLabel}>YOUR NUMBERS</SectionLabel>
           <View style={styles.metricsGrid}>
             <MetricTile label="DAY STREAK"  value={loadingMetrics ? '—' : String(metrics?.streakDays ?? 0)} />
             <View style={styles.metricDividerV} />
@@ -248,7 +249,7 @@ export default function InsightsScreen() {
         {/* Training narrative */}
         {trainingText && (
           <VirraCard style={{ gap: spacing.xs }}>
-            <VirraText variant="mono" size={11} color={phaseColor} style={styles.sectionLabel}>TRAINING</VirraText>
+            <SectionLabel color={phaseColor} style={styles.sectionLabel}>TRAINING</SectionLabel>
             <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
               {trainingText}
             </VirraText>
@@ -258,7 +259,7 @@ export default function InsightsScreen() {
         {/* Nutrition narrative */}
         {nutritionText && (
           <VirraCard style={{ gap: spacing.xs }}>
-            <VirraText variant="mono" size={11} color={phaseColor} style={styles.sectionLabel}>NUTRITION</VirraText>
+            <SectionLabel color={phaseColor} style={styles.sectionLabel}>NUTRITION</SectionLabel>
             <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
               {nutritionText}
             </VirraText>
@@ -280,7 +281,7 @@ export default function InsightsScreen() {
           }
           return (
             <VirraCard style={{ gap: spacing.xs }}>
-              <VirraText variant="mono" size={11} color={phaseColor} style={styles.sectionLabel}>FUELLING</VirraText>
+              <SectionLabel color={phaseColor} style={styles.sectionLabel}>FUELLING</SectionLabel>
               <VirraText variant="body" size={13} color="rgba(244,237,224,0.8)" style={{ lineHeight: 20 }}>
                 {text}
               </VirraText>
@@ -291,9 +292,7 @@ export default function InsightsScreen() {
         {/* Phase-pace breakdown */}
         {metrics && metrics.phasePaces.length > 0 && (
           <VirraCard style={styles.paceCard}>
-            <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
-              PACE BY PHASE
-            </VirraText>
+            <SectionLabel style={styles.sectionLabel}>PACE BY PHASE</SectionLabel>
             {[...metrics.phasePaces]
               .sort((a, b) => a.avgPaceSecPerKm - b.avgPaceSecPerKm)
               .map((pp) => (
@@ -316,7 +315,7 @@ export default function InsightsScreen() {
         {/* Recovery — symptom trend */}
         {metrics?.symptomTrend && (
           <VirraCard style={{ gap: spacing.sm }}>
-            <VirraText variant="mono" size={11} color={colors.breath} style={styles.sectionLabel}>RECOVERY</VirraText>
+            <SectionLabel style={styles.sectionLabel}>RECOVERY</SectionLabel>
             {(['energy','mood','sleep'] as const).map((key) => {
               const label     = key === 'sleep' ? 'SLEEP' : key.toUpperCase();
               const value     = metrics.symptomTrend![key];
@@ -339,7 +338,7 @@ export default function InsightsScreen() {
         {/* Upcoming — sessions + events */}
         <VirraCard style={{ gap: spacing.sm }}>
           <View style={styles.upcomingHeader}>
-            <VirraText variant="mono" size={11} color={colors.muted} style={styles.sectionLabel}>UPCOMING 14 DAYS</VirraText>
+            <SectionLabel style={styles.sectionLabel}>UPCOMING 14 DAYS</SectionLabel>
             <Pressable
               onPress={() => setShowAddEvent(true)}
               style={styles.addEventBtn}
