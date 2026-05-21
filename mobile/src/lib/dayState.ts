@@ -59,20 +59,6 @@ export function deriveDayState(sessions: SessionForDay[], isPast: boolean): DayS
   }
 
   // Partial: 0 < done < total
-  // completed_multi only if 'run' is completed AND at least one other session (of any status) exists
-  const hasRunCompleted = doneList.some((s) => s.modality === 'run');
-  if (hasRunCompleted && done >= 1) {
-    // Find the second highest priority completed session
-    const sortedDone = sortedByPriority(doneList);
-    if (sortedDone.length >= 2) {
-      return {
-        kind: 'completed_multi',
-        a: 'run',
-        b: asModality(sortedDone[1].modality),
-      };
-    }
-  }
-
   const topCompleted = sortedByPriority(doneList)[0];
   return { kind: 'mixed', completed: asModality(topCompleted.modality) };
 }
