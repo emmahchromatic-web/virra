@@ -217,16 +217,30 @@ export default function DashboardScreen() {
               </VirraCard>
             </View>
 
-            <WeightGlanceCard latestKg={latestKg} />
+            {/* Cycle-mode users now see the weight surface inside YOUR CYCLE
+                (cycle-detail). Steady-mode users (hormonal, peri/menopause)
+                don't have that destination, so they keep the dashboard glance. */}
+            {cycleProfile !== 'natural' && cycleProfile !== 'irregular' && (
+              <WeightGlanceCard
+                latestKg={latestKg}
+                onPress={() => router.push('/(app)/weight' as any)}
+              />
+            )}
 
             {session && (
-              <VirraCard style={{ paddingVertical: spacing.xs }}>
-                <VirraText variant="mono" size={11} color={colors.muted}
-                  style={{ letterSpacing: 1.5, marginBottom: 2 }}>
-                  THIS WEEK
-                </VirraText>
-                <WeekStrip userId={session.user.id} phase={cycleInfo?.phase ?? null} />
-              </VirraCard>
+              <Pressable
+                onPress={() => router.push('/(app)/(tabs)/training' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="This week's training — open Training tab"
+              >
+                <VirraCard style={{ paddingVertical: spacing.xs }}>
+                  <VirraText variant="mono" size={11} color={colors.muted}
+                    style={{ letterSpacing: 1.5, marginBottom: 2 }}>
+                    THIS WEEK
+                  </VirraText>
+                  <WeekStrip userId={session.user.id} phase={cycleInfo?.phase ?? null} />
+                </VirraCard>
+              </Pressable>
             )}
 
             <View style={styles.actionRow}>

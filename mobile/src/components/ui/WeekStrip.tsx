@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -104,29 +103,12 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
 
   const tIndex = todayIndexMonZero();
 
-  function openTraining() {
-    router.push('/(app)/(tabs)/training' as any);
-  }
-
   if (!hasPlan) {
-    return (
-      <Pressable
-        onPress={openTraining}
-        accessibilityRole="button"
-        accessibilityLabel="This week's training — open Training tab"
-      >
-        <EmptyWeekStrip todayIndex={tIndex} />
-      </Pressable>
-    );
+    return <EmptyWeekStrip todayIndex={tIndex} />;
   }
 
   return (
-    <Pressable
-      onPress={openTraining}
-      accessibilityRole="button"
-      accessibilityLabel="This week's training — open Training tab"
-    >
-      <View style={strip.row}>
+    <View style={strip.row}>
         {states.map((s, i) => (
           <DayCell
             key={i}
@@ -141,8 +123,7 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
           />
         ))}
       </View>
-    </Pressable>
-  );
+    );
 }
 
 const strip = StyleSheet.create({
