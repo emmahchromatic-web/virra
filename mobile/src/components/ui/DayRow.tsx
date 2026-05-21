@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { View, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -9,27 +9,22 @@ interface Props {
   isToday:      boolean;
   highlighted:  boolean;
   children:     React.ReactNode | React.ReactNode[];
+  // top/bottom are relative to the ScrollView's content, not the window.
+  // measureInWindow on a ScrollView child is unreliable on iOS — it returns
+  // (0,0,0,0) until the user scrolls. nativeEvent.layout is always populated.
   onMeasure:    (date: string, top: number, bottom: number) => void;
 }
 
 export function DayRow({ date, weekdayLabel, isToday, highlighted, children, onMeasure }: Props) {
-  const rowRef = useRef<View>(null);
-
-  function handleLayout(_: LayoutChangeEvent) {
-    // onLayout fires before the view is actually placed in the window on iOS,
-    // so measureInWindow inside it returns (0,0,0,0). Defer to the next frame.
-    requestAnimationFrame(() => {
-      rowRef.current?.measureInWindow((_x, y, _w, h) => {
-        onMeasure(date, y, y + h);
-      });
-    });
+  function handleLayout(e: LayoutChangeEvent) {
+    const { y, height } = e.nativeEvent.layout;
+    onMeasure(date, y, y + height);
   }
 
-  const empty = !children || (Array.isArray(children) && children.length === 0);
+  const empty = React.Children.toArray(children).length === 0;
 
   return (
     <View
-      ref={rowRef}
       onLayout={handleLayout}
       style={[styles.row, highlighted && styles.highlighted]}
     >

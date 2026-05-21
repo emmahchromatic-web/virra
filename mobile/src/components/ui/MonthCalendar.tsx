@@ -63,7 +63,7 @@ export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: 
         .eq('user_id', userId)
         .gte('scheduled_date', startISO)
         .lte('scheduled_date', endISO)
-        .neq('status', 'moved')
+        .in('status', ['planned', 'completed'])
         .order('scheduled_date'),
       supabase
         .from('user_events')

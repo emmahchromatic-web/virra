@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Pressable, Alert } from 'react-native';
+import { View, StyleSheet, SafeAreaView, Pressable, Alert, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
@@ -62,7 +62,11 @@ export default function WeekMoveScreen() {
   const [hoverDate,   setHoverDate]   = useState<string | null>(null);
   const [busy,        setBusy]        = useState(false);
   const [pickerTarget,setPickerTarget]= useState<{ date: string; targets: SwapTarget[]; droppedId: string; sourceDate: string } | null>(null);
-  const rowBoundsRef = useRef<Record<string, RowBounds>>({});
+  // Bounds are content-relative (ScrollView coordinates), not window-absolute.
+  const rowBoundsRef       = useRef<Record<string, RowBounds>>({});
+  const scrollWrapRef      = useRef<View>(null);
+  const scrollViewPageYRef = useRef<number>(0);
+  const scrollOffsetRef    = useRef<number>(0);
 
   const loadRows = useCallback(async () => {
     if (!auth) return;
@@ -81,8 +85,32 @@ export default function WeekMoveScreen() {
   const groups = groupSessionsByDay(rows, week);
 
   function handleMeasure(date: string, top: number, bottom: number) {
-    console.log('[drag] measure', date, 'top=', top, 'bottom=', bottom);
     rowBoundsRef.current[date] = { top, bottom };
+  }
+
+  function handleScrollWrapLayout() {
+    // The wrapper is a top-level RN View (not nested in another scroll view),
+    // so measureInWindow on it is reliable. We need its window-pageY to
+    // translate finger absoluteY → ScrollView content coords. Retry on next
+    // frame if iOS hasn't populated window coords yet.
+    const measure = (attempt: number) => {
+      scrollWrapRef.current?.measureInWindow((_x, y) => {
+        if (y === 0 && attempt < 3) {
+          requestAnimationFrame(() => measure(attempt + 1));
+          return;
+        }
+        scrollViewPageYRef.current = y;
+      });
+    };
+    measure(0);
+  }
+
+  function handleScroll(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+  }
+
+  function absoluteYToContentY(absY: number): number {
+    return absY - scrollViewPageYRef.current + scrollOffsetRef.current;
   }
 
   function handleLongPress(id: string) {
@@ -95,17 +123,12 @@ export default function WeekMoveScreen() {
   useEffect(() => { hoverDateRef.current = hoverDate; }, [hoverDate]);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
 
-  const lookupCountRef = useRef(0);
   function handlePanUpdate(id: string, _ty: number, absY: number) {
     const grabbed = rowsRef.current.find((r) => r.id === id);
     if (!grabbed) return;
-    const next = findRowAtY(rowBoundsRef.current, absY);
+    const contentY  = absoluteYToContentY(absY);
+    const next      = findRowAtY(rowBoundsRef.current, contentY);
     const validNext = next && next !== grabbed.scheduled_date ? next : null;
-    // Log first lookup + any time validNext changes
-    if (lookupCountRef.current < 1 || validNext !== hoverDateRef.current) {
-      lookupCountRef.current += 1;
-      console.log('[drag] lookup absY=', absY, 'next=', next, 'src=', grabbed.scheduled_date, 'valid=', validNext, 'boundsKeys=', Object.keys(rowBoundsRef.current).length);
-    }
     if (validNext !== hoverDateRef.current) {
       if (validNext) hapticImpact('light');
       setHoverDate(validNext);
@@ -113,8 +136,9 @@ export default function WeekMoveScreen() {
   }
 
   async function handlePanEnd(id: string, _ty: number, absY: number) {
-    const target = findRowAtY(rowBoundsRef.current, absY);
-    const source = rows.find((r) => r.id === id);
+    const contentY = absoluteYToContentY(absY);
+    const target   = findRowAtY(rowBoundsRef.current, contentY);
+    const source   = rows.find((r) => r.id === id);
     setHoverDate(null);
 
     if (!target || !source || target === source.scheduled_date) {
@@ -223,10 +247,13 @@ export default function WeekMoveScreen() {
           <View style={styles.headerBtn} />
         </View>
 
+        <View ref={scrollWrapRef} onLayout={handleScrollWrapLayout} style={styles.scrollWrap}>
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           scrollEnabled={!grabbedId}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
         >
           {week.map((d) => {
             const grabbed = grabbedId ? rows.find((r) => r.id === grabbedId) : null;
@@ -267,6 +294,7 @@ export default function WeekMoveScreen() {
             );
           })}
         </ScrollView>
+        </View>
 
         <View style={styles.actions}>
           <VirraButton label="CATCH UP NEXT WEEK" onPress={handleCatchup} style={{ flex: 1 }} disabled={busy || !focusedSessionId} />
@@ -295,6 +323,7 @@ export default function WeekMoveScreen() {
 
 const styles = StyleSheet.create({
   safe:      { flex: 1, backgroundColor: colors.mile },
+  scrollWrap:{ flex: 1 },
   header:    { height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   headerBtn: { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   content:   { paddingBottom: spacing.sm },

@@ -59,8 +59,10 @@ const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
 };
 
 export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanEnd, grabbed, enabled }: Props) {
-  const scale     = useRef(new Animated.Value(1)).current;
-  const sessionId = session.id;
+  const scale      = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const sessionId  = session.id;
 
   // Stable refs so the Gesture callbacks always see the latest screen-level
   // handlers — RNGH doesn't hot-swap callbacks on an active touch.
@@ -75,6 +77,9 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
       Animated.spring(scale, { toValue: 1.04, useNativeDriver: true }).start();
     } else {
       Animated.timing(scale, { toValue: 1, duration: 160, useNativeDriver: true }).start();
+      // Snap card back to origin after a drop or cancel.
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 9 }).start();
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 9 }).start();
     }
   }, [grabbed]);
 
@@ -83,18 +88,17 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
       Gesture.Pan()
         .activateAfterLongPress(350)
         .onStart((e) => {
-          console.log('[drag] onStart', sessionId, 'absY=', e.absoluteY);
           cbRef.current.onLongPress(sessionId, e.absoluteY);
         })
         .onUpdate((e) => {
-          console.log('[drag] onUpdate absY=', e.absoluteY);
+          translateX.setValue(e.translationX);
+          translateY.setValue(e.translationY);
           cbRef.current.onPanUpdate(sessionId, e.translationY, e.absoluteY);
         })
         .onEnd((e) => {
-          console.log('[drag] onEnd absY=', e.absoluteY);
           cbRef.current.onPanEnd(sessionId, e.translationY, e.absoluteY);
         }),
-    [sessionId],
+    [sessionId, translateX, translateY],
   );
 
   // Update enabled dynamically without recreating the gesture
@@ -107,7 +111,7 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
           styles.card,
           session.isFocused && styles.focused,
           grabbed && styles.elevated,
-          { transform: [{ scale }] },
+          { transform: [{ translateX }, { translateY }, { scale }] },
         ]}
       >
         <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[session.modality] }]} />

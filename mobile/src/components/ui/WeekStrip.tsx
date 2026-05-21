@@ -76,7 +76,7 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
       .eq('user_id', userId)
       .gte('scheduled_date', monday)
       .lte('scheduled_date', sunday)
-      .neq('status', 'moved')
+      .in('status', ['planned', 'completed'])
       .order('scheduled_date');
 
     const map: Record<string, DayData> = {};
