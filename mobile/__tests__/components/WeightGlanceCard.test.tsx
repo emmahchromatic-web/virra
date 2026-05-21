@@ -18,9 +18,13 @@ jest.mock('@/store/cycle', () => ({
 }));
 
 describe('WeightGlanceCard', () => {
-  it('returns null when no latest reading is provided', () => {
-    const { toJSON } = render(<WeightGlanceCard latestKg={null} />);
-    expect(toJSON()).toBeNull();
+  it('renders the generic phase expectation when no reading is provided', () => {
+    // Phase G merge: the card absorbs the standalone WHAT TO EXPECT card on
+    // cycle-detail, so a null reading still produces useful phase context
+    // rather than rendering nothing.
+    const { getByText } = render(<WeightGlanceCard latestKg={null} />);
+    expect(getByText(/water retention/i)).toBeTruthy();
+    expect(getByText(/LUTEAL/i)).toBeTruthy();
   });
 
   it('renders the in-band state with delta and phase pill', () => {

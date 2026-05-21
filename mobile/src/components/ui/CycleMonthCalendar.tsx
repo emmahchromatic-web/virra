@@ -115,7 +115,10 @@ const styles = StyleSheet.create({
   weekRow:      { flexDirection: 'row', gap: 2 },
   cell:         { flex: 1, height: CELL, alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: radius.sm, position: 'relative', borderWidth: 2, borderColor: 'transparent' },
   cellFilled:   {},
-  cellToday:    { borderColor: colors.breath },
+  // Today reads as "you are here" against any phase fill: the page background
+  // (mile) is dark, all four phase tints are bright, so a mile border in a
+  // slightly thicker stroke pops out everywhere.
+  cellToday:    { borderColor: colors.mile, borderWidth: 3 },
   bleedDot:     { position: 'absolute', bottom: 4, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.mile },
   legend:       { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md, paddingHorizontal: spacing.xs },
   legendItem:   { flexDirection: 'row', alignItems: 'center', gap: 4 },

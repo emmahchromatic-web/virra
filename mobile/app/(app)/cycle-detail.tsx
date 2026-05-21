@@ -16,14 +16,7 @@ import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { CycleMonthCalendar } from '@/components/ui/CycleMonthCalendar';
 import { CycleWeightChart, type WeightReading } from '@/components/ui/CycleWeightChart';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
-import type { CyclePhase } from '@/lib/cycleEngine';
-
-const WEIGHT_REASONING: Record<CyclePhase, string> = {
-  menstrual:  'Bleed days often show your lowest read of the cycle as water levels reset.',
-  follicular: 'Follicular days are your steadiest baseline — energy rises and weight tends to hold.',
-  ovulatory:  'A small lift around ovulation is normal. Hormones drive a brief water rise.',
-  luteal:     'Expect a 1–2 kg lift before your period. This is water retention, not fat gain.',
-};
+import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
 
 const COACHING_CARD_WIDTH = 260;
 const ACTION_HEIGHT       = 52;
@@ -149,32 +142,26 @@ export default function CycleDetailScreen() {
             </VirraCard>
 
             {trackWeight && periodStart && (
-              <VirraCard>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
-                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
-                    WEIGHT · KG FROM BASELINE
-                  </VirraText>
-                  <Pressable onPress={() => setAddOpen(true)} hitSlop={8} accessibilityRole="button">
-                    <VirraText variant="mono" size={10} color={colors.pulse}>+ ADD WEIGHT</VirraText>
-                  </Pressable>
-                </View>
-                <CycleWeightChart
-                  baselineKg={weightBaselineKg}
-                  readings={readings}
-                  periodStart={periodStart}
-                  cycleLength={cycleLength}
-                />
-              </VirraCard>
+              <>
+                <VirraCard>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xs }}>
+                    <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
+                      WEIGHT · KG FROM BASELINE
+                    </VirraText>
+                    <Pressable onPress={() => setAddOpen(true)} hitSlop={8} accessibilityRole="button">
+                      <VirraText variant="mono" size={10} color={colors.pulse}>+ ADD WEIGHT</VirraText>
+                    </Pressable>
+                  </View>
+                  <CycleWeightChart
+                    baselineKg={weightBaselineKg}
+                    readings={readings}
+                    periodStart={periodStart}
+                    cycleLength={cycleLength}
+                  />
+                </VirraCard>
+                <WeightGlanceCard latestKg={readings.length ? readings[readings.length - 1].weight_kg : null} />
+              </>
             )}
-
-            <VirraCard>
-              <VirraText variant="mono" size={10} color={colors.muted} style={styles.cardLabel}>
-                WHAT TO EXPECT
-              </VirraText>
-              <VirraText variant="body" size={14} color={colors.breath}>
-                {WEIGHT_REASONING[cycleInfo!.phase]}
-              </VirraText>
-            </VirraCard>
 
             <View>
               <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
