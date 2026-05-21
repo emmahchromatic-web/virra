@@ -1,44 +1,22 @@
 import React, { useCallback, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from './VirraText';
+import { DayCell } from './DayCell';
+import { EmptyWeekStrip } from './EmptyWeekStrip';
+import { deriveDayState, type DayState, type SessionForDay } from '@/lib/dayState';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 import type { CyclePhase } from '@/store/cycle';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-const MODALITY_ICON: Record<string, React.ComponentProps<typeof SymbolView>['name']> = {
-  run:      'figure.run',
-  strength: 'dumbbell',
-  swim:     'figure.pool.swim',
-  yoga:     'figure.mind.and.body',
-  other:    'figure.mixed.cardio',
-};
-
-const MODALITY_COLOR: Record<string, string> = {
-  run:      colors.pulse,
-  strength: colors.dawn,
-  swim:     colors.breath,
-  yoga:     colors.breath,
-  other:    colors.muted,
-};
-
-interface StripSession {
-  id: string;
+interface FetchedSession extends SessionForDay {
+  id:             string;
   scheduled_date: string;
-  modality: string;
-  session_label: string;
-  status: string;
-}
-
-interface DayData {
-  sessions: StripSession[];
-  isPast:   boolean;
-  isToday:  boolean;
 }
 
 function localDateISO(d: Date): string {
@@ -59,8 +37,15 @@ function offsetISO(base: string, n: number): string {
   return localDateISO(new Date(y, m - 1, d + n));
 }
 
+function todayIndexMonZero(): number {
+  // Date.getDay(): 0=Sun..6=Sat → convert to Mon=0..Sun=6
+  const d = new Date().getDay();
+  return d === 0 ? 6 : d - 1;
+}
+
 export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhase | null }) {
-  const [dayMap,    setDayMap]    = useState<Record<string, DayData>>({});
+  const [states,    setStates]    = useState<DayState[]>(() => Array(7).fill({ kind: 'rest' }));
+  const [hasPlan,   setHasPlan]   = useState<boolean>(true); // optimistic
   const [todayLoad, setTodayLoad] = useState<TrainingLoad | null>(null);
 
   useFocusEffect(useCallback(() => { load(); }, [userId, phase]));
@@ -70,24 +55,38 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
     const sunday   = offsetISO(monday, 6);
     const todayISO = localDateISO(new Date());
 
-    const { data } = await supabase
-      .from('planned_sessions')
-      .select('id, scheduled_date, modality, session_label, status')
-      .eq('user_id', userId)
-      .gte('scheduled_date', monday)
-      .lte('scheduled_date', sunday)
-      .in('status', ['planned', 'completed'])
-      .order('scheduled_date');
+    const [{ data: sessions }, { data: blocks }] = await Promise.all([
+      supabase
+        .from('planned_sessions')
+        .select('id, scheduled_date, modality, status')
+        .eq('user_id', userId)
+        .gte('scheduled_date', monday)
+        .lte('scheduled_date', sunday)
+        .in('status', ['planned', 'completed'])
+        .order('scheduled_date'),
+      supabase
+        .from('training_blocks')
+        .select('id')
+        .eq('user_id', userId)
+        .lte('starts_on', todayISO)
+        .gte('ends_on',   todayISO)
+        .limit(1),
+    ]);
 
-    const map: Record<string, DayData> = {};
+    const sessionsByDay: Record<string, FetchedSession[]> = {};
+    for (let i = 0; i < 7; i++) sessionsByDay[offsetISO(monday, i)] = [];
+    for (const s of (sessions ?? [])) {
+      sessionsByDay[s.scheduled_date]?.push(s as FetchedSession);
+    }
+
+    const nextStates: DayState[] = [];
     for (let i = 0; i < 7; i++) {
-      const iso = offsetISO(monday, i);
-      map[iso] = { sessions: [], isPast: iso < todayISO, isToday: iso === todayISO };
+      const iso       = offsetISO(monday, i);
+      const isPast    = iso < todayISO;
+      nextStates.push(deriveDayState(sessionsByDay[iso], isPast));
     }
-    for (const s of (data ?? [])) {
-      map[s.scheduled_date]?.sessions.push(s as StripSession);
-    }
-    setDayMap(map);
+    setStates(nextStates);
+    setHasPlan((blocks ?? []).length > 0);
 
     try {
       const ctx = await getDailyTrainingContext(userId, todayISO, phase ?? null);
@@ -97,64 +96,49 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
     }
   }
 
+  const tIndex = todayIndexMonZero();
+
+  function openTraining() {
+    router.push('/(app)/(tabs)/training' as any);
+  }
+
+  if (!hasPlan) {
+    return (
+      <Pressable
+        onPress={openTraining}
+        accessibilityRole="button"
+        accessibilityLabel="This week's training — open Training tab"
+      >
+        <EmptyWeekStrip todayIndex={tIndex} />
+      </Pressable>
+    );
+  }
+
   return (
-    <View style={strip.row}>
-      {Object.entries(dayMap).map(([iso, day], i) => {
-        const hasCompleted  = day.sessions.some((s) => s.status === 'completed');
-        const hasSessions   = day.sessions.length > 0;
-        const primary       = day.sessions[0];
-        const modalityColor = primary ? (MODALITY_COLOR[primary.modality] ?? colors.muted) : null;
-        const todayFill     = day.isToday && hasSessions && modalityColor;
-        return (
-          <View key={iso} style={strip.col}>
-            <VirraText variant="mono" size={10} color={day.isToday ? colors.breath : colors.muted}>
-              {DAY_LABELS[i]}
-            </VirraText>
-            <View style={[
-              strip.circle,
-              !hasSessions && strip.circleEmpty,
-              todayFill && { backgroundColor: modalityColor, borderColor: modalityColor },
-            ]}>
-              {day.isPast && hasCompleted ? (
-                <SymbolView name="checkmark" size={10} tintColor={colors.pulse} />
-              ) : day.isPast && hasSessions ? (
-                <SymbolView name="minus" size={10} tintColor={colors.muted} />
-              ) : hasSessions && primary ? (
-                <SymbolView
-                  name={MODALITY_ICON[primary.modality] ?? 'figure.walk'}
-                  size={12}
-                  tintColor={day.isToday ? colors.mile : (MODALITY_COLOR[primary.modality] ?? colors.muted)}
-                />
-              ) : null}
-            </View>
-            {hasSessions && day.sessions.length > 1 && (
-              <View style={strip.dots}>
-                {day.sessions.slice(0, 3).map((s, di) => (
-                  <View key={di} style={[strip.dot,
-                    { backgroundColor: MODALITY_COLOR[s.modality] ?? colors.muted }]} />
-                ))}
-              </View>
-            )}
-            {day.isToday && todayLoad && (
+    <Pressable
+      onPress={openTraining}
+      accessibilityRole="button"
+      accessibilityLabel="This week's training — open Training tab"
+    >
+      <View style={strip.row}>
+        {states.map((s, i) => (
+          <DayCell
+            key={i}
+            state={s}
+            isToday={i === tIndex}
+            dayLetter={DAY_LABELS[i]}
+            belowSlot={i === tIndex && todayLoad ? (
               <VirraText variant="mono" size={10} color={colors.muted}>
                 {todayLoad === 'moderate' ? 'MOD' : todayLoad.toUpperCase()}
               </VirraText>
-            )}
-          </View>
-        );
-      })}
-    </View>
+            ) : undefined}
+          />
+        ))}
+      </View>
+    </Pressable>
   );
 }
 
-const CIRCLE = 32;
 const strip = StyleSheet.create({
-  row:         { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm },
-  col:         { alignItems: 'center', gap: 4, flex: 1 },
-  circle:      { width: CIRCLE, height: CIRCLE, borderRadius: CIRCLE / 2, borderWidth: 1,
-                 borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
-                 backgroundColor: colors.mist },
-  circleEmpty: { borderColor: 'transparent', backgroundColor: 'transparent' },
-  dots:        { flexDirection: 'row', gap: 3 },
-  dot:         { width: 4, height: 4, borderRadius: 2 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm },
 });
