@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
 import { SymbolView } from 'expo-symbols';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
@@ -179,13 +180,15 @@ export default function ProfileScreen() {
 
     setUploadingAvatar(true);
     try {
-      const uri     = result.assets[0].uri;
-      const path    = `${session.user.id}/avatar.jpg`;
-      const res     = await fetch(uri);
-      const blob    = await res.blob();
+      const uri  = result.assets[0].uri;
+      const path = `${session.user.id}/avatar.jpg`;
+      // `fetch(uri).then(r => r.blob())` is broken on React Native — Supabase
+      // ends up uploading an empty/garbled body, the URL resolves but the
+      // image never renders. Read the file as raw bytes instead.
+      const bytes = await new File(uri).bytes();
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+        .upload(path, bytes, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       await saveProfile(session.user.id, { avatarUrl: `${urlData.publicUrl}?t=${Date.now()}` });
