@@ -21,9 +21,14 @@ Access is via the **Trello REST API directly** (no MCP, no browser automation). 
 source ~/.trello.env
 # read: board lists + cards
 curl -s "https://api.trello.com/1/boards/M7tjcDl3?fields=name,url&lists=open&cards=open&card_fields=name,idList&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+# read ONE card in full — its DESCRIPTION *and* its COMMENTS (read both, always):
+curl -s "https://api.trello.com/1/cards/{id}?fields=name,desc&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+curl -s "https://api.trello.com/1/cards/{id}/actions?filter=commentCard&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
 # move a card to a list:   PUT  /1/cards/{id}?idList={listId}
 # comment on a card:       POST /1/cards/{id}/actions/comments  (text=...)  — @emmaharrison120 mentions notify her
 ```
+
+**Always read both the card description AND its comments before acting on a card.** Comments carry decisions, scope changes, context and feedback that the description alone misses — these have been overlooked in the past and must not be ignored. Never act on a card from its title/description alone; pull its comment thread first.
 
 Keep secrets in env vars in the command (`$TRELLO_KEY`/`$TRELLO_TOKEN`) so they never appear in transcripts. Moving cards / commenting are shared, visible actions on a board Paul doesn't own — confirm intent before writing, and tag `@emmaharrison120` when a card needs her review.
 
