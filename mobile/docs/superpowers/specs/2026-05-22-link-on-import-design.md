@@ -82,7 +82,7 @@ interface MatchCandidate {
 function matchActivityToSession(
   activity:   MatchActivity,
   candidates: MatchCandidate[],   // already same-day, same-modality, unlinked, status='planned'
-  opts?: { gateFraction?: number } // default 0.90; pass 0 to disable the gate
+  opts?: { gateFraction?: number } // default 0.90 (param exists for test injection)
 ): string | null;
 ```
 
@@ -163,11 +163,12 @@ A dedicated `hk_backfill_done_v1` AsyncStorage flag guards the one-time full bac
 `linkActivityToSession` (called from `manual-activity.tsx`) is refactored to build candidates
 and delegate to `matchActivityToSession`, so there is one matching implementation.
 
-**Behavioural decision to confirm at review:** manual logging is an *explicit* user action,
-so it calls the matcher with **`gateFraction: 0` (gate disabled)** — a deliberately logged
-workout always completes its session regardless of size — but still benefits from
-closest-target disambiguation (an improvement over today's `created_at`-only pick). The 90%
-gate applies **only** to the import reconciliation path, where it filters auto-imported noise.
+The **90% gate applies to manual logging too** (same `gateFraction: 0.9` as import) — one
+consistent rule for what counts as completing a session, regardless of source. Manual logs
+also gain closest-target disambiguation, an improvement over today's `created_at`-only pick.
+Consequence to note: a deliberately logged short workout (e.g. a 20-min run against a 10km
+target) will record the activity but **not** auto-complete the session; the user can adjust
+in-app. This is the intended behaviour.
 
 ---
 
@@ -188,7 +189,7 @@ gate applies **only** to the import reconciliation path, where it filters auto-i
 - Closest-target selection (50-min workout on upper-40/lower-45 day → lower).
 - Tie-break by created_at.
 - `null` target candidate skipped.
-- `gateFraction: 0` (manual path) bypasses the gate but still picks closest.
+- Below-gate activity matches nothing (e.g. 20-min run vs 10km target), for both paths.
 
 **Reconciler (mocked supabase):**
 - Out-of-order arrival (activity imported before its session exists, linked on next sweep).
