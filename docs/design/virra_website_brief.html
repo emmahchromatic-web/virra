@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VIRRA — Website Brief · Vol. 01</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,800&family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --pulse:  #D4FF26;
+    --heat:   #FF2E7E;
+    --mile:   #0A0A0F;
+    --mist:   #1C1C24;
+    --breath: #F4EDE0;
+    --dawn:   #FF6B3D;
+    --line:   rgba(244,237,224,0.10);
+    --line-strong: rgba(244,237,224,0.20);
+    --muted:  rgba(244,237,224,0.6);
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--mile);
+    color: var(--breath);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  em.it { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--heat); }
+  .vlogo-i { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--heat); }
+
+  /* ─── HEADER / COVER ─────────────────────────────── */
+  .cover { padding: 56px 48px 48px; border-bottom: 1px solid var(--line); position: relative; }
+  .cover::after { content: ''; position: absolute; left: 48px; right: 48px; bottom: 0; height: 4px; background: var(--heat); }
+  .topbar { display: flex; justify-content: space-between; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 36px; }
+  .wordmark {
+    font-family: 'Big Shoulders Display', sans-serif;
+    font-weight: 900;
+    font-size: clamp(64px, 11vw, 144px);
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+    color: var(--pulse);
+    text-transform: uppercase;
+  }
+  .wordmark .r { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--heat); }
+  .wordmark .i { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--heat); }
+  .horizon { display: block; height: 6px; width: 38%; max-width: 380px; background: var(--heat); margin-top: 8px; }
+  .subtitle { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: clamp(20px, 2.4vw, 30px); line-height: 1.2; color: var(--breath); margin-top: 20px; max-width: 720px; letter-spacing: -0.015em; }
+  .vol { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; text-transform: uppercase; font-size: 28px; letter-spacing: -0.01em; color: var(--heat); margin-top: 22px; }
+  .footrow { display: flex; justify-content: space-between; align-items: end; font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); margin-top: 30px; }
+
+  /* ─── CONTAINER ──────────────────────────────────── */
+  .container { max-width: 1080px; margin: 0 auto; padding: 56px 32px 88px; }
+
+  /* ─── SECTION HEADERS ───────────────────────────── */
+  .section { margin-bottom: 56px; }
+  .section-num { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--heat); margin-bottom: 8px; }
+  .section h2 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: clamp(36px, 5.5vw, 64px); line-height: 0.9; letter-spacing: -0.02em; text-transform: uppercase; margin-bottom: 6px; }
+  .section .lede { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 20px; line-height: 1.3; color: rgba(244,237,224,0.85); max-width: 640px; margin-bottom: 24px; letter-spacing: -0.015em; }
+
+  /* ─── NORTH STAR ────────────────────────────────── */
+  .north {
+    background: var(--heat);
+    color: var(--breath);
+    padding: 32px 36px;
+    border-radius: 4px;
+    margin-bottom: 40px;
+    position: relative;
+  }
+  .north .kicker { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--pulse); margin-bottom: 14px; }
+  .north p { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: clamp(28px, 3.6vw, 40px); line-height: 0.95; letter-spacing: -0.015em; text-transform: uppercase; }
+  .north p em { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--pulse); text-transform: none; }
+
+  /* ─── META BAR ───────────────────────────────────── */
+  .meta-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 56px; }
+  .meta-card { background: var(--mist); border: 1px solid var(--line); padding: 18px 18px 16px; border-radius: 4px; }
+  .meta-label { font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--pulse); margin-bottom: 8px; }
+  .meta-value { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 22px; line-height: 1; letter-spacing: -0.01em; text-transform: uppercase; color: var(--breath); }
+
+  /* ─── PANELS ─────────────────────────────────────── */
+  .panel { background: var(--mist); border: 1px solid var(--line); border-radius: 4px; padding: 28px 30px; margin-bottom: 14px; }
+  .panel h4 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 22px; line-height: 1; text-transform: uppercase; letter-spacing: -0.005em; color: var(--pulse); margin-bottom: 12px; }
+  .panel h4:not(:first-child) { margin-top: 22px; }
+  .panel p { font-size: 14.5px; color: rgba(244,237,224,0.85); margin-bottom: 10px; }
+  .panel ul { padding-left: 20px; margin-top: 10px; }
+  .panel li { font-size: 14px; color: rgba(244,237,224,0.85); margin-bottom: 6px; line-height: 1.5; }
+  .panel li b { color: var(--pulse); font-weight: 600; }
+
+  /* ─── BRAND TOKENS GRID ──────────────────────────── */
+  .palette-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+  .swatch { padding: 14px 12px; border-radius: 4px; min-height: 96px; display: flex; flex-direction: column; justify-content: space-between; }
+  .swatch .nm { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 16px; line-height: 0.95; text-transform: uppercase; letter-spacing: -0.01em; }
+  .swatch .hex { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .sw-pulse  { background: var(--pulse);  color: var(--mile); }
+  .sw-heat   { background: var(--heat);   color: var(--breath); }
+  .sw-mile   { background: var(--mile);   color: var(--pulse); border: 1px solid var(--line-strong); }
+  .sw-breath { background: var(--breath); color: var(--mile); }
+  .sw-dawn   { background: var(--dawn);   color: var(--mile); }
+
+  .type-list { display: grid; gap: 10px; margin-top: 14px; }
+  .type-row { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 14px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .type-row:last-child { border-bottom: none; }
+  .type-name { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); }
+  .type-spec { font-size: 14px; color: rgba(244,237,224,0.85); }
+  .type-demo-display { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 32px; text-transform: uppercase; letter-spacing: -0.015em; color: var(--breath); }
+  .type-demo-italic  { font-family: 'Fraunces', serif; font-style: italic; font-weight: 400; font-size: 26px; color: var(--breath); letter-spacing: -0.015em; }
+  .type-demo-body    { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 15px; color: var(--breath); }
+  .type-demo-mono    { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 14px; letter-spacing: 0.05em; color: var(--breath); }
+
+  /* ─── NAV / FOOTER VIS ──────────────────────────── */
+  .nav-vis { background: var(--mile); border: 1px solid var(--line-strong); border-radius: 4px; padding: 16px 22px; margin-top: 12px; display: flex; gap: 24px; flex-wrap: wrap; align-items: center; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .nav-vis .logo { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: -0.01em; color: var(--pulse); text-transform: uppercase; }
+  .nav-vis .logo .r, .nav-vis .logo .i { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--heat); }
+  .nav-vis .nav-item { color: var(--breath); transition: color 150ms ease; cursor: pointer; padding: 6px 0; position: relative; }
+  .nav-vis .nav-item:hover { color: var(--pulse); }
+  .nav-vis .nav-item.active { color: var(--pulse); }
+  .nav-vis .nav-item.active::after { content: ''; position: absolute; bottom: -4px; left: 0; right: 0; height: 2px; background: var(--heat); }
+  .nav-vis .nav-item.cta { background: var(--pulse); color: var(--mile); padding: 8px 16px; border-radius: 999px; margin-left: auto; transition: background 150ms ease, color 150ms ease; }
+  .nav-vis .nav-item.cta:hover { background: var(--heat); color: var(--mile); }
+  .nav-vis .nav-item.cta::after { display: none; }
+
+  .footer-vis { background: var(--mist); border: 1px solid var(--line); border-radius: 4px; padding: 14px 18px; margin-top: 12px; display: flex; gap: 14px; flex-wrap: wrap; font-family: 'Space Mono', monospace; font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .footer-vis span { padding: 4px 10px; background: var(--mile); border-radius: 3px; border: 1px solid var(--line); }
+
+  /* ─── PAGE CARDS ─────────────────────────────────── */
+  .page-card { background: var(--mist); border: 1px solid var(--line); border-radius: 4px; padding: 26px 28px; margin-bottom: 14px; position: relative; overflow: hidden; }
+  .page-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--pulse); }
+  .page-card.about::before    { background: var(--heat); }
+  .page-card.coaching::before { background: var(--pulse); }
+  .page-card.advice::before   { background: var(--heat); }
+  .page-card.calc::before     { background: var(--dawn); }
+  .page-card.legal::before    { background: var(--breath); }
+
+  .page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
+  .page-name { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 28px; line-height: 0.95; letter-spacing: -0.015em; text-transform: uppercase; }
+  .page-url { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); background: var(--mile); padding: 4px 10px; border-radius: 3px; border: 1px solid var(--line); }
+  .page-purpose { font-family: 'Fraunces', serif; font-style: italic; font-size: 16px; line-height: 1.35; color: rgba(244,237,224,0.85); margin-bottom: 18px; max-width: 760px; letter-spacing: -0.015em; }
+
+  .req-grid { display: grid; gap: 18px; margin-top: 6px; }
+  @media (min-width: 720px) { .req-grid.two-col { grid-template-columns: 1fr 1fr; } }
+  .req-block h5 { font-family: 'Space Mono', monospace; font-size: 10.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--pulse); margin-bottom: 8px; font-weight: 700; }
+  .req-block.alt h5 { color: var(--heat); }
+  .req-block ul { padding-left: 18px; }
+  .req-block li { font-size: 13.5px; color: rgba(244,237,224,0.85); margin-bottom: 5px; line-height: 1.5; }
+  .req-block li b { color: var(--breath); font-weight: 600; }
+
+  /* ─── COACHING TIERS ─────────────────────────────── */
+  .tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+  .tier { background: var(--mile); border: 1px solid var(--line-strong); border-radius: 4px; padding: 18px 18px 16px; }
+  .tier.featured { border-color: var(--pulse); }
+  .tier-tag { font-family: 'Space Mono', monospace; font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mile); background: var(--breath); padding: 3px 8px; border-radius: 3px; display: inline-block; margin-bottom: 10px; }
+  .tier.featured .tier-tag { background: var(--pulse); }
+  .tier-price { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 36px; line-height: 1; letter-spacing: -0.02em; color: var(--breath); }
+  .tier-price small { font-family: 'Inter', sans-serif; font-weight: 500; font-size: 11px; color: var(--muted); margin-left: 6px; letter-spacing: 0; text-transform: none; }
+  .tier-desc { font-family: 'Fraunces', serif; font-style: italic; font-size: 14px; line-height: 1.35; color: rgba(244,237,224,0.85); margin: 10px 0 12px; letter-spacing: -0.01em; }
+  .tier ul { list-style: none; padding: 0; }
+  .tier li { font-size: 12.5px; color: rgba(244,237,224,0.85); padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .tier li:last-child { border-bottom: none; }
+  .tier li b { color: var(--pulse); font-weight: 600; }
+
+  /* ─── PRINCIPLES ─────────────────────────────────── */
+  .principles-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .principle { background: var(--mist); border: 1px solid var(--line); padding: 20px 18px; border-radius: 4px; }
+  .principle-num { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.2em; color: var(--heat); }
+  .principle-title { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 22px; line-height: 0.95; letter-spacing: -0.005em; text-transform: uppercase; color: var(--pulse); margin: 8px 0 6px; }
+  .principle-body { font-size: 13.5px; color: rgba(244,237,224,0.85); line-height: 1.45; }
+
+  /* ─── TIMELINE ───────────────────────────────────── */
+  .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tl-card { background: var(--mist); border: 1px solid var(--line); padding: 18px; border-radius: 4px; }
+  .tl-week { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--heat); font-weight: 700; margin-bottom: 8px; }
+  .tl-title { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 20px; line-height: 1; letter-spacing: -0.005em; text-transform: uppercase; margin-bottom: 6px; color: var(--pulse); }
+  .tl-detail { font-size: 13px; color: rgba(244,237,224,0.85); line-height: 1.45; }
+
+  /* ─── STACK TABLE ────────────────────────────────── */
+  .stack-row { display: grid; grid-template-columns: 200px 1fr; gap: 18px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; align-items: baseline; }
+  .stack-row:last-child { border-bottom: none; }
+  .stack-item { font-family: 'Space Mono', monospace; font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); font-weight: 700; }
+  .stack-rec { color: rgba(244,237,224,0.9); line-height: 1.5; }
+
+  /* ─── CLOSE ─────────────────────────────────────── */
+  .close { padding: 56px 32px; border-top: 1px solid var(--line); margin-top: 32px; text-align: center; }
+  .close .megaclose { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: clamp(60px, 12vw, 140px); line-height: 0.85; letter-spacing: -0.04em; text-transform: uppercase; color: var(--breath); }
+  .close .megaclose em { font-family: 'Fraunces', serif; font-style: italic; font-weight: 800; color: var(--heat); text-transform: none; }
+  .close-foot { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-top: 24px; display: flex; justify-content: space-between; max-width: 1080px; margin-left: auto; margin-right: auto; }
+
+  /* ─── BUTTONS ─────────────────────────────────────── */
+  .btn { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px; padding: 10px 22px; border-radius: 999px; border: 2px solid transparent; cursor: pointer; transition: background 150ms ease, color 150ms ease, border-color 150ms ease; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; line-height: 1; }
+  .btn:focus-visible { outline: 3px solid var(--heat); outline-offset: 2px; }
+  .btn:active { transform: scale(0.98); transition: transform 100ms ease; }
+  .btn-primary { background: var(--pulse); color: var(--mile); }
+  .btn-primary:hover { background: var(--heat); color: var(--mile); }
+  .btn-heat { background: var(--heat); color: var(--mile); }
+  .btn-heat:hover { background: var(--pulse); color: var(--mile); }
+  .btn-outline { background: transparent; color: var(--pulse); border-color: var(--pulse); }
+  .btn-outline:hover { background: var(--pulse); color: var(--mile); }
+  .btn-ghost { background: transparent; color: var(--pulse); border: none; padding: 10px 4px; text-decoration: none; }
+  .btn-ghost:hover { color: var(--heat); text-decoration: underline; text-underline-offset: 4px; }
+  .btn-utility { font-family: 'Space Mono', monospace; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; padding: 9px 16px; background: var(--pulse); color: var(--mile); border-radius: 999px; border: 2px solid transparent; cursor: pointer; transition: background 150ms ease, color 150ms ease; }
+  .btn-utility:hover { background: var(--heat); color: var(--mile); }
+  .btn-disabled, .btn[disabled] { background: var(--mist); color: var(--muted); pointer-events: none; cursor: not-allowed; border-color: transparent; }
+  .btn-sm { padding: 6px 14px; font-size: 12px; }
+  .btn-lg { padding: 14px 28px; font-size: 16px; }
+
+  .btn-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0; align-items: center; }
+  .btn-row-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); font-weight: 700; width: 140px; flex-shrink: 0; }
+  .btn-row-note { font-size: 12.5px; color: var(--muted); font-family: 'Inter', sans-serif; flex: 1; min-width: 200px; }
+
+  .btn-subhead { font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--heat); margin-top: 22px; margin-bottom: 6px; font-weight: 700; }
+
+  .btn-spec-row { display: grid; grid-template-columns: 150px 1fr; gap: 18px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13.5px; align-items: baseline; }
+  .btn-spec-row:last-child { border-bottom: none; }
+  .btn-spec-label { font-family: 'Space Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); font-weight: 700; }
+  .btn-spec-value { color: rgba(244,237,224,0.9); line-height: 1.5; }
+  .btn-spec-value code { font-family: 'Space Mono', monospace; font-size: 12px; background: var(--mile); padding: 1px 6px; border-radius: 3px; color: var(--pulse); }
+
+  /* ─── NAV / MENU DEMO ───────────────────────────── */
+  .menu-mobile-demo { background: var(--mile); border: 1px solid var(--line-strong); border-radius: 4px; padding: 24px 22px 22px; margin-top: 12px; max-width: 320px; }
+  .menu-mobile-demo .mm-close { font-family: 'Space Mono', monospace; font-size: 14px; color: var(--muted); text-align: right; margin-bottom: 20px; }
+  .menu-mobile-demo .mm-item { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 28px; line-height: 1.2; letter-spacing: -0.01em; text-transform: uppercase; color: var(--breath); cursor: pointer; transition: color 150ms ease; }
+  .menu-mobile-demo .mm-item:hover { color: var(--pulse); }
+  .menu-mobile-demo .mm-item.active { color: var(--pulse); }
+  .menu-mobile-demo .mm-cta { margin-top: 20px; background: var(--pulse); color: var(--mile); padding: 12px 20px; border-radius: 999px; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; display: inline-block; }
+
+  /* ─── INPUTS DEMO ───────────────────────────────── */
+  .input-row { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; max-width: 360px; }
+  .input-label-demo { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); }
+  .input-label-demo .req { color: var(--heat); margin-left: 4px; }
+  .input-demo { background: var(--mist); border: 2px solid var(--line-strong); border-radius: 4px; padding: 12px 16px; font-family: 'Inter', sans-serif; font-weight: 400; font-size: 14px; color: var(--breath); transition: border-color 150ms ease; width: 100%; }
+  .input-demo::placeholder { color: rgba(244,237,224,0.4); }
+  .input-demo:focus { outline: none; border-color: var(--pulse); }
+  .input-demo.focused { border-color: var(--pulse); }
+  .input-demo.has-error { border-color: var(--heat); }
+  .input-helper-demo { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--muted); }
+  .input-error-demo { font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; color: var(--heat); }
+
+  /* ─── CARDS DEMO ────────────────────────────────── */
+  .card-demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 10px; }
+  @media (max-width: 600px) { .card-demo-grid { grid-template-columns: 1fr; } }
+  .card-demo-card { background: var(--mist); border: 1px solid var(--line); border-radius: 4px; padding: 22px 24px; position: relative; overflow: hidden; }
+  .card-demo-card.stripe { padding-left: 26px; }
+  .card-demo-card.stripe::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--pulse); }
+  .card-demo-card.heat-stripe::before { background: var(--heat); }
+  .card-demo-card h6 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 22px; line-height: 0.95; text-transform: uppercase; letter-spacing: -0.005em; color: var(--pulse); margin-bottom: 6px; }
+  .card-demo-card p { font-size: 13px; color: rgba(244,237,224,0.85); }
+  .card-demo-card.breath { background: var(--breath); border-color: rgba(10,10,15,0.08); }
+  .card-demo-card.breath h6 { color: var(--mile); }
+  .card-demo-card.breath p { color: rgba(10,10,15,0.7); }
+
+  /* ─── MODAL DEMO ────────────────────────────────── */
+  .modal-demo { background: var(--mist); border: 1px solid var(--line-strong); border-radius: 8px; padding: 28px 30px; max-width: 440px; margin: 14px 0; position: relative; }
+  .modal-demo .modal-close { position: absolute; top: 14px; right: 18px; font-family: 'Space Mono', monospace; font-size: 14px; color: var(--muted); cursor: pointer; }
+  .modal-demo .modal-eyebrow { font-family: 'Space Mono', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--heat); margin-bottom: 8px; }
+  .modal-demo h6 { font-family: 'Big Shoulders Display', sans-serif; font-weight: 900; font-size: 28px; line-height: 0.95; text-transform: uppercase; letter-spacing: -0.01em; color: var(--pulse); margin-bottom: 10px; }
+  .modal-demo .modal-body { font-size: 14px; color: rgba(244,237,224,0.85); margin-bottom: 14px; line-height: 1.5; }
+  .modal-demo .modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+
+  /* ─── RESPONSIVE ─────────────────────────────────── */
+  @media (max-width: 760px) {
+    .cover { padding: 36px 22px 28px; }
+    .cover::after { left: 22px; right: 22px; }
+    .container { padding: 36px 18px 56px; }
+    .meta-bar { grid-template-columns: repeat(2, 1fr); }
+    .palette-grid { grid-template-columns: repeat(2, 1fr); }
+    .tiers { grid-template-columns: 1fr; }
+    .principles-grid { grid-template-columns: 1fr; }
+    .timeline { grid-template-columns: 1fr 1fr; }
+    .stack-row { grid-template-columns: 1fr; gap: 4px; }
+    .type-row { grid-template-columns: 1fr; gap: 4px; }
+    .close-foot { flex-direction: column; gap: 8px; padding: 0 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ COVER ═══════════════ -->
+<section class="cover">
+  <div class="topbar"><span>VIRRA · 2026</span><span>Website Brief · Vol. 01</span></div>
+  <div class="wordmark">V<span class="i">i</span>RRA</div>
+  <span class="horizon"></span>
+  <div class="vol">virra.app — content hub phase</div>
+  <div class="subtitle">A working brief for the developer. How virra.app looks, sounds and behaves while the app is still being built.</div>
+  <div class="footrow">
+    <span>Vol. 01 · Brief</span>
+    <span>For the developer · For Emma · For anyone shipping virra.app</span>
+  </div>
+</section>
+
+<div class="container">
+
+  <!-- ═══════════════ NORTH STAR ═══════════════ -->
+  <div class="north">
+    <div class="kicker">The one-line brief</div>
+    <p>Build virra.app as the credibility-led content home for women runners — to grow <em>The Pack</em> before the app ships.</p>
+  </div>
+
+  <!-- ═══════════════ META ═══════════════ -->
+  <div class="meta-bar">
+    <div class="meta-card"><div class="meta-label">Phase</div><div class="meta-value">Content hub</div></div>
+    <div class="meta-card"><div class="meta-label">Primary CTA</div><div class="meta-value">Run Hot</div></div>
+    <div class="meta-card"><div class="meta-label">Pages at launch</div><div class="meta-value">5 + legal</div></div>
+    <div class="meta-card"><div class="meta-label">Built parallel to</div><div class="meta-value">App foundations</div></div>
+  </div>
+
+  <!-- ═══════════════ §01 CONTEXT ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§01 — Context</div>
+    <h2>Why this <em class="it">site.</em></h2>
+    <div class="lede">Why virra.app exists, what it has to do, and what it explicitly is not.</div>
+
+    <div class="panel">
+      <h4>Background</h4>
+      <p>VIRRA is a female-first running platform in development. The full app — cycle-aware training, female-first nutrition, run logging, female health education — is in its foundations phase and not ready to ship. The website goes first, in parallel, as the work the app can't yet do: build trust, capture audience, generate enquiries.</p>
+
+      <h4>What the website has to do</h4>
+      <ul>
+        <li><b>Grow the newsletter.</b> <em class="it">Run Hot</em> — the renamed VIRRA publication (replacing "Confessions of a Corporate Runner") — is the primary owned audience while the app is being built. Subscribers join <em class="it">The Pack</em>.</li>
+        <li><b>Build credibility.</b> Show the science-informed, female-first thinking behind VIRRA before users are asked to pay for it.</li>
+        <li><b>Generate 1:1 coaching enquiries.</b> Coaching is live now and is the income bridge while the app is built.</li>
+        <li><b>Earn organic traffic.</b> Useful tools (pace calculator) and evergreen content do the SEO heavy lifting.</li>
+        <li><b>Carry the brand.</b> The site is the first place outside Instagram that VIRRA's voice and design system live in public.</li>
+        <li><b>Be ready to evolve.</b> Components, routes and CMS choices should hold when "Get the App" replaces "Subscribe" as the primary CTA in 6–12 months.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §02 BRAND ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§02 — Brand</div>
+    <h2>Felt, <em class="it">not seen.</em></h2>
+    <div class="lede">The brand idea everything answers to. If a design choice doesn't make her feel something, it isn't VIRRA.</div>
+
+    <div class="panel">
+      <h4>The idea</h4>
+      <p>VIRRA is the running brand for women who don't want to be looked at while they run — they want to feel something while they run. Heat. Pulse. Pack. Mile. The somatic truth of the sport, not the optics of it.</p>
+
+      <h4>Four pillars</h4>
+      <ul>
+        <li><b>Pulse.</b> Embodied. Heart rate as truth, not metric.</li>
+        <li><b>Heat.</b> Hormones, effort, flush, fury. Treated as a superpower, never apologised for.</li>
+        <li><b>Pack.</b> Women in motion together. Never for the lens, always for the lift.</li>
+        <li><b>Mile.</b> Craft, distance, science. Earned every km — built around her physiology, not retrofitted from his.</li>
+      </ul>
+
+      <h4>Palette · five colours, five roles</h4>
+      <div class="palette-grid">
+        <div class="swatch sw-pulse"><div class="nm">Pulse<br>Lime</div><div class="hex">#D4FF26</div></div>
+        <div class="swatch sw-heat"><div class="nm">Heat<br>Magenta</div><div class="hex">#FF2E7E</div></div>
+        <div class="swatch sw-mile"><div class="nm">Mile<br>Ink</div><div class="hex">#0A0A0F</div></div>
+        <div class="swatch sw-breath"><div class="nm">Breath<br>Bone</div><div class="hex">#F4EDE0</div></div>
+        <div class="swatch sw-dawn"><div class="nm">Dawn<br>Coral</div><div class="hex">#FF6B3D</div></div>
+      </div>
+      <p style="margin-top:12px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--muted);">Default ratio · 60% Mile / 30% Pulse / 10% Heat &nbsp;·&nbsp; Dawn used sparingly, race-day moments only.</p>
+
+      <h4>Type · four families</h4>
+      <div class="type-list">
+        <div class="type-row">
+          <div>
+            <div class="type-name">Display · Big Shoulders 900</div>
+            <div class="type-spec">Headlines, posters, sectioning. Caps, tracked tight (-0.02em).</div>
+          </div>
+          <div class="type-demo-display">RUN HOT. BREATHE LOUD.</div>
+        </div>
+        <div class="type-row">
+          <div>
+            <div class="type-name">Editorial · Fraunces Italic 400/800</div>
+            <div class="type-spec">Manifestos, pull-quotes, the iconic italic <em class="it">R</em>. Lowercase only.</div>
+          </div>
+          <div class="type-demo-italic">felt, not seen.</div>
+        </div>
+        <div class="type-row">
+          <div>
+            <div class="type-name">Body · Inter 400/600</div>
+            <div class="type-spec">UI, long copy, captions. Tight rag, no orphans, plain English.</div>
+          </div>
+          <div class="type-demo-body">Tomorrow's long run. You don't need to feel ready. You need to lace up.</div>
+        </div>
+        <div class="type-row">
+          <div>
+            <div class="type-name">Mono · Space Mono 700</div>
+            <div class="type-spec">Labels, data, splits, kickers. Caps, tracked +0.05em.</div>
+          </div>
+          <div class="type-demo-mono">5:12/KM · CYCLE D.21 · HR 158</div>
+        </div>
+      </div>
+
+      <h4>Logo</h4>
+      <p>The wordmark VIRRA — V, R, R, A in Big Shoulders Display 900 (Pulse lime); the <em class="it">i</em> set in Fraunces Italic 800 (Heat magenta), with a soft round tittle. The italic letter is the <em class="it">i</em>, not the R — this updates the earlier guidelines spec. The logo continues to evolve. Final SVG to be supplied; the developer should wire the site so the wordmark is a single SVG component that can be swapped without code changes.</p>
+
+      <h4>Voice</h4>
+      <ul>
+        <li>Direct. Adult. Bored of girlboss.</li>
+        <li>Body-aware, not patronising. Treat physiology as data, not a feeling to manage.</li>
+        <li>Honest hooks: "I thought X until I learnt Y" is a signature pattern.</li>
+        <li>Never: "crush it" / "beast mode" / "let's get ready to crush your goals" / "girlboss" / hashtag-stack social copy.</li>
+      </ul>
+
+      <h4>Navigation</h4>
+      <p>The header is sticky on every page — Mile background, wordmark left, nav items inline, Subscribe CTA right. Nav type is <strong>Inter 700, caps, tracked +0.08em</strong>. The current live site renders nav too light (regular weight, sentence-case) — this is the spec that fixes it.</p>
+
+      <div class="btn-subhead">Desktop header</div>
+
+      <div class="nav-vis">
+        <span class="logo">V<span class="i">i</span>RRA</span>
+        <span class="nav-item">Home</span>
+        <span class="nav-item active">About</span>
+        <span class="nav-item">Coaching</span>
+        <span class="nav-item">Advice</span>
+        <span class="nav-item">Pace Calculator</span>
+        <span class="nav-item cta">Subscribe</span>
+      </div>
+      <p style="margin-top:10px;font-size:12.5px;color:var(--muted);"><em>Above:</em> default state of the nav. "About" shown as the active page with the Heat horizon bar — echoes the wordmark's horizon bar (brand-coherent). Hover the items to see the Pulse swap.</p>
+
+      <div class="btn-subhead">States</div>
+
+      <ul>
+        <li><b>Default.</b> Breath colour, no underline.</li>
+        <li><b>Hover.</b> Colour swaps to Pulse, 150ms ease. No underline change.</li>
+        <li><b>Active page.</b> Pulse colour + 2px Heat horizon bar 4px below baseline. Echoes the logo.</li>
+        <li><b>Focus (keyboard).</b> 2px Heat outline at 4px offset on the item.</li>
+        <li><b>Subscribe CTA hover.</b> Background swaps Pulse → Heat (same hover system as primary button).</li>
+      </ul>
+
+      <div class="btn-subhead">Mobile menu</div>
+
+      <p style="font-size:13.5px;color:rgba(244,237,224,0.85);">Below 768px, nav collapses to a hamburger. Tap opens a full-screen overlay (Mile background) with items stacked, set in Big Shoulders 900 for impact. Subscribe CTA pinned below the items.</p>
+
+      <div class="menu-mobile-demo">
+        <div class="mm-close">CLOSE ✕</div>
+        <div class="mm-item">Home</div>
+        <div class="mm-item active">About</div>
+        <div class="mm-item">Coaching</div>
+        <div class="mm-item">Advice</div>
+        <div class="mm-item">Pace Calculator</div>
+        <a class="mm-cta">Subscribe</a>
+      </div>
+
+      <div class="btn-subhead">Specs</div>
+
+      <div style="margin-top:6px;">
+        <div class="btn-spec-row"><span class="btn-spec-label">Desktop type</span><span class="btn-spec-value">Inter 700, 12px, letter-spacing <code>+0.08em</code>, UPPERCASE.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Mobile type</span><span class="btn-spec-value">Big Shoulders Display 900, 28px, letter-spacing <code>-0.01em</code>, UPPERCASE.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Item gap</span><span class="btn-spec-value">24px desktop · 32px tablet · stacked on mobile.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Active indicator</span><span class="btn-spec-value">2px Heat horizon bar, 4px below baseline. Animates in over 150ms.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Hover transition</span><span class="btn-spec-value">color 150ms ease.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Subscribe CTA</span><span class="btn-spec-value">Primary button style (Pulse pill, see Buttons).</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Footer nav</span><span class="btn-spec-value">Inter 500, 12px, sentence-case, muted Breath (60% opacity). Lower-stakes context.</span></div>
+      </div>
+
+      <div class="btn-subhead">Don'ts</div>
+
+      <ul>
+        <li>Don't ship nav in Inter regular weight — it's UI, but it has to read brand-bold.</li>
+        <li>Don't use sentence-case nav items on the desktop header. Caps + tracking are the brand voice for nav.</li>
+        <li>Don't add a drop-shadow under the header. Use a 1px Mile-line border-bottom if separation is needed.</li>
+        <li>Mobile menu doesn't auto-open. Hamburger tap only.</li>
+        <li>Don't gate the Subscribe CTA — it stays visible on every screen size.</li>
+      </ul>
+
+      <h4>Buttons</h4>
+      <p>Five variants. Three sizes. One radius — full pill. Buttons carry the brand's loud, athletic edge: no rounded-rect SaaS defaults, no gradients, no shadows. Hover swaps between Pulse and Heat — the brand's two primaries do the work together.</p>
+
+      <div class="btn-subhead">Variants</div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Primary · Pulse</span>
+        <button class="btn btn-primary">Join The Pack</button>
+        <span class="btn-row-note">Main page CTA. Subscribe / Join The Pack / Save my paces / Get started.</span>
+      </div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Heat · Accent</span>
+        <button class="btn btn-heat">Enquire</button>
+        <span class="btn-row-note">Secondary loud action. Send enquiry / race-day moments / urgency.</span>
+      </div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Outline</span>
+        <button class="btn btn-outline">Read Emma's story →</button>
+        <span class="btn-row-note">Lower-stakes nav. Page-to-page links, secondary CTAs.</span>
+      </div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Ghost · Inline</span>
+        <a class="btn btn-ghost" href="#">See coaching options →</a>
+        <span class="btn-row-note">In-text or end-of-section. Underlined on hover.</span>
+      </div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Utility · Mono</span>
+        <button class="btn-utility">Share splits ↗</button>
+        <span class="btn-row-note">Data / splits-style action. Calculator share, mono moments.</span>
+      </div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Disabled · Loading</span>
+        <button class="btn btn-primary" disabled>Submitting…</button>
+        <span class="btn-row-note">Used during loading and when required fields are empty.</span>
+      </div>
+
+      <div class="btn-subhead">Sizes</div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Large</span>
+        <button class="btn btn-primary btn-lg">Join The Pack</button>
+        <span class="btn-row-note">Hero CTAs, full-width signup blocks.</span>
+      </div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Medium · default</span>
+        <button class="btn btn-primary">Join The Pack</button>
+        <span class="btn-row-note">Most buttons across the site.</span>
+      </div>
+
+      <div class="btn-row">
+        <span class="btn-row-label">Small</span>
+        <button class="btn btn-primary btn-sm">Join</button>
+        <span class="btn-row-note">Inline, secondary, compact UI.</span>
+      </div>
+
+      <div class="btn-subhead">States</div>
+
+      <ul>
+        <li><b>Default.</b> As shown above.</li>
+        <li><b>Hover.</b> Primary swaps Pulse → Heat. Heat swaps Heat → Pulse. Outline fills with its colour. 150ms ease.</li>
+        <li><b>Focus.</b> 3px Heat outline at 2px offset on every variant. Always visible to keyboard users.</li>
+        <li><b>Active / pressed.</b> Scale to 0.98. 100ms ease.</li>
+        <li><b>Disabled.</b> Mist background, muted text, no pointer events. <code style="font-family:'Space Mono',monospace;font-size:12px;background:var(--mile);padding:1px 6px;border-radius:3px;color:var(--pulse);">aria-disabled="true"</code>.</li>
+        <li><b>Loading.</b> Button text replaced with a spinner or progressive label ("Submitting…"). Width preserved so the layout doesn't shift. <code style="font-family:'Space Mono',monospace;font-size:12px;background:var(--mile);padding:1px 6px;border-radius:3px;color:var(--pulse);">aria-busy="true"</code> while loading.</li>
+      </ul>
+
+      <div class="btn-subhead">Specs</div>
+
+      <div style="margin-top:6px;">
+        <div class="btn-spec-row"><span class="btn-spec-label">Type</span><span class="btn-spec-value">Inter 600 for primary / heat / outline / ghost. Space Mono 700 caps (tracked +0.08em) for utility.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Radius</span><span class="btn-spec-value"><code>999px</code> — full pill. All variants. Never rounded-rect.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Padding · L / M / S</span><span class="btn-spec-value">14px 28px · 10px 22px · 6px 14px</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Font size · L / M / S</span><span class="btn-spec-value">16px · 14px · 12px</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Border</span><span class="btn-spec-value">2px solid — matches text on outline; transparent on filled variants.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Transitions</span><span class="btn-spec-value">background / color / border 150ms ease · transform (active) 100ms ease.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Icons</span><span class="btn-spec-value">Trailing <code>→</code> for forward, <code>↗</code> for outbound. 8px gap. Inherits text colour.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Hit target</span><span class="btn-spec-value">Minimum 44 × 44px (WCAG 2.2 AA target size).</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Focus ring</span><span class="btn-spec-value">3px Heat outline, 2px offset. Always visible when keyboard-focused. Never <code>outline: none</code> without a replacement.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Contrast</span><span class="btn-spec-value">Pulse on Mile = 14.6:1 (AAA). Heat on Mile = 7.1:1 (AAA). Mile on Pulse and Mile on Heat both pass AA for text.</span></div>
+      </div>
+
+      <div class="btn-subhead">Don'ts</div>
+
+      <ul>
+        <li>Don't use rounded-rect buttons. Pills only.</li>
+        <li>Don't apply gradients or drop-shadows. VIRRA colours are flat.</li>
+        <li>Don't drop the focus ring. Keyboard users are first-class.</li>
+        <li>Don't write "CLICK HERE" or other unhelpful labels. Buttons describe the action — Join The Pack · Enquire · Save my paces.</li>
+        <li>Don't pair Pulse text on Heat backgrounds (or vice versa) on buttons — that pairing is reserved for headlines (4.4:1 AA-large only). Filled buttons always use <em class="it">Mile</em> text.</li>
+      </ul>
+
+      <h4>Inputs</h4>
+      <p>One input shape across the site. Dark surface (Mist on Mile), 2px border, 4px radius. Border colour is the indicator — it shifts to Pulse on focus, Heat on error. No floating labels, no inline icons.</p>
+
+      <div class="btn-subhead">Default · focused · error</div>
+
+      <div class="input-row">
+        <label class="input-label-demo">Email <span class="req">*</span></label>
+        <input class="input-demo" placeholder="you@somewhere.com" type="email">
+        <span class="input-helper-demo">We'll send Run Hot once a week. Unsubscribe anytime.</span>
+      </div>
+
+      <div class="input-row">
+        <label class="input-label-demo">Email <span class="req">*</span></label>
+        <input class="input-demo focused" placeholder="you@somewhere.com" type="email" value="emma@virra.app">
+        <span class="input-helper-demo">Focus state — Pulse border.</span>
+      </div>
+
+      <div class="input-row">
+        <label class="input-label-demo">Email <span class="req">*</span></label>
+        <input class="input-demo has-error" placeholder="you@somewhere.com" type="email" value="not an email">
+        <span class="input-error-demo">That doesn't look like an email. Try again.</span>
+      </div>
+
+      <div class="btn-subhead">Variants</div>
+
+      <ul>
+        <li><b>Text · email · number · URL · password</b> — same shape, different <code style="font-family:'Space Mono',monospace;font-size:12px;background:var(--mile);padding:1px 6px;border-radius:3px;color:var(--pulse);">type</code> attribute.</li>
+        <li><b>Textarea</b> — multi-line, min-height 120px, vertical resize only.</li>
+        <li><b>Select / dropdown</b> — same border + padding; custom chevron in Pulse.</li>
+        <li><b>Date input</b> — same shape; format <code style="font-family:'Space Mono',monospace;font-size:12px;background:var(--mile);padding:1px 6px;border-radius:3px;color:var(--pulse);">DD MMM YYYY</code> (British English).</li>
+        <li><b>Checkbox / radio</b> — 18px square / circle, 2px Pulse border, Pulse fill on checked, Heat ring on focus.</li>
+      </ul>
+
+      <div class="btn-subhead">Specs</div>
+
+      <div style="margin-top:6px;">
+        <div class="btn-spec-row"><span class="btn-spec-label">Background</span><span class="btn-spec-value">Mist (<code>#1C1C24</code>) on Mile · white (<code>#FFFFFF</code>) on Breath.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Border</span><span class="btn-spec-value">2px solid <code>rgba(244,237,224,0.20)</code> default · Pulse on focus · Heat on error.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Radius</span><span class="btn-spec-value"><code>4px</code> — slightly rounded, not pill. (Pills are for buttons only.)</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Padding</span><span class="btn-spec-value">12px 16px.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Type</span><span class="btn-spec-value">Inter 400, 14px. Breath colour. Placeholder at 40% opacity.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Min height</span><span class="btn-spec-value">44px (WCAG 2.2 hit target).</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Transitions</span><span class="btn-spec-value">border-color 150ms ease.</span></div>
+      </div>
+
+      <h4>Form fields</h4>
+      <p>Label above. Input. Helper below — or error below, in place of helper. Field-to-field spacing is 24px vertical. VIRRA forms are direct: required fields show a Heat asterisk, errors appear inline (never tooltips), submit doesn't disable on incomplete forms — show errors on submit instead.</p>
+
+      <div class="btn-subhead">Specs</div>
+
+      <div style="margin-top:6px;">
+        <div class="btn-spec-row"><span class="btn-spec-label">Label</span><span class="btn-spec-value">Space Mono 700, 11px, tracked <code>+0.18em</code>, UPPERCASE, Pulse colour. 6px gap below.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Required</span><span class="btn-spec-value">Heat asterisk (<code>*</code>) after the label text.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Helper text</span><span class="btn-spec-value">Inter 400, 12px, muted Breath (60%). 6px gap above.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Error text</span><span class="btn-spec-value">Inter 600, 12px, Heat. Replaces helper when present.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Field spacing</span><span class="btn-spec-value">24px vertical between fields.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Submit area</span><span class="btn-spec-value">32px top spacing above the submit button row.</span></div>
+      </div>
+
+      <div class="btn-subhead">Don'ts</div>
+
+      <ul>
+        <li>Don't use floating labels. Labels always sit above the input.</li>
+        <li>Don't hide required indicators. Be direct.</li>
+        <li>Don't put errors in tooltips. Show them inline below the field.</li>
+        <li>Don't disable submit on partially-filled forms. Validate on submit, show errors, let the user fix.</li>
+        <li>Don't write generic error copy ("This field is required"). Speak in VIRRA voice — adult, specific, light ("Add your email so we can send Run Hot.").</li>
+      </ul>
+
+      <h4>Cards</h4>
+      <p>Mist surface on Mile, optional accent stripe on the left edge. Used everywhere from pillar cards on the homepage to tier cards on Coaching to feature cards in this brief.</p>
+
+      <div class="btn-subhead">Variants</div>
+
+      <div class="card-demo-grid">
+        <div class="card-demo-card">
+          <h6>Default</h6>
+          <p>Mist background, 1px border, 4px radius. The workhorse card. Use for module cards, tier cards, feature blocks.</p>
+        </div>
+        <div class="card-demo-card stripe">
+          <h6>Pulse stripe</h6>
+          <p>4px Pulse accent on the left edge. Use to mark the most important card in a row (e.g. "Recommended" tier).</p>
+        </div>
+        <div class="card-demo-card heat-stripe stripe">
+          <h6>Heat stripe</h6>
+          <p>4px Heat accent. Reserved for urgent / hot content — race-day cards, "new" markers.</p>
+        </div>
+        <div class="card-demo-card breath">
+          <h6>Breath surface</h6>
+          <p>For editorial moments — magazine-spread sections, cream-paper feels. Inverts text to Mile.</p>
+        </div>
+      </div>
+
+      <div class="btn-subhead">States</div>
+
+      <ul>
+        <li><b>Default.</b> As above.</li>
+        <li><b>Hover (clickable only).</b> Scale 1.01, slight brightening, 200ms ease.</li>
+        <li><b>Focus (clickable, keyboard).</b> 3px Heat outline, 2px offset.</li>
+        <li><b>Active page (in nav-style card grids).</b> Pulse stripe + bold heading.</li>
+      </ul>
+
+      <div class="btn-subhead">Specs</div>
+
+      <div style="margin-top:6px;">
+        <div class="btn-spec-row"><span class="btn-spec-label">Background</span><span class="btn-spec-value">Mist (<code>#1C1C24</code>) on Mile · Breath (<code>#F4EDE0</code>) for editorial cards.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Border</span><span class="btn-spec-value">1px <code>rgba(244,237,224,0.10)</code> on Mist · <code>rgba(10,10,15,0.08)</code> on Breath.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Radius</span><span class="btn-spec-value"><code>4px</code> standard · <code>8px</code> for hero / pricing tier cards.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Padding</span><span class="btn-spec-value">24px standard · 28-32px for hero cards.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Accent stripe</span><span class="btn-spec-value">4px wide, left edge, Pulse or Heat. Card padding-left shifts to 26px to compensate.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Heading</span><span class="btn-spec-value">Big Shoulders 900 (loud cards) · Inter 600 (data/utility cards).</span></div>
+      </div>
+
+      <div class="btn-subhead">Don'ts</div>
+
+      <ul>
+        <li>Don't apply drop-shadows. Cards sit flat on the surface, like print.</li>
+        <li>Don't use gradients on card backgrounds.</li>
+        <li>Don't over-card. Empty space is brand-coherent. Not every block needs its own card.</li>
+        <li>Don't pair Pulse and Heat stripes in the same grid — pick one accent per row.</li>
+      </ul>
+
+      <h4>Modals</h4>
+      <p>Layered over a Mile-tinted, blurred backdrop. Used for the Subscribe CTA (Run Hot signup), confirmations, and any focused action that doesn't deserve a full page. Keep them rare — modals are interruptive.</p>
+
+      <div class="btn-subhead">Anatomy</div>
+
+      <div class="modal-demo">
+        <div class="modal-close">✕</div>
+        <div class="modal-eyebrow">RUN HOT · NEWSLETTER</div>
+        <h6>Join The Pack.</h6>
+        <div class="modal-body">Run Hot lands every Sunday. Female-first running, fuelling and the cycle truth most apps won't say.</div>
+        <div class="input-row" style="margin: 0 0 12px 0;">
+          <input class="input-demo" placeholder="you@somewhere.com" type="email">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary">Join The Pack</button>
+          <button class="btn btn-ghost">Maybe later</button>
+        </div>
+      </div>
+
+      <div class="btn-subhead">Specs</div>
+
+      <div style="margin-top:6px;">
+        <div class="btn-spec-row"><span class="btn-spec-label">Backdrop</span><span class="btn-spec-value">Mile at 70% opacity + 8px backdrop-blur. Click closes (with confirm if a form has unsaved data).</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Container</span><span class="btn-spec-value">Mist background, 8px radius, 28-30px padding, 440px max-width.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Eyebrow</span><span class="btn-spec-value">Space Mono 700, 10px, tracked <code>+0.2em</code>, Heat colour.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Title</span><span class="btn-spec-value">Big Shoulders Display 900, 28px, Pulse colour.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Body</span><span class="btn-spec-value">Inter 400, 14px, Breath at 85% opacity.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Close</span><span class="btn-spec-value">Top-right, Space Mono ✕, muted. Plus escape key, plus backdrop click.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Actions</span><span class="btn-spec-value">Button row at the bottom. Primary action left, ghost ("Maybe later") right.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Animation</span><span class="btn-spec-value">Backdrop fade-in 150ms · container slide-up + fade-in 200ms ease-out. Reverse on close.</span></div>
+        <div class="btn-spec-row"><span class="btn-spec-label">Accessibility</span><span class="btn-spec-value">Focus trap inside · escape closes · return focus to triggering element · <code>aria-modal="true"</code> · <code>aria-labelledby</code> on title.</span></div>
+      </div>
+
+      <div class="btn-subhead">Don'ts</div>
+
+      <ul>
+        <li>Don't nest modals. If you need a second step, replace the contents, don't open another modal.</li>
+        <li>Don't auto-open on page load. Modals are user-triggered. (Exception: a one-time cookie banner, which isn't a modal — it's a banner.)</li>
+        <li>Don't put content in a modal that the user needs persistent access to. Use a page.</li>
+        <li>Don't disable body scroll on a modal whose content overflows the viewport — let the modal scroll instead.</li>
+        <li>Don't write modal copy in different voice from the rest of the site. The Subscribe modal sounds like everything else.</li>
+      </ul>
+
+      <p style="margin-top:18px;"><em class="it">Full brand reference:</em> the developer must work from the VIRRA Brand Guidelines (supplied separately). If anything in this brief contradicts the guidelines, the guidelines win.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §03 IA ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§03 — Information architecture</div>
+    <h2>Header. <em class="it">Footer.</em> Sitemap.</h2>
+    <div class="lede">Five pages in the nav. Legal lives in the footer. One persistent newsletter signup, sitewide.</div>
+
+    <div class="panel">
+      <h4>Header navigation</h4>
+      <div class="nav-vis">
+        <span class="logo">V<span class="i">i</span>RRA</span>
+        <span class="nav-item">Home</span>
+        <span class="nav-item">About</span>
+        <span class="nav-item">Coaching</span>
+        <span class="nav-item">Advice</span>
+        <span class="nav-item">Pace Calculator</span>
+        <span class="nav-item cta">Subscribe</span>
+      </div>
+      <p style="margin-top:14px;font-size:13px;color:var(--muted);">Subscribe CTA opens the Run Hot newsletter signup (modal or scroll-to-form on Advice page). Default sub-line: <em class="it">"Run Hot · sent to The Pack."</em> Sticky on scroll. Mobile collapses to hamburger; CTA stays visible.</p>
+
+      <h4>Footer</h4>
+      <div class="footer-vis">
+        <span>Privacy Policy</span>
+        <span>Terms &amp; Conditions</span>
+        <span>Cookie Policy</span>
+        <span>Contact</span>
+        <span>@virrarun</span>
+        <span>Run Hot signup</span>
+        <span>© VIRRA {year}</span>
+      </div>
+      <p style="margin-top:10px;font-size:13px;color:var(--muted);">Persistent newsletter signup field (email + button) lives in the footer on every page.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §04 PAGES ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§04 — Pages</div>
+    <h2>Five pages. <em class="it">One pack.</em></h2>
+    <div class="lede">Page-by-page specs. Sections, content, CTAs and components. The developer should read this with the brand guidelines open.</div>
+
+    <!-- HOMEPAGE -->
+    <div class="page-card">
+      <div class="page-head">
+        <div class="page-name">01. Homepage</div>
+        <div class="page-url">virra.app/</div>
+      </div>
+      <div class="page-purpose">First contact. Lands the brand idea, points visitors to the highest-value paths (Advice, Coaching, Calculator), and converts to newsletter.</div>
+      <div class="req-grid two-col">
+        <div class="req-block">
+          <h5>Sections (top → bottom)</h5>
+          <ul>
+            <li><b>Hero.</b> Wordmark + a single Big Shoulders / Fraunces line + primary newsletter CTA.</li>
+            <li><b>"What VIRRA is"</b> — three pillar cards (Pulse / Heat / Mile, simplified for non-internal audience).</li>
+            <li><b>Founder card</b> — Emma intro + portrait + link to About.</li>
+            <li><b>Latest from Run Hot</b> — three most recent newsletter posts (auto-pulled from Beehiiv).</li>
+            <li><b>Coaching teaser</b> — short blurb + CTA → Coaching.</li>
+            <li><b>Pace calculator teaser</b> — illustrated card + CTA → tool.</li>
+            <li><b>Newsletter signup block</b> — full-width, on-brand, hot ratio (Heat-led).</li>
+            <li><b>Footer.</b></li>
+          </ul>
+        </div>
+        <div class="req-block alt">
+          <h5>Must-haves</h5>
+          <ul>
+            <li>Loads &lt; 2s on 4G.</li>
+            <li>Mobile-first responsive.</li>
+            <li>All hero / pillar / teaser copy CMS-editable.</li>
+            <li>Latest-from-newsletter auto-updates without dev work.</li>
+            <li>Run Hot signup wired to Beehiiv with source tag.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="page-card about">
+      <div class="page-head">
+        <div class="page-name">02. About</div>
+        <div class="page-url">virra.app/about</div>
+      </div>
+      <div class="page-purpose">Founder story. Emma's running journey, qualifications, and the why behind VIRRA. Personal, honest, science-informed. Reads like a magazine feature, not a corporate "About Us".</div>
+      <div class="req-grid two-col">
+        <div class="req-block">
+          <h5>Sections</h5>
+          <ul>
+            <li>Hero portrait or running shot + one Fraunces-italic tagline.</li>
+            <li>Long-form founder story — "I thought X until I learnt Y" framing welcome.</li>
+            <li>Qualifications — L2 Fitness Instructor, L3 PT (Origym), ongoing study.</li>
+            <li>Why VIRRA — the gap she's filling, in her words.</li>
+            <li>Press / podcast / mention strip (placeholder for future).</li>
+            <li>Cross-CTAs — Coaching · Newsletter · @emmasrunlife.</li>
+          </ul>
+        </div>
+        <div class="req-block alt">
+          <h5>Must-haves</h5>
+          <ul>
+            <li>Long-form copy editable as CMS rich text.</li>
+            <li>Image placeholders Emma can swap herself.</li>
+            <li>Big editorial type — Big Shoulders + Fraunces pull-quotes.</li>
+            <li>Embeds for Instagram and newsletter cross-links.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- COACHING -->
+    <div class="page-card coaching">
+      <div class="page-head">
+        <div class="page-name">03. Coaching</div>
+        <div class="page-url">virra.app/coaching</div>
+      </div>
+      <div class="page-purpose">Sells live 1:1 coaching as the income bridge before the app launches. Three published tiers, transparent pricing, real testimonials, single enquiry form for all tiers.</div>
+
+      <div class="tiers">
+        <div class="tier">
+          <span class="tier-tag">Standard</span>
+          <div class="tier-price">£100<small>/ month</small></div>
+          <p class="tier-desc">A fully bespoke coaching experience — workouts, nutrition and check-ins, whatever your training experience.</p>
+          <ul>
+            <li>Gym Programme <small style="color:var(--muted);">(sets &amp; reps)</small></li>
+            <li>Running Programme <small style="color:var(--muted);">(pace, HR, tempo)</small></li>
+            <li>Nutrition Plan</li>
+            <li>MyFitnessPal diary sharing</li>
+            <li>Habit Tracker</li>
+            <li>Progress Tracking</li>
+            <li>Daily Communication</li>
+            <li>Monthly Check-ins</li>
+          </ul>
+        </div>
+        <div class="tier featured">
+          <span class="tier-tag">Premium · Recommended</span>
+          <div class="tier-price">£150<small>/ month</small></div>
+          <p class="tier-desc">Premium coaching with more accountability. Weights programmed, weekly check-ins, faster results.</p>
+          <ul>
+            <li>Gym Programme <small style="color:var(--muted);">(sets, reps &amp; weight)</small></li>
+            <li>Running Programme <small style="color:var(--muted);">(pace, HR, tempo)</small></li>
+            <li>Nutrition Plan</li>
+            <li>MyFitnessPal diary sharing</li>
+            <li>Habit Tracker</li>
+            <li>Progress Tracking</li>
+            <li>Daily Communication</li>
+            <li><b>Weekly Check-ins</b></li>
+          </ul>
+        </div>
+        <div class="tier">
+          <span class="tier-tag">Nutrition Only</span>
+          <div class="tier-price">£50<small>/ month</small></div>
+          <p class="tier-desc">Only struggling with nutrition? A personalised nutrition plan to support your goals and enhance performance.</p>
+          <ul>
+            <li>Race Day Fuelling <small style="color:var(--muted);">(carb load, sodium, gels)</small></li>
+            <li>Nutrition Plan</li>
+            <li>MyFitnessPal diary sharing</li>
+            <li>Habit Tracker</li>
+            <li>Progress Tracking</li>
+            <li>Daily Communication</li>
+            <li>Monthly Check-ins</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="req-grid two-col" style="margin-top:22px;">
+        <div class="req-block">
+          <h5>Page sections</h5>
+          <ul>
+            <li>Hero — "1:1 coaching with Emma" + Fraunces-italic tagline.</li>
+            <li>Who it's for — 4 bullets (first-time 5K, returning runners, race goals, runners who want to train with their cycle).</li>
+            <li>How it works — 3-step process (enquire → consult → start).</li>
+            <li>Tiers (above) with feature comparison.</li>
+            <li><b>Testimonials block</b> — 3–5 real client quotes (Emma to supply at launch). Carousel or grid, name + optional photo.</li>
+            <li>FAQ — 4–6 common questions.</li>
+            <li>Enquiry form (single form, all tiers).</li>
+          </ul>
+        </div>
+        <div class="req-block alt">
+          <h5>Enquiry form fields</h5>
+          <ul>
+            <li>Full name *</li>
+            <li>Email *</li>
+            <li>Tier interested in (Standard / Premium / Nutrition / Not sure) *</li>
+            <li>Current running level *</li>
+            <li>Goal (short free text) *</li>
+            <li>Preferred start month</li>
+            <li>How they heard about VIRRA</li>
+            <li>Newsletter opt-in</li>
+          </ul>
+          <h5 style="margin-top:14px;">Behaviour</h5>
+          <ul>
+            <li>Submissions email Emma + log to CMS / Sheet / Airtable.</li>
+            <li>Auto-reply to applicant within a minute, in VIRRA voice.</li>
+            <li>Spam protection (hCaptcha or honeypot).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADVICE -->
+    <div class="page-card advice">
+      <div class="page-head">
+        <div class="page-name">04. Advice</div>
+        <div class="page-url">virra.app/advice</div>
+      </div>
+      <div class="page-purpose">SEO-driven content home. Articles on female-first running, nutrition and cycle awareness. Primary surface for converting visitors into Run Hot subscribers (The Pack).</div>
+      <div class="req-grid two-col">
+        <div class="req-block">
+          <h5>Sections</h5>
+          <ul>
+            <li>Hero — short proposition + the <b>primary Run Hot signup form</b> (form, not a button alone). Headline pattern: "Run Hot. Sent to The Pack every [day]."</li>
+            <li>Featured article (editor's pick).</li>
+            <li>Article grid — paginated, filterable by category (Training · Nutrition · Cycle &amp; Hormones · Mindset · Race day).</li>
+            <li>Search.</li>
+            <li>Mid-page Run Hot inline block.</li>
+            <li><b>Article template</b> — hero image, title, dek, author, published date, est. read time, body, related articles, end-of-article newsletter CTA.</li>
+          </ul>
+        </div>
+        <div class="req-block alt">
+          <h5>Must-haves</h5>
+          <ul>
+            <li>CMS Emma can use unaided.</li>
+            <li>Beehiiv integration — every Run Hot signup form posts to the renamed Beehiiv publication with the right source tag.</li>
+            <li>Per-article SEO controls (meta title, meta description, OG image).</li>
+            <li>Schema.org Article markup.</li>
+            <li>RSS feed.</li>
+            <li>Cross-post path from Beehiiv → site (developer to recommend: webhook, RSS-pull, or manual).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- PACE CALCULATOR -->
+    <div class="page-card calc">
+      <div class="page-head">
+        <div class="page-name">05. Pace Calculator</div>
+        <div class="page-url">virra.app/pace-calculator</div>
+      </div>
+      <div class="page-purpose">Three tools in one tabbed page. SEO magnet, brand showcase, and a preview of the cycle-aware thinking that powers the upcoming app.</div>
+      <div class="req-grid">
+        <div class="req-block">
+          <h5>Three modes</h5>
+          <ul>
+            <li><b>Pace / Time / Distance.</b> Enter any 2, get the third. Splits table per km and per mile. Imperial &amp; metric toggle.</li>
+            <li><b>Race Time Predictor.</b> Recent race + target distance → predicted finish (Riegel primary, Cameron secondary). Show assumptions.</li>
+            <li><b>Cycle-Aware Pace View.</b> User enters period start date + average cycle length; tool shifts training paces across menstrual / follicular / ovulatory / luteal phases. One-line "why" per phase, written by Emma. Non-clinical disclaimer.</li>
+          </ul>
+        </div>
+        <div class="req-block alt">
+          <h5>Requirements</h5>
+          <ul>
+            <li>All calculations run client-side. No backend.</li>
+            <li>Shareable result links (query-string state).</li>
+            <li>"Save my paces" → email capture into newsletter list.</li>
+            <li>SEO-optimised: target "running pace calculator", "race time predictor", "cycle-aware pace calculator" (third has near-zero competition — own it).</li>
+            <li>Embed-friendly: components designed so individual calculators can be embedded in Advice articles later.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEGAL -->
+    <div class="page-card legal">
+      <div class="page-head">
+        <div class="page-name">Legal &amp; utility</div>
+        <div class="page-url">/privacy · /terms · /cookies · /contact</div>
+      </div>
+      <div class="page-purpose">Footer-only. Long-form content pages from the CMS. Not in the main nav.</div>
+      <div class="req-grid two-col">
+        <div class="req-block">
+          <h5>Required</h5>
+          <ul>
+            <li>Privacy Policy — UK GDPR compliant. Covers Beehiiv, analytics, enquiry form data.</li>
+            <li>Terms &amp; Conditions.</li>
+            <li>Cookie Policy + cookie consent banner — UK ICO compliant. Granular consent, reject-all available, no dark patterns.</li>
+            <li>Contact — email + Instagram + simple message form.</li>
+          </ul>
+        </div>
+        <div class="req-block alt">
+          <h5>Note</h5>
+          <ul>
+            <li>Emma supplies / commissions the legal copy. Developer builds the page templates and consent banner so legal copy is plug-in.</li>
+            <li>Cookie banner integrates with the chosen analytics tool.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ §05 TECH ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§05 — Technical requirements</div>
+    <h2>Outcomes, <em class="it">not stack.</em></h2>
+    <div class="lede">Stack is the developer's call. These are the targets the build has to hit.</div>
+
+    <div class="panel">
+      <div class="stack-row"><span class="stack-item">Performance</span><span class="stack-rec">Lighthouse mobile ≥ 90 across Performance / Accessibility / Best Practices / SEO. LCP &lt; 2.5s on 4G.</span></div>
+      <div class="stack-row"><span class="stack-item">Mobile</span><span class="stack-rec">Mobile-first. Tested on iOS Safari and Android Chrome at 375px, 414px, 768px.</span></div>
+      <div class="stack-row"><span class="stack-item">Accessibility</span><span class="stack-rec">WCAG 2.2 AA. Keyboard nav, semantic HTML, alt text in CMS, focus states visible, contrast checked. Pulse-on-Mile and Heat-on-Mile both pass; Pulse-on-Heat reserved for headlines only.</span></div>
+      <div class="stack-row"><span class="stack-item">SEO</span><span class="stack-rec">Per-page meta + OG, sitemap.xml, robots.txt, Schema.org Article + Organization + FAQ. Clean canonicals.</span></div>
+      <div class="stack-row"><span class="stack-item">CMS</span><span class="stack-rec">Headless or visual CMS Emma can use without dev help. Recommendation expected (Sanity / Payload / Webflow / Framer). Must support draft → publish, image uploads, rich text, SEO fields.</span></div>
+      <div class="stack-row"><span class="stack-item">Newsletter</span><span class="stack-rec">Beehiiv integration on every Run Hot signup form (footer, hero, advice, calculator save). One source tag per surface for attribution. Beehiiv publication to be renamed to "Run Hot" before launch.</span></div>
+      <div class="stack-row"><span class="stack-item">Analytics</span><span class="stack-rec">Privacy-first analytics (Plausible or Fathom). Conversion events on newsletter, coaching enquiry, calculator save.</span></div>
+      <div class="stack-row"><span class="stack-item">Forms</span><span class="stack-rec">Coaching enquiry: spam protection, email + log to sheet/Airtable/CMS, auto-reply in VIRRA voice.</span></div>
+      <div class="stack-row"><span class="stack-item">Hosting</span><span class="stack-rec">Developer's choice. Custom domain (virra.app), HTTPS, CDN, Git-driven deploys, preview environments.</span></div>
+      <div class="stack-row"><span class="stack-item">Repo &amp; handover</span><span class="stack-rec">Code in a Git repo Emma owns. README documenting setup, env vars, deploys, CMS access, and how to add a new article or page.</span></div>
+      <div class="stack-row"><span class="stack-item">Future-proofing</span><span class="stack-rec">Architecture should anticipate a "Get the App" launch state — App Store + Play Store badges, app screenshots, waitlist → user migration. Plan the route, don't build it yet.</span></div>
+      <div class="stack-row"><span class="stack-item">Brand tokens</span><span class="stack-rec">Implement palette and type as design tokens / CSS custom properties so they can be updated globally if the guidelines evolve. Logo as a single SVG component.</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §06 PRINCIPLES ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§06 — Editorial &amp; design principles</div>
+    <h2>Non-<em class="it">negotiables.</em></h2>
+    <div class="lede">If a design or copy choice fails one of these, it isn't VIRRA. Cut it.</div>
+
+    <div class="principles-grid">
+      <div class="principle">
+        <div class="principle-num">№.01</div>
+        <div class="principle-title">Felt, not seen</div>
+        <div class="principle-body">Design for how it makes her feel. Big type, flat colour, no gradients, no stock-photo running shoes.</div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">№.02</div>
+        <div class="principle-title">Female-first, never diet-culture</div>
+        <div class="principle-body">No calorie shaming, no weight-loss framing, no "bikini body" anywhere — including alt text and meta copy.</div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">№.03</div>
+        <div class="principle-title">Body as data</div>
+        <div class="principle-body">Treat physiology — cycle, HR, hormones — as performance variables. Never as feelings to manage.</div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">№.04</div>
+        <div class="principle-title">Speak like an adult</div>
+        <div class="principle-body">No "crush it", "beast mode", "let's get ready to crush your goals". No hashtag-stack social copy. Honest hooks only.</div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">№.05</div>
+        <div class="principle-title">Built for the founder to update</div>
+        <div class="principle-body">If Emma can't change copy, swap an image, or publish an article without the developer, the build isn't done.</div>
+      </div>
+      <div class="principle">
+        <div class="principle-num">№.06</div>
+        <div class="principle-title">Anticipate the app</div>
+        <div class="principle-body">Components, design tokens and routes should still hold when "Get the App" becomes the primary CTA.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §07 TIMELINE ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§07 — Suggested phasing</div>
+    <h2>Seven <em class="it">weeks.</em></h2>
+    <div class="lede">Indicative — developer to confirm against capacity.</div>
+
+    <div class="timeline">
+      <div class="tl-card">
+        <div class="tl-week">Weeks 1–2</div>
+        <div class="tl-title">Foundations</div>
+        <div class="tl-detail">Stack chosen, repo + hosting set up, design tokens (palette, type, components) built, CMS configured.</div>
+      </div>
+      <div class="tl-card">
+        <div class="tl-week">Weeks 3–4</div>
+        <div class="tl-title">Core pages</div>
+        <div class="tl-detail">Homepage + About + Coaching live in staging. Newsletter + enquiry form wired up.</div>
+      </div>
+      <div class="tl-card">
+        <div class="tl-week">Weeks 5–6</div>
+        <div class="tl-title">Advice + Calculator</div>
+        <div class="tl-detail">Article template + content hub. Pace calculator (all three modes). SEO + schema applied.</div>
+      </div>
+      <div class="tl-card">
+        <div class="tl-week">Week 7</div>
+        <div class="tl-title">Polish + launch</div>
+        <div class="tl-detail">Legal pages, cookie banner, analytics, performance tuning, accessibility audit, founder handover, go-live.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §08 DELIVERABLES ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§08 — Deliverables &amp; acceptance</div>
+    <h2>What "<em class="it">done</em>" looks like.</h2>
+
+    <div class="panel">
+      <h4>Deliverables</h4>
+      <ul>
+        <li>Live site at virra.app — 5 nav pages + 4 legal/utility.</li>
+        <li>CMS access for Emma with documentation.</li>
+        <li>Git repo owned by Emma, with README.</li>
+        <li>Analytics dashboard with conversion events.</li>
+        <li>Beehiiv integration tested end-to-end — Run Hot publication, all signup surfaces tagged.</li>
+        <li>30-day post-launch bug-fix window.</li>
+      </ul>
+
+      <h4>Acceptance criteria</h4>
+      <ul>
+        <li>Lighthouse mobile ≥ 90 on every shipped page.</li>
+        <li>WCAG 2.2 AA confirmed (automated + manual checks).</li>
+        <li>Run Hot signup form delivers a real email to the Beehiiv publication with the correct source tag.</li>
+        <li>Coaching form sends a real notification + auto-reply.</li>
+        <li>Pace calculator returns correct results across 10 manual test cases (Emma to supply).</li>
+        <li>Emma can publish a new advice article from scratch in &lt; 10 minutes without the developer.</li>
+        <li>Brand audit pass — every page checked against the guidelines. The wordmark uses the supplied SVG (italic i intact), no font substitutions, no gradients, no skewed wordmarks.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §09 ASSETS ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§09 — Assets &amp; dependencies from Emma</div>
+    <h2>What the dev <em class="it">needs.</em></h2>
+    <div class="lede">When each thing is required.</div>
+
+    <div class="panel">
+      <ul>
+        <li><b>Brand:</b> latest logo files (SVG), Brand Guidelines Vol. 02. <em>By kickoff.</em></li>
+        <li><b>Copy:</b> homepage hero, About long-form, Coaching descriptors + final tier features, FAQ. <em>By end of week 2.</em></li>
+        <li><b>Images:</b> founder portrait, action/running shots, any approved alternatives. <em>By end of week 2.</em></li>
+        <li><b>Coaching:</b> enquiry destination email, final pricing if changing, testimonial quotes + photos/permissions. <em>By week 3.</em></li>
+        <li><b>Newsletter:</b> Run Hot Beehiiv publication ID (post-rename) + API key + source tag structure. <em>By week 3.</em></li>
+        <li><b>Advice:</b> 3–5 launch-day articles (or migration plan from existing newsletter). <em>By end of week 5.</em></li>
+        <li><b>Calculator:</b> 10 known input/output test cases + cycle-phase "why" copy. <em>By week 5.</em></li>
+        <li><b>Legal:</b> final Privacy / Terms / Cookie copy. <em>By week 6.</em></li>
+        <li><b>Domain:</b> DNS access for virra.app. <em>By week 6.</em></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════ §10 OUT OF SCOPE ═══════════════ -->
+  <div class="section">
+    <div class="section-num">§10 — Out of scope</div>
+    <h2>Not <em class="it">today.</em></h2>
+    <div class="lede">Explicitly not in this build — guard against scope creep.</div>
+
+    <div class="panel">
+      <ul>
+        <li>App download / waitlist flows. (Will be added when the app launches; route reserved.)</li>
+        <li>User accounts, login, member-only content.</li>
+        <li>E-commerce or digital product sales.</li>
+        <li>Native app integrations (HealthKit, Strava, Garmin) — these belong to the app build.</li>
+        <li>Community features, comments, forums.</li>
+        <li>Multilingual support.</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ CLOSE ═══════════════ -->
+<section class="close">
+  <div class="megaclose">RUN <em>hot.</em></div>
+  <div class="close-foot">
+    <span>VIRRA · 2026</span>
+    <span>If in doubt, run it hot.</span>
+  </div>
+</section>
+
+</body>
+</html>
