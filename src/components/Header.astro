@@ -197,13 +197,19 @@ const current = Astro.url.pathname;
       position: absolute;
       top: 0;
       right: 0;
-      height: 100%;
+      bottom: 0;
       width: min(82vw, 360px);
       flex-direction: column;
       align-items: flex-start;
-      justify-content: center;
+      /* `safe center` centres the items when they fit but falls back to the
+         start edge when they're taller than the panel — so nothing is ever
+         clipped off the top. */
+      justify-content: safe center;
       gap: 4px;
-      padding: 0 32px;
+      /* Clear the notch/status bar + the burger up top, and the home indicator below. */
+      padding: max(72px, calc(env(safe-area-inset-top) + 64px)) 32px max(32px, env(safe-area-inset-bottom));
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       background: var(--mist);
       border-left: 1px solid var(--border);
       transform: translateX(100%);
