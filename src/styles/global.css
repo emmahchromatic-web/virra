@@ -21,6 +21,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; scroll-behavior: smooth; }
 
+/* Accessibility: one consistent keyboard-focus indicator (Heat) sitewide.
+   Components must NOT suppress this with `outline: none`. */
+:focus-visible {
+  outline: 2px solid var(--heat);
+  outline-offset: 2px;
+}
+
 html { background: var(--mile); }
 
 body {
