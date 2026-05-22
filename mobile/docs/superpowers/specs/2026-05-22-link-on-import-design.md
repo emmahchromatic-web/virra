@@ -135,10 +135,15 @@ One activity → at most one session; one session → at most one activity.
 
 ### Date handling
 
-Match on the activity's **local** calendar date (consistent with how `scheduled_date` is
-written across the app), not a naive UTC day window. The removed `reconcileMoveToActivity`
-used `T00:00:00Z..T23:59:59Z`, which misfiles late-evening workouts across the UTC boundary;
-this design fixes that.
+Match on the activity's **local** calendar date — the day the user perceives they trained.
+`scheduled_date` is a timezone-agnostic calendar label (a plan says "Monday 18 May"), so the
+correct link is "the session planned for the day I worked out locally". This is deliberately
+NOT the activity's UTC date: keying on UTC would mislink an evening workout in a negative-UTC
+zone (e.g. 7pm PST = next-day UTC) to the wrong day's session. The activity *fetch* window is
+widened ±1 day (UTC) so boundary workouts are still retrieved; the precise match is then done
+on the local calendar date. The removed `reconcileMoveToActivity` used a naive
+`T00:00:00Z..T23:59:59Z` window with no local-date reconciliation, which misfiled
+cross-boundary workouts; this design fixes that.
 
 ---
 

@@ -42,6 +42,10 @@ export function reconcileRange(backfillDone: boolean, today: Date): { from: stri
 // Link unlinked activities to matching planned sessions in [from,to].
 // Additive only: turns planned -> completed, never the reverse. Idempotent.
 export async function reconcileSessions(userId: string, fromISO: string, toISO: string): Promise<number> {
+  // started_at is a UTC instant; the window is built from local calendar dates.
+  // Widen by ±1 day so a workout whose UTC instant sits just outside [from,to]
+  // but whose *local* day is inside still gets fetched. Precise day-matching
+  // happens below against each activity's local calendar date.
   const { data: acts, error: aErr } = await supabase
     .from('activities')
     .select('id, started_at, activity_type, duration_seconds, distance_meters')
@@ -76,6 +80,10 @@ export async function reconcileSessions(userId: string, fromISO: string, toISO: 
 
   let linked = 0;
   for (const a of acts as ActivityRow[]) {
+    // Match on the activity's LOCAL calendar day — that's the day the user
+    // perceives they trained, and scheduled_date is a tz-agnostic calendar
+    // label. Do NOT switch this to the UTC date: it would mislink evening
+    // workouts in negative-UTC zones to the next day's session.
     const k = `${isoLocal(new Date(a.started_at))}|${a.activity_type}`;
     const pool = byKey.get(k);
     if (!pool?.length) continue;
