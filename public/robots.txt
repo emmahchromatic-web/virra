@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://virra.app/sitemap-index.xml

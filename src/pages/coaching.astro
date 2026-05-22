@@ -80,7 +80,7 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
                     <li>{f}</li>
                   ))}
                 </ul>
-                <a href="#enquire" class="tier-cta">Enquire →</a>
+                <a href={`?tier=${encodeURIComponent((tier.tag || '').split(/[\s·]+/)[0])}#enquire`} class="tier-cta">Enquire →</a>
               </div>
             ))}
           </div>
@@ -128,7 +128,7 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
         <SectionLabel text="Get started" />
         <h2>Enquire.</h2>
         <p class="enquire-sub">Fill in the form and Emma will be in touch within 48 hours.</p>
-        <form class="enq-form" id="enq-form" novalidate>
+        <form class="enq-form" id="enq-form">
           <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
           <div class="field-row">
             <label>
@@ -145,9 +145,9 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
               <span>Tier interested in *</span>
               <select name="tier" required>
                 <option value="">Select...</option>
-                <option>Standard (£100/mo)</option>
-                <option>Premium (£150/mo)</option>
-                <option>Nutrition Only (£50/mo)</option>
+                {coaching?.tiers?.map((tier: any) => (
+                  <option>{`${(tier.tag || '').split('·')[0].trim()} (£${tier.price}/mo)`}</option>
+                ))}
                 <option>Not sure yet</option>
               </select>
             </label>
@@ -182,7 +182,7 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
           </label>
           <button type="submit" class="submit-btn">Send enquiry</button>
         </form>
-        <p class="enq-ok" id="enq-ok" hidden>Done — Emma will be in touch within 48 hours.</p>
+        <p class="enq-ok" id="enq-ok" hidden>Thanks. Emma will be in touch within 48 hours.</p>
         <p class="enq-err" id="enq-err" hidden>Something went wrong. Email <a href="mailto:hello@virra.app">hello@virra.app</a> directly.</p>
       </div>
     </section>
@@ -195,6 +195,16 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
   const form = document.getElementById('enq-form') as HTMLFormElement;
   const ok = document.getElementById('enq-ok') as HTMLElement;
   const err = document.getElementById('enq-err') as HTMLElement;
+
+  // Pre-select the tier when arriving from a tier card (?tier=Standard, etc.)
+  const tierParam = new URLSearchParams(window.location.search).get('tier');
+  if (tierParam) {
+    const select = form.querySelector<HTMLSelectElement>('select[name=tier]');
+    const match = select && Array.from(select.options).find(
+      (o) => o.value && o.text.toLowerCase().startsWith(tierParam.toLowerCase()),
+    );
+    if (select && match) select.value = match.value;
+  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

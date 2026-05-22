@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import { PortableText } from 'astro-portabletext';
 import SectionLabel from '../../components/SectionLabel.astro';
 import ArticleCard from '../../components/ArticleCard.astro';
+import NewsletterForm from '../../components/NewsletterForm.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import { client, urlFor } from '../../lib/sanity';
@@ -91,6 +92,15 @@ const schema = {
         {article.body && <PortableText value={article.body} />}
       </div>
     </article>
+
+    <section class="eoa">
+      <div class="eoa-inner">
+        <SectionLabel text="RUN HOT" />
+        <h2>If this resonated, you'll like Sunday.</h2>
+        <p class="eoa-sub">The Pack gets one email a week — training, fuelling and cycle science, written like this.</p>
+        <NewsletterForm source="advice-eoa" label="Run Hot · sent every Sunday to The Pack." />
+      </div>
+    </section>
 
     {related.length > 0 && (
       <section class="related">
@@ -212,6 +222,31 @@ const schema = {
     font-size: 1.15rem;
     color: color-mix(in srgb, var(--breath) 90%, transparent);
   }
+  .eoa {
+    background: var(--mist);
+    border-top: 1px solid var(--border);
+  }
+  .eoa-inner {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 3.5rem 48px;
+  }
+  .eoa h2 {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    color: var(--breath);
+    line-height: 0.95;
+    margin: 0.75rem 0 0.5rem;
+  }
+  .eoa-sub {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: color-mix(in srgb, var(--breath) 70%, transparent);
+    margin-bottom: 1.5rem;
+  }
   .related {
     border-top: 1px solid var(--border);
     padding: 4rem 0 5rem;
@@ -231,5 +266,6 @@ const schema = {
     .article-page { padding: 2rem 24px 3rem; }
     .cover-image { margin: 0 -24px 2rem; }
     .related-wrap { padding: 0 24px; }
+    .eoa-inner { padding: 2.5rem 24px; }
   }
 </style>

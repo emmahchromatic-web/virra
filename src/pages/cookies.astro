@@ -6,7 +6,7 @@ import { LEGAL_BY_SLUG_QUERY } from '../lib/queries';
 
 const page = await client.fetch(LEGAL_BY_SLUG_QUERY, { slug: 'cookies' }).catch(() => null);
 ---
-<LegalLayout title="Cookie Policy">
+<LegalLayout title="Cookie Policy" lastUpdated={page?.lastUpdated}>
   {page?.body
     ? <PortableText value={page.body} />
     : <p style="color:var(--muted)">Cookie policy coming soon.</p>

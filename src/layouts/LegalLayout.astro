@@ -2,14 +2,18 @@
 import BaseLayout from './BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
-interface Props { title: string; }
-const { title } = Astro.props;
+interface Props { title: string; lastUpdated?: string; }
+const { title, lastUpdated } = Astro.props;
+const lastUpdatedLabel = lastUpdated
+  ? new Date(lastUpdated).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+  : null;
 ---
 <BaseLayout title={`${title} — VIRRA`}>
   <Header />
   <main class="legal-main">
     <div class="legal-wrap">
       <h1 class="legal-title">{title}</h1>
+      {lastUpdatedLabel && <p class="legal-updated">Last updated {lastUpdatedLabel}</p>}
       <div class="prose">
         <slot />
       </div>
@@ -28,8 +32,18 @@ const { title } = Astro.props;
     text-transform: uppercase;
     letter-spacing: -0.03em;
     line-height: 0.88;
-    margin-bottom: 48px;
+    margin-bottom: 16px;
     color: var(--breath);
   }
+  .legal-updated {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 48px;
+  }
+  /* Keep the title-to-body gap when there's no date line */
+  .legal-wrap:not(:has(.legal-updated)) .legal-title { margin-bottom: 48px; }
   @media (max-width: 640px) { .legal-wrap { padding: 0 24px; } }
 </style>

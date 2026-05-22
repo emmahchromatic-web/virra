@@ -22,8 +22,10 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(JSON.stringify({ success: true }), { status: 200 });
   }
 
-  if (!body.name || !body.email || !body.tier || !body.level || !body.goal) {
-    return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((body.email ?? '').trim());
+
+  if (!body.name || !emailValid || !body.tier || !body.level || !body.goal) {
+    return new Response(JSON.stringify({ error: 'Missing or invalid required fields' }), { status: 400 });
   }
 
   const fields = {

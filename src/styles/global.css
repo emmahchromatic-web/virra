@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Fraunces:ital,opsz,wght@1,9..144,400;1,9..144,800&family=Inter:wght@300;400;500;600&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+/* Fonts are loaded in BaseLayout.astro <head> via preconnect + non-blocking
+   preload (not an @import here, which blocks render). */
 
 :root {
   --pulse:     #D4FF26;
@@ -20,8 +21,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; scroll-behavior: smooth; }
 
+html { background: var(--mile); }
+
 body {
-  background: var(--mile);
+  background: transparent;
   color: var(--breath);
   font-family: var(--font-body);
   font-weight: 300;
@@ -30,7 +33,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Grain overlay */
+/* Grain overlay — sits behind content so it doesn't disqualify the LCP element. */
 body::before {
   content: '';
   position: fixed;
@@ -38,7 +41,7 @@ body::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
   opacity: 0.04;
   pointer-events: none;
-  z-index: 999;
+  z-index: -1;
 }
 
 /* Prose — used inside .prose wrapper */

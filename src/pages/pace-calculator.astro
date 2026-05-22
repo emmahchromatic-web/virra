@@ -3,7 +3,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import SectionLabel from '../components/SectionLabel.astro';
-import NewsletterForm from '../components/NewsletterForm.astro';
 import { client } from '../lib/sanity';
 import { CYCLE_CALCULATOR_COPY_QUERY } from '../lib/queries';
 
@@ -170,8 +169,16 @@ const copy = {
       <!-- SAVE MY PACES -->
       <div class="save-paces">
         <SectionLabel text="Save my paces" />
-        <p class="save-sub">Get a summary of your results in your inbox.</p>
-        <NewsletterForm source="calculator" label="Run Hot — plus your paces in your first email." />
+        <p class="save-sub">Run a calculation above, then get a summary of your results in your inbox.</p>
+        <form class="save-form" id="save-form">
+          <input type="email" name="email" placeholder="your@email.com" autocomplete="email" required aria-label="Email address" />
+          <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
+          <button type="submit">Email my paces</button>
+        </form>
+        <p class="save-hint" id="save-hint" hidden>Run a calculation above first — then I'll know which paces to send.</p>
+        <p class="save-ok" id="save-ok" hidden>Sent. Check your inbox — your paces are on the way.</p>
+        <p class="save-err" id="save-err" hidden>That didn't go through. Try again.</p>
+        <p class="save-note">We'll email your paces and add you to The Pack. One email a week. Unsubscribe anytime.</p>
       </div>
 
     </div>
@@ -187,6 +194,10 @@ const copy = {
     secsToHMS, secsToMMSS, parseHMS,
     distanceToKm, kmToMiles,
   } from '../lib/calculator';
+
+  // Most recently calculated result, used by the "Save my paces" form.
+  type SaveResult = { title: string; rows: { label: string; value: string }[]; shareUrl: string };
+  let lastResult: SaveResult | null = null;
 
   // --- TAB SWITCHING ---
   const tabs = document.querySelectorAll<HTMLButtonElement>('.tab');
@@ -270,6 +281,16 @@ const copy = {
       const shareEl = document.getElementById('ptd-share') as HTMLAnchorElement;
       shareEl.href = `${location.origin}/pace-calculator?${params}#pace`;
 
+      lastResult = {
+        title: 'Pace / Time / Distance',
+        rows: [
+          { label: 'Distance', value: document.getElementById('ptd-r-dist')!.textContent || '' },
+          { label: 'Time', value: secsToHMS(totalSecs) },
+          { label: 'Pace', value: `${secsToMMSS(pacePerKm)}/km · ${secsToMMSS(paceMi)}/mi` },
+        ],
+        shareUrl: shareEl.href,
+      };
+
       document.getElementById('ptd-result')!.hidden = false;
     } catch {
       alert('Check your inputs — time should be in M:SS or H:MM:SS format.');
@@ -293,6 +314,16 @@ const copy = {
       const params = new URLSearchParams({ d1: String(d1), t1: String(t1Secs), d2: String(d2) });
       const shareEl = document.getElementById('pred-share') as HTMLAnchorElement;
       shareEl.href = `${location.origin}/pace-calculator?${params}#predictor`;
+
+      lastResult = {
+        title: 'Race Time Predictor',
+        rows: [
+          { label: 'Based on', value: `${secsToHMS(t1Secs)} over ${d1} km` },
+          { label: `Predicted ${d2} km (Riegel)`, value: secsToHMS(riegel) },
+          { label: `Predicted ${d2} km (Cameron)`, value: secsToHMS(cameron) },
+        ],
+        shareUrl: shareEl.href,
+      };
 
       document.getElementById('pred-result')!.hidden = false;
     } catch {
@@ -353,6 +384,18 @@ const copy = {
       const shareEl = document.getElementById('cyc-share') as HTMLAnchorElement;
       shareEl.href = `${location.origin}/pace-calculator?${params}#cycle`;
 
+      lastResult = {
+        title: 'Cycle-Aware Paces',
+        rows: [
+          { label: 'Easy pace', value: `${secsToMMSS(basePace)}/km` },
+          ...phases.map((phase) => ({
+            label: phase.charAt(0).toUpperCase() + phase.slice(1) + (phase === current.phase ? ' (now)' : ''),
+            value: `${secsToMMSS(applyPaceModifier(basePace, phaseModifiers[phase]))}/km`,
+          })),
+        ],
+        shareUrl: shareEl.href,
+      };
+
       document.getElementById('cyc-result')!.hidden = false;
     } catch {
       alert('Check your pace — use M:SS format (e.g. 6:00).');
@@ -377,6 +420,44 @@ const copy = {
     (document.getElementById('pred-d2') as HTMLSelectElement).value = sp.get('d2')!;
     document.getElementById('pred-calc')!.dispatchEvent(new Event('click'));
   }
+
+  // --- SAVE MY PACES ---
+  const saveForm = document.getElementById('save-form') as HTMLFormElement;
+  const saveHint = document.getElementById('save-hint') as HTMLElement;
+  const saveOk = document.getElementById('save-ok') as HTMLElement;
+  const saveErr = document.getElementById('save-err') as HTMLElement;
+
+  saveForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    saveHint.hidden = true;
+    saveErr.hidden = true;
+
+    if (!lastResult) {
+      saveHint.hidden = false;
+      return;
+    }
+
+    const email = (saveForm.elements.namedItem('email') as HTMLInputElement).value;
+    const hp = (saveForm.elements.namedItem('_hp') as HTMLInputElement).value;
+    const btn = saveForm.querySelector('button')!;
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    const res = await fetch('/api/save-paces', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, _hp: hp, result: lastResult }),
+    });
+
+    if (res.ok) {
+      saveForm.hidden = true;
+      saveOk.hidden = false;
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Email my paces';
+      saveErr.hidden = false;
+    }
+  });
 </script>
 
 <!-- Cycle copy passed to client script -->
@@ -491,6 +572,43 @@ const copy = {
 
   .save-paces { margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border); }
   .save-sub { font-size: 0.9rem; color: var(--muted); margin: 8px 0 20px; }
+  .save-form { display: flex; gap: 8px; max-width: 420px; }
+  .save-form input[type=email] {
+    flex: 1;
+    background: rgba(244,237,224,0.04);
+    border: 1px solid var(--border-strong);
+    color: var(--breath);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    padding: 12px 18px;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .save-form input[type=email]:focus { border-color: var(--pulse); }
+  .save-form input[type=email]::placeholder { color: var(--muted); }
+  .save-form button {
+    background: var(--pulse);
+    color: var(--mile);
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 12px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .save-form button:hover { background: #c8f020; }
+  .save-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .save-hint { color: var(--dawn); font-size: 0.85rem; margin-top: 12px; }
+  .save-ok { color: var(--pulse); font-size: 0.95rem; margin-top: 12px; }
+  .save-err { color: var(--dawn); font-size: 0.85rem; margin-top: 12px; }
+  .save-note { font-size: 0.65rem; color: var(--muted); margin-top: 12px; }
+  @media (max-width: 480px) { .save-form { flex-direction: column; } }
 
   @media (max-width: 900px) {
     .inputs-row { grid-template-columns: 1fr 1fr; }

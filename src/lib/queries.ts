@@ -83,7 +83,8 @@ export const ABOUT_QUERY = `*[_type == "aboutPage"][0]{
 export const LEGAL_BY_SLUG_QUERY = `*[_type == "legalPage" && slug.current == $slug][0]{
   title,
   slug,
-  body
+  body,
+  lastUpdated
 }`;
 
 export const CYCLE_CALCULATOR_COPY_QUERY = `*[_type == "cycleCalculatorCopy"][0]{
@@ -91,6 +92,14 @@ export const CYCLE_CALCULATOR_COPY_QUERY = `*[_type == "cycleCalculatorCopy"][0]
   follicular,
   ovulatory,
   luteal
+}`;
+
+export const SITE_SETTINGS_QUERY = `*[_type == "siteSettings"][0]{
+  newsletterCaption,
+  legalLinks,
+  instagramHandle,
+  instagramUrl,
+  copyrightName
 }`;
 
 export const ALL_ARTICLES_FOR_RSS_QUERY = `*[_type == "article"] | order(publishedDate desc) {

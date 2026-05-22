@@ -1,21 +1,39 @@
 ---
 import NewsletterForm from './NewsletterForm.astro';
+import { client } from '../lib/sanity';
+import { SITE_SETTINGS_QUERY } from '../lib/queries';
+
+const settings = await client.fetch(SITE_SETTINGS_QUERY).catch(() => null);
 const year = new Date().getFullYear();
+
+// Hardcoded fallbacks so the footer never blanks if the CMS is empty or unreachable —
+// it renders on every page, so a failed fetch must degrade gracefully.
+const caption = settings?.newsletterCaption || 'Run Hot · sent every Sunday to The Pack.';
+const legalLinks = settings?.legalLinks?.length ? settings.legalLinks : [
+  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Terms', href: '/terms' },
+  { label: 'Cookie Policy', href: '/cookies' },
+  { label: 'Contact', href: '/contact' },
+];
+const instagramHandle = settings?.instagramHandle || '@virrarun';
+const instagramUrl = settings?.instagramUrl || 'https://instagram.com/virrarun';
+const copyrightName = settings?.copyrightName || 'VIRRA';
 ---
 <footer class="site-footer" id="newsletter">
   <div class="f-inner">
     <div class="f-nl">
-      <NewsletterForm source="footer" label="Join The Pack — Run Hot, direct to your inbox." />
+      <NewsletterForm source="footer" label={caption} />
     </div>
     <div class="f-bottom">
       <div class="f-links">
-        <a href="/privacy">Privacy Policy</a>
-        <a href="/terms">Terms</a>
-        <a href="/cookies">Cookies</a>
-        <a href="/contact">Contact</a>
-        <a href="https://instagram.com/virrarun" target="_blank" rel="noopener noreferrer">@virrarun</a>
+        {legalLinks.map((link: { label: string; href: string }) => (
+          <a href={link.href}>{link.label}</a>
+        ))}
       </div>
-      <span class="f-copy">&copy; VIRRA {year}</span>
+      <div class="f-meta">
+        <a class="f-social" href={instagramUrl} target="_blank" rel="noopener noreferrer">{instagramHandle}</a>
+        <span class="f-copy">&copy; {copyrightName} {year}</span>
+      </div>
     </div>
   </div>
 </footer>
@@ -33,6 +51,14 @@ const year = new Date().getFullYear();
     flex-direction: column;
     gap: 48px;
   }
+  .f-nl :global(.nl-label) {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: normal;
+    text-transform: none;
+    color: rgba(244, 237, 224, 0.7);
+  }
   .f-bottom {
     display: flex;
     justify-content: space-between;
@@ -48,6 +74,28 @@ const year = new Date().getFullYear();
     gap: 24px;
   }
   .f-links a {
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: normal;
+    text-transform: none;
+    color: rgba(244, 237, 224, 0.7);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+  .f-links a:hover { color: var(--pulse); }
+  .f-links a:focus-visible,
+  .f-social:focus-visible {
+    outline: 2px solid var(--heat);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+  .f-meta {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .f-social {
     font-family: var(--font-mono);
     font-size: 0.6rem;
     letter-spacing: 0.18em;
@@ -56,7 +104,7 @@ const year = new Date().getFullYear();
     text-decoration: none;
     transition: color 0.2s;
   }
-  .f-links a:hover { color: var(--breath); }
+  .f-social:hover { color: var(--breath); }
   .f-copy {
     font-family: var(--font-mono);
     font-size: 0.6rem;
@@ -67,5 +115,6 @@ const year = new Date().getFullYear();
   @media (max-width: 640px) {
     .f-inner { padding: 0 24px; }
     .f-bottom { flex-direction: column; align-items: flex-start; }
+    .f-meta { flex-direction: column; align-items: flex-start; gap: 12px; }
   }
 </style>

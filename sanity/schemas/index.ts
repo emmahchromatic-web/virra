@@ -4,6 +4,7 @@ import { coachingPage } from './coachingPage';
 import { aboutPage } from './aboutPage';
 import { legalPage } from './legalPage';
 import { cycleCalculatorCopy } from './cycleCalculatorCopy';
+import { siteSettings } from './siteSettings';
 
 export const schemaTypes = [
   article,
@@ -12,4 +13,5 @@ export const schemaTypes = [
   aboutPage,
   legalPage,
   cycleCalculatorCopy,
+  siteSettings,
 ];

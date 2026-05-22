@@ -1,0 +1,202 @@
+---
+// Reusable Run Hot subscribe modal. Opened by any element with `data-subscribe`
+// (e.g. the header Subscribe CTA). Posts to /api/subscribe with source 'header-modal'.
+---
+<div id="subscribe-modal" class="sub-modal" role="dialog" aria-modal="true" aria-labelledby="sub-title" hidden>
+  <div class="sub-panel">
+    <button type="button" class="sub-close" data-subscribe-close aria-label="Close">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <p class="sub-eyebrow">Run Hot</p>
+    <h2 id="sub-title">Run Hot.<br>Sent to The Pack.</h2>
+    <p class="sub-sub">One email a week — training, fuelling and cycle science. No fluff.</p>
+    <form class="sub-form" id="sub-form">
+      <input type="email" name="email" placeholder="your@email.com" autocomplete="email" required aria-label="Email address" />
+      <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
+      <button type="submit">Join The Pack</button>
+    </form>
+    <p class="sub-ok" id="sub-ok" hidden>You're in. Welcome to The Pack.</p>
+    <p class="sub-err" id="sub-err" hidden>That didn't go through. Check the address and try again.</p>
+    <p class="sub-note">No spam, ever. Unsubscribe anytime.</p>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('subscribe-modal') as HTMLElement;
+  const panel = modal.querySelector<HTMLElement>('.sub-panel')!;
+  const form = document.getElementById('sub-form') as HTMLFormElement;
+  const ok = document.getElementById('sub-ok') as HTMLElement;
+  const err = document.getElementById('sub-err') as HTMLElement;
+  let lastTrigger: HTMLElement | null = null;
+
+  const focusables = (): HTMLElement[] =>
+    Array.from(modal.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([type=hidden])'))
+      .filter((el) => el.offsetParent !== null);
+
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') { closeModal(); return; }
+    if (e.key !== 'Tab') return;
+    const items = focusables();
+    if (items.length === 0) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function openModal(trigger: HTMLElement | null) {
+    lastTrigger = trigger;
+    // Ask the mobile nav (if open) to close so the two overlays don't conflict.
+    document.dispatchEvent(new CustomEvent('virra:close-menu'));
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', onKeydown);
+    modal.querySelector<HTMLInputElement>('input[name=email]')?.focus();
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    document.removeEventListener('keydown', onKeydown);
+    lastTrigger?.focus();
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-subscribe]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault();
+      openModal(el);
+    });
+  });
+
+  modal.querySelectorAll('[data-subscribe-close]').forEach((el) =>
+    el.addEventListener('click', closeModal));
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal(); // backdrop click
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+    const hp = (form.elements.namedItem('_hp') as HTMLInputElement).value;
+    const btn = form.querySelector('button')!;
+    btn.disabled = true;
+    btn.textContent = '...';
+    err.hidden = true;
+
+    const res = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, source: 'header-modal', _hp: hp }),
+    });
+
+    if (res.ok) {
+      form.hidden = true;
+      ok.hidden = false;
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Join The Pack';
+      err.hidden = false;
+    }
+  });
+</script>
+
+<style>
+  .sub-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(10, 10, 15, 0.78);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .sub-modal[hidden] { display: none; }
+  .sub-panel {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    background: var(--mist);
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 40px 32px 28px;
+  }
+  .sub-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: var(--breath);
+    cursor: pointer;
+    padding: 6px;
+    line-height: 0;
+  }
+  .sub-close:focus-visible { outline: 2px solid var(--heat); outline-offset: 2px; }
+  .sub-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--heat);
+    margin-bottom: 8px;
+  }
+  .sub-panel h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 7vw, 2.8rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    line-height: 0.9;
+    color: var(--breath);
+    margin-bottom: 12px;
+  }
+  .sub-sub {
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: color-mix(in srgb, var(--breath) 72%, transparent);
+    margin-bottom: 20px;
+  }
+  .sub-form { display: flex; flex-direction: column; gap: 10px; }
+  .sub-form input[type=email] {
+    width: 100%;
+    background: rgba(244, 237, 224, 0.04);
+    border: 1px solid var(--border-strong);
+    color: var(--breath);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    padding: 13px 16px;
+    border-radius: 2px;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+  }
+  .sub-form input[type=email]:focus { border-color: var(--pulse); }
+  .sub-form input[type=email]::placeholder { color: var(--muted); }
+  .sub-form button {
+    background: var(--pulse);
+    color: var(--mile);
+    border: none;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 14px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .sub-form button:hover { background: #c8f020; }
+  .sub-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .sub-ok { color: var(--pulse); font-size: 0.95rem; margin-top: 4px; }
+  .sub-err { color: var(--dawn); font-size: 0.88rem; margin-top: 4px; }
+  .sub-note { font-size: 0.62rem; color: var(--muted); margin-top: 12px; }
+  @media (prefers-reduced-motion: reduce) {
+    .sub-form input[type=email], .sub-form button { transition: none; }
+  }
+</style>

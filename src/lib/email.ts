@@ -46,6 +46,35 @@ export async function sendCoachingAutoReply(name: string, toEmail: string) {
   });
 }
 
+export async function sendPaceResults(
+  toEmail: string,
+  result: { title: string; rows: { label: string; value: string }[]; shareUrl?: string },
+) {
+  const esc = (s: string) =>
+    String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  const rows = result.rows
+    .map(
+      (r) =>
+        `<tr><td style="padding:6px 18px 6px 0;color:#9a9a9a;">${esc(r.label)}</td><td style="padding:6px 0;font-weight:600;">${esc(r.value)}</td></tr>`,
+    )
+    .join('');
+
+  await resend.emails.send({
+    from: 'VIRRA <hello@virra.app>',
+    to: [toEmail],
+    subject: 'Your paces, from VIRRA',
+    html: `
+      <p>Here are the paces you worked out — keep them somewhere you'll find them.</p>
+      <h2>${esc(result.title)}</h2>
+      <table style="border-collapse:collapse;font-family:sans-serif;">${rows}</table>
+      ${result.shareUrl ? `<p style="margin-top:16px;"><a href="${esc(result.shareUrl)}">Open these results again →</a></p>` : ''}
+      <p style="margin-top:24px;">We'll see you Sunday.</p>
+      <p>Run Hot,<br>VIRRA</p>
+    `,
+  });
+}
+
 export async function sendContactNotification(fields: {
   name: string;
   email: string;

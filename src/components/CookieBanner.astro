@@ -11,22 +11,35 @@
 
 <script>
   const PREF_KEY = 'virra-cookie-consent';
+  // ICO requires consent to be refreshed at least every 12 months.
+  const MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
   const banner = document.getElementById('cookie-banner') as HTMLElement;
-  const pref = localStorage.getItem(PREF_KEY);
 
-  if (!pref) {
+  function validConsent(): boolean {
+    const raw = localStorage.getItem(PREF_KEY);
+    if (!raw) return false;
+    try {
+      const record = JSON.parse(raw) as { choice?: string; ts?: number };
+      if (typeof record?.ts !== 'number') return false;
+      return Date.now() - record.ts <= MAX_AGE_MS;
+    } catch {
+      // Legacy plain-string record (pre-timestamp) or corrupt value → re-ask.
+      return false;
+    }
+  }
+
+  function record(choice: 'accepted' | 'rejected') {
+    localStorage.setItem(PREF_KEY, JSON.stringify({ choice, ts: Date.now() }));
+    banner.hidden = true;
+  }
+
+  if (!validConsent()) {
+    localStorage.removeItem(PREF_KEY); // drop stale/expired/legacy records
     banner.hidden = false;
   }
 
-  document.getElementById('cb-accept')?.addEventListener('click', () => {
-    localStorage.setItem(PREF_KEY, 'accepted');
-    banner.hidden = true;
-  });
-
-  document.getElementById('cb-reject')?.addEventListener('click', () => {
-    localStorage.setItem(PREF_KEY, 'rejected');
-    banner.hidden = true;
-  });
+  document.getElementById('cb-accept')?.addEventListener('click', () => record('accepted'));
+  document.getElementById('cb-reject')?.addEventListener('click', () => record('rejected'));
 </script>
 
 <style>
@@ -46,21 +59,27 @@
     gap: 20px;
     flex-wrap: wrap;
   }
+  .cookie-banner[hidden] { display: none; }
   .cb-text { font-size: 0.85rem; line-height: 1.5; color: rgba(244,237,224,0.8); flex: 1; }
-  .cb-text a { color: var(--pulse); text-decoration: underline; }
+  .cb-text a { display: block; margin-top: 4px; color: var(--pulse); text-decoration: underline; }
   .cb-actions { display: flex; gap: 8px; }
   .cb-btn {
     font-family: var(--font-mono);
-    font-size: 0.58rem;
+    font-size: 12px;
+    font-weight: 700;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    padding: 8px 16px;
+    padding: 10px 20px;
     border-radius: 2px;
     cursor: pointer;
     white-space: nowrap;
-    border: 1px solid var(--border-strong);
+    border: 1px solid transparent;
+    transition: background 0.15s ease;
   }
+  /* Accept and Reject all carry equal visual weight: both solid, full-opacity
+     fills with dark text. Neither is steered toward (ICO no-dark-patterns). */
   .cb-accept { background: var(--pulse); color: var(--mile); border-color: var(--pulse); }
-  .cb-reject { background: transparent; color: var(--muted); }
-  .cb-reject:hover { color: var(--breath); }
+  .cb-accept:hover { background: #c8f020; }
+  .cb-reject { background: var(--breath); color: var(--mile); border-color: var(--breath); }
+  .cb-reject:hover { background: #e3d9c6; }
 </style>
