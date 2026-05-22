@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { SESSION_DURATION_MIN } from './sessionMatcher';
 import type { CyclePhase } from './cycleEngine';
 import { getCycleInfo } from './cycleEngine';
 import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
@@ -130,11 +131,6 @@ const PHASE_WEIGHT: Record<string, number> = {
   menstrual:  0.85,
 };
 
-const STRENGTH_DURATION: Record<string, number> = {
-  lower:   45,
-  upper:   40,
-  general: 35,
-};
 
 const PHASE_GUIDANCE: Record<string, string> = {
   follicular: 'Ramp up. Your body adapts faster now.',
@@ -698,7 +694,7 @@ export async function getDaySessionDetail(
     }
 
     for (const s of strengthSessions) {
-      const estimated_minutes = STRENGTH_DURATION[s.session_label] ?? 40;
+      const estimated_minutes = SESSION_DURATION_MIN[s.session_label] ?? 40;
       const strength_session_type = mapLabelToSessionType(s.session_label);
       const strength_base_target: SessionPaceTarget = {
         duration_minutes: estimated_minutes,
