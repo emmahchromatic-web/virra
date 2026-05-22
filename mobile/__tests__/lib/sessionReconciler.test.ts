@@ -74,11 +74,20 @@ test('two same-modality activities link to two distinct sessions (no double-link
   expect(n).toBe(2);
   const linkedSessions = commitCalls.map((c) => c[0]).sort();
   expect(linkedSessions).toEqual(['lower', 'upper']);
+  expect(commitCalls).toContainEqual(['upper', 'a1']); // a1=2500s closest to upper(2400)
+  expect(commitCalls).toContainEqual(['lower', 'a2']); // a2=3000s closest to lower(2700)
 });
 
 test('no unlinked activities -> zero links', async () => {
   mockActivities = [];
   mockSessions = [{ id: 's1', scheduled_date: '2026-05-18', modality: 'run', session_label: 'easy', run_structure: { total_distance_m: 10000 }, created_at: '2026-05-01' }];
+  expect(await reconcileSessions('u', '2026-05-18', '2026-05-24')).toBe(0);
+  expect(commitCalls).toEqual([]);
+});
+
+test('no planned sessions -> zero links', async () => {
+  mockActivities = [{ id: 'a1', started_at: '2026-05-18T08:00:00Z', activity_type: 'run', duration_seconds: 2400, distance_meters: 9500 }];
+  mockSessions = [];
   expect(await reconcileSessions('u', '2026-05-18', '2026-05-24')).toBe(0);
   expect(commitCalls).toEqual([]);
 });

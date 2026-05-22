@@ -18,6 +18,12 @@ function isoLocal(d: Date): string {
   return d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local zone
 }
 
+function shiftISO(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 // Date range to reconcile: full year on first install, current Mon-Sun thereafter.
 export function reconcileRange(backfillDone: boolean, today: Date): { from: string; to: string } {
   if (!backfillDone) {
@@ -42,8 +48,8 @@ export async function reconcileSessions(userId: string, fromISO: string, toISO: 
     .eq('user_id', userId)
     .is('planned_session_id', null)
     .neq('activity_type', 'other')
-    .gte('started_at', `${fromISO}T00:00:00.000Z`)
-    .lte('started_at', `${toISO}T23:59:59.999Z`)
+    .gte('started_at', `${shiftISO(fromISO, -1)}T00:00:00.000Z`)
+    .lte('started_at', `${shiftISO(toISO, 1)}T23:59:59.999Z`)
     .order('started_at');
   if (aErr) { console.warn('[sessionReconciler] activities', aErr.message); return 0; }
   if (!acts?.length) return 0;
