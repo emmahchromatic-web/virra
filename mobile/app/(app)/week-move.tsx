@@ -6,20 +6,19 @@ import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler
 import { useAuthStore } from '@/store/auth';
 import { supabase } from '@/lib/supabase';
 import { moveSession, dropSession } from '@/lib/scheduleGenerator';
-import { swapSessions } from '@/lib/swapSessions';
 import { groupSessionsByDay, findRowAtY, isOverloaded, type RowBounds } from '@/lib/weekMove';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { DayRow } from '@/components/ui/DayRow';
-import { DraggableSessionCard, SessionCardGhost, hapticImpact, type DraggableSession } from '@/components/ui/DraggableSessionCard';
-import { SwapPickerSheet, type SwapTarget } from '@/components/ui/SwapPickerSheet';
+import { DraggableSessionCard, CompletedSessionCard, SessionCardGhost, hapticImpact, type DraggableSession } from '@/components/ui/DraggableSessionCard';
 
 interface PlannedRow {
   id:                 string;
   scheduled_date:     string;
   modality:           DraggableSession['modality'];
   session_label:      string;
+  status:             'planned' | 'completed';
 }
 
 const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -61,7 +60,6 @@ export default function WeekMoveScreen() {
   const [grabbedId,   setGrabbedId]   = useState<string | null>(null);
   const [hoverDate,   setHoverDate]   = useState<string | null>(null);
   const [busy,        setBusy]        = useState(false);
-  const [pickerTarget,setPickerTarget]= useState<{ date: string; targets: SwapTarget[]; droppedId: string; sourceDate: string } | null>(null);
   // Bounds are content-relative (ScrollView coordinates), not window-absolute.
   const rowBoundsRef       = useRef<Record<string, RowBounds>>({});
   const scrollWrapRef      = useRef<View>(null);
@@ -72,10 +70,10 @@ export default function WeekMoveScreen() {
     if (!auth) return;
     const { data, error } = await supabase
       .from('planned_sessions')
-      .select('id, scheduled_date, modality, session_label')
+      .select('id, scheduled_date, modality, session_label, status')
       .eq('user_id', auth.user.id)
       .in('scheduled_date', week)
-      .eq('status', 'planned')
+      .in('status', ['planned', 'completed'])
       .order('scheduled_date');
     if (!error) setRows((data ?? []) as PlannedRow[]);
   }, [auth?.user.id, monday]);
@@ -146,27 +144,12 @@ export default function WeekMoveScreen() {
       return;
     }
 
-    const targetSessions = groups[target] ?? [];
-
-    if (targetSessions.length === 0) {
-      hapticImpact('medium');
-      await commit(() => moveSession(id, target, auth!.user.id));
-      setGrabbedId(null);
-      return;
-    }
-    if (targetSessions.length === 1) {
-      hapticImpact('medium');
-      const other = targetSessions[0];
-      await commit(() => swapSessions(id, other.id, source.scheduled_date, target, auth!.user.id));
-      setGrabbedId(null);
-      return;
-    }
-    setPickerTarget({
-      date: target,
-      droppedId: id,
-      sourceDate: source.scheduled_date,
-      targets: targetSessions.map((t) => ({ id: t.id, modality: t.modality, session_label: t.session_label })),
-    });
+    // Always stack onto the target day. moveSession relocates the session
+    // (old row → 'moved', new planned row at target) — no copy. If the day
+    // already has a session, the user can re-drag either one elsewhere.
+    hapticImpact('medium');
+    await commit(() => moveSession(id, target, auth!.user.id));
+    setGrabbedId(null);
   }
 
   async function commit(fn: () => Promise<void>) {
@@ -179,27 +162,6 @@ export default function WeekMoveScreen() {
     } finally {
       setBusy(false);
     }
-  }
-
-  async function handleSheetSwap(otherId: string) {
-    if (!pickerTarget) return;
-    const { date, droppedId, sourceDate } = pickerTarget;
-    setPickerTarget(null);
-    await commit(() => swapSessions(droppedId, otherId, sourceDate, date, auth!.user.id));
-    setGrabbedId(null);
-  }
-
-  async function handleSheetAdd() {
-    if (!pickerTarget) return;
-    const { date, droppedId } = pickerTarget;
-    setPickerTarget(null);
-    await commit(() => moveSession(droppedId, date, auth!.user.id));
-    setGrabbedId(null);
-  }
-
-  function handleSheetCancel() {
-    setPickerTarget(null);
-    setGrabbedId(null);
   }
 
   function handleCatchup() {
@@ -268,21 +230,29 @@ export default function WeekMoveScreen() {
                 onMeasure={handleMeasure}
               >
                 {groups[d].map((s) => (
-                  <DraggableSessionCard
-                    key={s.id}
-                    session={{
-                      id:                s.id,
-                      modality:          s.modality,
-                      session_label:     s.session_label,
-                      estimated_minutes: DEFAULT_MIN,
-                      isFocused:         s.id === focusedSessionId,
-                    }}
-                    onLongPress={handleLongPress}
-                    onPanUpdate={handlePanUpdate}
-                    onPanEnd={handlePanEnd}
-                    grabbed={grabbedId === s.id}
-                    enabled={!busy}
-                  />
+                  s.status === 'completed' ? (
+                    <CompletedSessionCard
+                      key={s.id}
+                      modality={s.modality}
+                      session_label={s.session_label}
+                    />
+                  ) : (
+                    <DraggableSessionCard
+                      key={s.id}
+                      session={{
+                        id:                s.id,
+                        modality:          s.modality,
+                        session_label:     s.session_label,
+                        estimated_minutes: DEFAULT_MIN,
+                        isFocused:         s.id === focusedSessionId,
+                      }}
+                      onLongPress={handleLongPress}
+                      onPanUpdate={handlePanUpdate}
+                      onPanEnd={handlePanEnd}
+                      grabbed={grabbedId === s.id}
+                      enabled={!busy}
+                    />
+                  )
                 ))}
                 {showGhost && grabbed && (
                   <SessionCardGhost
@@ -307,15 +277,6 @@ export default function WeekMoveScreen() {
             <VirraText variant="mono" size={11} color={colors.mile}>DROP</VirraText>
           </Pressable>
         </View>
-
-        <SwapPickerSheet
-          visible={pickerTarget !== null}
-          targetDateLabel={pickerTarget ? fullDayLabel(pickerTarget.date) : ''}
-          targets={pickerTarget?.targets ?? []}
-          onSwap={handleSheetSwap}
-          onAddAlongside={handleSheetAdd}
-          onCancel={handleSheetCancel}
-        />
       </SafeAreaView>
     </GestureHandlerRootView>
   );

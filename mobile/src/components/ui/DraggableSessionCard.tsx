@@ -155,6 +155,27 @@ export function SessionCardGhost({ modality, session_label }: GhostProps) {
   );
 }
 
+// Completed sessions are shown for context (so the day looks the same as in
+// the calendar/list views) but can't be dragged — they're already done.
+export function CompletedSessionCard({ modality, session_label }: GhostProps) {
+  return (
+    <View style={[styles.card, styles.done]} pointerEvents="none">
+      <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[modality] }]} />
+      <View style={styles.body}>
+        <VirraText variant="bodyMedium" size={14} color={colors.breath} numberOfLines={1}>
+          {session_label}
+        </VirraText>
+        <View style={styles.meta}>
+          <SymbolView name="checkmark.circle.fill" size={11} tintColor={colors.pulse} />
+          <VirraText variant="mono" size={10} color={colors.muted}>
+            {modality.toUpperCase()} · DONE
+          </VirraText>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     width: 140, height: 52,
@@ -167,6 +188,7 @@ const styles = StyleSheet.create({
   body:    { flex: 1, padding: spacing.sm, gap: 2, justifyContent: 'center' },
   meta:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
   focused: { borderWidth: 2, borderColor: colors.pulse },
+  done:    { opacity: 0.55 },
   elevated:{ shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, zIndex: 100 },
   ghost:   { opacity: 0.6, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.pulse },
 });

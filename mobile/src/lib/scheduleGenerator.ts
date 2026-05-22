@@ -225,48 +225,20 @@ export async function moveSession(
     })
     .select('id')
     .single();
-  if (insertErr || !newRow) throw new Error(insertErr?.message ?? 'Could not create replacement');
+  if (insertErr || !newRow) {
+    // 23505 = unique violation on planned_sessions_no_clash_idx: an identical
+    // session (same modality + label) already sits on that day.
+    if ((insertErr as { code?: string } | null)?.code === '23505') {
+      const label = (orig as any).session_label as string;
+      throw new Error(`That day already has a ${(orig as any).modality} session (${label}). Two identical sessions can't share a day — move the existing one first.`);
+    }
+    throw new Error(insertErr?.message ?? 'Could not create replacement');
+  }
 
   await supabase
     .from('planned_sessions')
     .update({ status: 'moved', moved_to_id: newRow.id })
     .eq('id', sessionId);
-
-  await reconcileMoveToActivity(
-    newRow.id,
-    userId,
-    newDate,
-    (orig as any).modality,
-    (orig as any).session_label,
-  );
-}
-
-async function reconcileMoveToActivity(
-  plannedId: string,
-  userId:    string,
-  dateISO:   string,
-  modality:  string,
-  _label:    string,
-): Promise<void> {
-  const today = new Date().toLocaleDateString('en-CA');
-  if (dateISO > today) return;
-
-  const { data, error } = await supabase
-    .from('activities')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('activity_type', modality)
-    .is('planned_session_id', null)
-    .gte('started_at', `${dateISO}T00:00:00.000Z`)
-    .lte('started_at', `${dateISO}T23:59:59.999Z`)
-    .order('started_at')
-    .limit(1);
-
-  if (error) {
-    console.warn('[scheduleGenerator] reconcileMove query', error.message);
-    return;
-  }
-  if (data?.length) await _commitLink(plannedId, data[0].id);
 }
 
 export async function closeBlock(blockId: string, endsOn: string): Promise<void> {

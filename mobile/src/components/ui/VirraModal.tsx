@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Modal, Pressable, StyleSheet, StyleProp, ViewStyle, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Modal, Pressable, ScrollView, StyleSheet, StyleProp, ViewStyle, KeyboardAvoidingView, Platform, useWindowDimensions } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -13,6 +13,7 @@ interface Props {
 }
 
 export function VirraModal({ visible, onClose, title, children, style }: Props) {
+  const { height } = useWindowDimensions();
   return (
     <Modal
       visible={visible}
@@ -27,13 +28,23 @@ export function VirraModal({ visible, onClose, title, children, style }: Props) 
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.kav}
         >
-          <View style={[styles.card, style]}>
+          {/* Cap the card to the viewport so tall content scrolls internally
+              rather than overflowing off-screen (the centred card would push
+              its top under the status bar with no way to reach it). */}
+          <View style={[styles.card, { maxHeight: height * 0.85 }, style]}>
             {title && (
               <VirraText variant="mono" size={10} color={colors.pulse} style={styles.title}>
                 {title.toUpperCase()}
               </VirraText>
             )}
-            {children}
+            <ScrollView
+              style={styles.scroll}
+              contentContainerStyle={styles.scrollContent}
+              showsVerticalScrollIndicator
+              bounces={false}
+            >
+              {children}
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </BlurView>
@@ -68,6 +79,14 @@ const styles = StyleSheet.create({
     padding:         spacing.md,
     gap:             spacing.md,
     zIndex:          1,
+  },
+  // flexShrink lets the scroll view collapse to fit the card's maxHeight,
+  // which is what makes it scrollable when content overflows.
+  scroll: {
+    flexShrink: 1,
+  },
+  scrollContent: {
+    gap: spacing.md,
   },
   title: {
     letterSpacing: 1.5,
