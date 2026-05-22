@@ -10,6 +10,25 @@ claude mcp add --scope project --transport http supabase "https://mcp.supabase.c
 
 ---
 
+## Trello (project tracker)
+
+Work is tracked on the Trello board **Virra.app** — board URL `https://trello.com/b/M7tjcDl3/virraapp` (short id `M7tjcDl3`). Lists: Backlog [Day Two] · Web Backlog · App Backlog · In Progress · In Code Review · In Staging · Done · Abandoned. Members: Paul (`pauldickenson4`), Emma (`emmaharrison120`).
+
+Access is via the **Trello REST API directly** (no MCP, no browser automation). Credentials live in a gitignored local file `~/.trello.env` (never commit them, never echo them):
+
+```bash
+# ~/.trello.env  (export TRELLO_KEY=... and TRELLO_TOKEN=...)
+source ~/.trello.env
+# read: board lists + cards
+curl -s "https://api.trello.com/1/boards/M7tjcDl3?fields=name,url&lists=open&cards=open&card_fields=name,idList&key=$TRELLO_KEY&token=$TRELLO_TOKEN"
+# move a card to a list:   PUT  /1/cards/{id}?idList={listId}
+# comment on a card:       POST /1/cards/{id}/actions/comments  (text=...)  — @emmaharrison120 mentions notify her
+```
+
+Keep secrets in env vars in the command (`$TRELLO_KEY`/`$TRELLO_TOKEN`) so they never appear in transcripts. Moving cards / commenting are shared, visible actions on a board Paul doesn't own — confirm intent before writing, and tag `@emmaharrison120` when a card needs her review.
+
+---
+
 ## What this project is
 
 A subscription mobile app (React Native, iOS-first) that replaces Runna + MyFitnessPal + a cycle tracker for women runners. Female health is woven through every feature — not bolted on. The cycle phase engine is the primary competitive moat.
