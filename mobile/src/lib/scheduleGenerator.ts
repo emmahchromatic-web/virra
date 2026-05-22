@@ -4,6 +4,7 @@ import { generateRunStructure } from './runWorkoutGenerator';
 import { generateStrengthStructure } from './strengthWorkoutGenerator';
 import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
 import type { SessionType as StrengthSessionType } from './strengthTypes';
+import { sessionTarget, matchActivityToSession, type MatchSession } from './sessionMatcher';
 
 export const DAY_TEMPLATES: Record<number, number[]> = {
   1: [0],
@@ -260,35 +261,44 @@ export async function linkActivityToSession(
   activityType:  string,
   sessionLabel?: string,
 ): Promise<void> {
-  if (activityType === 'strength' && sessionLabel) {
-    const { data: exact, error: exactErr } = await supabase
-      .from('planned_sessions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('scheduled_date', dateISO)
-      .eq('modality', 'strength')
-      .eq('session_label', sessionLabel)
-      .eq('status', 'planned')
-      .order('created_at')
-      .limit(1);
-    if (exactErr) console.warn('[scheduleGenerator] linkActivity strength-label query', exactErr.message);
-    if (exact?.length) { await _commitLink(exact[0].id, activityId); return; }
-  }
+  // Measured values for the 90% gate.
+  const { data: act, error: actErr } = await supabase
+    .from('activities')
+    .select('activity_type, duration_seconds, distance_meters')
+    .eq('id', activityId)
+    .single();
+  if (actErr || !act) { if (actErr) console.warn('[scheduleGenerator] linkActivity activity', actErr.message); return; }
 
-  const { data, error } = await supabase
+  // Candidate sessions. Manual strength logging knows the exact label (the
+  // user picked upper/lower), so narrow to it; otherwise all same-modality
+  // planned sessions that day. The matcher then applies the gate + closest-target.
+  let query = supabase
     .from('planned_sessions')
-    .select('id')
+    .select('id, modality, session_label, run_structure, created_at')
     .eq('user_id', userId)
     .eq('scheduled_date', dateISO)
     .eq('modality', activityType)
     .eq('status', 'planned')
-    .order('created_at')
-    .limit(1);
-  if (error) console.warn('[scheduleGenerator] linkActivity query', error.message);
-  if (data?.length) await _commitLink(data[0].id, activityId);
+    .order('created_at');
+  if (activityType === 'strength' && sessionLabel) query = query.eq('session_label', sessionLabel);
+
+  const { data: sessions, error } = await query;
+  if (error) { console.warn('[scheduleGenerator] linkActivity query', error.message); return; }
+  if (!sessions?.length) return;
+
+  const candidates = (sessions as MatchSession[]).map(sessionTarget);
+  const matchedId = matchActivityToSession(
+    {
+      activity_type:    act.activity_type,
+      duration_seconds: act.duration_seconds,
+      distance_meters:  act.distance_meters,
+    },
+    candidates,
+  );
+  if (matchedId) await _commitLink(matchedId, activityId);
 }
 
-async function _commitLink(plannedSessionId: string, activityId: string): Promise<void> {
+export async function _commitLink(plannedSessionId: string, activityId: string): Promise<void> {
   const [r1, r2] = await Promise.all([
     supabase
       .from('planned_sessions')
