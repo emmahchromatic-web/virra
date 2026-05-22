@@ -23,3 +23,10 @@ skills-lock.json
 *.xlsx
 mobile/supabase/.temp/
 .sanity/
+
+# Local error/log dumps
+issues/
+
+# Stray credential downloads (service-account keys etc.) — never commit
+dwnld.json
+**/dwnld.json
