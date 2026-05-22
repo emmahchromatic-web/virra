@@ -86,7 +86,7 @@ async function runReconcile(userId: string): Promise<void> {
     await reconcileSessions(userId, from, to);
     if (!backfillDone) await AsyncStorage.setItem(BACKFILL_FLAG_KEY, '1');
   } catch (e) {
-    console.warn('[healthKitImport] reconcile', (e as Error).message);
+    console.warn('[healthKitImport] reconcile', e instanceof Error ? e.message : String(e));
   }
 }
 
