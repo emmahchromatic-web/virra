@@ -3,9 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { getCycleInfo } from './cycleEngine';
 import { cancelTrainingReminderToday } from './notifications';
+import { reconcileSessions, reconcileRange } from './sessionReconciler';
 
 const ANCHOR_KEY        = 'hk_workout_anchor_v1';
 const REIMPORT_FLAG_KEY = 'hk_reimport_subtype_v1';
+const BACKFILL_FLAG_KEY = 'hk_backfill_done_v1';
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 
@@ -75,6 +77,19 @@ interface ImportContext {
   cycleLength: number;
 }
 
+// Runs every foreground import cycle. First call (per install) reconciles a full
+// year as a one-time backfill; subsequent calls reconcile only the current week.
+async function runReconcile(userId: string): Promise<void> {
+  try {
+    const backfillDone = !!(await AsyncStorage.getItem(BACKFILL_FLAG_KEY));
+    const { from, to } = reconcileRange(backfillDone, new Date());
+    await reconcileSessions(userId, from, to);
+    if (!backfillDone) await AsyncStorage.setItem(BACKFILL_FLAG_KEY, '1');
+  } catch (e) {
+    console.warn('[healthKitImport] reconcile', (e as Error).message);
+  }
+}
+
 export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
   const HK = NativeModules.AppleHealthKit;
   if (!HK?.getAnchoredWorkouts) return 0;
@@ -103,9 +118,9 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
     HK.getAnchoredWorkouts(
       { startDate, anchor: anchor ?? undefined, ascending: true },
       async (err: any, result: { anchor: string; data: any[] }) => {
-        if (err || !result?.data?.length) return resolve(0);
+        if (err) return resolve(0);
 
-        const workouts = result.data.filter(
+        const workouts = (result?.data ?? []).filter(
           (w) => w.duration > 0 && (w.distance >= 0)
         );
 
@@ -184,9 +199,12 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
         }
 
         // Advance anchor so next call only fetches new workouts
-        if (result.anchor) {
+        if (result?.anchor) {
           await AsyncStorage.setItem(ANCHOR_KEY, result.anchor);
         }
+
+        // Link imported (and any still-unlinked) activities to planned sessions.
+        await runReconcile(ctx.userId);
 
         resolve(imported);
       }
