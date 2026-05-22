@@ -147,9 +147,7 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
             ? getCycleInfo(ctx.periodStart, ctx.cycleLength, startedAt).phase
             : null;
 
-          const hkUuid = w.id ?? w.sourceId
-            ? `${w.sourceId}::${w.start}`
-            : null;
+          const hkUuid = w.id ?? (w.sourceId ? `${w.sourceId}::${w.start}` : null);
 
           const { data: activityRow, error: actErr } = await supabase
             .from('activities')
