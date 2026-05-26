@@ -3,6 +3,7 @@ export const prerender = false;
 import type { APIRoute } from 'astro';
 import { sendCoachingNotification, sendCoachingAutoReply } from '../../lib/email';
 import { appendCoachingEnquiry } from '../../lib/sheets';
+import { addSubscriber } from '../../lib/beehiiv';
 
 export const POST: APIRoute = async ({ request }) => {
   const body = await request.json() as {
@@ -39,18 +40,26 @@ export const POST: APIRoute = async ({ request }) => {
     newsletter: body.newsletter ?? false,
   };
 
-  const [notify, autoReply, sheet] = await Promise.allSettled([
+  // If the user ticked the Run Hot opt-in, also add them to Beehiiv. Wrap in a
+  // resolved no-op when they didn't so the Promise.allSettled destructure stays clean.
+  const maybeSubscribe = fields.newsletter
+    ? addSubscriber(fields.email, 'coaching-form')
+    : Promise.resolve();
+
+  const [notify, autoReply, sheet, beehiiv] = await Promise.allSettled([
     sendCoachingNotification(fields),
     sendCoachingAutoReply(fields.name, fields.email),
     appendCoachingEnquiry(fields),
+    maybeSubscribe,
   ]);
 
   if (notify.status === 'rejected') console.error('coaching-enquiry: notification email failed', notify.reason);
   if (autoReply.status === 'rejected') console.error('coaching-enquiry: auto-reply email failed', autoReply.reason);
   if (sheet.status === 'rejected') console.error('coaching-enquiry: sheet append failed', sheet.reason);
+  if (beehiiv.status === 'rejected') console.error('coaching-enquiry: beehiiv add failed', beehiiv.reason);
 
   // Notification email is the only thing Emma actually needs to act on the enquiry.
-  // Sheet + auto-reply are nice-to-haves — don't show the user an error if they fail.
+  // Sheet + auto-reply + Beehiiv are nice-to-haves — don't show the user an error if they fail.
   if (notify.status === 'rejected') {
     return new Response(JSON.stringify({ error: 'Notification email failed' }), { status: 500 });
   }

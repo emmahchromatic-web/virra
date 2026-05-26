@@ -1,13 +1,15 @@
 ---
 interface Props {
   source: 'footer' | 'hero' | 'advice' | 'advice-eoa' | 'calculator';
+  // Pass an empty string to suppress the label entirely (e.g. when the
+  // surrounding section already supplies its own headline + subline).
   label?: string;
 }
 const { source, label = 'Run Hot — sent to The Pack.' } = Astro.props;
 const formId = `nl-${source}`;
 ---
 <div class="nl-wrap" data-source={source}>
-  <p class="nl-label">{label}</p>
+  {label && <p class="nl-label">{label}</p>}
   <form class="nl-form" id={formId} novalidate>
     <input
       type="email"

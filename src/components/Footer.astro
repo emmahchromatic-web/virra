@@ -1,5 +1,4 @@
 ---
-import NewsletterForm from './NewsletterForm.astro';
 import { client } from '../lib/sanity';
 import { SITE_SETTINGS_QUERY } from '../lib/queries';
 
@@ -8,7 +7,6 @@ const year = new Date().getFullYear();
 
 // Hardcoded fallbacks so the footer never blanks if the CMS is empty or unreachable —
 // it renders on every page, so a failed fetch must degrade gracefully.
-const caption = settings?.newsletterCaption || 'Run Hot · sent every Sunday to The Pack.';
 const legalLinks = settings?.legalLinks?.length ? settings.legalLinks : [
   { label: 'Privacy Policy', href: '/privacy' },
   { label: 'Terms', href: '/terms' },
@@ -19,11 +17,8 @@ const instagramHandle = settings?.instagramHandle || '@virrarun';
 const instagramUrl = settings?.instagramUrl || 'https://instagram.com/virrarun';
 const copyrightName = settings?.copyrightName || 'VIRRA';
 ---
-<footer class="site-footer" id="newsletter">
+<footer class="site-footer">
   <div class="f-inner">
-    <div class="f-nl">
-      <NewsletterForm source="footer" label={caption} />
-    </div>
     <div class="f-bottom">
       <div class="f-links">
         {legalLinks.map((link: { label: string; href: string }) => (
@@ -47,17 +42,6 @@ const copyrightName = settings?.copyrightName || 'VIRRA';
     max-width: 1200px;
     margin: 0 auto;
     padding: 0 48px;
-    display: flex;
-    flex-direction: column;
-    gap: 48px;
-  }
-  .f-nl :global(.nl-label) {
-    font-family: var(--font-body);
-    font-weight: 500;
-    font-size: 12px;
-    letter-spacing: normal;
-    text-transform: none;
-    color: rgba(244, 237, 224, 0.7);
   }
   .f-bottom {
     display: flex;
@@ -65,8 +49,6 @@ const copyrightName = settings?.copyrightName || 'VIRRA';
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
-    border-top: 1px solid var(--border);
-    padding-top: 24px;
   }
   .f-links {
     display: flex;
