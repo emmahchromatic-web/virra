@@ -1,5 +1,15 @@
-/* Fonts are loaded in BaseLayout.astro <head> via preconnect + non-blocking
-   preload (not an @import here, which blocks render). */
+/* The hero LCP font (Big Shoulders Display 900) is self-hosted and preloaded
+   from BaseLayout — its @font-face must live here (not Google Fonts) so the
+   preloaded woff2 is matched immediately when the browser parses the CSS.
+   All other faces still arrive via the async Google Fonts stylesheet. */
+@font-face {
+  font-family: 'Big Shoulders Display';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/big-shoulders-display-900.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 :root {
   --pulse:     #D4FF26;

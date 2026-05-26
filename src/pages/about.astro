@@ -102,10 +102,10 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
           <span class="cta-label">Coaching</span>
           <span class="cta-arrow">→</span>
         </a>
-        <a href="#newsletter" class="cta-card">
+        <button type="button" data-subscribe class="cta-card">
           <span class="cta-label">Subscribe to Run Hot</span>
           <span class="cta-arrow">→</span>
-        </a>
+        </button>
         <a href="https://instagram.com/emmasrunlife" target="_blank" rel="noopener noreferrer" class="cta-card">
           <span class="cta-label">@emmasrunlife</span>
           <span class="cta-arrow">↗</span>
@@ -208,6 +208,13 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
     justify-content: space-between;
     align-items: center;
     transition: border-color 0.2s;
+    /* Allow the same class to style <a> and <button> identically. */
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    width: 100%;
+    cursor: pointer;
+    appearance: none;
   }
   .cta-card:hover { border-color: var(--pulse); }
   .cta-label {

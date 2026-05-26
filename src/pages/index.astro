@@ -43,12 +43,20 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
         <div class="wrap">
           <SectionLabel text="What VIRRA is" />
           <div class="pillars-grid">
-            {home.pillars.map((p: any, i: number) => (
-              <div class:list={['pillar', { featured: i === 1 }]}>
-                <h3 class="pillar-name">{p.name}</h3>
-                <p class="pillar-body">{p.body}</p>
-              </div>
-            ))}
+            {home.pillars.map((p: any, i: number) => {
+              // accentColor is now a 'pulse' | 'heat' | 'mile' enum from Sanity;
+              // fall back to brand-spec position order for legacy data that still
+              // carries `var(--pulse)`-style strings.
+              const allowed = ['pulse', 'heat', 'mile'] as const;
+              const fallback = allowed[i] ?? 'pulse';
+              const colour = allowed.includes(p?.accentColor) ? p.accentColor : fallback;
+              return (
+                <div class:list={['pillar', `pillar-${colour}`]}>
+                  <h3 class="pillar-name">{p.name}</h3>
+                  <p class="pillar-body">{p.body}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -60,10 +68,10 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
         <div class="founder-img">
           {home?.founderPortrait
             ? <img
-                src={urlFor(home.founderPortrait).width(480).height(600).url()}
+                src={urlFor(home.founderPortrait).width(360).height(450).url()}
                 alt={`${home?.founderName ?? 'Emma'} — founder of VIRRA`}
-                width="480"
-                height="600"
+                width="360"
+                height="450"
               />
             : <div class="founder-placeholder" aria-hidden="true" />
           }
@@ -171,6 +179,8 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     line-height: 0.86;
     margin-bottom: 32px;
     color: var(--breath);
+    /* Preserve newlines authored in Sanity (heroHeadline is a multi-line text field). */
+    white-space: pre-line;
   }
   .hero-sub {
     font-family: var(--font-editorial);
@@ -193,9 +203,17 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     padding: 28px 24px;
     border-radius: 2px;
   }
-  .pillar.featured { background: var(--heat); border-color: var(--heat); }
-  .pillar.featured .pillar-name { color: var(--breath); }
-  .pillar.featured .pillar-body { color: rgba(244,237,224,0.85); }
+  /* Solid-fill brand colours per pillar. Mile is near-black and sits on a
+     near-black page bg, so it relies on --border-strong to render its edge. */
+  .pillar-pulse { background: var(--pulse); border-color: var(--pulse); }
+  .pillar-pulse .pillar-name { color: var(--mile); }
+  .pillar-pulse .pillar-body { color: rgba(10, 10, 15, 0.78); }
+  .pillar-heat { background: var(--heat); border-color: var(--heat); }
+  .pillar-heat .pillar-name { color: var(--breath); }
+  .pillar-heat .pillar-body { color: rgba(244, 237, 224, 0.88); }
+  .pillar-mile { background: var(--mile); border-color: var(--border-strong); }
+  .pillar-mile .pillar-name { color: var(--breath); }
+  .pillar-mile .pillar-body { color: rgba(244, 237, 224, 0.7); }
   .pillar-name {
     font-family: var(--font-display);
     font-size: 1.8rem;
@@ -203,14 +221,13 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     text-transform: uppercase;
     letter-spacing: -0.02em;
     line-height: 0.9;
-    color: var(--pulse);
     margin-bottom: 12px;
   }
-  .pillar-body { font-size: 0.9rem; line-height: 1.65; color: rgba(244,237,224,0.7); }
+  .pillar-body { font-size: 0.9rem; line-height: 1.65; }
 
   /* FOUNDER */
   .founder { padding: 80px 0; border-top: 1px solid var(--border); }
-  .founder-inner { display: grid; grid-template-columns: 320px 1fr; gap: 64px; align-items: center; }
+  .founder-inner { display: grid; grid-template-columns: 240px 1fr; gap: 56px; align-items: center; }
   .founder-img img, .founder-placeholder {
     width: 100%;
     aspect-ratio: 4/5;
@@ -329,7 +346,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     .pillars-grid { grid-template-columns: 1fr; }
     .articles-grid { grid-template-columns: 1fr 1fr; }
     .founder-inner { grid-template-columns: 1fr; gap: 32px; }
-    .founder-img img, .founder-placeholder { max-width: 320px; }
+    .founder-img img, .founder-placeholder { max-width: 240px; }
   }
   @media (max-width: 640px) {
     .wrap { padding: 0 24px; }
