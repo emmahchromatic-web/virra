@@ -97,8 +97,20 @@ const current = Astro.url.pathname;
     position: sticky;
     top: 0;
     z-index: 100;
+  }
+  /* The blurred bar lives on a pseudo-element, not on .site-header itself.
+     backdrop-filter on the header would make it the containing block for the
+     position:fixed mobile nav overlay — trapping the drawer inside the 64px
+     bar instead of filling the viewport. Keeping the blur on ::before lets the
+     overlay resolve inset:0 against the viewport. */
+  .site-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
     background: rgba(10,10,15,0.92);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--border);
   }
   .h-inner {
