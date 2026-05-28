@@ -75,3 +75,18 @@ describe('sessionStore.markComplete', () => {
     expect(mockCommitLink).not.toHaveBeenCalled();
   });
 });
+
+describe('sessionStore.dropSession', () => {
+  it('flips status to dropped optimistically', async () => {
+    await useSessionStore.getState().dropSession('s1');
+    expect(useSessionStore.getState().byId['s1'].status).toBe('dropped');
+    expect(mockDropSessionDb).toHaveBeenCalledWith('s1');
+  });
+
+  it('reverts on DB failure', async () => {
+    mockDropSessionDb.mockRejectedValueOnce(new Error('boom'));
+    await expect(useSessionStore.getState().dropSession('s1')).rejects.toThrow('boom');
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+    expect(useSessionStore.getState().lastError?.op).toBe('dropSession');
+  });
+});
