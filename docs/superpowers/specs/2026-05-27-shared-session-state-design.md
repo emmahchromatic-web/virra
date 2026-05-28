@@ -49,9 +49,9 @@ HealthKit observer → import pipeline → sessionStore.reconcileFromActivities(
 
 **New files:**
 
-- `src/stores/sessionStore.ts`
-- `src/stores/sessionStore.types.ts`
-- `src/stores/persistAdapter.ts` (shared with future Phase J stores)
+- `src/store/sessionStore.ts`
+- `src/store/sessionStore.types.ts`
+- `src/store/persistAdapter.ts` (shared with future Phase J stores)
 - `src/hooks/useTodaySessions.ts`
 - `src/hooks/useWeekSessions.ts`
 - `src/hooks/useMonthSessions.ts`
@@ -189,14 +189,14 @@ function useSessionById(id: SessionId | null): PlannedSessionRow | null;
 ## Persist & hydration
 
 ```ts
-// src/stores/persistAdapter.ts
+// src/store/persistAdapter.ts
 export const asyncStorageAdapter: StateStorage = {
   getItem:    (k) => AsyncStorage.getItem(k),
   setItem:    (k, v) => AsyncStorage.setItem(k, v),
   removeItem: (k) => AsyncStorage.removeItem(k),
 };
 
-// src/stores/sessionStore.ts
+// src/store/sessionStore.ts
 persist(
   (set, get) => ({ /* state + actions */ }),
   {
