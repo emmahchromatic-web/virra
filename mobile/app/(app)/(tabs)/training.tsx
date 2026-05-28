@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { Swipeable } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -262,6 +262,7 @@ export default function TrainingScreen() {
   };
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaView style={styles.safe}>
       <AppHeader title="Training" />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -405,6 +406,7 @@ export default function TrainingScreen() {
         </Pressable>
       </ScrollView>
     </SafeAreaView>
+    </GestureHandlerRootView>
   );
 }
 
