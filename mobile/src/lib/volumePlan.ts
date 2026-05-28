@@ -501,13 +501,15 @@ export async function getDaySessionDetail(
     weeks: [], total_km: 0, completed_km: 0, remaining_km: 0, deficit_message: null,
   };
 
-  // Fetch planned sessions for this date
+  // Fetch planned sessions for this date.
+  // Filter to planned|completed to match the rest of the app's surfaces
+  // (WeekStrip / MonthCalendar / week-move / week-ahead all hide dropped+moved).
   const { data: daySessions, error: daySessionsErr } = await supabase
     .from('planned_sessions')
     .select('id, session_label, modality, status, week_number, block_id, activity_id, run_structure, strength_structure')
     .eq('user_id', userId)
     .eq('scheduled_date', dateISO)
-    .neq('status', 'moved');
+    .in('status', ['planned', 'completed']);
 
   if (daySessionsErr) console.error('[volumePlan] getDaySessionDetail planned_sessions fetch:', daySessionsErr.message);
 

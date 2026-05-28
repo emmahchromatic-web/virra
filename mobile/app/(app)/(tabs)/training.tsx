@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
@@ -16,7 +16,8 @@ import { getActiveBlocks, computeBlockLoad, type TrainingBlock, type ComputedBlo
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
-import { getTodaysSessions, type TodaysSession } from '@/lib/todaysSession';
+import { enrichTodaysSessions, type TodaysSession } from '@/lib/todaysSession';
+import { useTodaySessions } from '@/hooks/useTodaySessions';
 import { SeasonTimeline, type SeasonChainSummary } from '@/components/ui/SeasonTimeline';
 
 interface PlanTemplate {
@@ -107,8 +108,13 @@ export default function TrainingScreen() {
   const [view,              setView]               = useState<'plan' | 'browse'>('plan');
   const [loading,           setLoading]            = useState(true);
   const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
-  const [todaysSessions,    setTodaysSessions]      = useState<TodaysSession[]>([]);
+  const [enrichedToday,     setEnrichedToday]       = useState<TodaysSession[]>([]);
   const [seasonSummary,     setSeasonSummary]       = useState<SeasonChainSummary | null>(null);
+
+  // Today's planned sessions come from the shared session store (auto-updates on mutations);
+  // we then run them through `enrichTodaysSessions` to hydrate activity metrics, cycle
+  // modulation, and workout-structure summaries for the hero card.
+  const todayPlanned = useTodaySessions();
 
   const now = new Date();
   const [calYear,        setCalYear]        = useState(now.getFullYear());
@@ -120,6 +126,17 @@ export default function TrainingScreen() {
       if (session) loadData();
     }, [session]),
   );
+
+  // Re-enrich whenever the store's today-rows change (e.g. after a markComplete /
+  // moveSession / dropSession). Keeps the hero in sync without a manual refetch.
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    enrichTodaysSessions(session.user.id, todayPlanned as any).then((rows) => {
+      if (!cancelled) setEnrichedToday(rows);
+    }).catch(() => { /* fall through with whatever we have */ });
+    return () => { cancelled = true; };
+  }, [session, todayPlanned]);
 
   async function loadSeasonSummary(
     userId: string,
@@ -144,6 +161,11 @@ export default function TrainingScreen() {
 
     if (!events || events.length === 0) return null;
 
+    // Bypass sessionStore on purpose: this read needs the `phase` column
+    // (block_phase: base/build/peak/taper/race/recovery) which isn't part
+    // of PlannedSessionRow. The season-summary card is the only consumer
+    // of phase outside the SeasonEngine itself, so the column is omitted
+    // from the cached row schema to keep AsyncStorage payload lean.
     const { data: currentSession } = await supabase
       .from('planned_sessions')
       .select('phase, block_id')
@@ -209,7 +231,7 @@ export default function TrainingScreen() {
 
   async function loadData() {
     setLoading(true);
-    const [blocks, planRes, templateRes, activityRes, today, season] = await Promise.all([
+    const [blocks, planRes, templateRes, activityRes, season] = await Promise.all([
       getActiveBlocks(session!.user.id),
       supabase
         .from('user_plans')
@@ -227,14 +249,12 @@ export default function TrainingScreen() {
         .eq('user_id', session!.user.id)
         .order('started_at', { ascending: false })
         .limit(5),
-      getTodaysSessions(session!.user.id),
       loadSeasonSummary(session!.user.id, cycleInfo?.phase ?? null),
     ]);
     setActiveBlocks(blocks);
     setActivePlan(planRes.data as UserPlan | null);
     setTemplates((templateRes.data ?? []) as PlanTemplate[]);
     setRecentActivities((activityRes.data ?? []) as Activity[]);
-    setTodaysSessions(today);
     setSeasonSummary(season);
     setLoading(false);
   }
@@ -275,7 +295,7 @@ export default function TrainingScreen() {
 
         {/* Today's planned session hero */}
         {(activeBlocks.length > 0 || activePlan) && (
-          <TodaysSessionHero sessions={todaysSessions} />
+          <TodaysSessionHero sessions={enrichedToday} />
         )}
 
         {/* Toggle */}
@@ -348,7 +368,6 @@ export default function TrainingScreen() {
                 userId={session.user.id}
                 cycleStore={cycleStore}
                 onClose={() => setActionDate(null)}
-                onMutate={() => { setActionDate(null); loadData(); }}
               />
             )}
 

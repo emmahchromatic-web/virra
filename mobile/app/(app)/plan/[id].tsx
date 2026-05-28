@@ -12,6 +12,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { getActiveBlocks, addBlock, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
+import { useWeekSessions } from '@/hooks/useWeekSessions';
 
 interface WeekSession {
   week:     number;
@@ -40,16 +41,16 @@ const SPORT_LABEL: Record<string, string> = {
 
 const PHASE_COLOR: Record<string, string> = {
   // Run phases
-  Recovery:    '#9DB8AC',
-  Base:        '#94B062',
+  Recovery:    colors.slate,
+  Base:        colors.sage,
   Steady:      '#C9B68F',
-  Taper:       '#F5A077',
+  Taper:       colors.peach,
   Build:       '#D4521F',
-  Peak:        '#D4FF26',
-  'Race week': '#FF2E7E',
+  Peak:        colors.pulse,
+  'Race week': colors.heat,
   // Gym phases
-  Foundation:  '#9DB8AC',
-  Strength:    '#FF6B3D',
+  Foundation:  colors.slate,
+  Strength:    colors.dawn,
   Deload:      '#5BA4CF',
 };
 
@@ -228,27 +229,24 @@ export default function PlanDetailScreen() {
     });
   }, [id, session]);
 
-  useEffect(() => {
-    if (!session) return;
+  const mondayISO = (() => {
     const d   = new Date();
     const dow = d.getDay();
     const monday = new Date(d);
     monday.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
     monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const fmt = (dt: Date) => dt.toISOString().split('T')[0];
-    supabase
-      .from('planned_sessions')
-      .select('day_of_week')
-      .eq('user_id', session.user.id)
-      .gte('scheduled_date', fmt(monday))
-      .lte('scheduled_date', fmt(sunday))
-      .not('status', 'in', '("moved","dropped")')
-      .then(({ data }) => {
-        setOccupiedDays([...new Set((data ?? []).map((s: any) => s.day_of_week as number))]);
-      });
-  }, [session]);
+    return monday.toISOString().split('T')[0];
+  })();
+  const { days: weekDays } = useWeekSessions(mondayISO);
+  useEffect(() => {
+    const dows = new Set<number>();
+    for (const d of weekDays) {
+      for (const s of d.sessions) {
+        if (s.status !== 'moved' && s.status !== 'dropped') dows.add(s.day_of_week);
+      }
+    }
+    setOccupiedDays([...dows]);
+  }, [weekDays]);
 
   const raceTarget  = raceDateObj;
   const startDate   = raceTarget && plan?.duration_weeks

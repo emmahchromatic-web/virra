@@ -1,17 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 import type { UserEvent } from '@/lib/volumePlan';
+import { useMonthSessions } from '@/hooks/useMonthSessions';
+import type { PlannedSessionRow } from '@/store/sessionStore.types';
 
 export interface CalendarSession {
   id: string;
-  session_label: string;
+  session_label: string | null;
   modality: string;
   status: string;
-  block_id: string;
+  block_id: string | null;
 }
 
 interface Props {
@@ -46,39 +48,42 @@ function firstDayOffset(y: number, m: number): number {
 }
 
 export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: Props) {
-  const [sessionMap, setSessionMap] = useState<Record<string, CalendarSession[]>>({});
+  const { byDate } = useMonthSessions(year, month);
   const [eventMap, setEventMap] = useState<Record<string, UserEvent[]>>({});
   const todayISO = new Date().toLocaleDateString('en-CA');
 
-  useEffect(() => { load(); }, [userId, year, month]);
+  // Match the previous query's filter — exclude dropped/moved sessions from calendar dots.
+  const sessionMap = useMemo<Record<string, CalendarSession[]>>(() => {
+    const sMap: Record<string, CalendarSession[]> = {};
+    for (const [date, rows] of Object.entries(byDate)) {
+      const visible = (rows as PlannedSessionRow[]).filter(
+        (r) => r.status === 'planned' || r.status === 'completed',
+      );
+      if (visible.length > 0) {
+        sMap[date] = visible.map((r) => ({
+          id:            r.id,
+          session_label: r.session_label,
+          modality:      r.modality,
+          status:        r.status,
+          block_id:      r.block_id,
+        }));
+      }
+    }
+    return sMap;
+  }, [byDate]);
 
-  async function load() {
+  useEffect(() => { loadEvents(); }, [userId, year, month]);
+
+  async function loadEvents() {
     const startISO = toISO(year, month, 1);
     const endISO   = toISO(year, month, daysInMonth(year, month));
 
-    const [sessionsRes, eventsRes] = await Promise.all([
-      supabase
-        .from('planned_sessions')
-        .select('id, scheduled_date, session_label, modality, status, block_id')
-        .eq('user_id', userId)
-        .gte('scheduled_date', startISO)
-        .lte('scheduled_date', endISO)
-        .in('status', ['planned', 'completed'])
-        .order('scheduled_date'),
-      supabase
-        .from('user_events')
-        .select('id, name, event_date, priority, target_finish_time')
-        .eq('user_id', userId)
-        .gte('event_date', startISO)
-        .lte('event_date', endISO),
-    ]);
-
-    const sMap: Record<string, CalendarSession[]> = {};
-    for (const s of (sessionsRes.data ?? [])) {
-      if (!sMap[s.scheduled_date]) sMap[s.scheduled_date] = [];
-      sMap[s.scheduled_date].push(s as CalendarSession);
-    }
-    setSessionMap(sMap);
+    const eventsRes = await supabase
+      .from('user_events')
+      .select('id, name, event_date, priority, target_finish_time')
+      .eq('user_id', userId)
+      .gte('event_date', startISO)
+      .lte('event_date', endISO);
 
     if (eventsRes.error) console.error('[MonthCalendar] user_events fetch:', eventsRes.error.message);
     const eMap: Record<string, UserEvent[]> = {};

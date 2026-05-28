@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, SafeAreaView, Pressable, Alert, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
-import { useAuthStore } from '@/store/auth';
-import { supabase } from '@/lib/supabase';
-import { moveSession, dropSession } from '@/lib/scheduleGenerator';
+import { useSessionStore } from '@/store/sessionStore';
+import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { groupSessionsByDay, findRowAtY, isOverloaded, type RowBounds } from '@/lib/weekMove';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -50,13 +49,29 @@ function fullDayLabel(iso: string): string {
 
 export default function WeekMoveScreen() {
   const { session: focusedSessionId, date: focusedDate } = useLocalSearchParams<{ session: string; date: string }>();
-  const { session: auth } = useAuthStore();
 
   const today  = new Date().toLocaleDateString('en-CA');
   const monday = mondayOfISO(focusedDate ?? today);
-  const week   = Array.from({ length: 7 }, (_, i) => shiftDate(monday, i));
+  const week   = useMemo(() => Array.from({ length: 7 }, (_, i) => shiftDate(monday, i)), [monday]);
 
-  const [rows,        setRows]        = useState<PlannedRow[]>([]);
+  const { days } = useWeekSessions(monday);
+  const rows: PlannedRow[] = useMemo(() => {
+    const out: PlannedRow[] = [];
+    for (const d of days) {
+      for (const s of d.sessions) {
+        if (s.status !== 'planned' && s.status !== 'completed') continue;
+        out.push({
+          id:             s.id,
+          scheduled_date: s.scheduled_date,
+          modality:       s.modality as PlannedRow['modality'],
+          session_label:  s.session_label ?? '',
+          status:         s.status,
+        });
+      }
+    }
+    return out;
+  }, [days]);
+
   const [grabbedId,   setGrabbedId]   = useState<string | null>(null);
   const [hoverDate,   setHoverDate]   = useState<string | null>(null);
   const [busy,        setBusy]        = useState(false);
@@ -65,20 +80,6 @@ export default function WeekMoveScreen() {
   const scrollWrapRef      = useRef<View>(null);
   const scrollViewPageYRef = useRef<number>(0);
   const scrollOffsetRef    = useRef<number>(0);
-
-  const loadRows = useCallback(async () => {
-    if (!auth) return;
-    const { data, error } = await supabase
-      .from('planned_sessions')
-      .select('id, scheduled_date, modality, session_label, status')
-      .eq('user_id', auth.user.id)
-      .in('scheduled_date', week)
-      .in('status', ['planned', 'completed'])
-      .order('scheduled_date');
-    if (!error) setRows((data ?? []) as PlannedRow[]);
-  }, [auth?.user.id, monday]);
-
-  useEffect(() => { loadRows(); }, [loadRows]);
 
   const groups = groupSessionsByDay(rows, week);
 
@@ -148,15 +149,14 @@ export default function WeekMoveScreen() {
     // (old row → 'moved', new planned row at target) — no copy. If the day
     // already has a session, the user can re-drag either one elsewhere.
     hapticImpact('medium');
-    await commit(() => moveSession(id, target, auth!.user.id));
+    await commit(() => useSessionStore.getState().moveSession(id, target));
     setGrabbedId(null);
   }
 
-  async function commit(fn: () => Promise<void>) {
+  async function commit(fn: () => Promise<unknown>) {
     setBusy(true);
     try {
       await fn();
-      await loadRows();
     } catch (e: any) {
       Alert.alert('Could not move session', e?.message ?? 'Unknown error');
     } finally {
@@ -167,7 +167,7 @@ export default function WeekMoveScreen() {
   function handleCatchup() {
     if (!focusedSessionId || !focusedDate) return;
     commit(async () => {
-      await moveSession(focusedSessionId, shiftDate(focusedDate, 7), auth!.user.id);
+      await useSessionStore.getState().moveSession(focusedSessionId, shiftDate(focusedDate, 7));
       router.back();
     });
   }
@@ -175,7 +175,7 @@ export default function WeekMoveScreen() {
   function handleDrop() {
     if (!focusedSessionId) return;
     commit(async () => {
-      await dropSession(focusedSessionId);
+      await useSessionStore.getState().dropSession(focusedSessionId);
       router.back();
     });
   }

@@ -5,6 +5,9 @@ export const colors = {
   breath:  '#F4EDE0',
   dawn:    '#FF6B3D',
   mist:    '#1C1C24',
+  slate:   '#9DB8AC',
+  sage:    '#94B062',
+  peach:   '#F5A077',
   muted:   'rgba(244, 237, 224, 0.5)',
   border:  'rgba(244, 237, 224, 0.08)',
 } as const;

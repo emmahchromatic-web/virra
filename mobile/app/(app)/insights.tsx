@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -6,6 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
+import { useDateRangeSessions } from '@/hooks/useDateRangeSessions';
 import { computeInsightMetrics, formatPaceMmSs, type InsightMetrics } from '@/lib/insightMetrics';
 import { summariseRunStructure, summariseStrengthStructure } from '@/lib/workoutStructure';
 import { modulateRunStructure } from '@/lib/cycleModulation';
@@ -61,20 +62,31 @@ export default function InsightsScreen() {
   const [trainingText,     setTrainingText]     = useState<string | null>(null);
   const [nutritionText,    setNutritionText]    = useState<string | null>(null);
   const [generatedAt,      setGeneratedAt]      = useState<string | null>(null);
-  const [upcomingSessions, setUpcomingSessions] = useState<any[]>([]);
   const [upcomingEvents,   setUpcomingEvents]   = useState<any[]>([]);
   const [loadingMetrics,   setLoadingMetrics]   = useState(true);
   const [loadingNarrative, setLoadingNarrative] = useState(false);
   const [showAddEvent,     setShowAddEvent]     = useState(false);
 
+  const today    = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
+  const future14 = useMemo(() => new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-CA'), []);
+
+  const { byDate } = useDateRangeSessions(today, future14);
+  const upcomingSessions = useMemo(() => {
+    const out: any[] = [];
+    for (const date of Object.keys(byDate).sort()) {
+      for (const s of byDate[date]) {
+        if (s.status === 'moved') continue;
+        out.push(s);
+      }
+    }
+    return out;
+  }, [byDate]);
+
   const load = useCallback(async () => {
     if (!session) return;
     setLoadingMetrics(true);
 
-    const today    = new Date().toLocaleDateString('en-CA');
-    const future14 = new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-CA');
-
-    const [metricsResult, cacheResult, sessionsResult, eventsResult] = await Promise.all([
+    const [metricsResult, cacheResult, eventsResult] = await Promise.all([
       computeInsightMetrics(session.user.id).catch(() => null),
 
       supabase
@@ -83,15 +95,6 @@ export default function InsightsScreen() {
         .eq('user_id', session.user.id)
         .eq('insight_type', 'weekly')
         .maybeSingle(),
-
-      supabase
-        .from('planned_sessions')
-        .select('scheduled_date, modality, session_label, status, run_structure, strength_structure')
-        .eq('user_id', session.user.id)
-        .gte('scheduled_date', today)
-        .lte('scheduled_date', future14)
-        .neq('status', 'moved')
-        .order('scheduled_date'),
 
       supabase
         .from('user_events')
@@ -103,7 +106,6 @@ export default function InsightsScreen() {
     ]);
 
     if (metricsResult) setMetrics(metricsResult);
-    setUpcomingSessions(sessionsResult.data ?? []);
     setUpcomingEvents(eventsResult.data ?? []);
     setLoadingMetrics(false);
 
@@ -136,7 +138,7 @@ export default function InsightsScreen() {
     } finally {
       setLoadingNarrative(false);
     }
-  }, [session, cycleInfo]);
+  }, [session, cycleInfo, today, future14]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 

@@ -198,7 +198,7 @@ export async function moveSession(
   sessionId: string,
   newDate:   string,
   userId:    string,
-): Promise<void> {
+): Promise<string> {
   const { data: orig, error: fetchErr } = await supabase
     .from('planned_sessions')
     .select('week_number, modality, session_label, block_id, run_structure, strength_structure')
@@ -240,6 +240,8 @@ export async function moveSession(
     .from('planned_sessions')
     .update({ status: 'moved', moved_to_id: newRow.id })
     .eq('id', sessionId);
+
+  return (newRow as { id: string }).id;
 }
 
 export async function closeBlock(blockId: string, endsOn: string): Promise<void> {

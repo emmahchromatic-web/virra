@@ -69,7 +69,22 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
     .order('created_at');
   if (error || !planned?.length) return [];
 
-  const rows = planned as PlannedSessionRow[];
+  return enrichTodaysSessions(userId, planned as PlannedSessionRow[]);
+}
+
+/**
+ * Enrichment-only variant: takes planned rows that have already been fetched
+ * (e.g. from the shared session store) and returns hydrated `TodaysSession`s.
+ * Excludes 'moved' and 'dropped' rows defensively.
+ */
+export async function enrichTodaysSessions(
+  userId: string,
+  plannedRows: PlannedSessionRow[],
+): Promise<TodaysSession[]> {
+  const rows = plannedRows.filter((r) => r.status !== 'moved' && r.status !== 'dropped');
+  if (!rows.length) return [];
+
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
   const activityIds = rows.map((r) => r.activity_id).filter((id): id is string => !!id);
 
   // Fetch baseline pace and activity data in parallel

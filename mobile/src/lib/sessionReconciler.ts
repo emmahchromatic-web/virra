@@ -39,6 +39,42 @@ export function reconcileRange(backfillDone: boolean, today: Date): { from: stri
   return { from: isoLocal(monday), to: isoLocal(sunday) };
 }
 
+export interface ProposedLink { activityId: string; sessionId: string; }
+
+// Pure matching step: given activities + sessions, return the proposed
+// activity→session links using local-date + modality keying and the existing
+// sessionTarget / matchActivityToSession scoring. No I/O; safe to reuse from
+// the sessionStore optimistic-update path.
+export function proposeLinks(activities: ActivityRow[], sessions: SessionRow[]): ProposedLink[] {
+  const byKey = new Map<string, SessionRow[]>();
+  for (const s of sessions) {
+    const k = `${s.scheduled_date}|${s.modality}`;
+    const arr = byKey.get(k);
+    if (arr) arr.push(s);
+    else byKey.set(k, [s]);
+  }
+
+  const out: ProposedLink[] = [];
+  for (const a of activities) {
+    // Match on the activity's LOCAL calendar day — that's the day the user
+    // perceives they trained, and scheduled_date is a tz-agnostic calendar
+    // label. Do NOT switch this to the UTC date: it would mislink evening
+    // workouts in negative-UTC zones to the next day's session.
+    const k = `${isoLocal(new Date(a.started_at))}|${a.activity_type}`;
+    const pool = byKey.get(k);
+    if (!pool?.length) continue;
+    const candidates = pool.map(sessionTarget);
+    const matchedId = matchActivityToSession(
+      { activity_type: a.activity_type, duration_seconds: a.duration_seconds, distance_meters: a.distance_meters },
+      candidates,
+    );
+    if (!matchedId) continue;
+    out.push({ activityId: a.id, sessionId: matchedId });
+    byKey.set(k, pool.filter((s) => s.id !== matchedId)); // consume so it isn't reused this pass
+  }
+  return out;
+}
+
 // Link unlinked activities to matching planned sessions in [from,to].
 // Additive only: turns planned -> completed, never the reverse. Idempotent.
 export async function reconcileSessions(userId: string, fromISO: string, toISO: string): Promise<number> {
@@ -69,33 +105,9 @@ export async function reconcileSessions(userId: string, fromISO: string, toISO: 
   if (sErr) { console.warn('[sessionReconciler] sessions', sErr.message); return 0; }
   if (!sess?.length) return 0;
 
-  // Index unconsumed planned sessions by `${localDate}|${modality}`.
-  const byKey = new Map<string, SessionRow[]>();
-  for (const s of sess as SessionRow[]) {
-    const k = `${s.scheduled_date}|${s.modality}`;
-    const arr = byKey.get(k);
-    if (arr) arr.push(s);
-    else byKey.set(k, [s]);
+  const links = proposeLinks(acts as ActivityRow[], sess as SessionRow[]);
+  for (const { sessionId, activityId } of links) {
+    await _commitLink(sessionId, activityId);
   }
-
-  let linked = 0;
-  for (const a of acts as ActivityRow[]) {
-    // Match on the activity's LOCAL calendar day — that's the day the user
-    // perceives they trained, and scheduled_date is a tz-agnostic calendar
-    // label. Do NOT switch this to the UTC date: it would mislink evening
-    // workouts in negative-UTC zones to the next day's session.
-    const k = `${isoLocal(new Date(a.started_at))}|${a.activity_type}`;
-    const pool = byKey.get(k);
-    if (!pool?.length) continue;
-    const candidates = pool.map(sessionTarget);
-    const matchedId = matchActivityToSession(
-      { activity_type: a.activity_type, duration_seconds: a.duration_seconds, distance_meters: a.distance_meters },
-      candidates,
-    );
-    if (!matchedId) continue;
-    await _commitLink(matchedId, a.id);
-    byKey.set(k, pool.filter((s) => s.id !== matchedId)); // consume so it isn't reused this pass
-    linked++;
-  }
-  return linked;
+  return links.length;
 }

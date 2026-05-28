@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -7,11 +7,11 @@ import { VirraCard } from './VirraCard';
 import { VirraModal } from './VirraModal';
 import { VirraText } from './VirraText';
 import { VirraButton } from './VirraButton';
-import { dropSession, moveSession } from '@/lib/scheduleGenerator';
 import { getDaySessionDetail, formatPace } from '@/lib/volumePlan';
 import type { CyclePhase } from '@/lib/cycleEngine';
 import type { DayDetail, SessionDetail, RunSessionDetail, StrengthSessionDetail, UserEvent } from '@/lib/volumePlan';
 import { useCycleStore } from '@/store/cycle';
+import { useSessionStore } from '@/store/sessionStore';
 
 interface Props {
   visible:    boolean;
@@ -19,7 +19,6 @@ interface Props {
   userId:     string;
   cycleStore: { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null };
   onClose:    () => void;
-  onMutate:   () => void;
 }
 
 function shiftDate(iso: string, days: number): string {
@@ -75,16 +74,27 @@ function renderRunStep(
   );
 }
 
-export function SessionDetailModal({ visible, date, userId, cycleStore, onClose, onMutate }: Props) {
+export function SessionDetailModal({ visible, date, userId, cycleStore, onClose }: Props) {
   const [detail, setDetail]       = useState<DayDetail | null>(null);
   const [loading, setLoading]     = useState(false);
   const [busy, setBusy]           = useState(false);
   const cycleProfile = useCycleStore((s) => s.cycleProfile);
 
+  const reloadDetail = useCallback(async () => {
+    try {
+      const d = await getDaySessionDetail(userId, date, cycleStore, cycleProfile);
+      setDetail(d);
+    } catch (e) {
+      console.warn('[SessionDetailModal]', e);
+    }
+  }, [userId, date, cycleStore, cycleProfile]);
+
   useEffect(() => {
     if (visible && date) {
       setDetail(null);
       setLoading(true);
+      // Ensure the store cache covers this date so cross-screen mutations propagate
+      useSessionStore.getState().ensureLoaded(date, date).catch(() => {});
       getDaySessionDetail(userId, date, cycleStore, cycleProfile)
         .then(setDetail)
         .catch((e) => console.warn('[SessionDetailModal]', e))
@@ -99,8 +109,8 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
   async function handleDrop(sessionId: string) {
     setBusy(true);
     try {
-      await dropSession(sessionId);
-      onMutate();
+      await useSessionStore.getState().dropSession(sessionId);
+      await reloadDetail();
     } catch (e: unknown) {
       Alert.alert('Could not drop session', e instanceof Error ? e.message : 'Unknown error');
     } finally {
@@ -116,8 +126,8 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose,
   async function handleCatchup(sessionId: string) {
     setBusy(true);
     try {
-      await moveSession(sessionId, shiftDate(date, 7), userId);
-      onMutate();
+      await useSessionStore.getState().moveSession(sessionId, shiftDate(date, 7));
+      await reloadDetail();
     } catch (e: unknown) {
       Alert.alert('Could not move session', e instanceof Error ? e.message : 'Unknown error');
     } finally {

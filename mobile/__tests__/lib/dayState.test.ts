@@ -1,4 +1,5 @@
 import { deriveDayState, type SessionForDay } from '@/lib/dayState';
+import type { Modality } from '@/lib/dayState';
 
 const planned  = (modality: SessionForDay['modality']): SessionForDay =>
   ({ status: 'planned',   modality });
@@ -76,5 +77,23 @@ describe('deriveDayState', () => {
     expect(deriveDayState(
       [done('run'), done('strength'), planned('yoga')], true))
       .toEqual({ kind: 'mixed', completed: 'run' });
+  });
+});
+
+describe('Modality union widening', () => {
+  it('accepts cycle and hike at the type level', () => {
+    const m: Modality[] = ['run','strength','swim','yoga','cycle','hike','other'];
+    expect(m).toHaveLength(7);
+  });
+
+  it('preserves cycle and hike through deriveDayState (no coercion to other)', () => {
+    expect(deriveDayState([planned('cycle')], false))
+      .toEqual({ kind: 'planned', modality: 'cycle' });
+    expect(deriveDayState([planned('hike')], false))
+      .toEqual({ kind: 'planned', modality: 'hike' });
+    expect(deriveDayState([done('cycle')], false))
+      .toEqual({ kind: 'completed', modality: 'cycle' });
+    expect(deriveDayState([done('hike')], false))
+      .toEqual({ kind: 'completed', modality: 'hike' });
   });
 });
