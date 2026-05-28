@@ -163,6 +163,7 @@ export default function AppLayout() {
       <Stack.Screen name="checkin"         options={{ presentation: 'modal' }} />
       <Stack.Screen name="library/[slug]"  options={{ presentation: 'card'  }} />
       <Stack.Screen name="plan/[id]"       options={{ presentation: 'card'  }} />
+      <Stack.Screen name="plans/browse"    options={{ presentation: 'card'  }} />
       <Stack.Screen name="run"             options={{ presentation: 'modal' }} />
       <Stack.Screen name="timeline"        options={{ presentation: 'card'  }} />
       <Stack.Screen name="insights"        options={{ presentation: 'card'  }} />
