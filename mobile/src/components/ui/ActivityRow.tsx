@@ -92,6 +92,24 @@ export const PHASE_COLOR: Record<string, string> = {
   luteal:     colors.breath,
 };
 
+// Modality palette — mirrors DayCell. Drives the activity icon + iconWrap border
+// (the phase pill stays on the cycle-phase palette above).
+const MODALITY_COLOR: Record<string, string> = {
+  run:      colors.pulse,
+  strength: colors.dawn,
+  swim:     colors.slate,
+  yoga:     colors.breath,
+  cycle:    colors.peach,
+  hike:     colors.sage,
+  other:    colors.muted,
+};
+
+function modalityColorFor(activityType: string, subType: string | null | undefined): string {
+  if (subType === 'hike')  return colors.sage;
+  if (subType === 'cycle') return colors.peach;
+  return MODALITY_COLOR[activityType] ?? colors.muted;
+}
+
 export function formatDuration(s: number): string {
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -120,6 +138,7 @@ export function ActivityRow({ activity }: { activity: Activity }) {
   const phaseColor = activity.phase_at_time
     ? (PHASE_COLOR[activity.phase_at_time] ?? colors.muted)
     : colors.muted;
+  const modalityColor = modalityColorFor(type, sub);
   const time = new Date(activity.started_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   const date = new Date(activity.started_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
@@ -127,8 +146,8 @@ export function ActivityRow({ activity }: { activity: Activity }) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.iconWrap, { borderColor: phaseColor }]}>
-        <SymbolView name={icon} size={18} tintColor={phaseColor} />
+      <View style={[styles.iconWrap, { borderColor: modalityColor }]}>
+        <SymbolView name={icon} size={18} tintColor={modalityColor} />
       </View>
       <View style={styles.body}>
         <View style={styles.titleRow}>
