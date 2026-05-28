@@ -20,6 +20,7 @@ import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
 import { enrichTodaysSessions, type TodaysSession } from '@/lib/todaysSession';
 import { useTodaySessions } from '@/hooks/useTodaySessions';
 import { SeasonTimeline, type SeasonChainSummary } from '@/components/ui/SeasonTimeline';
+import { VirraModal } from '@/components/ui/VirraModal';
 
 interface PlanTemplate {
   id:             string;
@@ -414,37 +415,41 @@ export default function TrainingScreen() {
 
 function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void }) {
   const swipeRef = useRef<Swipeable>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const label = b.template?.name ?? b.modality;
 
-  function handleDelete() {
+  function openConfirm() {
     swipeRef.current?.close();
-    Alert.alert(
-      `Drop ${label}?`,
-      'Future sessions from this plan will stop. Past completed sessions stay in your history.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text:    'Drop',
-          style:   'destructive',
-          onPress: async () => {
-            try {
-              await endTrainingBlock(b.id);
-              onDropped();
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : 'Unknown error';
-              Alert.alert('Could not drop plan', msg);
-            }
-          },
-        },
-      ],
-    );
+    setErrorMsg(null);
+    setConfirmOpen(true);
+  }
+
+  function closeConfirm() {
+    if (busy) return;
+    setConfirmOpen(false);
+  }
+
+  async function confirmDrop() {
+    setBusy(true);
+    setErrorMsg(null);
+    try {
+      await endTrainingBlock(b.id);
+      setConfirmOpen(false);
+      onDropped();
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : 'Unknown error');
+    } finally {
+      setBusy(false);
+    }
   }
 
   function renderRightActions() {
     return (
       <Pressable
         style={stack.deleteAction}
-        onPress={handleDelete}
+        onPress={openConfirm}
         accessibilityRole="button"
         accessibilityLabel={`Drop ${label}`}
       >
@@ -456,35 +461,68 @@ function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void })
   }
 
   return (
-    <Swipeable
-      ref={swipeRef}
-      renderRightActions={renderRightActions}
-      friction={2}
-      rightThreshold={40}
-      overshootRight={false}
-    >
-      <Pressable onPress={() => b.template_id && router.push(`/(app)/plan/${b.template_id}` as any)} accessibilityRole="button">
-        <VirraCard style={stack.blockRow}>
-          <View style={stack.iconWrap}>
-            <SymbolView name={(MODALITY_ICON[b.modality] ?? 'figure.walk') as any} size={18} tintColor={MODALITY_COLOR[b.modality] ?? colors.muted} />
-          </View>
-          <View style={stack.blockBody}>
-            <View style={stack.titleRow}>
-              <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>{label}</VirraText>
-              {b.is_primary && (<VirraText variant="mono" size={10} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
+    <>
+      <Swipeable
+        ref={swipeRef}
+        renderRightActions={renderRightActions}
+        friction={2}
+        rightThreshold={40}
+        overshootRight={false}
+      >
+        <Pressable onPress={() => b.template_id && router.push(`/(app)/plan/${b.template_id}` as any)} accessibilityRole="button">
+          <VirraCard style={stack.blockRow}>
+            <View style={stack.iconWrap}>
+              <SymbolView name={(MODALITY_ICON[b.modality] ?? 'figure.walk') as any} size={18} tintColor={MODALITY_COLOR[b.modality] ?? colors.muted} />
             </View>
-            <View style={stack.loadTrack}>
-              <View style={[stack.loadFill, { width: `${Math.round(b.effective_load * 100)}%` as any, backgroundColor: MODALITY_COLOR[b.modality] ?? colors.pulse }]} />
+            <View style={stack.blockBody}>
+              <View style={stack.titleRow}>
+                <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>{label}</VirraText>
+                {b.is_primary && (<VirraText variant="mono" size={10} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
+              </View>
+              <View style={stack.loadTrack}>
+                <View style={[stack.loadFill, { width: `${Math.round(b.effective_load * 100)}%` as any, backgroundColor: MODALITY_COLOR[b.modality] ?? colors.pulse }]} />
+              </View>
+              <VirraText variant="mono" size={10} color={colors.muted}>
+                {Math.round(b.effective_load * 100)}% load{b.effective_load < b.load_modifier ? ' · adjusted for stack' : ''}
+              </VirraText>
             </View>
-            <VirraText variant="mono" size={10} color={colors.muted}>
-              {Math.round(b.effective_load * 100)}% load{b.effective_load < b.load_modifier ? ' · adjusted for stack' : ''}
+          </VirraCard>
+        </Pressable>
+      </Swipeable>
+
+      <VirraModal visible={confirmOpen} onClose={closeConfirm} title={`Drop ${label}?`}>
+        <VirraText variant="body" size={14} color={colors.breath}>
+          Future sessions from this plan will stop. Past completed sessions stay in your history.
+        </VirraText>
+        {errorMsg && (
+          <VirraText variant="body" size={13} color={colors.heat}>
+            {errorMsg}
+          </VirraText>
+        )}
+        <View style={confirm.actions}>
+          <Pressable onPress={closeConfirm} disabled={busy} style={[confirm.btn, confirm.cancelBtn]} accessibilityRole="button">
+            <VirraText variant="mono" size={11} color={colors.muted} style={confirm.btnLabel}>
+              CANCEL
             </VirraText>
-          </View>
-        </VirraCard>
-      </Pressable>
-    </Swipeable>
+          </Pressable>
+          <Pressable onPress={confirmDrop} disabled={busy} style={[confirm.btn, confirm.dropBtn]} accessibilityRole="button">
+            <VirraText variant="mono" size={11} color={colors.breath} style={confirm.btnLabel}>
+              {busy ? 'DROPPING…' : 'DROP'}
+            </VirraText>
+          </Pressable>
+        </View>
+      </VirraModal>
+    </>
   );
 }
+
+const confirm = StyleSheet.create({
+  actions:   { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  btn:       { flex: 1, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
+  cancelBtn: { borderWidth: 1, borderColor: colors.border, backgroundColor: 'transparent' },
+  dropBtn:   { backgroundColor: colors.heat },
+  btnLabel:  { letterSpacing: 1.5 },
+});
 
 function BlockStack({ blocks, cyclePhase, onAddBlock, onDropped }: {
   blocks: TrainingBlock[]; cyclePhase: string | null; onAddBlock: () => void; onDropped: () => void;
