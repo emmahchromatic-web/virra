@@ -523,6 +523,8 @@ const stack = StyleSheet.create({
     backgroundColor: colors.heat,
     alignItems:      'center',
     justifyContent:  'center',
+    borderRadius:    radius.md,
+    marginVertical:  spacing.sm / 2,
   },
   deleteLabel:  { letterSpacing: 1.5 },
 });
