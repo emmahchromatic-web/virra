@@ -40,16 +40,16 @@ const SPORT_LABEL: Record<string, string> = {
 
 const PHASE_COLOR: Record<string, string> = {
   // Run phases
-  Recovery:    '#9DB8AC',
-  Base:        '#94B062',
+  Recovery:    colors.slate,
+  Base:        colors.sage,
   Steady:      '#C9B68F',
-  Taper:       '#F5A077',
+  Taper:       colors.peach,
   Build:       '#D4521F',
-  Peak:        '#D4FF26',
-  'Race week': '#FF2E7E',
+  Peak:        colors.pulse,
+  'Race week': colors.heat,
   // Gym phases
-  Foundation:  '#9DB8AC',
-  Strength:    '#FF6B3D',
+  Foundation:  colors.slate,
+  Strength:    colors.dawn,
   Deload:      '#5BA4CF',
 };
 
