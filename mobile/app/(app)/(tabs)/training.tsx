@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -409,16 +410,12 @@ export default function TrainingScreen() {
 
 // ---- Block stack ----
 
-function BlockStack({ blocks, cyclePhase, onAddBlock, onDropped }: {
-  blocks: TrainingBlock[]; cyclePhase: string | null; onAddBlock: () => void; onDropped: () => void;
-}) {
-  const computed = (cyclePhase
-    ? computeBlockLoad(blocks, cyclePhase)
-    : blocks.map((b) => ({ ...b, effective_load: b.load_modifier }))
-  ) as ComputedBlock[];
+function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void }) {
+  const swipeRef = useRef<Swipeable>(null);
+  const label = b.template?.name ?? b.modality;
 
-  function confirmDrop(b: ComputedBlock) {
-    const label = b.template?.name ?? b.modality;
+  function handleDelete() {
+    swipeRef.current?.close();
     Alert.alert(
       `Drop ${label}?`,
       'Future sessions from this plan will stop. Past completed sessions stay in your history.',
@@ -441,38 +438,65 @@ function BlockStack({ blocks, cyclePhase, onAddBlock, onDropped }: {
     );
   }
 
+  function renderRightActions() {
+    return (
+      <Pressable
+        style={stack.deleteAction}
+        onPress={handleDelete}
+        accessibilityRole="button"
+        accessibilityLabel={`Drop ${label}`}
+      >
+        <VirraText variant="mono" size={11} color={colors.breath} style={stack.deleteLabel}>
+          DROP
+        </VirraText>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Swipeable
+      ref={swipeRef}
+      renderRightActions={renderRightActions}
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+    >
+      <Pressable onPress={() => b.template_id && router.push(`/(app)/plan/${b.template_id}` as any)} accessibilityRole="button">
+        <VirraCard style={stack.blockRow}>
+          <View style={stack.iconWrap}>
+            <SymbolView name={(MODALITY_ICON[b.modality] ?? 'figure.walk') as any} size={18} tintColor={MODALITY_COLOR[b.modality] ?? colors.muted} />
+          </View>
+          <View style={stack.blockBody}>
+            <View style={stack.titleRow}>
+              <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>{label}</VirraText>
+              {b.is_primary && (<VirraText variant="mono" size={10} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
+            </View>
+            <View style={stack.loadTrack}>
+              <View style={[stack.loadFill, { width: `${Math.round(b.effective_load * 100)}%` as any, backgroundColor: MODALITY_COLOR[b.modality] ?? colors.pulse }]} />
+            </View>
+            <VirraText variant="mono" size={10} color={colors.muted}>
+              {Math.round(b.effective_load * 100)}% load{b.effective_load < b.load_modifier ? ' · adjusted for stack' : ''}
+            </VirraText>
+          </View>
+        </VirraCard>
+      </Pressable>
+    </Swipeable>
+  );
+}
+
+function BlockStack({ blocks, cyclePhase, onAddBlock, onDropped }: {
+  blocks: TrainingBlock[]; cyclePhase: string | null; onAddBlock: () => void; onDropped: () => void;
+}) {
+  const computed = (cyclePhase
+    ? computeBlockLoad(blocks, cyclePhase)
+    : blocks.map((b) => ({ ...b, effective_load: b.load_modifier }))
+  ) as ComputedBlock[];
+
   return (
     <View style={stack.container}>
       <VirraText variant="mono" size={11} color={colors.pulse} style={stack.title}>MY STACK</VirraText>
       {computed.map((b) => (
-        <Pressable key={b.id} onPress={() => b.template_id && router.push(`/(app)/plan/${b.template_id}` as any)} accessibilityRole="button">
-          <VirraCard style={stack.blockRow}>
-            <View style={stack.iconWrap}>
-              <SymbolView name={(MODALITY_ICON[b.modality] ?? 'figure.walk') as any} size={18} tintColor={MODALITY_COLOR[b.modality] ?? colors.muted} />
-            </View>
-            <View style={stack.blockBody}>
-              <View style={stack.titleRow}>
-                <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>{b.template?.name ?? b.modality}</VirraText>
-                {b.is_primary && (<VirraText variant="mono" size={10} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
-              </View>
-              <View style={stack.loadTrack}>
-                <View style={[stack.loadFill, { width: `${Math.round(b.effective_load * 100)}%` as any, backgroundColor: MODALITY_COLOR[b.modality] ?? colors.pulse }]} />
-              </View>
-              <VirraText variant="mono" size={10} color={colors.muted}>
-                {Math.round(b.effective_load * 100)}% load{b.effective_load < b.load_modifier ? ' · adjusted for stack' : ''}
-              </VirraText>
-            </View>
-            <Pressable
-              onPress={() => confirmDrop(b)}
-              hitSlop={12}
-              accessibilityRole="button"
-              accessibilityLabel={`Drop ${b.template?.name ?? b.modality}`}
-              style={stack.dropBtn}
-            >
-              <SymbolView name="trash" size={14} tintColor={colors.muted} />
-            </Pressable>
-          </VirraCard>
-        </Pressable>
+        <BlockRow key={b.id} b={b} onDropped={onDropped} />
       ))}
       <Pressable onPress={onAddBlock} style={stack.addRow} accessibilityRole="button">
         <SymbolView name="plus" size={11} tintColor={colors.muted} />
@@ -492,7 +516,13 @@ const stack = StyleSheet.create({
   loadTrack:  { height: 3, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden' },
   loadFill:   { height: '100%', borderRadius: radius.full },
   addRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm, paddingLeft: spacing.xs },
-  dropBtn:    { paddingHorizontal: spacing.sm, paddingTop: 2, alignSelf: 'flex-start' },
+  deleteAction: {
+    width:           80,
+    backgroundColor: colors.heat,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  deleteLabel:  { letterSpacing: 1.5 },
 });
 
 // ---- Active plan card ----
