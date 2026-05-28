@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 import { getCycleInfo } from './cycleEngine';
 import { cancelTrainingReminderToday } from './notifications';
-import { reconcileSessions, reconcileRange } from './sessionReconciler';
+import { useSessionStore } from '@/store/sessionStore';
 
 const ANCHOR_KEY        = 'hk_workout_anchor_v1';
 const REIMPORT_FLAG_KEY = 'hk_reimport_subtype_v1';
@@ -79,12 +79,9 @@ interface ImportContext {
 
 // Runs every foreground import cycle. First call (per install) reconciles a full
 // year as a one-time backfill; subsequent calls reconcile only the current week.
-async function runReconcile(userId: string): Promise<void> {
+async function runReconcile(_userId: string): Promise<void> {
   try {
-    const backfillDone = !!(await AsyncStorage.getItem(BACKFILL_FLAG_KEY));
-    const { from, to } = reconcileRange(backfillDone, new Date());
-    await reconcileSessions(userId, from, to);
-    if (!backfillDone) await AsyncStorage.setItem(BACKFILL_FLAG_KEY, '1');
+    await useSessionStore.getState().reconcileFromActivities();
   } catch (e) {
     console.warn('[healthKitImport] reconcile', e instanceof Error ? e.message : String(e));
   }
