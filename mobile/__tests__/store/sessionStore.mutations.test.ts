@@ -115,3 +115,20 @@ describe('sessionStore.moveSession', () => {
     expect(s.idsByDate['2026-05-26']).toBeUndefined();
   });
 });
+
+describe('sessionStore.linkActivity', () => {
+  it('flips status to completed and sets activity_id; calls scheduleGenerator', async () => {
+    await useSessionStore.getState().linkActivity('a1', 's1');
+    const row = useSessionStore.getState().byId['s1'];
+    expect(row.status).toBe('completed');
+    expect(row.activity_id).toBe('a1');
+    expect(mockLinkActivityToSession).toHaveBeenCalledWith('a1', 's1');
+  });
+});
+
+describe('sessionStore.reconcileFromActivities', () => {
+  it('returns linked: 0 with no unlinked activities (orchestration smoke test)', async () => {
+    const result = await useSessionStore.getState().reconcileFromActivities();
+    expect(result).toEqual({ linked: 0 });
+  });
+});

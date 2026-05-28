@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
-import { _commitLink, dropSession as dropSessionDb, moveSession as moveSessionDb } from '@/lib/scheduleGenerator';
+import {
+  _commitLink,
+  dropSession as dropSessionDb,
+  moveSession as moveSessionDb,
+  linkActivityToSession,
+} from '@/lib/scheduleGenerator';
+import { proposeLinks } from '@/lib/sessionReconciler';
 import { asyncStorageAdapter } from './persistAdapter';
 import type {
   SessionStore, SessionStoreState, PlannedSessionRow, DateISO, LoadedRange, SessionId,
@@ -173,8 +179,72 @@ export const useSessionStore = create<SessionStore>()(
         set({ byId: afterById, idsByDate: afterIdsByDate });
         return realId;
       },
-      linkActivity: async () => { throw new Error('not implemented yet'); },
-      reconcileFromActivities: async () => { throw new Error('not implemented yet'); },
+      linkActivity: async (activityId, sessionId) => {
+        const prev = get().byId[sessionId];
+        if (!prev) return;
+        set({
+          byId: { ...get().byId, [sessionId]: { ...prev, status: 'completed', activity_id: activityId } },
+        });
+        try {
+          await linkActivityToSession(activityId as any, sessionId as any);
+        } catch (e) {
+          set({
+            byId: { ...get().byId, [sessionId]: prev },
+            lastError: { at: Date.now(), op: 'linkActivity', message: e instanceof Error ? e.message : String(e) },
+          });
+          throw e;
+        }
+      },
+
+      reconcileFromActivities: async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return { linked: 0 };
+
+          const { data: acts, error: aErr } = await supabase
+            .from('activities')
+            .select('id, started_at, activity_type, duration_seconds, distance_meters')
+            .eq('user_id', user.id)
+            .is('planned_session_id', null)
+            .neq('activity_type', 'other')
+            .order('started_at');
+          if (aErr) {
+            set({ lastError: { at: Date.now(), op: 'reconcileFromActivities', message: aErr.message } });
+            return { linked: 0 };
+          }
+          if (!acts?.length) return { linked: 0 };
+
+          const { data: sess, error: sErr } = await supabase
+            .from('planned_sessions')
+            .select('id, scheduled_date, modality, session_label, run_structure, created_at')
+            .eq('user_id', user.id)
+            .eq('status', 'planned')
+            .order('created_at');
+          if (sErr) {
+            set({ lastError: { at: Date.now(), op: 'reconcileFromActivities', message: sErr.message } });
+            return { linked: 0 };
+          }
+          if (!sess?.length) return { linked: 0 };
+
+          const links = proposeLinks(acts as any, sess as any);
+          for (const { sessionId, activityId } of links) {
+            const prev = get().byId[sessionId];
+            if (prev) {
+              set({ byId: { ...get().byId, [sessionId]: { ...prev, status: 'completed', activity_id: activityId } } });
+            }
+            try {
+              await _commitLink(sessionId, activityId);
+            } catch (e) {
+              if (prev) set({ byId: { ...get().byId, [sessionId]: prev } });
+              set({ lastError: { at: Date.now(), op: 'reconcileFromActivities', message: e instanceof Error ? e.message : String(e) } });
+            }
+          }
+          return { linked: links.length };
+        } catch (e) {
+          set({ lastError: { at: Date.now(), op: 'reconcileFromActivities', message: e instanceof Error ? e.message : String(e) } });
+          return { linked: 0 };
+        }
+      },
 
       clearCache: async () => {
         set({ ...initialState, hasHydrated: true });
