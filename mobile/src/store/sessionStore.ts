@@ -5,7 +5,6 @@ import {
   _commitLink,
   dropSession as dropSessionDb,
   moveSession as moveSessionDb,
-  linkActivityToSession,
 } from '@/lib/scheduleGenerator';
 import { proposeLinks } from '@/lib/sessionReconciler';
 import { asyncStorageAdapter } from './persistAdapter';
@@ -186,7 +185,7 @@ export const useSessionStore = create<SessionStore>()(
           byId: { ...get().byId, [sessionId]: { ...prev, status: 'completed', activity_id: activityId } },
         });
         try {
-          await linkActivityToSession(activityId as any, sessionId as any);
+          await _commitLink(sessionId, activityId);
         } catch (e) {
           set({
             byId: { ...get().byId, [sessionId]: prev },

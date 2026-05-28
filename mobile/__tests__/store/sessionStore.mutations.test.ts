@@ -117,12 +117,21 @@ describe('sessionStore.moveSession', () => {
 });
 
 describe('sessionStore.linkActivity', () => {
-  it('flips status to completed and sets activity_id; calls scheduleGenerator', async () => {
+  it('flips status to completed and sets activity_id; commits via _commitLink', async () => {
     await useSessionStore.getState().linkActivity('a1', 's1');
     const row = useSessionStore.getState().byId['s1'];
     expect(row.status).toBe('completed');
     expect(row.activity_id).toBe('a1');
-    expect(mockLinkActivityToSession).toHaveBeenCalledWith('a1', 's1');
+    expect(mockCommitLink).toHaveBeenCalledWith('s1', 'a1');
+  });
+
+  it('reverts on DB failure and sets lastError', async () => {
+    mockCommitLink.mockRejectedValueOnce(new Error('link-fail'));
+    await expect(useSessionStore.getState().linkActivity('a1', 's1')).rejects.toThrow('link-fail');
+    const row = useSessionStore.getState().byId['s1'];
+    expect(row.status).toBe('planned');
+    expect(row.activity_id).toBeNull();
+    expect(useSessionStore.getState().lastError?.op).toBe('linkActivity');
   });
 });
 
