@@ -27,6 +27,7 @@ import { useSessionStore } from '@/store/sessionStore';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { useMonthSessions } from '@/hooks/useMonthSessions';
 import { useSessionById } from '@/hooks/useSessionById';
+import { useDateRangeSessions } from '@/hooks/useDateRangeSessions';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -82,5 +83,40 @@ describe('selector hooks', () => {
   it('useSessionById returns null when given a null id', () => {
     const view = render(<ByIdProbe id={null} />);
     expect(view.getByTestId('byId').props.children).toBe('null');
+  });
+});
+
+function RangeProbe({ from, to }: { from: string; to: string }) {
+  const { byDate } = useDateRangeSessions(from, to);
+  const keys = Object.keys(byDate).sort();
+  return <Text testID="range">{keys.map((k) => `${k}:${byDate[k].length}`).join('|')}</Text>;
+}
+
+describe('useDateRangeSessions', () => {
+  it('returns sessions within an arbitrary inclusive window', async () => {
+    const view = render(<RangeProbe from="2026-05-20" to="2026-05-30" />);
+    await waitFor(() => {
+      const t = view.getByTestId('range').props.children;
+      expect(t).toContain('2026-05-25:1');
+      expect(t).toContain('2026-05-27:1');
+    });
+  });
+
+  it('respects start boundary inclusively (start date matches)', async () => {
+    const view = render(<RangeProbe from="2026-05-25" to="2026-05-26" />);
+    await waitFor(() => {
+      const t = view.getByTestId('range').props.children;
+      expect(t).toContain('2026-05-25:1');
+      expect(t).not.toContain('2026-05-27');
+    });
+  });
+
+  it('respects end boundary inclusively (end date matches)', async () => {
+    const view = render(<RangeProbe from="2026-05-26" to="2026-05-27" />);
+    await waitFor(() => {
+      const t = view.getByTestId('range').props.children;
+      expect(t).toContain('2026-05-27:1');
+      expect(t).not.toContain('2026-05-25');
+    });
   });
 });
