@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
+import { _commitLink } from '@/lib/scheduleGenerator';
 import { asyncStorageAdapter } from './persistAdapter';
 import type {
   SessionStore, SessionStoreState, PlannedSessionRow, DateISO, LoadedRange,
@@ -92,7 +93,22 @@ export const useSessionStore = create<SessionStore>()(
         }
       },
 
-      markComplete: async () => { throw new Error('not implemented yet'); },
+      markComplete: async (sessionId, activityId) => {
+        const prev = get().byId[sessionId];
+        if (!prev) return;
+        set({
+          byId: { ...get().byId, [sessionId]: { ...prev, status: 'completed', activity_id: activityId } },
+        });
+        try {
+          await _commitLink(sessionId, activityId);
+        } catch (e) {
+          set({
+            byId: { ...get().byId, [sessionId]: prev },
+            lastError: { at: Date.now(), op: 'markComplete', message: e instanceof Error ? e.message : String(e) },
+          });
+          throw e;
+        }
+      },
       dropSession:  async () => { throw new Error('not implemented yet'); },
       moveSession:  async () => { throw new Error('not implemented yet'); },
       linkActivity: async () => { throw new Error('not implemented yet'); },
