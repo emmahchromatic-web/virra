@@ -85,4 +85,15 @@ describe('Modality union widening', () => {
     const m: Modality[] = ['run','strength','swim','yoga','cycle','hike','other'];
     expect(m).toHaveLength(7);
   });
+
+  it('preserves cycle and hike through deriveDayState (no coercion to other)', () => {
+    expect(deriveDayState([planned('cycle')], false))
+      .toEqual({ kind: 'planned', modality: 'cycle' });
+    expect(deriveDayState([planned('hike')], false))
+      .toEqual({ kind: 'planned', modality: 'hike' });
+    expect(deriveDayState([done('cycle')], false))
+      .toEqual({ kind: 'completed', modality: 'cycle' });
+    expect(deriveDayState([done('hike')], false))
+      .toEqual({ kind: 'completed', modality: 'hike' });
+  });
 });

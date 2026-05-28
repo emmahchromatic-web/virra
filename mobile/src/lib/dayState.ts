@@ -14,7 +14,7 @@ export type DayState =
   | { kind: 'missed' }
   | { kind: 'mixed',           completed: Modality };
 
-const PRIORITY: Modality[] = ['run', 'strength', 'swim', 'yoga', 'other'];
+const PRIORITY: Modality[] = ['run', 'strength', 'cycle', 'swim', 'yoga', 'hike', 'other'];
 
 function priorityOf(m: string): number {
   const i = PRIORITY.indexOf(m as Modality);
