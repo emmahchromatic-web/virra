@@ -24,3 +24,15 @@ describe('theme tokens', () => {
     expect(spacing.lg).toBe(24);
   });
 });
+
+describe('modality palette additions', () => {
+  it('exposes slate token for swim', () => {
+    expect(colors.slate).toBe('#9DB8AC');
+  });
+  it('exposes sage token for hike', () => {
+    expect(colors.sage).toBe('#94B062');
+  });
+  it('exposes peach token for cycle', () => {
+    expect(colors.peach).toBe('#F5A077');
+  });
+});
