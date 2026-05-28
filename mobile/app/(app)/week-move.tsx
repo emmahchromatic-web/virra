@@ -152,7 +152,7 @@ export default function WeekMoveScreen() {
     setGrabbedId(null);
   }
 
-  async function commit(fn: () => Promise<void>) {
+  async function commit(fn: () => Promise<unknown>) {
     setBusy(true);
     try {
       await fn();
