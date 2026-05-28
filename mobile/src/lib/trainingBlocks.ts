@@ -162,12 +162,25 @@ export async function removeBlock(blockId: string): Promise<void> {
 }
 
 /**
- * Soft-drop a training block. Sets ends_on to yesterday so getActiveBlocks
- * (which filters ends_on.is.null OR ends_on.gte.today) excludes it immediately.
- * Existing planned_sessions stay in place — history is preserved.
+ * Soft-drop a training block:
+ *   1. Sets ends_on to yesterday so getActiveBlocks (filter:
+ *      ends_on.is.null OR ends_on.gte.today) excludes it immediately.
+ *   2. Drops every future planned session belonging to this block —
+ *      status='planned' rows with scheduled_date >= today flip to 'dropped'.
+ *      Completed and past sessions are left untouched (history preserved).
  */
 export async function endTrainingBlock(blockId: string): Promise<void> {
+  const today     = new Date().toISOString().split('T')[0];
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const { error: sessErr } = await supabase
+    .from('planned_sessions')
+    .update({ status: 'dropped' })
+    .eq('block_id', blockId)
+    .eq('status', 'planned')
+    .gte('scheduled_date', today);
+  if (sessErr) throw new Error(`endTrainingBlock session-drop failed: ${sessErr.message}`);
+
   const { error } = await supabase
     .from('training_blocks')
     .update({ ends_on: yesterday })

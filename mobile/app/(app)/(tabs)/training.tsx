@@ -19,6 +19,7 @@ import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
 import { enrichTodaysSessions, type TodaysSession } from '@/lib/todaysSession';
 import { useTodaySessions } from '@/hooks/useTodaySessions';
+import { useSessionStore } from '@/store/sessionStore';
 import { SeasonTimeline, type SeasonChainSummary } from '@/components/ui/SeasonTimeline';
 import { VirraModal } from '@/components/ui/VirraModal';
 
@@ -436,6 +437,22 @@ function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void })
     setErrorMsg(null);
     try {
       await endTrainingBlock(b.id);
+
+      // Sync the session-store cache: mark every still-planned future
+      // session belonging to this block as 'dropped' so calendar / week
+      // surfaces update without leaving the screen.
+      const today = new Date().toLocaleDateString('en-CA');
+      const { byId } = useSessionStore.getState();
+      const nextById = { ...byId };
+      let changed = false;
+      for (const [id, row] of Object.entries(byId)) {
+        if (row.block_id === b.id && row.status === 'planned' && row.scheduled_date >= today) {
+          nextById[id] = { ...row, status: 'dropped' };
+          changed = true;
+        }
+      }
+      if (changed) useSessionStore.setState({ byId: nextById });
+
       setConfirmOpen(false);
       onDropped();
     } catch (e) {
