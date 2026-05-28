@@ -10,14 +10,18 @@ const MODALITY_ICON: Record<Modality, React.ComponentProps<typeof SymbolView>['n
   strength: 'dumbbell',
   swim:     'figure.pool.swim',
   yoga:     'figure.mind.and.body',
+  cycle:    'figure.outdoor.cycle',
+  hike:     'figure.hiking',
   other:    'figure.mixed.cardio',
 };
 
 const MODALITY_COLOR: Record<Modality, string> = {
   run:      colors.pulse,
   strength: colors.dawn,
-  swim:     colors.breath,
+  swim:     colors.slate,
   yoga:     colors.breath,
+  cycle:    colors.peach,
+  hike:     colors.sage,
   other:    colors.muted,
 };
 
