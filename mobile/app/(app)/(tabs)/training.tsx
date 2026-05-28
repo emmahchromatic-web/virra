@@ -348,7 +348,6 @@ export default function TrainingScreen() {
                 userId={session.user.id}
                 cycleStore={cycleStore}
                 onClose={() => setActionDate(null)}
-                onMutate={() => { setActionDate(null); loadData(); }}
               />
             )}
 
