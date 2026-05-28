@@ -64,7 +64,7 @@ export function SessionActionModal({ visible, date, sessions, userId, onClose, o
       {sessions.map((s) => (
         <View key={s.id} style={modal.sessionBlock}>
           <VirraText variant="bodyMedium" size={14} color={colors.breath}>
-            {s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1)}
+            {(s.session_label ?? s.modality).charAt(0).toUpperCase() + (s.session_label ?? s.modality).slice(1)}
             {'  '}
             <VirraText variant="mono" size={11} color={colors.muted}>
               {s.modality.toUpperCase()}
