@@ -161,6 +161,11 @@ export default function TrainingScreen() {
 
     if (!events || events.length === 0) return null;
 
+    // Bypass sessionStore on purpose: this read needs the `phase` column
+    // (block_phase: base/build/peak/taper/race/recovery) which isn't part
+    // of PlannedSessionRow. The season-summary card is the only consumer
+    // of phase outside the SeasonEngine itself, so the column is omitted
+    // from the cached row schema to keep AsyncStorage payload lean.
     const { data: currentSession } = await supabase
       .from('planned_sessions')
       .select('phase, block_id')

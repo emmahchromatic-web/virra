@@ -7,7 +7,8 @@ import { useSessionStore } from '@/store/sessionStore';
 
 const ANCHOR_KEY        = 'hk_workout_anchor_v1';
 const REIMPORT_FLAG_KEY = 'hk_reimport_subtype_v1';
-const BACKFILL_FLAG_KEY = 'hk_backfill_done_v1';
+// BACKFILL_FLAG_KEY removed in Phase Ja T19 — the one-shot full-year
+// backfill it gated is now driven by sessionStore.reconcileFromActivities().
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 
