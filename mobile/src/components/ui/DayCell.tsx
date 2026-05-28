@@ -63,7 +63,9 @@ function renderInner(state: DayState): React.ReactNode {
         <View style={[cell.circle, {
           backgroundColor: MODALITY_COLOR[state.modality],
           borderColor:     MODALITY_COLOR[state.modality],
-        }]} />
+        }]}>
+          <SymbolView name={MODALITY_ICON[state.modality]} size={12} tintColor={colors.mile} />
+        </View>
       );
 
     case 'planned_multi':
@@ -77,8 +79,12 @@ function renderInner(state: DayState): React.ReactNode {
     case 'completed_multi':
       return (
         <View style={cell.circle}>
-          <View style={[cell.half, cell.halfLeft,  { backgroundColor: MODALITY_COLOR[state.a] }]} />
-          <View style={[cell.half, cell.halfRight, { backgroundColor: MODALITY_COLOR[state.b] }]} />
+          <View style={[cell.half, cell.halfLeft,  { backgroundColor: MODALITY_COLOR[state.a] }]}>
+            <SymbolView name={MODALITY_ICON[state.a]} size={11} tintColor={colors.mile} />
+          </View>
+          <View style={[cell.half, cell.halfRight, { backgroundColor: MODALITY_COLOR[state.b] }]}>
+            <SymbolView name={MODALITY_ICON[state.b]} size={11} tintColor={colors.mile} />
+          </View>
         </View>
       );
 
