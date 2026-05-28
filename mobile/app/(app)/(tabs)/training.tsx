@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,7 +12,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
-import { getActiveBlocks, computeBlockLoad, type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
+import { getActiveBlocks, computeBlockLoad, endTrainingBlock, type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
@@ -316,6 +316,7 @@ export default function TrainingScreen() {
                 blocks={activeBlocks}
                 cyclePhase={cycleInfo?.phase ?? null}
                 onAddBlock={() => setView('browse')}
+                onDropped={loadData}
               />
             ) : activePlan ? (
               <ActivePlanCard plan={activePlan} onBrowse={() => setView('browse')} />
@@ -427,13 +428,38 @@ export default function TrainingScreen() {
 
 // ---- Block stack ----
 
-function BlockStack({ blocks, cyclePhase, onAddBlock }: {
-  blocks: TrainingBlock[]; cyclePhase: string | null; onAddBlock: () => void;
+function BlockStack({ blocks, cyclePhase, onAddBlock, onDropped }: {
+  blocks: TrainingBlock[]; cyclePhase: string | null; onAddBlock: () => void; onDropped: () => void;
 }) {
   const computed = (cyclePhase
     ? computeBlockLoad(blocks, cyclePhase)
     : blocks.map((b) => ({ ...b, effective_load: b.load_modifier }))
   ) as ComputedBlock[];
+
+  function confirmDrop(b: ComputedBlock) {
+    const label = b.template?.name ?? b.modality;
+    Alert.alert(
+      `Drop ${label}?`,
+      'Future sessions from this plan will stop. Past completed sessions stay in your history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text:    'Drop',
+          style:   'destructive',
+          onPress: async () => {
+            try {
+              await endTrainingBlock(b.id);
+              onDropped();
+            } catch (e) {
+              const msg = e instanceof Error ? e.message : 'Unknown error';
+              Alert.alert('Could not drop plan', msg);
+            }
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <View style={stack.container}>
       <VirraText variant="mono" size={11} color={colors.pulse} style={stack.title}>MY STACK</VirraText>
@@ -455,6 +481,15 @@ function BlockStack({ blocks, cyclePhase, onAddBlock }: {
                 {Math.round(b.effective_load * 100)}% load{b.effective_load < b.load_modifier ? ' · adjusted for stack' : ''}
               </VirraText>
             </View>
+            <Pressable
+              onPress={() => confirmDrop(b)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={`Drop ${b.template?.name ?? b.modality}`}
+              style={stack.dropBtn}
+            >
+              <SymbolView name="trash" size={14} tintColor={colors.muted} />
+            </Pressable>
           </VirraCard>
         </Pressable>
       ))}
@@ -476,6 +511,7 @@ const stack = StyleSheet.create({
   loadTrack:  { height: 3, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden' },
   loadFill:   { height: '100%', borderRadius: radius.full },
   addRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.sm, paddingLeft: spacing.xs },
+  dropBtn:    { paddingHorizontal: spacing.sm, paddingTop: 2, alignSelf: 'flex-start' },
 });
 
 // ---- Active plan card ----

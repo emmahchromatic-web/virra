@@ -161,4 +161,18 @@ export async function removeBlock(blockId: string): Promise<void> {
   await supabase.from('training_blocks').delete().eq('id', blockId);
 }
 
+/**
+ * Soft-drop a training block by setting its ends_on to today.
+ * The block's existing planned_sessions stay in place (history preserved);
+ * getActiveBlocks will no longer include it going forward.
+ */
+export async function endTrainingBlock(blockId: string): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  const { error } = await supabase
+    .from('training_blocks')
+    .update({ ends_on: today })
+    .eq('id', blockId);
+  if (error) throw new Error(`endTrainingBlock failed: ${error.message}`);
+}
+
 export { closeBlock } from './scheduleGenerator';
