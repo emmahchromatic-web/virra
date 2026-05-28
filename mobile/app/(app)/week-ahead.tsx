@@ -1,14 +1,12 @@
-import React, { useCallback, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Pressable, StyleSheet, SafeAreaView, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useFocusEffect } from '@react-navigation/native';
-import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
-import { dropSession, moveSession } from '@/lib/scheduleGenerator';
+import { useSessionStore } from '@/store/sessionStore';
+import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { inferLoadFromLabel } from '@/lib/dailyTrainingContext';
 import { getNutritionTargets } from '@/lib/nutritionTargets';
 import { getCyclePhase } from '@/lib/cycleEngine';
@@ -126,43 +124,39 @@ function fmtRange(monday: string): string {
 }
 
 export default function WeekAheadScreen() {
-  const { session }                       = useAuthStore();
   const { periodStart, cycleLength }      = useCycleStore();
-  const monday                            = nextMondayISO();
-  const [rows, setRows]                   = useState<DayRow[]>([]);
+  const monday                            = useMemo(() => nextMondayISO(), []);
+  const { days }                          = useWeekSessions(monday);
   const [busy, setBusy]                   = useState<string | null>(null);
 
-  useFocusEffect(useCallback(() => { load(); }, [session]));
-
-  async function load() {
-    if (!session) return;
-    const sunday = offsetISO(monday, 6);
-    const { data } = await supabase
-      .from('planned_sessions')
-      .select('id, scheduled_date, modality, session_label, status')
-      .eq('user_id', session.user.id)
-      .gte('scheduled_date', monday)
-      .lte('scheduled_date', sunday)
-      .neq('status', 'moved')
-      .order('scheduled_date');
-    setRows(buildWeekRows(monday, (data ?? []) as Session[], periodStart, cycleLength ?? 28));
-  }
+  const rows: DayRow[] = useMemo(() => {
+    const sessions: Session[] = days.flatMap((d) =>
+      d.sessions
+        .filter((s) => s.status !== 'moved')
+        .map((s) => ({
+          id:             s.id,
+          scheduled_date: s.scheduled_date,
+          modality:       s.modality,
+          session_label:  s.session_label ?? '',
+          status:         s.status,
+        })),
+    );
+    return buildWeekRows(monday, sessions, periodStart, cycleLength ?? 28);
+  }, [days, monday, periodStart, cycleLength]);
 
   async function handleDrop(sessionId: string) {
     setBusy(sessionId);
-    try { await dropSession(sessionId); await load(); }
+    try { await useSessionStore.getState().dropSession(sessionId); }
     catch (e: any) { Alert.alert('Could not drop session', e.message); }
     finally { setBusy(null); }
   }
 
   async function handleDefer(sessionId: string, currentDate: string) {
-    if (!session) return;
     setBusy(sessionId);
     try {
       const d = new Date(`${currentDate}T00:00:00`);
       d.setDate(d.getDate() + 7);
-      await moveSession(sessionId, d.toLocaleDateString('en-CA'), session.user.id);
-      await load();
+      await useSessionStore.getState().moveSession(sessionId, d.toLocaleDateString('en-CA'));
     } catch (e: any) { Alert.alert('Could not defer session', e.message); }
     finally { setBusy(null); }
   }
