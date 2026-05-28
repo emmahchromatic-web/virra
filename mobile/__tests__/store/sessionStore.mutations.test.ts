@@ -90,3 +90,28 @@ describe('sessionStore.dropSession', () => {
     expect(useSessionStore.getState().lastError?.op).toBe('dropSession');
   });
 });
+
+describe('sessionStore.moveSession', () => {
+  it('inserts a temp row at the new date, marks original moved, then swaps temp for real id', async () => {
+    mockMoveSessionDb.mockResolvedValueOnce('s1_new');
+    const newId = await useSessionStore.getState().moveSession('s1', '2026-05-26');
+    const s = useSessionStore.getState();
+    expect(newId).toBe('s1_new');
+    expect(s.byId['s1'].status).toBe('moved');
+    expect(s.byId['s1'].moved_to_id).toBe('s1_new');
+    expect(s.byId['s1_new']).toMatchObject({ id: 's1_new', scheduled_date: '2026-05-26', modality: 'run' });
+    expect(s.idsByDate['2026-05-26']).toContain('s1_new');
+    expect(s.idsByDate['2026-05-25']).not.toContain('s1_new');
+    expect(mockMoveSessionDb).toHaveBeenCalledWith('s1', '2026-05-26');
+  });
+
+  it('reverts both rows on DB failure', async () => {
+    mockMoveSessionDb.mockRejectedValueOnce(new Error('move-fail'));
+    await expect(useSessionStore.getState().moveSession('s1', '2026-05-26')).rejects.toThrow('move-fail');
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('planned');
+    expect(s.byId['s1'].moved_to_id).toBeNull();
+    expect(Object.keys(s.byId)).toEqual(['s1']);
+    expect(s.idsByDate['2026-05-26']).toBeUndefined();
+  });
+});

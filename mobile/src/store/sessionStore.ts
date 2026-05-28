@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
-import { _commitLink, dropSession as dropSessionDb } from '@/lib/scheduleGenerator';
+import { _commitLink, dropSession as dropSessionDb, moveSession as moveSessionDb } from '@/lib/scheduleGenerator';
 import { asyncStorageAdapter } from './persistAdapter';
 import type {
-  SessionStore, SessionStoreState, PlannedSessionRow, DateISO, LoadedRange,
+  SessionStore, SessionStoreState, PlannedSessionRow, DateISO, LoadedRange, SessionId,
 } from './sessionStore.types';
 
 const STORE_NAME = 'virra:sessions:v1';
@@ -125,7 +125,54 @@ export const useSessionStore = create<SessionStore>()(
           throw e;
         }
       },
-      moveSession:  async () => { throw new Error('not implemented yet'); },
+      moveSession: async (sessionId, newDate) => {
+        const prev = get().byId[sessionId];
+        if (!prev) throw new Error(`moveSession: session ${sessionId} not in cache`);
+
+        const tempId: SessionId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const tempRow: PlannedSessionRow = { ...prev, id: tempId, scheduled_date: newDate, status: 'planned', activity_id: null, moved_to_id: null };
+
+        const beforeById = get().byId;
+        const beforeIdsByDate = get().idsByDate;
+
+        // Optimistic insert + mark original moved
+        set({
+          byId: {
+            ...beforeById,
+            [sessionId]: { ...prev, status: 'moved', moved_to_id: tempId },
+            [tempId]: tempRow,
+          },
+          idsByDate: {
+            ...beforeIdsByDate,
+            [newDate]: [...(beforeIdsByDate[newDate] ?? []), tempId],
+          },
+        });
+
+        let realId: SessionId;
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) throw new Error('moveSession: not authenticated');
+          realId = await moveSessionDb(sessionId, newDate, user.id);
+        } catch (e) {
+          set({
+            byId: beforeById,
+            idsByDate: beforeIdsByDate,
+            lastError: { at: Date.now(), op: 'moveSession', message: e instanceof Error ? e.message : String(e) },
+          });
+          throw e;
+        }
+
+        // Swap temp id for real id
+        const afterById = { ...get().byId };
+        const afterIdsByDate = { ...get().idsByDate };
+        delete afterById[tempId];
+        afterById[realId] = { ...tempRow, id: realId };
+        afterById[sessionId] = { ...afterById[sessionId], moved_to_id: realId };
+        afterIdsByDate[newDate] = (afterIdsByDate[newDate] ?? []).map((id) => (id === tempId ? realId : id));
+
+        set({ byId: afterById, idsByDate: afterIdsByDate });
+        return realId;
+      },
       linkActivity: async () => { throw new Error('not implemented yet'); },
       reconcileFromActivities: async () => { throw new Error('not implemented yet'); },
 
