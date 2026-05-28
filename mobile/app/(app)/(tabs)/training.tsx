@@ -103,10 +103,8 @@ export default function TrainingScreen() {
   const { cycleInfo, periodStart, cycleLength } = useCycleStore();
 
   const [activePlan,        setActivePlan]        = useState<UserPlan | null>(null);
-  const [templates,         setTemplates]          = useState<PlanTemplate[]>([]);
   const [recentActivities,  setRecentActivities]   = useState<Activity[]>([]);
-  const [view,              setView]               = useState<'plan' | 'browse'>('plan');
-  const [loading,           setLoading]            = useState(true);
+  const [, setLoading]                             = useState(true);
   const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
   const [enrichedToday,     setEnrichedToday]       = useState<TodaysSession[]>([]);
   const [seasonSummary,     setSeasonSummary]       = useState<SeasonChainSummary | null>(null);
@@ -231,7 +229,7 @@ export default function TrainingScreen() {
 
   async function loadData() {
     setLoading(true);
-    const [blocks, planRes, templateRes, activityRes, season] = await Promise.all([
+    const [blocks, planRes, activityRes, season] = await Promise.all([
       getActiveBlocks(session!.user.id),
       supabase
         .from('user_plans')
@@ -239,10 +237,6 @@ export default function TrainingScreen() {
         .eq('user_id', session!.user.id)
         .eq('is_active', true)
         .maybeSingle(),
-      supabase
-        .from('plan_templates')
-        .select('id, name, sport_type, distance_goal, duration_weeks, description, tagline')
-        .order('sort_order'),
       supabase
         .from('activities')
         .select('id, activity_type, sub_type, started_at, duration_seconds, distance_meters, phase_at_time, run_details(avg_pace_seconds_per_km)')
@@ -253,7 +247,6 @@ export default function TrainingScreen() {
     ]);
     setActiveBlocks(blocks);
     setActivePlan(planRes.data as UserPlan | null);
-    setTemplates((templateRes.data ?? []) as PlanTemplate[]);
     setRecentActivities((activityRes.data ?? []) as Activity[]);
     setSeasonSummary(season);
     setLoading(false);
@@ -298,129 +291,117 @@ export default function TrainingScreen() {
           <TodaysSessionHero sessions={enrichedToday} />
         )}
 
-        {/* Toggle */}
-        <View style={styles.toggle}>
-          <Pressable style={[styles.toggleBtn, view === 'plan'   && styles.toggleActive]} onPress={() => setView('plan')}>
-            <VirraText variant="mono" size={10} color={view === 'plan' ? colors.mile : 'rgba(244,237,224,0.5)'}>MY PLAN</VirraText>
+        {/* Active plan / block stack */}
+        {activeBlocks.length > 0 ? (
+          <BlockStack
+            blocks={activeBlocks}
+            cyclePhase={cycleInfo?.phase ?? null}
+            onAddBlock={() => router.push('/(app)/plans/browse' as any)}
+            onDropped={loadData}
+          />
+        ) : activePlan ? (
+          <ActivePlanCard plan={activePlan} onBrowse={() => router.push('/(app)/plans/browse' as any)} />
+        ) : (
+          <VirraCard style={styles.emptyCard}>
+            <VirraText variant="serif" size={17} color={colors.breath} style={{ lineHeight: 26 }}>
+              You don't have an active plan yet.
+            </VirraText>
+            <VirraButton label="Browse plans" onPress={() => router.push('/(app)/plans/browse' as any)} style={{ marginTop: spacing.md }} />
+          </VirraCard>
+        )}
+
+        {/* Monthly training calendar */}
+        {activeBlocks.length > 0 && session && (
+          <VirraCard style={{ gap: spacing.sm }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
+                {new Date(calYear, calMonth - 1).toLocaleString('en-GB',
+                  { month: 'long', year: 'numeric' }).toUpperCase()}
+              </VirraText>
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <Pressable onPress={() => {
+                  if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); }
+                  else setCalMonth((m) => m - 1);
+                }}>
+                  <VirraText variant="mono" size={12} color={colors.muted}>{'<'}</VirraText>
+                </Pressable>
+                <Pressable onPress={() => {
+                  if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); }
+                  else setCalMonth((m) => m + 1);
+                }}>
+                  <VirraText variant="mono" size={12} color={colors.muted}>{'>'}</VirraText>
+                </Pressable>
+              </View>
+            </View>
+            <MonthCalendar
+              userId={session.user.id}
+              year={calYear}
+              month={calMonth}
+              onDayPress={(date) => {
+                setActionDate(date);
+              }}
+            />
+          </VirraCard>
+        )}
+        {actionDate && session && (
+          <SessionDetailModal
+            visible={!!actionDate}
+            date={actionDate}
+            userId={session.user.id}
+            cycleStore={cycleStore}
+            onClose={() => setActionDate(null)}
+          />
+        )}
+
+        {/* Recent activity */}
+        <View style={styles.activitySection}>
+          <Pressable
+            onPress={() => router.push('/(app)/timeline' as any)}
+            style={styles.sectionHeader}
+          >
+            <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
+              RECENT ACTIVITY
+            </VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted}>VIEW ALL →</VirraText>
           </Pressable>
-          <Pressable style={[styles.toggleBtn, view === 'browse' && styles.toggleActive]} onPress={() => setView('browse')}>
-            <VirraText variant="mono" size={10} color={view === 'browse' ? colors.mile : 'rgba(244,237,224,0.5)'}>BROWSE PLANS</VirraText>
-          </Pressable>
+
+          {recentActivities.length > 0 ? (
+            <VirraCard style={styles.activityCard}>
+              {recentActivities.map((a, i) => (
+                <View key={a.id}>
+                  {i > 0 && <View style={styles.divider} />}
+                  <ActivityRow activity={a} />
+                </View>
+              ))}
+            </VirraCard>
+          ) : (
+            <VirraText variant="body" size={13} color={colors.muted}>
+              No activities yet — complete a run to see it here.
+            </VirraText>
+          )}
         </View>
 
-        {view === 'plan' ? (
-          <>
-            {/* Active plan / block stack */}
-            {activeBlocks.length > 0 ? (
-              <BlockStack
-                blocks={activeBlocks}
-                cyclePhase={cycleInfo?.phase ?? null}
-                onAddBlock={() => setView('browse')}
-                onDropped={loadData}
-              />
-            ) : activePlan ? (
-              <ActivePlanCard plan={activePlan} onBrowse={() => setView('browse')} />
-            ) : (
-              <VirraCard style={styles.emptyCard}>
-                <VirraText variant="serif" size={17} color={colors.breath} style={{ lineHeight: 26 }}>
-                  You don't have an active plan yet.
-                </VirraText>
-                <VirraButton label="Browse plans" onPress={() => setView('browse')} style={{ marginTop: spacing.md }} />
-              </VirraCard>
-            )}
+        {/* Manual log fallback */}
+        <Pressable
+          onPress={() => router.push('/(app)/manual-activity' as any)}
+          style={styles.manualLink}
+          accessibilityRole="button"
+        >
+          <VirraText variant="mono" size={11} color="rgba(244,237,224,0.25)">
+            Didn't have your watch? Log manually →
+          </VirraText>
+        </Pressable>
 
-            {/* Monthly training calendar */}
-            {activeBlocks.length > 0 && session && (
-              <VirraCard style={{ gap: spacing.sm }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
-                    {new Date(calYear, calMonth - 1).toLocaleString('en-GB',
-                      { month: 'long', year: 'numeric' }).toUpperCase()}
-                  </VirraText>
-                  <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                    <Pressable onPress={() => {
-                      if (calMonth === 1) { setCalMonth(12); setCalYear((y) => y - 1); }
-                      else setCalMonth((m) => m - 1);
-                    }}>
-                      <VirraText variant="mono" size={12} color={colors.muted}>{'<'}</VirraText>
-                    </Pressable>
-                    <Pressable onPress={() => {
-                      if (calMonth === 12) { setCalMonth(1); setCalYear((y) => y + 1); }
-                      else setCalMonth((m) => m + 1);
-                    }}>
-                      <VirraText variant="mono" size={12} color={colors.muted}>{'>'}</VirraText>
-                    </Pressable>
-                  </View>
-                </View>
-                <MonthCalendar
-                  userId={session.user.id}
-                  year={calYear}
-                  month={calMonth}
-                  onDayPress={(date) => {
-                    setActionDate(date);
-                  }}
-                />
-              </VirraCard>
-            )}
-            {actionDate && session && (
-              <SessionDetailModal
-                visible={!!actionDate}
-                date={actionDate}
-                userId={session.user.id}
-                cycleStore={cycleStore}
-                onClose={() => setActionDate(null)}
-              />
-            )}
-
-            {/* Recent activity */}
-            <View style={styles.activitySection}>
-              <Pressable
-                onPress={() => router.push('/(app)/timeline' as any)}
-                style={styles.sectionHeader}
-              >
-                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
-                  RECENT ACTIVITY
-                </VirraText>
-                <VirraText variant="mono" size={11} color={colors.muted}>VIEW ALL →</VirraText>
-              </Pressable>
-
-              {recentActivities.length > 0 ? (
-                <VirraCard style={styles.activityCard}>
-                  {recentActivities.map((a, i) => (
-                    <View key={a.id}>
-                      {i > 0 && <View style={styles.divider} />}
-                      <ActivityRow activity={a} />
-                    </View>
-                  ))}
-                </VirraCard>
-              ) : (
-                <VirraText variant="body" size={13} color={colors.muted}>
-                  No activities yet — complete a run to see it here.
-                </VirraText>
-              )}
-            </View>
-
-            {/* Manual log fallback */}
-            <Pressable
-              onPress={() => router.push('/(app)/manual-activity' as any)}
-              style={styles.manualLink}
-              accessibilityRole="button"
-            >
-              <VirraText variant="mono" size={11} color="rgba(244,237,224,0.25)">
-                Didn't have your watch? Log manually →
-              </VirraText>
-            </Pressable>
-          </>
-        ) : (
-          <View style={styles.templateList}>
-            {templates.map((t) => (
-              <TemplateCard key={t.id} template={t} />
-            ))}
-            {templates.length === 0 && !loading && (
-              <VirraText variant="body" color={colors.muted}>No plans available yet.</VirraText>
-            )}
-          </View>
-        )}
+        {/* Browse plans footer link */}
+        <Pressable
+          onPress={() => router.push('/(app)/plans/browse' as any)}
+          style={styles.browseLink}
+          accessibilityRole="button"
+        >
+          <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+            BROWSE ALL PLANS →
+          </VirraText>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -573,38 +554,6 @@ function ActivePlanCard({ plan, onBrowse }: { plan: UserPlan; onBrowse: () => vo
   );
 }
 
-// ---- Browse template card ----
-
-function TemplateCard({ template }: { template: PlanTemplate }) {
-  return (
-    <Pressable onPress={() => router.push(`/(app)/plan/${template.id}` as any)}>
-      <VirraCard style={styles.templateCard}>
-        <View style={styles.templateHeader}>
-          <View style={{ flex: 1 }}>
-            <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5 }}>
-              {template.sport_type.toUpperCase()}{template.distance_goal ? ` · ${template.distance_goal.replace(/_/g, ' ').toUpperCase()}` : ''}
-            </VirraText>
-            <VirraText variant="bodyMedium" size={16} color={colors.breath} style={{ marginTop: 4 }}>
-              {template.name}
-            </VirraText>
-            {template.tagline && (
-              <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={{ marginTop: 4, lineHeight: 18 }}>
-                {template.tagline}
-              </VirraText>
-            )}
-          </View>
-          <View style={styles.templateRight}>
-            <VirraText variant="mono" size={10} color={colors.muted}>
-              {template.duration_weeks > 0 ? `${template.duration_weeks}w` : 'Ongoing'}
-            </VirraText>
-            <SymbolView name="chevron.right" size={14} tintColor={colors.muted} />
-          </View>
-        </View>
-      </VirraCard>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   safe:            { flex: 1, backgroundColor: colors.mile },
   scroll:          { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
@@ -612,9 +561,6 @@ const styles = StyleSheet.create({
   phaseRow:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   phaseLabel:      { letterSpacing: 1.5 },
   phaseNote:       { lineHeight: 20 },
-  toggle:          { flexDirection: 'row', backgroundColor: colors.mist, borderRadius: radius.md, padding: 3, gap: 3 },
-  toggleBtn:       { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.sm - 1 },
-  toggleActive:    { backgroundColor: colors.pulse },
   emptyCard:       { gap: spacing.sm },
   activePlanCard:  { gap: spacing.xs },
   progressWrap:    { gap: spacing.xs, marginTop: spacing.sm },
@@ -628,8 +574,5 @@ const styles = StyleSheet.create({
   activityCard:    { paddingVertical: 0, gap: 0 },
   divider:         { height: 1, backgroundColor: colors.border },
   manualLink:      { alignItems: 'center', paddingVertical: spacing.sm },
-  templateList:    { gap: spacing.sm },
-  templateCard:    { gap: 0 },
-  templateHeader:  { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
-  templateRight:   { alignItems: 'flex-end', gap: 4 },
+  browseLink:      { alignItems: 'center', paddingVertical: spacing.md },
 });
