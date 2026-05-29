@@ -261,7 +261,7 @@ subscriptions       (id, user_id, rc_customer_id, sub_status, trial_end, activat
 - ✅ Nutrition daily log (cycle × training matrix)
 - ✅ Education Library + Article viewer
 - ✅ Daily check-in modal
-- ✅ Fitness assessment dynamic logic
+- ✅ Fitness assessment — onboarding self-report + schema. (Dynamic baseline self-correction — the Fitness Update detection + modal — was NOT built here despite this earlier ✅; it shipped in Phase F3a, 2026-05-28.)
 
 ### Phase C — Data collection ✅ complete
 - ✅ HealthKit background import pipeline (HKObserverQuery + HKAnchoredObjectQuery)
