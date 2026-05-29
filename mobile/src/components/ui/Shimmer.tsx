@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import {
   View, Animated, Easing, StyleSheet, AccessibilityInfo,
   type LayoutChangeEvent, type ViewStyle, type StyleProp,
@@ -28,6 +28,8 @@ export function Shimmer({ height, width, borderRadius = themeRadius.sm, lines = 
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(width ?? null);
   const [reduceMotion, setReduceMotion] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
+  // Unique per-instance SVG gradient id (multiple Shimmers can mount at once).
+  const gradientId = `shimmerGrad-${useId().replace(/:/g, '')}`;
 
   // Honour the OS "Reduce Motion" accessibility setting.
   useEffect(() => {
@@ -77,13 +79,13 @@ export function Shimmer({ height, width, borderRadius = themeRadius.sm, lines = 
             >
               <Svg width={measuredWidth} height={height}>
                 <Defs>
-                  <LinearGradient id="shimmerGrad" x1="0" y1="0" x2="1" y2="0">
+                  <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
                     <Stop offset="0" stopColor={colors.breath} stopOpacity="0" />
                     <Stop offset="0.5" stopColor={colors.breath} stopOpacity="0.12" />
                     <Stop offset="1" stopColor={colors.breath} stopOpacity="0" />
                   </LinearGradient>
                 </Defs>
-                <Rect x="0" y="0" width={measuredWidth} height={height} fill="url(#shimmerGrad)" />
+                <Rect x="0" y="0" width={measuredWidth} height={height} fill={`url(#${gradientId})`} />
               </Svg>
             </Animated.View>
           )}
