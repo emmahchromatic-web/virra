@@ -80,7 +80,7 @@ type Verdict = {
   evidence: string;             // human-readable, e.g. "your last 6 quality runs work out to about 5:36/km"
   nRuns: number;
   windowDays: number;
-  wouldChangeUpcoming: boolean; // false if all upcoming sessions are event-/split-calibration-driven
+  wouldChangeUpcoming: boolean; // false if there are no upcoming planned run sessions to refresh
 } | null;                       // null = no trigger
 ```
 
@@ -143,12 +143,13 @@ On confirm, as one logical operation:
 - Insert `{ user_id, assessed_on: today, stated_level: current fitness_level, actual_pace_seconds_per_km: proposed, trigger_description: verdict.evidence, direction: verdict.direction, celebrated_at: now() }`.
 - This row is the **cooldown anchor** — detection reads the latest `assessed_on`. No extra schema for cooldown.
 
-**3. Regenerate upcoming sessions.** Re-run the existing per-session structure generation for `planned_sessions` where `status = 'planned'` AND `scheduled_date >= today` AND `modality = 'run'`:
-- Recompute `run_structure` via the **same generation path that originally produced it** (`scheduleGenerator` → `runWorkoutGenerator`, with the goal/baseline pace resolved through `getGoalPace`). The exact function chain is pinned down at implementation time by reading the current generator; the load-bearing property is that **goal-pace resolution goes through `getGoalPace`, which now reads the updated baseline** — so new paces flow through automatically and **the hierarchy is respected for free**: blocks with an event target finish time, or with ≥3 calibration runs, still derive pace from those sources, so the baseline change only moves sessions whose goal-pace source actually *is* `baseline`.
+**3. Regenerate upcoming `run_structure`.** For `planned_sessions` where `status = 'planned'` AND `scheduled_date >= today` AND `modality = 'run'`:
+- Re-run `generateRunStructure({ session_label, baseline_pace_secs: newBaseline, distance_km: existing total_distance_m / 1000 })` and write the fresh `run_structure`, **preserving each session's existing distance**. This is exactly how generation (`scheduleGenerator`) and lazy backfill (`hydratePlannedSessions`) already bake structure from the *raw* baseline — `run_structure` is baseline-driven by construction, so it changes cleanly with the new baseline.
+- Wrap each session in try/catch: `generateRunStructure` throws on an unrecognised workout type, so a single odd `session_label` must skip (leave its existing structure) rather than abort the whole cascade.
 - Completed / dropped / moved sessions are never touched (history preserved).
 - Phase modulation stays at read time (`modulateRunStructure` on display) — we regenerate the *base* targets only.
 
-This reuses the same "regenerate future planned sessions" operation `applyBreak` and `hydratePlannedSessions` already perform — invoking the existing generator over a filtered set, not a parallel path.
+**The goal-pace hierarchy needs no action here.** The event-target / split-calibration hierarchy lives in `getGoalPace`, which feeds only the *read-time summary pace* (`getDaySessionDetail`), not the stored `run_structure`. That summary recomputes on every read, so it already reflects the new baseline wherever its source is `baseline`, and still defers to an event target or split-calibration where those apply — automatically, with no migration step.
 
 **Failure / partial state:** the baseline write is the source of truth and stands even if regeneration partially fails; the lazy `hydratePlannedSessions` backfill reconciles any session that didn't regenerate on next load.
 
@@ -167,7 +168,7 @@ This reuses the same "regenerate future planned sessions" operation `applyBreak`
 - **Unmatched runs** excluded (no prescribed target).
 - **Cycle phase** handled by construction (residual is vs the phase-modulated target); non-natural cycle profiles fall back to phase-modifier = 1.0.
 
-**Hierarchy-aware modal copy.** Compute `wouldChangeUpcoming` before showing the modal. If no upcoming session would change (e.g. deep in an event block where paces are event-driven), drop "We'll refresh your upcoming sessions" and use "We'll use this for your next plan." Never promise a visible change that won't happen.
+**Hierarchy-aware modal copy.** Compute `wouldChangeUpcoming` before showing the modal — true when there is ≥1 upcoming planned run session whose `run_structure` will be refreshed. If there are none (no runs scheduled ahead), drop "We'll refresh your upcoming sessions" and use "We'll use this for your next plan." Never promise a visible change that won't happen.
 
 **Manual baseline edits.** If the user edits baseline directly (profile / cycle-settings), that write also appends to `assessment_history` and resets the cooldown — engine and human never fight over the same value within a window.
 
@@ -197,7 +198,7 @@ alter table fitness_assessments
 
 **Testing (this feature is mostly pure logic — matches the existing `volumePlan` / `cycleModulation` / `scheduleGenerator` test style with jest-expo + @testing-library/react-native):**
 - **`baselineCalibration` (table-driven):** ratio back-out (`current_baseline × actual/expected`) returns the right baseline-equivalent for known structure/actual pairs, including phase-modulated targets; verdict for faster / slower / no-change; min-count gate; consistency guard rejects mixed-sign sets; single-outlier rejection; damping + ±15 s/km cap; cooldown + snooze gates; break-window exclusion + post-break grace; `wouldChangeUpcoming` false when all upcoming are event-driven.
-- **`applyBaselineUpdate` (mocked supabase, like `scheduleGeneratorMove` tests):** writes new baseline; inserts assessment with correct `direction`; regenerates only future `planned` runs; leaves completed/dropped/moved untouched; event-driven blocks' paces unchanged.
+- **`applyBaselineUpdate` (mocked supabase, like `scheduleGeneratorMove` tests):** writes new baseline; inserts assessment with correct `direction`; regenerates `run_structure` for future `planned` runs from the new baseline while preserving each session's distance; leaves completed/dropped/moved untouched; skips (does not abort on) a session whose `session_label` can't be generated.
 - **Components:** card renders up vs down variants and dismiss → snooze; modal renders evidence + `old → new`, CTA fires `confirm`, downward copy variant.
 - **Manual E2E checklist:** seed faster-than-target completed runs → card → modal → confirm → upcoming runs show faster paces, history intact; downward scenario; break suppression; cooldown re-fire.
 
