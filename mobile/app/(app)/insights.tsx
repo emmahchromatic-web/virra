@@ -11,11 +11,12 @@ import { computeInsightMetrics, formatPaceMmSs, type InsightMetrics } from '@/li
 import { summariseRunStructure, summariseStrengthStructure } from '@/lib/workoutStructure';
 import { modulateRunStructure } from '@/lib/cycleModulation';
 import { getCycleInfo } from '@/lib/cycleEngine';
-import { colors, spacing, radius } from '@/constants/theme';
+import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { AddEventModal } from '@/components/ui/AddEventModal';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Shimmer } from '@/components/ui/Shimmer';
 
 const PHASE_COLOR: Record<string, string> = {
   menstrual:  colors.heat,
@@ -64,7 +65,7 @@ export default function InsightsScreen() {
   const [generatedAt,      setGeneratedAt]      = useState<string | null>(null);
   const [upcomingEvents,   setUpcomingEvents]   = useState<any[]>([]);
   const [loadingMetrics,   setLoadingMetrics]   = useState(true);
-  const [loadingNarrative, setLoadingNarrative] = useState(false);
+  const [loadingNarrative, setLoadingNarrative] = useState(true);
   const [showAddEvent,     setShowAddEvent]     = useState(false);
 
   const today    = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
@@ -85,6 +86,7 @@ export default function InsightsScreen() {
   const load = useCallback(async () => {
     if (!session) return;
     setLoadingMetrics(true);
+    setLoadingNarrative(true);
 
     const [metricsResult, cacheResult, eventsResult] = await Promise.all([
       computeInsightMetrics(session.user.id).catch(() => null),
@@ -115,10 +117,10 @@ export default function InsightsScreen() {
       setTrainingText(cached.training_text ?? null);
       setNutritionText(cached.nutrition_text ?? null);
       setGeneratedAt(cached.generated_at);
+      setLoadingNarrative(false);
       return;
     }
 
-    setLoadingNarrative(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-insights', {
         body: {
@@ -194,7 +196,7 @@ export default function InsightsScreen() {
         <VirraCard style={styles.narrativeCard}>
           <SectionLabel style={styles.sectionLabel}>THIS WEEK</SectionLabel>
           {loadingNarrative ? (
-            <View style={styles.skeleton} />
+            <Shimmer height={20} lines={3} />
           ) : overallText ? (
             <VirraText variant="serif" size={16} color={colors.breath} style={styles.narrativeBody}>
               {overallText}
@@ -249,24 +251,34 @@ export default function InsightsScreen() {
         </VirraCard>
 
         {/* Training narrative */}
-        {trainingText && (
+        {loadingNarrative ? (
+          <VirraCard style={{ gap: spacing.xs }}>
+            <SectionLabel color={phaseColor} style={styles.sectionLabel}>TRAINING</SectionLabel>
+            <Shimmer height={18} lines={2} />
+          </VirraCard>
+        ) : trainingText ? (
           <VirraCard style={{ gap: spacing.xs }}>
             <SectionLabel color={phaseColor} style={styles.sectionLabel}>TRAINING</SectionLabel>
             <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
               {trainingText}
             </VirraText>
           </VirraCard>
-        )}
+        ) : null}
 
         {/* Nutrition narrative */}
-        {nutritionText && (
+        {loadingNarrative ? (
+          <VirraCard style={{ gap: spacing.xs }}>
+            <SectionLabel color={phaseColor} style={styles.sectionLabel}>NUTRITION</SectionLabel>
+            <Shimmer height={18} lines={2} />
+          </VirraCard>
+        ) : nutritionText ? (
           <VirraCard style={{ gap: spacing.xs }}>
             <SectionLabel color={phaseColor} style={styles.sectionLabel}>NUTRITION</SectionLabel>
             <VirraText variant="body" size={14} color="rgba(244,237,224,0.8)" style={{ lineHeight: 22 }}>
               {nutritionText}
             </VirraText>
           </VirraCard>
-        )}
+        ) : null}
 
         {/* Fuelling alignment */}
         {metrics?.fuellingAlignment && (() => {
@@ -417,7 +429,6 @@ const styles = StyleSheet.create({
   sectionLabel:    { letterSpacing: 1.5, marginBottom: spacing.xs },
   narrativeCard:   { gap: spacing.sm },
   narrativeBody:   { lineHeight: 26, fontStyle: 'italic' },
-  skeleton:        { height: 72, borderRadius: radius.sm, backgroundColor: colors.border },
   metricsCard:     { gap: spacing.md },
   metricsGrid:     { flexDirection: 'row', alignItems: 'center' },
   metricDividerV:  { width: 1, height: 44, backgroundColor: colors.border },
