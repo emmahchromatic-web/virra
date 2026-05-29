@@ -16,30 +16,33 @@ import { WeekStrip } from '@/components/ui/WeekStrip';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { Shimmer } from '@/components/ui/Shimmer';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { supabase } from '@/lib/supabase';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 
 function GuidanceCard({ title, body, accentColor, loading }: {
-  title: string; body: string; accentColor: string; loading?: boolean;
+  title: string; body: string | null; accentColor: string; loading: boolean;
 }) {
   return (
     <VirraCard style={guide.card}>
       <SectionLabel color={accentColor} style={guide.label}>{title}</SectionLabel>
       {loading ? (
-        <View style={guide.skeleton} />
+        <Shimmer height={18} lines={2} style={guide.shimmer} />
       ) : (
-        <VirraText variant="body" size={14} color="rgba(244,237,224,0.7)" style={guide.body}>{body}</VirraText>
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.7)" style={guide.body}>
+          {body ?? 'Log a session to unlock your personalised guidance.'}
+        </VirraText>
       )}
     </VirraCard>
   );
 }
 
 const guide = StyleSheet.create({
-  card:     { gap: spacing.xs },
-  label:    { letterSpacing: 1.5 },
-  body:     { lineHeight: 21, marginTop: spacing.xs },
-  skeleton: { height: 42, borderRadius: 4, backgroundColor: colors.border },
+  card:    { gap: spacing.xs },
+  label:   { letterSpacing: 1.5 },
+  body:    { lineHeight: 21, marginTop: spacing.xs },
+  shimmer: { marginTop: spacing.xs },
 });
 
 function EmptyState({ cycleProfile }: { cycleProfile: CycleProfile }) {
@@ -80,7 +83,7 @@ export default function DashboardScreen() {
   const [exerciseMins, setExerciseMins] = useState(0);
   const [inferredLoad, setInferredLoad] = useState<TrainingLoad>('easy');
   const [insightTexts,   setInsightTexts]   = useState<{ training: string; nutrition: string } | null>(null);
-  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightLoading, setInsightLoading] = useState(true);
   const [latestKg,       setLatestKg]       = useState<number | null>(null);
 
   useEffect(() => {
@@ -127,7 +130,7 @@ export default function DashboardScreen() {
         setInsightTexts({ training: data.training_text, nutrition: data.nutrition_text });
       }
     } catch {
-      // Silently fall back to PHASE_META
+      // Silently fall back to the graceful empty-state copy
     } finally {
       setInsightLoading(false);
     }
@@ -276,13 +279,13 @@ export default function DashboardScreen() {
 
             <GuidanceCard
               title="Training"
-              body={insightTexts?.training ?? meta.training}
+              body={insightTexts?.training ?? null}
               accentColor={meta.color}
               loading={insightLoading && !insightTexts}
             />
             <GuidanceCard
               title="Nutrition"
-              body={insightTexts?.nutrition ?? meta.nutrition}
+              body={insightTexts?.nutrition ?? null}
               accentColor={meta.color}
               loading={insightLoading && !insightTexts}
             />
