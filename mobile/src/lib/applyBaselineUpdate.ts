@@ -26,23 +26,29 @@ export async function applyBaselineUpdate(
     .eq('id', userId)
     .single();
 
-  const history = Array.isArray(profile?.assessment_history) ? profile!.assessment_history : [];
-  history.push({
-    on: today,
-    from: verdict.current,
-    to: verdict.proposed,
-    direction: verdict.direction,
-    n_runs: verdict.nRuns,
-    window_days: verdict.windowDays,
-  });
+  const history = [
+    ...(Array.isArray(profile?.assessment_history) ? profile!.assessment_history : []),
+    {
+      on: today,
+      from: verdict.current,
+      to: verdict.proposed,
+      direction: verdict.direction,
+      n_runs: verdict.nRuns,
+      window_days: verdict.windowDays,
+    },
+  ];
 
-  await supabase
+  const { error: profileErr } = await supabase
     .from('user_profiles')
     .update({ baseline_pace_seconds_per_km: verdict.proposed, assessment_history: history })
     .eq('id', userId);
+  if (profileErr) {
+    throw new Error(`[applyBaselineUpdate] profile write failed: ${profileErr.message}`);
+  }
 
-  // 2. Record the assessment (cooldown anchor).
-  await supabase.from('fitness_assessments').insert({
+  // 2. Record the assessment (cooldown anchor). A failed insert is recoverable
+  // (the modal may re-fire) — a stale baseline would be worse — so log, don't throw.
+  const { error: assessErr } = await supabase.from('fitness_assessments').insert({
     user_id: userId,
     assessed_on: today,
     stated_level: statedLevel,
@@ -51,11 +57,15 @@ export async function applyBaselineUpdate(
     direction: verdict.direction,
     celebrated_at: nowIso,
   });
+  if (assessErr) {
+    console.warn('[applyBaselineUpdate] assessment insert failed:', assessErr.message);
+  }
 
   // 3. Regenerate run_structure for upcoming planned runs from the new baseline.
   const { data: upcoming } = await supabase
     .from('planned_sessions')
     .select('id, session_label, run_structure')
+    .eq('user_id', userId)
     .eq('modality', 'run')
     .eq('status', 'planned')
     .gte('scheduled_date', today);

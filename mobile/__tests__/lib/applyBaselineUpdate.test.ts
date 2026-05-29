@@ -15,13 +15,13 @@ jest.mock('@/lib/supabase', () => ({
       }
       if (table === 'planned_sessions') {
         return {
-          select: () => ({ eq: () => ({ eq: () => ({ gte: () => Promise.resolve({
+          select: () => ({ eq: () => ({ eq: () => ({ eq: () => ({ gte: () => Promise.resolve({
             data: [
               { id: 'p1', session_label: 'easy',  run_structure: { version: 1, workout_type: 'easy', total_distance_m: 5000, steps: [] } },
               { id: 'p2', session_label: 'tempo', run_structure: { version: 1, workout_type: 'tempo', total_distance_m: 8000, steps: [] } },
               { id: 'p3', session_label: 'mystery-label', run_structure: { version: 1, workout_type: 'easy', total_distance_m: 6000, steps: [] } },
             ], error: null,
-          }) }) }) }),
+          }) }) }) }) }),
           update: (patch: any) => ({ eq: (_c: string, id: string) => { captured.regenerated.push({ id, patch }); return Promise.resolve({ error: null }); } }),
         };
       }
