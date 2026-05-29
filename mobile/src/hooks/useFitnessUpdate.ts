@@ -10,7 +10,7 @@ const SNOOZE_DAYS = 21;
 const WINDOW_DAYS = 42;
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Date().toLocaleDateString('en-CA');
 }
 
 export function useFitnessUpdate(userId: string | null) {
@@ -21,7 +21,7 @@ export function useFitnessUpdate(userId: string | null) {
   const refresh = useCallback(async () => {
     if (!userId) { setVerdict(null); return; }
     const today = todayIso();
-    const windowStart = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString().slice(0, 10);
+    const windowStart = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toLocaleDateString('en-CA');
 
     const [profileRes, assessRes, breaksRes, sessRes, upcomingRes] = await Promise.all([
       supabase
@@ -45,7 +45,7 @@ export function useFitnessUpdate(userId: string | null) {
       // fetch completed run planned_sessions for their label, structure, date, and activity_id
       supabase
         .from('planned_sessions')
-        .select('id, session_label, run_structure, scheduled_date, activity_id')
+        .select('id, session_label, run_structure, scheduled_date')
         .eq('user_id', userId)
         .eq('modality', 'run')
         .eq('status', 'completed')
@@ -58,6 +58,12 @@ export function useFitnessUpdate(userId: string | null) {
         .eq('status', 'planned')
         .gte('scheduled_date', today),
     ]);
+
+    if (profileRes.error) {
+      console.warn('[useFitnessUpdate] profile fetch failed:', profileRes.error.message);
+      setVerdict(null);
+      return;
+    }
 
     const baseline = profileRes.data?.baseline_pace_seconds_per_km ?? DEFAULT_PACE;
     setStatedLevel(profileRes.data?.fitness_level ?? null);
