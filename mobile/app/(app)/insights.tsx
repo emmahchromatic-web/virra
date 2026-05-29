@@ -195,7 +195,7 @@ export default function InsightsScreen() {
         {/* THIS WEEK — Haiku narrative */}
         <VirraCard style={styles.narrativeCard}>
           <SectionLabel style={styles.sectionLabel}>THIS WEEK</SectionLabel>
-          {loadingNarrative ? (
+          {loadingNarrative && !overallText ? (
             <Shimmer height={20} lines={3} />
           ) : overallText ? (
             <VirraText variant="serif" size={16} color={colors.breath} style={styles.narrativeBody}>
@@ -251,7 +251,7 @@ export default function InsightsScreen() {
         </VirraCard>
 
         {/* Training narrative */}
-        {loadingNarrative ? (
+        {loadingNarrative && !trainingText ? (
           <VirraCard style={{ gap: spacing.xs }}>
             <SectionLabel color={phaseColor} style={styles.sectionLabel}>TRAINING</SectionLabel>
             <Shimmer height={18} lines={2} />
@@ -266,7 +266,7 @@ export default function InsightsScreen() {
         ) : null}
 
         {/* Nutrition narrative */}
-        {loadingNarrative ? (
+        {loadingNarrative && !nutritionText ? (
           <VirraCard style={{ gap: spacing.xs }}>
             <SectionLabel color={phaseColor} style={styles.sectionLabel}>NUTRITION</SectionLabel>
             <Shimmer height={18} lines={2} />

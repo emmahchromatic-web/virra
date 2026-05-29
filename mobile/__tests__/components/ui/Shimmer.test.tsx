@@ -31,4 +31,9 @@ describe('Shimmer', () => {
     const { queryAllByTestId } = render(<Shimmer height={20} width={200} />);
     await waitFor(() => expect(queryAllByTestId('shimmer-sweep')).toHaveLength(0));
   });
+
+  it('omits the sweep until width is known (fluid mode)', () => {
+    const { queryAllByTestId } = render(<Shimmer height={20} />);
+    expect(queryAllByTestId('shimmer-sweep')).toHaveLength(0);
+  });
 });
