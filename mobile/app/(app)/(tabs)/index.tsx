@@ -20,6 +20,9 @@ import { Shimmer } from '@/components/ui/Shimmer';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { supabase } from '@/lib/supabase';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
+import { FitnessUpdateCard } from '@/components/ui/FitnessUpdateCard';
+import { FitnessUpdateModal } from '@/components/ui/FitnessUpdateModal';
+import { useFitnessUpdate } from '@/hooks/useFitnessUpdate';
 
 function GuidanceCard({ title, body, accentColor, loading }: {
   title: string; body: string | null; accentColor: string; loading: boolean;
@@ -73,6 +76,8 @@ const EXERCISE_MINS_TARGET: Record<TrainingLoad, number> = {
 export default function DashboardScreen() {
   const { cycleInfo, cycleProfile } = useCycleStore();
   const { session } = useAuthStore();
+  const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
+  const [showFitnessModal, setShowFitnessModal] = useState(false);
   const { stepsTarget } = useProfileStore();
   const trackWeight       = useProfileStore((s) => s.trackWeight);
   const weightDataVersion = useProfileStore((s) => s.weightDataVersion);
@@ -277,6 +282,13 @@ export default function DashboardScreen() {
               </Pressable>
             </View>
 
+            {verdict && (
+              <FitnessUpdateCard
+                verdict={verdict}
+                onOpen={() => setShowFitnessModal(true)}
+                onDismiss={snooze}
+              />
+            )}
             <GuidanceCard
               title="Training"
               body={insightTexts?.training ?? null}
@@ -292,6 +304,12 @@ export default function DashboardScreen() {
           </>
         )}
       </ScrollView>
+      <FitnessUpdateModal
+        visible={showFitnessModal}
+        verdict={verdict}
+        onConfirm={async () => { await confirm(); setShowFitnessModal(false); }}
+        onSnooze={async () => { await snooze(); setShowFitnessModal(false); }}
+      />
     </SafeAreaView>
   );
 }
