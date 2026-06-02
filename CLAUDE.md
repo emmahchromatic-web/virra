@@ -1,5 +1,17 @@
 # VIRRA — Claude Code Project Guide
 
+## Working style — models & delegation
+
+Work on this project is deliberately split across models, with subagents as the default execution mechanism:
+
+- **Main thread → Opus.** The top-level thread runs on Opus and stays focused on judgment: brainstorming, design, planning, architecture, reviewing subagent output, and deciding what happens next. It holds the plan and the context; it does not get spent on mechanical execution.
+- **Actions, coding, search → Sonnet subagents.** Concrete implementation — writing/editing code, running tests, migrations, refactors, multi-file searches, any well-specified unit of work — is delegated to Sonnet subagents. The main thread curates the context, writes precise instructions, and reviews the result.
+- **Use subagents proactively — this is the default, not the exception.** Reach for a subagent for any concrete task rather than doing it inline on the Opus thread. Prefer dispatching well-scoped Sonnet subagents and keeping the Opus thread as the persistent planner/reviewer.
+- **Why:** this compensates for the loss of Opus plan-mode. Instead of "Opus plans inside plan mode, then execute," the pattern is "Opus plans and reviews on the main thread, Sonnet subagents execute." Keep the high-value reasoning on Opus; fan execution out.
+- **Preferred execution pattern** for any multi-step plan: subagent-driven development — a fresh subagent per task with spec-compliance and code-quality review between tasks. Escalate a subagent to Opus only when a task genuinely needs architecture-level reasoning.
+
+---
+
 ## Supabase MCP
 
 The Supabase MCP server is configured for this project (`project_ref: elebuieojodsjmghwjub`). Use it to inspect tables, run queries, and apply migrations directly rather than asking the user to run SQL manually.
