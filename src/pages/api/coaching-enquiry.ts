@@ -4,8 +4,9 @@ import type { APIRoute } from 'astro';
 import { sendCoachingNotification, sendCoachingAutoReply } from '../../lib/email';
 import { appendCoachingEnquiry } from '../../lib/sheets';
 import { addSubscriber } from '../../lib/beehiiv';
+import { verifyTurnstile } from '../../lib/turnstile';
 
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, clientAddress }) => {
   const body = await request.json() as {
     name: string;
     email: string;
@@ -16,11 +17,18 @@ export const POST: APIRoute = async ({ request }) => {
     referral?: string;
     newsletter?: boolean;
     _hp?: string;
+    cfToken?: string;
   };
 
   // Honeypot spam check
   if (body._hp) {
     return new Response(JSON.stringify({ success: true }), { status: 200 });
+  }
+
+  // Turnstile verification
+  const tokenOk = await verifyTurnstile(body.cfToken, clientAddress);
+  if (!tokenOk) {
+    return new Response(JSON.stringify({ error: 'Human verification failed' }), { status: 400 });
   }
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((body.email ?? '').trim());

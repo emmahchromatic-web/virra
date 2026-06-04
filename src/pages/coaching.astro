@@ -7,11 +7,13 @@ import { client } from '../lib/sanity';
 import { COACHING_QUERY } from '../lib/queries';
 
 const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
 ---
 <BaseLayout
   title="1:1 Coaching — VIRRA"
   description="Bespoke coaching for women runners. Cycle-aware training, nutrition, and real accountability. Three tiers from £50/month."
 >
+  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
   <Header />
   <main>
 
@@ -180,6 +182,7 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
             <input type="checkbox" name="newsletter" />
             <span>Subscribe me to Run Hot (the VIRRA newsletter)</span>
           </label>
+          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark"></div>
           <button type="submit" class="submit-btn">Send enquiry</button>
         </form>
         <p class="enq-ok" id="enq-ok" hidden>Thanks. Emma will be in touch within 48 hours.</p>
@@ -215,6 +218,7 @@ const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
     const fd = new FormData(form);
     const payload = {
       _hp: fd.get('_hp'),
+      cfToken: fd.get('cf-turnstile-response'),
       name: fd.get('name'),
       email: fd.get('email'),
       tier: fd.get('tier'),
