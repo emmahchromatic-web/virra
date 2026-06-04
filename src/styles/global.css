@@ -74,13 +74,13 @@ body::before {
 }
 .prose h3 {
   font-family: var(--font-display);
-  font-size: clamp(1.4rem, 3vw, 2rem);
-  font-weight: 900;
+  font-size: 1.1rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   color: var(--breath);
   margin: 2rem 0 0.75rem;
-  line-height: 0.95;
+  line-height: 1;
 }
 .prose p { font-size: 1.05rem; line-height: 1.82; color: rgba(244,237,224,0.75); margin-bottom: 1.5rem; }
 .prose a { color: var(--pulse); text-decoration: underline; text-underline-offset: 3px; }

@@ -5,7 +5,7 @@ interface Props {
   // surrounding section already supplies its own headline + subline).
   label?: string;
 }
-const { source, label = 'Run Hot — sent to The Pack.' } = Astro.props;
+const { source, label = 'Run Hot, sent to The Pack.' } = Astro.props;
 const formId = `nl-${source}`;
 ---
 <div class="nl-wrap" data-source={source}>
@@ -22,7 +22,7 @@ const formId = `nl-${source}`;
     <button type="submit">Subscribe</button>
     <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
   </form>
-  <p class="nl-ok" id={`${formId}-ok`} hidden>You're in — welcome to The Pack.</p>
+  <p class="nl-ok" id={`${formId}-ok`} hidden>You're in, welcome to The Pack.</p>
   <p class="nl-err" id={`${formId}-err`} hidden>Something went wrong. Try again.</p>
   <p class="nl-note">No spam, ever. Unsubscribe anytime.</p>
 </div>
@@ -88,10 +88,10 @@ const formId = `nl-${source}`;
     background: var(--pulse);
     color: var(--mile);
     border: none;
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.15em;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     padding: 12px 22px;
     border-radius: 999px;

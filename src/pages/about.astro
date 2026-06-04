@@ -23,10 +23,10 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
           <div class="hero-img">
             {about?.portrait
               ? <img
-                  src={urlFor(about.portrait).width(560).height(700).url()}
-                  alt="Emma — founder of VIRRA"
+                  src={urlFor(about.portrait).width(560).height(420).url()}
+                  alt="Emma, founder of VIRRA"
                   width="560"
-                  height="700"
+                  height="420"
                 />
               : <div class="hero-placeholder" aria-hidden="true" />
             }
@@ -107,7 +107,7 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
           <span class="cta-arrow">→</span>
         </button>
         <a href="https://instagram.com/emmasrunlife" target="_blank" rel="noopener noreferrer" class="cta-card">
-          <span class="cta-label">@emmasrunlife</span>
+          <span class="cta-label">Follow Emma</span>
           <span class="cta-arrow">↗</span>
         </a>
       </div>
@@ -123,8 +123,8 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
   /* HERO */
   .about-hero { padding: 80px 0; }
   .hero-inner { display: grid; grid-template-columns: 420px 1fr; gap: 80px; align-items: end; }
-  .hero-img img { width: 100%; border-radius: 2px; display: block; }
-  .hero-placeholder { width: 100%; aspect-ratio: 4/5; background: var(--mist); border-radius: 2px; }
+  .hero-img img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-radius: 2px; display: block; }
+  .hero-placeholder { width: 100%; aspect-ratio: 4/3; background: var(--mist); border-radius: 2px; }
   .hero-copy h1 {
     font-family: var(--font-display);
     font-size: clamp(5rem, 14vw, 12rem);

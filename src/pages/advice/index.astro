@@ -19,9 +19,10 @@ const page = parseInt(url.searchParams.get('page') || '1', 10);
 const allArticles = await client.fetch(ALL_ARTICLES_QUERY).catch(() => []);
 const featuredArticle = await client.fetch(FEATURED_ARTICLE_QUERY).catch(() => null);
 
-const filtered = selectedCategory === 'All'
+const filtered = (selectedCategory === 'All'
   ? allArticles
-  : allArticles.filter((a: any) => a.category === selectedCategory);
+  : allArticles.filter((a: any) => a.category === selectedCategory))
+  .filter((a: any) => !featuredArticle || a.slug?.current !== featuredArticle.slug?.current);
 
 const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -142,8 +143,9 @@ const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     margin: 1rem 0;
   }
   .advice-hero .subtitle {
-    font-family: var(--font-body);
-    font-weight: 300;
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-weight: 400;
     color: color-mix(in srgb, var(--breath) 70%, transparent);
     font-size: 1.1rem;
     max-width: 480px;

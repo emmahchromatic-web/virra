@@ -5,7 +5,7 @@ import vercel from '@astrojs/vercel';
 export default defineConfig({
   output: 'server',
   adapter: vercel(),
-  site: 'https://virra.app',
+  site: 'https://www.virra.app',
   integrations: [sitemap()],
   // Inline all page CSS into the HTML to remove the render-blocking
   // stylesheet round trip from the critical path. Site CSS is small (~4KB)

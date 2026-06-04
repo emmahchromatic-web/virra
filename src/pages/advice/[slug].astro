@@ -16,10 +16,10 @@ if (!article) {
   return Astro.redirect('/advice', 307);
 }
 
-const related = await client.fetch(RELATED_ARTICLES_QUERY, {
-  category: article.category,
-  slug: slug,
-}).catch(() => []);
+const allRelated = await client.fetch(RELATED_ARTICLES_QUERY, { slug }).catch(() => []);
+const sameCategory = allRelated.filter((a: any) => a.category === article.category).slice(0, 2);
+const others = allRelated.filter((a: any) => a.category !== article.category).slice(0, 3 - sameCategory.length);
+const related = [...sameCategory, ...others];
 
 function wordCount(blocks: any[]): number {
   if (!blocks) return 0;
@@ -51,7 +51,7 @@ const schema = {
   description: article.dek || '',
   image: ogImage || undefined,
   datePublished: publishedISO,
-  author: { '@type': 'Person', name: 'Virginia Rickards' },
+  author: { '@type': 'Person', name: 'Emma Harrison', url: 'https://www.virra.app/about' },
   publisher: { '@type': 'Organization', name: 'VIRRA', url: 'https://virra.app' },
 };
 ---
@@ -71,6 +71,7 @@ const schema = {
         <h1>{article.title}</h1>
         {article.dek && <p class="excerpt">{article.dek}</p>}
         <div class="meta">
+          <span class="byline">BY {(article.author as string | undefined)?.toUpperCase() ?? 'EMMA'}</span>
           {publishedFormatted && <time datetime={publishedISO}>{publishedFormatted}</time>}
           <span class="read-time">{readTime} min read</span>
         </div>
@@ -187,9 +188,10 @@ const schema = {
   }
   .article-body.prose :global(h3) {
     font-family: var(--font-display);
-    font-size: 1.4rem;
-    font-weight: 900;
+    font-size: 1.1rem;
+    font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: -0.01em;
     color: var(--breath);
     margin: 2rem 0 0.75rem;
   }

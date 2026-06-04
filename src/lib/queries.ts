@@ -54,7 +54,7 @@ export const ARTICLE_BY_SLUG_QUERY = `*[_type == "article" && slug.current == $s
   ogImage
 }`;
 
-export const RELATED_ARTICLES_QUERY = `*[_type == "article" && category == $category && slug.current != $slug] | order(publishedDate desc) [0..2] {
+export const RELATED_ARTICLES_QUERY = `*[_type == "article" && slug.current != $slug] | order(publishedDate desc) [0..9] {
   title,
   slug,
   dek,

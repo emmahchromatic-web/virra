@@ -31,6 +31,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
         {home?.heroSubline && (
           <p class="hero-sub">{home.heroSubline}</p>
         )}
+        <p class="hero-context">Run Hot lands in your inbox every Sunday. One email, written for women who run.</p>
         <div class="hero-nl">
           <NewsletterForm source="hero" />
         </div>
@@ -89,7 +90,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     {latestArticles?.length > 0 && (
       <section class="latest">
         <div class="wrap">
-          <SectionLabel text="Latest from Run Hot" />
+          <SectionLabel text="Latest from VIRRA" />
           <div class="articles-grid">
             {latestArticles.map((a: any) => (
               <ArticleCard
@@ -113,7 +114,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
         <div class="ct-copy">
           <SectionLabel text="1:1 Coaching" />
           <h2>Train with Emma.</h2>
-          <p class="ct-body">{home?.coachingTeaser ?? '1:1 coaching for women runners — bespoke programmes, cycle-aware training, and real accountability.'}</p>
+          <p class="ct-body">{home?.coachingTeaser ?? '1:1 coaching for women runners: bespoke programmes, cycle-aware training, and real accountability.'}</p>
           <a href="/coaching" class="cta-btn">See coaching options →</a>
         </div>
       </div>
@@ -125,7 +126,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
         <div class="ct2-inner">
           <SectionLabel text="Free tool" />
           <h2>Pace Calculator.</h2>
-          <p class="ct2-sub">{home?.calculatorTeaser ?? 'Pace, time, distance, race predictions — and cycle-aware training paces. All client-side, all free.'}</p>
+          <p class="ct2-sub">{home?.calculatorTeaser ?? 'Pace, time, distance, race predictions and cycle-aware training paces. All client-side, all free.'}</p>
           <a href="/pace-calculator" class="cta-btn-outline">Try the calculator →</a>
         </div>
       </div>
@@ -147,7 +148,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     "@context": "https://schema.org",
     "@type": "Organization",
     "name": "VIRRA",
-    "url": "https://virra.app",
+    "url": "https://www.virra.app",
     "sameAs": ["https://instagram.com/virrarun"],
     "description": "Female-first running platform. Cycle-aware training, nutrition and performance.",
   })} />
@@ -284,11 +285,20 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     margin: 8px 0 20px;
   }
   .ct-body { font-size: 1rem; line-height: 1.75; color: rgba(244,237,224,0.72); margin-bottom: 28px; }
+  .hero-context {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: rgba(244,237,224,0.72);
+    margin-bottom: 16px;
+    max-width: 440px;
+  }
   .cta-btn {
     display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.18em;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     background: var(--pulse);
     color: var(--mile);
@@ -314,9 +324,10 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
   .ct2-sub { font-size: 1rem; line-height: 1.75; color: rgba(244,237,224,0.72); margin-bottom: 28px; }
   .cta-btn-outline {
     display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    letter-spacing: 0.18em;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid var(--pulse);
     color: var(--pulse);
@@ -329,7 +340,8 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
 
   /* NEWSLETTER BLOCK */
   .nl-block { padding: 80px 0; background: var(--heat); border-top: 1px solid var(--border); }
-  .nl-block :global(.section-label) { color: var(--pulse); }
+  /* All text Mile Ink at full opacity — WCAG AA on Heat Magenta (4.66:1 minimum) */
+  .nl-block :global(.section-label) { color: var(--mile); }
   .nl-block h2 {
     font-family: var(--font-display);
     font-size: clamp(3rem, 7vw, 6rem);
@@ -337,10 +349,21 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     text-transform: uppercase;
     letter-spacing: -0.04em;
     line-height: 0.86;
-    color: var(--breath);
+    color: var(--mile);
     margin: 8px 0 20px;
   }
-  .nl-block-sub { font-size: 1.05rem; color: rgba(244,237,224,0.85); margin-bottom: 28px; }
+  .nl-block-sub { font-size: 1.05rem; color: var(--mile); margin-bottom: 28px; }
+  .nl-block :global(.nl-label) { color: var(--mile); }
+  .nl-block :global(.nl-ok) { color: var(--mile); }
+  .nl-block :global(.nl-err) { color: var(--mile); }
+  .nl-block :global(.nl-note) { color: var(--mile); }
+  .nl-block :global(.nl-form input[type=email]) {
+    background: rgba(10,10,15,0.06);
+    border-color: rgba(10,10,15,0.3);
+    color: var(--mile);
+  }
+  .nl-block :global(.nl-form input[type=email]::placeholder) { color: rgba(10,10,15,0.5); }
+  .nl-block :global(.nl-form input[type=email]:focus) { border-color: var(--mile); }
 
   @media (max-width: 900px) {
     .pillars-grid { grid-template-columns: 1fr; }
