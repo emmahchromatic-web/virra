@@ -26,10 +26,10 @@ export interface TodayCheckin {
   sleep:  number | null;
 }
 
-export async function getMonthlyStats(userId: string): Promise<MonthlyStats> {
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  const monthStartStr = monthStart.toLocaleDateString('en-CA');
+export async function getMonthlyStats(userId: string, today?: string): Promise<MonthlyStats> {
+  const base = today ? new Date(today) : new Date();
+  base.setDate(1);
+  const monthStartStr = base.toLocaleDateString('en-CA');
 
   const { data } = await supabase
     .from('planned_sessions')
