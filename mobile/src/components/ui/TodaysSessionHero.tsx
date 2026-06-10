@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -46,10 +46,11 @@ function StatusBadge({ status }: StatusBadgeProps) {
 }
 
 interface Props {
-  sessions: TodaysSession[];
+  sessions:      TodaysSession[];
+  onStartPress?: () => void;
 }
 
-export function TodaysSessionHero({ sessions }: Props) {
+export function TodaysSessionHero({ sessions, onStartPress }: Props) {
   if (sessions.length === 0) {
     return (
       <VirraCard style={styles.card}>
@@ -111,6 +112,18 @@ export function TodaysSessionHero({ sessions }: Props) {
           <StatusBadge status={s.status} />
         </View>
       ))}
+      {onStartPress && sessions.some(s => s.status === 'planned') && (
+        <Pressable
+          style={styles.startBtn}
+          onPress={onStartPress}
+          accessibilityRole="button"
+          accessibilityLabel="Start today's session"
+        >
+          <VirraText variant="display" size={13} color={colors.mile} style={styles.startLabel}>
+            {sessions.find(s => s.modality === 'run' && s.status === 'planned') ? '▶  START RUN' : '▶  START SESSION'}
+          </VirraText>
+        </Pressable>
+      )}
     </VirraCard>
   );
 }
@@ -123,4 +136,12 @@ const styles = StyleSheet.create({
   icon:       { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   badge:      { flexDirection: 'row', alignItems: 'center', gap: 4,
                 paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1 },
+  startBtn: {
+    backgroundColor: colors.pulse,
+    borderRadius:    radius.sm,
+    paddingVertical: spacing.sm,
+    alignItems:      'center',
+    marginTop:       spacing.xs,
+  },
+  startLabel: { letterSpacing: 1.5 },
 });
