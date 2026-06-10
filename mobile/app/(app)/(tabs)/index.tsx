@@ -194,12 +194,11 @@ export default function DashboardScreen() {
 
         {/* 3. Today session + rings */}
         <View style={styles.heroRow}>
-          <View style={{ flex: 1 }}>
-            <TodaysSessionHero
-              sessions={todaySessions}
-              onStartPress={() => router.push('/(app)/(tabs)/training' as any)}
-            />
-          </View>
+          <TodaysSessionHero
+            sessions={todaySessions}
+            onStartPress={() => router.push('/(app)/(tabs)/training' as any)}
+            style={styles.sessionHero}
+          />
           <VirraCard style={styles.ringsCard}>
             <ActivityRings
               steps={steps}
@@ -345,6 +344,7 @@ const styles = StyleSheet.create({
   streakLeft:  { flexDirection: 'row', alignItems: 'baseline', gap: 5 },
   streakMeta:  { letterSpacing: 0.5 },
   heroRow:     { flexDirection: 'row', alignItems: 'stretch', gap: spacing.md },
+  sessionHero: { flex: 1 },
   ringsCard:   { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, width: 80 },
   actionRow:   { flexDirection: 'row', gap: spacing.md },
   actionTile:  {

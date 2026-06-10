@@ -17,6 +17,9 @@ interface Tip {
 
 const CARD_WIDTH = Dimensions.get('window').width * 0.58;
 
+// Stepped fade overlay simulating a gradient from transparent → card bg (colors.mist = #1C1C24)
+const FADE_STEPS = [0, 0.05, 0.14, 0.3, 0.54, 0.78, 1] as const;
+
 const CATEGORY_COLOR: Record<string, string> = {
   training:  colors.pulse,
   nutrition: colors.dawn,
@@ -60,36 +63,53 @@ export function TipsCarousel({ phase }: Props) {
       {loading ? (
         <Shimmer height={72} lines={1} />
       ) : (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
-        >
-          {tips.map((tip) => (
-            <View key={tip.id} style={styles.tip}>
-              <VirraText
-                variant="mono"
-                size={7}
-                color={CATEGORY_COLOR[tip.category] ?? colors.muted}
-                style={styles.cat}
-              >
-                {tip.category.toUpperCase()} · {tip.phase === 'all' ? 'ALL PHASES' : tip.phase.toUpperCase()}
-              </VirraText>
-              <VirraText variant="body" size={13} color={colors.breath} style={styles.text}>
-                {tip.tip_text}
-              </VirraText>
-            </View>
-          ))}
-        </ScrollView>
+        <View style={styles.scrollWrap}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.scroll}
+          >
+            {tips.map((tip) => (
+              <View key={tip.id} style={styles.tip}>
+                <VirraText
+                  variant="mono"
+                  size={7}
+                  color={CATEGORY_COLOR[tip.category] ?? colors.muted}
+                  style={styles.cat}
+                >
+                  {tip.category.toUpperCase()} · {tip.phase === 'all' ? 'ALL PHASES' : tip.phase.toUpperCase()}
+                </VirraText>
+                <VirraText variant="body" size={13} color={colors.breath} style={styles.text}>
+                  {tip.tip_text}
+                </VirraText>
+              </View>
+            ))}
+          </ScrollView>
+          <View style={styles.fadeRight} pointerEvents="none">
+            {FADE_STEPS.map((opacity, i) => (
+              <View key={i} style={[styles.fadeSlice, { backgroundColor: `rgba(28,28,36,${opacity})` }]} />
+            ))}
+          </View>
+        </View>
       )}
     </VirraCard>
   );
 }
 
 const styles = StyleSheet.create({
-  card:   { gap: spacing.xs },
-  kicker: { letterSpacing: 1.5 },
-  scroll: { gap: spacing.sm, paddingRight: spacing.lg },
+  card:      { gap: spacing.xs },
+  kicker:    { letterSpacing: 1.5 },
+  scrollWrap: { position: 'relative' },
+  scroll:    { gap: spacing.sm, paddingRight: spacing.lg },
+  fadeRight: {
+    position:       'absolute',
+    right:          0,
+    top:            0,
+    bottom:         0,
+    width:          40,
+    flexDirection:  'row',
+  },
+  fadeSlice: { flex: 1 },
   tip:    {
     width:           CARD_WIDTH,
     backgroundColor: 'rgba(10,10,15,0.6)',

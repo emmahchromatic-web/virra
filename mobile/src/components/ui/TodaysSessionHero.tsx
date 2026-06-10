@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable, type StyleProp, type ViewStyle } from 'react-native';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -48,12 +48,13 @@ function StatusBadge({ status }: StatusBadgeProps) {
 interface Props {
   sessions:      TodaysSession[];
   onStartPress?: () => void;
+  style?:        StyleProp<ViewStyle>;
 }
 
-export function TodaysSessionHero({ sessions, onStartPress }: Props) {
+export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
   if (sessions.length === 0) {
     return (
-      <VirraCard style={styles.card}>
+      <VirraCard style={[styles.card, style]}>
         <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
           TODAY
         </VirraText>
@@ -68,7 +69,7 @@ export function TodaysSessionHero({ sessions, onStartPress }: Props) {
   }
 
   return (
-    <VirraCard style={styles.card}>
+    <VirraCard style={[styles.card, style]}>
       <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
         TODAY · {sessions.length > 1 ? `${sessions.length} SESSIONS` : '1 SESSION'}
       </VirraText>
