@@ -28,7 +28,7 @@ function MacroBar({ label, logged, target, color }: { label: string; logged: num
     <View style={bar.row}>
       <VirraText variant="mono" size={7} color={colors.muted} style={bar.label}>{label}</VirraText>
       <View style={bar.track}>
-        <View style={[bar.fill, { width: `${fill * 100}%` as any, backgroundColor: color }]} />
+        <View style={[bar.fill, { width: `${fill * 100}%`, backgroundColor: color }]} />
       </View>
       <VirraText variant="mono" size={7} color={colors.muted} style={bar.val}>{Math.round(logged)}g</VirraText>
     </View>
@@ -67,7 +67,7 @@ export function NutritionArcCard({ totals, onPress }: Props) {
         <View style={styles.bars}>
           <MacroBar label="CARB" logged={totals.carbsLogged}   target={totals.carbsTarget}   color={colors.pulse} />
           <MacroBar label="PRO"  logged={totals.proteinLogged} target={totals.proteinTarget} color={colors.dawn}  />
-          <MacroBar label="FAT"  logged={totals.fatLogged}     target={totals.fatTarget}     color="rgba(244,237,224,0.25)" />
+          <MacroBar label="FAT"  logged={totals.fatLogged}     target={totals.fatTarget}     color={`${colors.breath}40`} />
         </View>
       </View>
     </VirraCard>

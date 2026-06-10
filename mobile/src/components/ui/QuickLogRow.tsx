@@ -26,7 +26,7 @@ function LogTile({ symbol, label, accessibilityLabel, onPress }: TileProps) {
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <SymbolView name={symbol} size={20} tintColor={colors.muted as string} />
+      <SymbolView name={symbol} size={20} tintColor={colors.muted} />
       <VirraText variant="mono" size={7} color={colors.muted} style={styles.label}>{label}</VirraText>
     </Pressable>
   );
