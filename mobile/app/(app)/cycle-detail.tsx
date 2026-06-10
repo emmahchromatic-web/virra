@@ -156,7 +156,10 @@ export default function CycleDetailScreen() {
                     cycleLength={cycleLength}
                   />
                 </VirraCard>
-                <WeightGlanceCard latestKg={readings.length ? readings[readings.length - 1].weight_kg : null} />
+                <WeightGlanceCard
+                  latestKg={readings.length ? readings[readings.length - 1].weight_kg : null}
+                  onPress={() => router.push('/(app)/weight' as any)}
+                />
               </>
             )}
 
