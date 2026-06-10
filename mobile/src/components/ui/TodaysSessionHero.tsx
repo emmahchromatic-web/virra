@@ -119,8 +119,9 @@ export function TodaysSessionHero({ sessions, onStartPress }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Start today's session"
         >
+          <SymbolView name="play.fill" size={13} tintColor={colors.mile} />
           <VirraText variant="display" size={13} color={colors.mile} style={styles.startLabel}>
-            {sessions.find(s => s.modality === 'run' && s.status === 'planned') ? '▶  START RUN' : '▶  START SESSION'}
+            {sessions.find(s => s.modality === 'run' && s.status === 'planned') ? 'START RUN' : 'START SESSION'}
           </VirraText>
         </Pressable>
       )}
@@ -141,6 +142,9 @@ const styles = StyleSheet.create({
     borderRadius:    radius.sm,
     paddingVertical: spacing.sm,
     alignItems:      'center',
+    justifyContent:  'center',
+    flexDirection:   'row',
+    gap:             spacing.xs,
     marginTop:       spacing.xs,
   },
   startLabel: { letterSpacing: 1.5 },
