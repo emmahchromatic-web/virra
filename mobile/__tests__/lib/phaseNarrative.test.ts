@@ -9,7 +9,7 @@ describe('buildNarrative', () => {
 
   it('combines phase + run day + luteal hard cue', () => {
     const result = buildNarrative('luteal' as CyclePhase, 3, [{ session_label: 'Long Run' }], 'hard');
-    expect(result).toBe('Luteal Day 3 · Long run today · Fuel hard, rest after.');
+    expect(result).toBe('Luteal Day 3 · Long Run today · Fuel hard, rest after.');
   });
 
   it('combines phase + rest day + luteal easy cue', () => {
@@ -34,7 +34,7 @@ describe('buildNarrative', () => {
 
   it('omits phase segment when phase is null but session exists', () => {
     const result = buildNarrative(null, null, [{ session_label: 'Easy Run' }], 'easy');
-    expect(result).toBe('Easy run today · Fuel well today.');
+    expect(result).toBe('Easy Run today · Fuel well today.');
   });
 
   it('capitalises first letter of session label', () => {
@@ -45,6 +45,6 @@ describe('buildNarrative', () => {
   it('uses first session when multiple sessions planned', () => {
     const sessions = [{ session_label: 'Long Run' }, { session_label: 'Strength' }];
     const result = buildNarrative('luteal' as CyclePhase, 3, sessions, 'hard');
-    expect(result).toContain('Long run today');
+    expect(result).toContain('Long Run today');
   });
 });

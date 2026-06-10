@@ -40,7 +40,7 @@ function cueFor(phase: CyclePhase | null, load: TrainingLoad): string {
 function sessionLabel(sessions: SessionStub[]): string | null {
   if (sessions.length === 0) return null;
   const raw = sessions[0].session_label;
-  return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
 }
 
 export function buildNarrative(
