@@ -69,10 +69,13 @@ export default function DashboardScreen() {
       setExerciseMins(e);
     });
 
+    // Capture freshly-fetched load into a local const — do NOT read inferredLoad state here
+    let resolvedLoad: TrainingLoad = 'easy';
     try {
       const ctx = await getDailyTrainingContext(session.user.id, today, cycleInfo?.phase ?? null);
+      resolvedLoad = ctx.inferred_load;
       setInferredLoad(ctx.inferred_load);
-    } catch { /* keep previous load */ }
+    } catch { /* keep default */ }
 
     try {
       const sessions = await getTodaysSessions(session.user.id);
@@ -82,14 +85,14 @@ export default function DashboardScreen() {
     try {
       const [monthly, nutr, ci] = await Promise.all([
         getMonthlyStats(session.user.id, today),
-        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, inferredLoad),
+        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, resolvedLoad),
         getTodayCheckin(session.user.id, today),
       ]);
       setMonthlyStats(monthly);
       setNutrition(nutr);
       setCheckin(ci);
     } catch { /* no-op */ }
-  }, [session, today, cycleInfo?.phase, inferredLoad]);
+  }, [session, today, cycleInfo?.phase]); // inferredLoad removed from deps
 
   useEffect(() => {
     loadAll();
@@ -271,7 +274,7 @@ export default function DashboardScreen() {
             >
               <SymbolView name="checkmark.circle.fill" size={28} tintColor={colors.pulse} />
               <View style={{ flex: 1 }}>
-                <VirraText variant="mono" size={10} color={colors.pulse} style={styles.actionLabel}>✓ CHECKED IN</VirraText>
+                <VirraText variant="mono" size={10} color={colors.pulse} style={styles.actionLabel}>CHECKED IN</VirraText>
                 <View style={styles.checkinVals}>
                   {[
                     { label: 'ENERGY', val: checkin.energy },
