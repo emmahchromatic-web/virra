@@ -3,8 +3,8 @@ import { render, waitFor } from '@testing-library/react-native';
 import { TipsCarousel } from '@/components/ui/TipsCarousel';
 
 const mockTips = [
-  { id: '1', phase: 'luteal', category: 'training', tip_text: 'Run to feel, not to pace.', active: true },
-  { id: '2', phase: 'luteal', category: 'nutrition', tip_text: 'Honour carb cravings with quality fuel.', active: true },
+  { id: '1', phase: 'luteal', category: 'training', tip_text: 'Run to feel, not to pace.' },
+  { id: '2', phase: 'luteal', category: 'nutrition', tip_text: 'Honour carb cravings with quality fuel.' },
 ];
 
 jest.mock('@/lib/supabase', () => {
@@ -38,8 +38,8 @@ describe('TipsCarousel', () => {
   });
 
   it('renders shimmer while loading', () => {
-    const { UNSAFE_getByType } = render(<TipsCarousel phase="luteal" />);
-    expect(UNSAFE_getByType(require('@/components/ui/Shimmer').Shimmer)).toBeTruthy();
+    const { getByTestId } = render(<TipsCarousel phase="luteal" />);
+    expect(getByTestId('shimmer')).toBeTruthy();
   });
 
   it('renders with null phase (falls back to all tips)', async () => {
