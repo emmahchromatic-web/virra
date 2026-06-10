@@ -40,8 +40,9 @@ interface Props {
 }
 
 export function TipsCarousel({ phase }: Props) {
-  const [tips,    setTips]    = useState<Tip[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tips,      setTips]      = useState<Tip[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [scrolled,  setScrolled]  = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +69,8 @@ export function TipsCarousel({ phase }: Props) {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.scroll}
+            scrollEventThrottle={16}
+            onScroll={(e) => setScrolled(e.nativeEvent.contentOffset.x > 0)}
           >
             {tips.map((tip) => (
               <View key={tip.id} style={styles.tip}>
@@ -85,6 +88,13 @@ export function TipsCarousel({ phase }: Props) {
               </View>
             ))}
           </ScrollView>
+          {scrolled && (
+            <View style={styles.fadeLeft} pointerEvents="none">
+              {[...FADE_STEPS].reverse().map((opacity, i) => (
+                <View key={i} style={[styles.fadeSlice, { backgroundColor: `rgba(28,28,36,${opacity})` }]} />
+              ))}
+            </View>
+          )}
           <View style={styles.fadeRight} pointerEvents="none">
             {FADE_STEPS.map((opacity, i) => (
               <View key={i} style={[styles.fadeSlice, { backgroundColor: `rgba(28,28,36,${opacity})` }]} />
@@ -101,13 +111,21 @@ const styles = StyleSheet.create({
   kicker:    { letterSpacing: 1.5 },
   scrollWrap: { position: 'relative' },
   scroll:    { gap: spacing.sm, paddingRight: spacing.lg },
+  fadeLeft: {
+    position:      'absolute',
+    left:          0,
+    top:           0,
+    bottom:        0,
+    width:         40,
+    flexDirection: 'row',
+  },
   fadeRight: {
-    position:       'absolute',
-    right:          0,
-    top:            0,
-    bottom:         0,
-    width:          40,
-    flexDirection:  'row',
+    position:      'absolute',
+    right:         0,
+    top:           0,
+    bottom:        0,
+    width:         40,
+    flexDirection: 'row',
   },
   fadeSlice: { flex: 1 },
   tip:    {
