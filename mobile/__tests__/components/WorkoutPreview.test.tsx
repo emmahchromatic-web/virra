@@ -168,4 +168,42 @@ describe('WorkoutPreviewScreen', () => {
       expect(supabaseMock.__updateEq).toHaveBeenCalled();
     });
   });
+
+  it('correctly saves when STOP is pressed from paused state', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons: any) => {
+      const confirm = buttons?.find((b: any) => b.style !== 'cancel');
+      confirm?.onPress?.();
+    });
+
+    const { findByText, getByText } = render(<WorkoutPreviewScreen />);
+    await findByText(/let's go/i);
+    fireEvent.press(getByText(/let's go/i));
+    act(() => { jest.advanceTimersByTime(5000); });
+    fireEvent.press(getByText('PAUSE'));
+    act(() => { jest.advanceTimersByTime(3000); }); // 3s of paused time, should not count
+    fireEvent.press(getByText('STOP'));
+
+    await waitFor(() => {
+      expect(NativeModules.AppleHealthKit.saveWorkout).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'TraditionalStrengthTraining', duration: 5 }),
+        expect.any(Function),
+      );
+    });
+  });
+
+  it('resumes timer when stop alert is cancelled', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons: any) => {
+      const cancel = buttons?.find((b: any) => b.style === 'cancel');
+      cancel?.onPress?.();
+    });
+
+    const { findByText, getByText } = render(<WorkoutPreviewScreen />);
+    await findByText(/let's go/i);
+    fireEvent.press(getByText(/let's go/i));
+    act(() => { jest.advanceTimersByTime(3000); });
+    fireEvent.press(getByText('STOP'));
+    // Timer should resume after cancel
+    act(() => { jest.advanceTimersByTime(2000); });
+    expect(getByText('00:05')).toBeTruthy();
+  });
 });

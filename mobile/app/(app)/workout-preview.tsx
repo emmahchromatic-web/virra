@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View, ScrollView, StyleSheet, Pressable, Alert,
   NativeModules, ActivityIndicator,
@@ -98,14 +98,18 @@ export default function WorkoutPreviewScreen() {
   // Cleanup timer on unmount
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
 
-  function startTimer() {
-    startedAt.current      = new Date();
-    pausedDurationMs.current = 0;
-    setState('active');
+  function startTicker() {
     timerRef.current = setInterval(() => {
       const elapsed = Date.now() - startedAt.current!.getTime() - pausedDurationMs.current;
       setElapsedS(Math.floor(elapsed / 1000));
     }, 1000);
+  }
+
+  function startTimer() {
+    startedAt.current      = new Date();
+    pausedDurationMs.current = 0;
+    setState('active');
+    startTicker();
   }
 
   function handlePause() {
@@ -119,15 +123,20 @@ export default function WorkoutPreviewScreen() {
       pausedDurationMs.current += Date.now() - pausedAt.current;
       pausedAt.current = null;
     }
-    timerRef.current = setInterval(() => {
-      const elapsed = Date.now() - startedAt.current!.getTime() - pausedDurationMs.current;
-      setElapsedS(Math.floor(elapsed / 1000));
-    }, 1000);
+    startTicker();
     setState('active');
   }
 
   function handleStop() {
     if (timerRef.current) clearInterval(timerRef.current);
+    // Flush any in-progress pause so elapsedS and durationSeconds are accurate
+    if (pausedAt.current) {
+      pausedDurationMs.current += Date.now() - pausedAt.current;
+      pausedAt.current = null;
+      // Recompute elapsed with the flushed paused time
+      const elapsed = Date.now() - startedAt.current!.getTime() - pausedDurationMs.current;
+      setElapsedS(Math.floor(elapsed / 1000));
+    }
     const finalSeconds = elapsedS;
     Alert.alert(
       'End session?',
@@ -138,10 +147,7 @@ export default function WorkoutPreviewScreen() {
           style: 'cancel',
           onPress: () => {
             setState('active');
-            timerRef.current = setInterval(() => {
-              const elapsed = Date.now() - startedAt.current!.getTime() - pausedDurationMs.current;
-              setElapsedS(Math.floor(elapsed / 1000));
-            }, 1000);
+            startTicker();
           },
         },
         { text: 'End session', onPress: () => saveSession(finalSeconds) },
@@ -155,16 +161,14 @@ export default function WorkoutPreviewScreen() {
 
     const modality  = sessionData?.modality ?? 'other';
     const startDate = startedAt.current.toISOString();
-    const endDate   = new Date(
-      startedAt.current.getTime() + durationSeconds * 1000 + pausedDurationMs.current,
-    ).toISOString();
+    const endDate   = new Date().toISOString();
     const phaseAtTime = cycleInfo?.phase ?? null;
 
     // HealthKit — fire and forget
     const HK = NativeModules.AppleHealthKit;
     if (HK?.saveWorkout) {
       HK.saveWorkout(
-        { type: HK_TYPE[modality] ?? 'FunctionalStrengthTraining', startDate, endDate, duration: durationSeconds },
+        { type: HK_TYPE[modality] ?? HK_TYPE.other, startDate, endDate, duration: durationSeconds },
         () => {},
       );
     }
@@ -204,11 +208,11 @@ export default function WorkoutPreviewScreen() {
     router.back();
   }
 
-  const label    = sessionData
+  const label    = useMemo(() => sessionData
     ? sessionData.session_label.charAt(0).toUpperCase() + sessionData.session_label.slice(1).toLowerCase()
-    : '';
+    : '', [sessionData]);
   const modality = sessionData?.modality ?? 'other';
-  const steps    = sessionData ? buildStepLines(sessionData) : [];
+  const steps    = useMemo(() => sessionData ? buildStepLines(sessionData) : [], [sessionData]);
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
