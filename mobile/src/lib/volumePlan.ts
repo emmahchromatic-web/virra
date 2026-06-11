@@ -479,10 +479,11 @@ export async function getWeeklyVolumePlan(
 // ---- 1d. Day session detail ----
 
 export async function getDaySessionDetail(
-  userId:        string,
-  dateISO:       string,
-  cycleStore:    { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null },
-  cycle_profile: CycleProfile = 'natural',
+  userId:           string,
+  dateISO:          string,
+  cycleStore:       { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null },
+  cycle_profile:    CycleProfile = 'natural',
+  has_placebo_week: boolean | null = null,
 ): Promise<DayDetail> {
   // Today's phase is used for block-load stacking and goal-pace forecasting
   // (those are forward-looking, "what's my current readiness" concerns).
@@ -666,6 +667,7 @@ export async function getDaySessionDetail(
           run_session_type,
           phaseForDate,
           cycle_profile,
+          has_placebo_week,
         );
 
         const sRow = s as typeof s & {
@@ -674,7 +676,7 @@ export async function getDaySessionDetail(
         };
         const structure = (structureById[s.id]?.run_structure ?? sRow.run_structure) ?? null;
         const modulated_structure = structure
-          ? modulateRunStructure(structure, phaseForDate, cycle_profile).adjusted
+          ? modulateRunStructure(structure, phaseForDate, cycle_profile, has_placebo_week).adjusted
           : null;
 
         allSessions.push({
@@ -707,6 +709,7 @@ export async function getDaySessionDetail(
         strength_session_type,
         phaseForDate,
         cycle_profile,
+        has_placebo_week,
       );
       const sRow = s as typeof s & {
         run_structure:      RunWorkoutStructure | null;

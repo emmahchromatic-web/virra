@@ -39,11 +39,12 @@ export function flattenRunSteps(structure: RunWorkoutStructure): FlatStep[] {
  * for that session. Returns null if no step carries a usable pace+distance.
  */
 export function expectedModulatedAvgPace(
-  structure: RunWorkoutStructure,
-  phase: CyclePhase | null,
-  profile: CycleProfile | null,
+  structure:       RunWorkoutStructure,
+  phase:           CyclePhase | null,
+  profile:         CycleProfile | null,
+  hasPlaceboWeek:  boolean | null = null,
 ): number | null {
-  const { adjusted } = modulateRunStructure(structure, phase, profile);
+  const { adjusted } = modulateRunStructure(structure, phase, profile, hasPlaceboWeek);
   const flat = flattenRunSteps(adjusted);
   if (flat.length === 0) return null;
   const totalDist = flat.reduce((a, s) => a + s.distance_m, 0);
@@ -60,12 +61,13 @@ export function expectedModulatedAvgPace(
  */
 export function baselineEquivalentForRun(
   currentBaseline: number,
-  actualAvgPace: number,
-  structure: RunWorkoutStructure,
-  phase: CyclePhase | null,
-  profile: CycleProfile | null,
+  actualAvgPace:   number,
+  structure:       RunWorkoutStructure,
+  phase:           CyclePhase | null,
+  profile:         CycleProfile | null,
+  hasPlaceboWeek:  boolean | null = null,
 ): number | null {
-  const expected = expectedModulatedAvgPace(structure, phase, profile);
+  const expected = expectedModulatedAvgPace(structure, phase, profile, hasPlaceboWeek);
   if (expected == null || expected <= 0) return null;
   return Math.round(currentBaseline * (actualAvgPace / expected));
 }
@@ -113,15 +115,16 @@ export const DEFAULT_DETECT_CONFIG: DetectConfig = {
 };
 
 export interface DetectParams {
-  samples: CompletedRunSample[];
-  currentBaseline: number;
-  cycleProfile: CycleProfile | null;
-  today: string;
-  lastAssessmentDate: string | null;
-  snoozedUntil: string | null;
-  breaks: { start: string; end: string }[];
-  hasUpcomingRuns?: boolean;
-  config?: Partial<DetectConfig>;
+  samples:             CompletedRunSample[];
+  currentBaseline:     number;
+  cycleProfile:        CycleProfile | null;
+  hasPlaceboWeek:      boolean | null;
+  today:               string;
+  lastAssessmentDate:  string | null;
+  snoozedUntil:        string | null;
+  breaks:              { start: string; end: string }[];
+  hasUpcomingRuns?:    boolean;
+  config?:             Partial<DetectConfig>;
 }
 
 const DAY_MS = 86_400_000;
@@ -170,7 +173,7 @@ export function detectBaselineDrift(params: DetectParams): Verdict | null {
 
   const equivs: number[] = [];
   for (const s of qualifying) {
-    const eq = baselineEquivalentForRun(currentBaseline, s.avg_pace_secs, s.run_structure!, s.phase_at_time, cycleProfile);
+    const eq = baselineEquivalentForRun(currentBaseline, s.avg_pace_secs, s.run_structure!, s.phase_at_time, cycleProfile, params.hasPlaceboWeek ?? null);
     if (eq != null) equivs.push(eq);
   }
   if (equivs.length < cfg.minRuns) return null;

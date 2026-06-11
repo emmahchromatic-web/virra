@@ -78,16 +78,17 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
   const [detail, setDetail]       = useState<DayDetail | null>(null);
   const [loading, setLoading]     = useState(false);
   const [busy, setBusy]           = useState(false);
-  const cycleProfile = useCycleStore((s) => s.cycleProfile);
+  const cycleProfile   = useCycleStore((s) => s.cycleProfile);
+  const hasPlaceboWeek = useCycleStore((s) => s.hasPlaceboWeek);
 
   const reloadDetail = useCallback(async () => {
     try {
-      const d = await getDaySessionDetail(userId, date, cycleStore, cycleProfile);
+      const d = await getDaySessionDetail(userId, date, cycleStore, cycleProfile, hasPlaceboWeek);
       setDetail(d);
     } catch (e) {
       console.warn('[SessionDetailModal]', e);
     }
-  }, [userId, date, cycleStore, cycleProfile]);
+  }, [userId, date, cycleStore, cycleProfile, hasPlaceboWeek]);
 
   useEffect(() => {
     if (visible && date) {
@@ -95,7 +96,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
       setLoading(true);
       // Ensure the store cache covers this date so cross-screen mutations propagate
       useSessionStore.getState().ensureLoaded(date, date).catch(() => {});
-      getDaySessionDetail(userId, date, cycleStore, cycleProfile)
+      getDaySessionDetail(userId, date, cycleStore, cycleProfile, hasPlaceboWeek)
         .then(setDetail)
         .catch((e) => console.warn('[SessionDetailModal]', e))
         .finally(() => setLoading(false));

@@ -14,7 +14,8 @@ function todayIso(): string {
 }
 
 export function useFitnessUpdate(userId: string | null) {
-  const cycleProfile = useCycleStore((s) => s.cycleProfile);
+  const cycleProfile   = useCycleStore((s) => s.cycleProfile);
+  const hasPlaceboWeek = useCycleStore((s) => s.hasPlaceboWeek);
   const [verdict, setVerdict] = useState<Verdict | null>(null);
   const [statedLevel, setStatedLevel] = useState<string | null>(null);
 
@@ -107,6 +108,7 @@ export function useFitnessUpdate(userId: string | null) {
       samples,
       currentBaseline: baseline,
       cycleProfile,
+      hasPlaceboWeek,
       today,
       lastAssessmentDate: assessRes.data?.assessed_on ?? null,
       snoozedUntil: profileRes.data?.fitness_check_snoozed_until ?? null,
@@ -115,7 +117,7 @@ export function useFitnessUpdate(userId: string | null) {
       hasUpcomingRuns: (upcomingRes.count ?? 0) > 0,
     });
     setVerdict(v);
-  }, [userId, cycleProfile]);
+  }, [userId, cycleProfile, hasPlaceboWeek]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

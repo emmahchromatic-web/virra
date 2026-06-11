@@ -148,9 +148,10 @@ export async function enrichTodaysSessions(
   }
 
   // Read cycle state synchronously from Zustand — free, no DB round trip
-  const cycleState   = useCycleStore.getState();
-  const cyclePhase   = cycleState.cycleInfo?.phase ?? null;
-  const cycleProfile = cycleState.cycleProfile;
+  const cycleState     = useCycleStore.getState();
+  const cyclePhase     = cycleState.cycleInfo?.phase ?? null;
+  const cycleProfile   = cycleState.cycleProfile;
+  const hasPlaceboWeek = cycleState.hasPlaceboWeek;
 
   return rows.map((r) => {
     const linked = r.activity_id ? activityMap[r.activity_id] : undefined;
@@ -168,7 +169,7 @@ export async function enrichTodaysSessions(
         pace_seconds_per_km: baselinePace,
         intensity_label:     r.session_label,
       };
-      const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile);
+      const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile, hasPlaceboWeek);
 
       if (result.reason) {
         cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
@@ -184,7 +185,7 @@ export async function enrichTodaysSessions(
       // Strength sessions: surface reason text only, no pace arrow
       const sessionType = mapLabelToSessionType(r.session_label);
       const baseTarget = { intensity_label: r.session_label };
-      const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile);
+      const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile, hasPlaceboWeek);
       if (result.reason) {
         cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
       }
@@ -195,7 +196,7 @@ export async function enrichTodaysSessions(
 
     let structure_summary: string | null = null;
     if (r.modality === 'run' && hydratedRun) {
-      const modulated = modulateRunStructure(hydratedRun, cyclePhase, cycleProfile).adjusted;
+      const modulated = modulateRunStructure(hydratedRun, cyclePhase, cycleProfile, hasPlaceboWeek).adjusted;
       structure_summary = summariseRunStructure(modulated);
     } else if (r.modality === 'strength' && hydratedStrength) {
       structure_summary = summariseStrengthStructure(hydratedStrength);
