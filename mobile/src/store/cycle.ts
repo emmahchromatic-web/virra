@@ -76,6 +76,7 @@ export const useCycleStore = create<CycleState>((set, get) => ({
 
   setHormonalSubData: ({ contraceptionType, hasPlaceboWeek, currentPackStart }) =>
     set((s) => {
+      if (s.cycleProfile !== 'hormonal') return {};
       const mode      = deriveCycleMode(s.cycleProfile, hasPlaceboWeek);
       const cycleInfo = computeForProfile(s.cycleProfile, hasPlaceboWeek, s.periodStart, currentPackStart, s.cycleLength, new Date());
       return { contraceptionType, hasPlaceboWeek, currentPackStart, cycleMode: mode, cycleInfo };

@@ -9,9 +9,13 @@ const d = (iso: string) => new Date(iso);
 describe('useCycleStore', () => {
   beforeEach(() => {
     useCycleStore.setState({
-      periodStart: null,
-      cycleLength: 28,
-      cycleInfo:   null,
+      periodStart:       null,
+      cycleLength:       28,
+      cycleInfo:         null,
+      cycleMode:         'flow',
+      contraceptionType: null,
+      hasPlaceboWeek:    null,
+      currentPackStart:  null,
     });
   });
 
@@ -145,7 +149,7 @@ describe('useCycleStore — setCycleProfile', () => {
     expect(useCycleStore.getState().cycleInfo).toBeNull();
   });
 
-  it('preserves cycleInfo when switching to natural', () => {
+  it('recomputes cycleInfo from periodStart when switching to natural', () => {
     // Set periodStart so computeForProfile can recompute phase for a flow-mode profile.
     // Day 7 of a 28-day cycle starting 2025-01-01 → follicular.
     const periodStart = new Date('2025-01-01');
@@ -158,7 +162,7 @@ describe('useCycleStore — setCycleProfile', () => {
     expect(useCycleStore.getState().cycleInfo?.dayOfCycle).toBe(7);
   });
 
-  it('preserves cycleInfo when switching to irregular', () => {
+  it('recomputes cycleInfo from periodStart when switching to irregular', () => {
     const periodStart = new Date('2025-01-01');
     const today       = new Date('2025-01-07'); // day 7
     useCycleStore.setState({ cycleProfile: 'natural', periodStart, cycleLength: 28, cycleInfo: mockCycleInfo });
