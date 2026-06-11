@@ -1,4 +1,4 @@
-import type { CyclePhase, CycleProfile } from '@/store/cycle';
+import { deriveCycleMode, type CyclePhase, type CycleProfile } from './cycleEngine';
 
 export type SessionType = 'easy' | 'tempo' | 'intervals' | 'long' | 'race' | 'strength';
 
@@ -82,12 +82,14 @@ function conservativeReason(reason: string): string {
 }
 
 export function modulateForCycle(
-  base_target:   SessionPaceTarget,
-  session_type:  SessionType,
-  cycle_phase:   CyclePhase | null,
-  cycle_profile: CycleProfile,
+  base_target:      SessionPaceTarget,
+  session_type:     SessionType,
+  cycle_phase:      CyclePhase | null,
+  cycle_profile:    CycleProfile,
+  has_placebo_week: boolean | null = null,
 ): ModulationResult {
-  if (cycle_profile === 'hormonal' || cycle_profile === 'perimenopause' || cycle_profile === 'menopause') {
+  const mode = deriveCycleMode(cycle_profile, has_placebo_week);
+  if (mode === 'steady') {
     return { adjusted_target: base_target, reason: null, source_cycle_phase: null };
   }
   if (!cycle_phase) {
@@ -128,9 +130,10 @@ import type { RunWorkoutStructure, RunStep } from './workoutStructure';
  * aggregate `reason`. Pass `null` profile to default to 'natural'.
  */
 export function modulateRunStructure(
-  structure: RunWorkoutStructure,
-  phase:     CyclePhase | null,
-  profile:   CycleProfile | null,
+  structure:      RunWorkoutStructure,
+  phase:          CyclePhase | null,
+  profile:        CycleProfile | null,
+  hasPlaceboWeek: boolean | null = null,
 ): { adjusted: RunWorkoutStructure; reason: string | null } {
   let firstReason: string | null = null;
   const effectiveProfile: CycleProfile = profile ?? 'natural';
@@ -155,6 +158,7 @@ export function modulateRunStructure(
       sessionType,
       phase,
       effectiveProfile,
+      hasPlaceboWeek,
     );
     if (r.reason && !firstReason) firstReason = r.reason;
     const newPace = r.adjusted_target.pace_seconds_per_km;

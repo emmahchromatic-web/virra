@@ -1,10 +1,10 @@
 import { modulateForCycle, anchorKeySession } from '@/lib/cycleModulation';
 
-const baseTempo = { pace_seconds_per_km: 275, intensity_label: 'Threshold' }; // 4:35/km
+const baseTempo = { pace_seconds_per_km: 275, intensity_label: 'Threshold' };
 
 describe('modulateForCycle', () => {
   test('tempo in luteal slows the pace and surfaces a reason', () => {
-    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'natural');
+    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'natural', null);
     expect(r.adjusted_target.pace_seconds_per_km).toBeGreaterThan(275);
     expect(r.adjusted_target.pace_seconds_per_km).toBeLessThan(295);
     expect(r.reason).toContain('Luteal');
@@ -12,35 +12,60 @@ describe('modulateForCycle', () => {
   });
 
   test('tempo in follicular is baseline (no modulation)', () => {
-    const r = modulateForCycle(baseTempo, 'tempo', 'follicular', 'natural');
+    const r = modulateForCycle(baseTempo, 'tempo', 'follicular', 'natural', null);
     expect(r.adjusted_target.pace_seconds_per_km).toBe(275);
     expect(r.reason).toBeNull();
     expect(r.source_cycle_phase).toBe('follicular');
   });
 
   test('tempo in ovulatory speeds up slightly (peak power)', () => {
-    const r = modulateForCycle(baseTempo, 'tempo', 'ovulatory', 'natural');
+    const r = modulateForCycle(baseTempo, 'tempo', 'ovulatory', 'natural', null);
     expect(r.adjusted_target.pace_seconds_per_km).toBeLessThan(275);
     expect(r.reason).toContain('peak power');
   });
 
-  test('hormonal cycle profile bypasses modulation entirely', () => {
-    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'hormonal');
+  test('hormonal + no placebo week → steady, bypasses modulation', () => {
+    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'hormonal', false);
     expect(r.adjusted_target.pace_seconds_per_km).toBe(275);
     expect(r.reason).toBeNull();
     expect(r.source_cycle_phase).toBeNull();
   });
 
-  test('menopause cycle profile bypasses modulation entirely', () => {
-    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'menopause');
+  test('hormonal + null placebo week → steady (legacy / unanswered)', () => {
+    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'hormonal', null);
+    expect(r.adjusted_target.pace_seconds_per_km).toBe(275);
+    expect(r.reason).toBeNull();
+  });
+
+  test('hormonal + has_placebo_week true → pack, applies full modulation', () => {
+    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'hormonal', true);
+    expect(r.adjusted_target.pace_seconds_per_km).toBeGreaterThan(275);
+    expect(r.reason).toContain('Luteal');
+    expect(r.source_cycle_phase).toBe('luteal');
+  });
+
+  test('pregnant_postpartum → steady, bypasses modulation', () => {
+    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'pregnant_postpartum', null);
+    expect(r.adjusted_target.pace_seconds_per_km).toBe(275);
+    expect(r.reason).toBeNull();
+  });
+
+  test('prefer_not_to_say → steady, bypasses modulation', () => {
+    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'prefer_not_to_say', null);
+    expect(r.adjusted_target.pace_seconds_per_km).toBe(275);
+    expect(r.reason).toBeNull();
+  });
+
+  test('menopause → steady, bypasses modulation entirely', () => {
+    const r = modulateForCycle(baseTempo, 'tempo', 'luteal', 'menopause', null);
     expect(r.reason).toBeNull();
   });
 
   test('irregular cycle profile uses conservative half-magnitude modifiers', () => {
-    const luteal_natural   = modulateForCycle(baseTempo, 'tempo', 'luteal', 'natural');
-    const luteal_irregular = modulateForCycle(baseTempo, 'tempo', 'luteal', 'irregular');
-    const natural_delta   = luteal_natural.adjusted_target.pace_seconds_per_km!   - 275;
-    const irregular_delta = luteal_irregular.adjusted_target.pace_seconds_per_km! - 275;
+    const luteal_natural   = modulateForCycle(baseTempo, 'tempo', 'luteal', 'natural', null);
+    const luteal_irregular = modulateForCycle(baseTempo, 'tempo', 'luteal', 'irregular', null);
+    const natural_delta    = luteal_natural.adjusted_target.pace_seconds_per_km!   - 275;
+    const irregular_delta  = luteal_irregular.adjusted_target.pace_seconds_per_km! - 275;
     expect(irregular_delta).toBeLessThan(natural_delta);
     expect(irregular_delta).toBeGreaterThan(0);
     expect(luteal_irregular.reason).toContain('estimated');
@@ -48,7 +73,7 @@ describe('modulateForCycle', () => {
 
   test('long run in menstrual gets walk-friendly slower pace', () => {
     const baseLong = { pace_seconds_per_km: 330, intensity_label: 'Easy long' };
-    const r = modulateForCycle(baseLong, 'long', 'menstrual', 'natural');
+    const r = modulateForCycle(baseLong, 'long', 'menstrual', 'natural', null);
     expect(r.adjusted_target.pace_seconds_per_km).toBeGreaterThan(330);
     expect(r.reason).toContain('walk');
   });
