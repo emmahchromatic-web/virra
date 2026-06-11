@@ -1,4 +1,4 @@
-import { getCyclePhase } from '@/lib/cycleEngine';
+import { getCyclePhase, deriveCycleMode } from '@/lib/cycleEngine';
 
 const day = (n: number, from: Date) => {
   const d = new Date(from);
@@ -70,5 +70,35 @@ describe('getCyclePhase', () => {
 
   it('returns follicular correctly in a 35-day cycle', () => {
     expect(getCyclePhase(start, 35, day(10, start))).toBe('follicular');
+  });
+});
+
+describe('deriveCycleMode', () => {
+  test('natural → flow', () => {
+    expect(deriveCycleMode('natural', null)).toBe('flow');
+  });
+  test('irregular → flow', () => {
+    expect(deriveCycleMode('irregular', null)).toBe('flow');
+  });
+  test('hormonal + has_placebo_week true → pack', () => {
+    expect(deriveCycleMode('hormonal', true)).toBe('pack');
+  });
+  test('hormonal + has_placebo_week false → steady', () => {
+    expect(deriveCycleMode('hormonal', false)).toBe('steady');
+  });
+  test('hormonal + has_placebo_week null → steady', () => {
+    expect(deriveCycleMode('hormonal', null)).toBe('steady');
+  });
+  test('perimenopause → steady', () => {
+    expect(deriveCycleMode('perimenopause', null)).toBe('steady');
+  });
+  test('menopause → steady', () => {
+    expect(deriveCycleMode('menopause', null)).toBe('steady');
+  });
+  test('pregnant_postpartum → steady', () => {
+    expect(deriveCycleMode('pregnant_postpartum', null)).toBe('steady');
+  });
+  test('prefer_not_to_say → steady', () => {
+    expect(deriveCycleMode('prefer_not_to_say', null)).toBe('steady');
   });
 });

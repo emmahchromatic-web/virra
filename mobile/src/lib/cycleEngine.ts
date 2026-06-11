@@ -1,5 +1,16 @@
 export type CyclePhase = 'menstrual' | 'follicular' | 'ovulatory' | 'luteal';
-export type CycleProfile = 'natural' | 'hormonal' | 'irregular' | 'perimenopause' | 'menopause';
+
+export type CycleProfile =
+  | 'natural' | 'hormonal' | 'irregular'
+  | 'perimenopause' | 'menopause'
+  | 'pregnant_postpartum' | 'prefer_not_to_say';
+
+export type CycleMode = 'flow' | 'pack' | 'steady';
+
+export type ContraceptionType =
+  | 'combined_pill' | 'ring' | 'patch'
+  | 'mini_pill' | 'hormonal_iud' | 'implant'
+  | 'injection' | 'other';
 
 export interface CycleInfo {
   phase:               CyclePhase;
@@ -8,9 +19,9 @@ export interface CycleInfo {
   cycleLength:         number;
 }
 
-const MENSTRUAL_DAYS    = 5;
-const OVULATORY_WINDOW  = 1; // ± days around ovulation day
-const MS_PER_DAY        = 1000 * 60 * 60 * 24;
+const MENSTRUAL_DAYS   = 5;
+const OVULATORY_WINDOW = 1;
+const MS_PER_DAY       = 1000 * 60 * 60 * 24;
 
 function toMidnight(d: Date): Date {
   const out = new Date(d);
@@ -54,4 +65,13 @@ export function getCyclePhase(
   today: Date = new Date(),
 ): CyclePhase {
   return getCycleInfo(periodStart, cycleLength, today).phase;
+}
+
+export function deriveCycleMode(
+  profile: CycleProfile,
+  hasPlaceboWeek: boolean | null,
+): CycleMode {
+  if (profile === 'natural' || profile === 'irregular') return 'flow';
+  if (profile === 'hormonal' && hasPlaceboWeek === true) return 'pack';
+  return 'steady';
 }
