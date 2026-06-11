@@ -31,13 +31,12 @@ const CYCLE_PROFILES: { value: CycleProfile; label: string; sub: string; redsLin
 ];
 
 const STEADY_NOTE: Partial<Record<CycleProfile, string>> = {
-  hormonal:          'Your targets are based on training load — the same science, without cycle phase modulation.',
   perimenopause:     'Your targets are based on training load. Symptom logging is available throughout.',
   menopause:         'Your targets are based on training load. Symptom logging is available throughout.',
   prefer_not_to_say: 'Your targets are based on training load. You can update this at any time in your profile.',
 };
 
-const REDS_URL = 'https://virra.app/advice/reds';
+const REDS_URL = 'https://virra.app/advice/reds'; // TODO: update to real article slug before launch
 
 export default function CycleScreen() {
   const { setStep, setData } = useOnboarding();
