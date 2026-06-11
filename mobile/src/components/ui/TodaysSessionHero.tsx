@@ -52,32 +52,6 @@ interface Props {
 }
 
 export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
-  const planned = sessions.filter(s => s.status === 'planned');
-
-  function handleStartPress() {
-    if (!onStartPress || planned.length === 0) return;
-    if (planned.length === 1) {
-      onStartPress(planned[0]);
-      return;
-    }
-    const options = [
-      ...planned.map(s => `${s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1).toLowerCase()} · ${s.modality.toUpperCase()}`),
-      'Cancel',
-    ];
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options, cancelButtonIndex: options.length - 1 },
-      (index) => {
-        if (index < planned.length) onStartPress(planned[index]);
-      },
-    );
-  }
-
-  const buttonLabel = planned.length > 1
-    ? 'START SESSION →'
-    : planned[0]?.modality === 'run'
-      ? 'START RUN'
-      : 'START SESSION';
-
   if (sessions.length === 0) {
     return (
       <VirraCard style={[styles.card, style]}>
@@ -91,6 +65,32 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
           No session planned — recovery is part of the work.
         </VirraText>
       </VirraCard>
+    );
+  }
+
+  const planned = sessions.filter(s => s.status === 'planned');
+
+  const buttonLabel = planned.length > 1
+    ? 'START SESSION →'
+    : planned[0]?.modality === 'run'
+      ? 'START RUN'
+      : 'START SESSION';
+
+  function handleStartPress() {
+    if (!onStartPress || planned.length === 0) return;
+    if (planned.length === 1) {
+      onStartPress(planned[0]);
+      return;
+    }
+    const options = [
+      ...planned.map(s => `${labelCase(s.session_label)} · ${s.modality.toUpperCase()}`),
+      'Cancel',
+    ];
+    ActionSheetIOS.showActionSheetWithOptions(
+      { options, cancelButtonIndex: options.length - 1 },
+      (index) => {
+        if (index < planned.length) onStartPress(planned[index]);
+      },
     );
   }
 
