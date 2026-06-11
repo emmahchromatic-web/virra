@@ -4,8 +4,9 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@/modules/*": ["modules/*"]
+      "@/app/*": ["app/*"],
+      "@/modules/*": ["modules/*"],
+      "@/*": ["src/*"]
     }
   },
   "include": [
