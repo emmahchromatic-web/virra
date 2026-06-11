@@ -3,7 +3,7 @@ import {
   View, Pressable, StyleSheet, SafeAreaView, Alert, ScrollView, NativeModules,
 } from 'react-native';
 import * as Location from 'expo-location';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
@@ -55,6 +55,7 @@ type RunState = 'idle' | 'active' | 'paused' | 'finished';
 // ---- Component ----
 
 export default function RunTrackerScreen() {
+  const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const { session }               = useAuthStore();
   const { periodStart, cycleLength, cycleInfo } = useCycleStore();
 
@@ -235,6 +236,13 @@ export default function RunTrackerScreen() {
       splits_json:             splits.map((s, i) => ({ km: i + 1, sec: s })),
       gps_trace:               gpsTrace.current,
     });
+
+    if (sessionId) {
+      await supabase
+        .from('planned_sessions')
+        .update({ status: 'completed', activity_id: act.id })
+        .eq('id', sessionId);
+    }
 
     // Write to HealthKit
     const HK = NativeModules.AppleHealthKit;
