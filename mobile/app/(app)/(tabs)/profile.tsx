@@ -45,11 +45,13 @@ const row = StyleSheet.create({
 });
 
 const CYCLE_PROFILE_LABEL: Record<CycleProfile, string> = {
-  natural:       'Regular cycle',
-  hormonal:      'Hormonal contraception',
-  irregular:     'Irregular cycle',
-  perimenopause: 'Perimenopause',
-  menopause:     'Menopause',
+  natural:             'Regular cycle',
+  hormonal:            'Hormonal contraception',
+  irregular:           'Irregular cycle',
+  perimenopause:       'Perimenopause',
+  menopause:           'Menopause',
+  pregnant_postpartum: 'Pregnant or postpartum',
+  prefer_not_to_say:   'Prefer not to say',
 };
 
 export default function ProfileScreen() {

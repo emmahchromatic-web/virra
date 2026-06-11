@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView, Linking } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { HormonalSubPicker } from '@/components/cycle/HormonalSubPicker';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { fetchHKCycleData } from '@/lib/healthKitOnboarding';
-import type { CycleProfile } from '@/store/cycle';
+import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_DAY    = 24 * 60 * 60 * 1000;
 const DEFAULT_CYCLE = 28;
 
 function defaultPeriodStart() {
@@ -19,28 +20,36 @@ function formatDate(d: Date) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-const CYCLE_PROFILES: { value: CycleProfile; label: string; sub: string }[] = [
-  { value: 'natural',       label: 'Regular cycle',           sub: 'I can roughly predict it'           },
-  { value: 'hormonal',      label: 'Hormonal contraception',  sub: 'Pill, IUD, implant or patch'        },
-  { value: 'irregular',     label: 'Irregular cycle',         sub: 'Unpredictable or recently changed'  },
-  { value: 'perimenopause', label: 'Perimenopause',           sub: 'Cycles changing or stopping'        },
-  { value: 'menopause',     label: 'Menopause',               sub: 'No period for 12+ months'           },
+const CYCLE_PROFILES: { value: CycleProfile; label: string; sub: string; redsLink?: boolean }[] = [
+  { value: 'natural',             label: 'Regular cycle',           sub: 'I can roughly predict it'              },
+  { value: 'hormonal',            label: 'Hormonal contraception',  sub: 'Pill, IUD, implant, patch'             },
+  { value: 'irregular',           label: 'Irregular cycle',         sub: 'Unpredictable or recently changed', redsLink: true },
+  { value: 'pregnant_postpartum', label: 'Pregnant or postpartum',  sub: 'In the last 12 months'                },
+  { value: 'perimenopause',       label: 'Perimenopause',           sub: 'Cycles changing or stopping'          },
+  { value: 'menopause',           label: 'Menopause',               sub: 'No period for 12+ months'             },
+  { value: 'prefer_not_to_say',   label: 'Prefer not to say',       sub: 'Set this up later'                    },
 ];
 
-const NON_NATURAL_NOTE: Partial<Record<CycleProfile, string>> = {
-  hormonal:     'Your targets are based on training load — the same science, without cycle phase modulation.',
-  perimenopause:'Your targets are based on training load. Symptom logging is available throughout.',
-  menopause:    'Your targets are based on training load. Symptom logging is available throughout.',
+const STEADY_NOTE: Partial<Record<CycleProfile, string>> = {
+  hormonal:          'Your targets are based on training load — the same science, without cycle phase modulation.',
+  perimenopause:     'Your targets are based on training load. Symptom logging is available throughout.',
+  menopause:         'Your targets are based on training load. Symptom logging is available throughout.',
+  prefer_not_to_say: 'Your targets are based on training load. You can update this at any time in your profile.',
 };
+
+const REDS_URL = 'https://virra.app/advice/reds';
 
 export default function CycleScreen() {
   const { setStep, setData } = useOnboarding();
   useFocusEffect(React.useCallback(() => { setStep(6); }, [setStep]));
 
-  const [cycleProfile, setCycleProfile] = useState<CycleProfile>('natural');
-  const [periodStart, setPeriodStart]   = useState<Date>(defaultPeriodStart);
-  const [cycleLength, setCycleLength]   = useState(DEFAULT_CYCLE);
-  const [hkBadges, setHkBadges]         = useState<Set<string>>(new Set());
+  const [cycleProfile,      setCycleProfile]      = useState<CycleProfile>('natural');
+  const [periodStart,       setPeriodStart]        = useState<Date>(defaultPeriodStart);
+  const [cycleLength,       setCycleLength]        = useState(DEFAULT_CYCLE);
+  const [contraceptionType, setContraceptionType]  = useState<ContraceptionType | null>(null);
+  const [hasPlaceboWeek,    setHasPlaceboWeek]     = useState<boolean | null>(null);
+  const [currentPackStart,  setCurrentPackStart]   = useState<Date | null>(null);
+  const [hkBadges,          setHkBadges]           = useState<Set<string>>(new Set());
 
   const showDatePickers = cycleProfile === 'natural' || cycleProfile === 'irregular';
 
@@ -60,11 +69,21 @@ export default function CycleScreen() {
     });
   }
 
+  function handleCopperIUDEscape() {
+    setCycleProfile('natural');
+    setContraceptionType(null);
+    setHasPlaceboWeek(null);
+    setCurrentPackStart(null);
+  }
+
   function handleContinue() {
     setData({
       cycleProfile,
-      periodStart: showDatePickers ? periodStart : null,
-      cycleLength: showDatePickers ? cycleLength : DEFAULT_CYCLE,
+      periodStart:       showDatePickers ? periodStart : null,
+      cycleLength:       showDatePickers ? cycleLength : DEFAULT_CYCLE,
+      contraceptionType: cycleProfile === 'hormonal' ? contraceptionType : null,
+      hasPlaceboWeek:    cycleProfile === 'hormonal' ? hasPlaceboWeek : null,
+      currentPackStart:  cycleProfile === 'hormonal' && hasPlaceboWeek ? currentPackStart : null,
     });
     router.push('/(onboarding)/diet');
   }
@@ -78,30 +97,66 @@ export default function CycleScreen() {
         This personalises your training and nutrition targets.
       </VirraText>
 
-      {/* Profile selector */}
       <View style={styles.section}>
         {CYCLE_PROFILES.map((opt) => {
           const active = cycleProfile === opt.value;
           return (
-            <Pressable
-              key={opt.value}
-              onPress={() => setCycleProfile(opt.value)}
-              style={[styles.profileOption, active && styles.profileOptionActive]}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
-            >
-              <VirraText variant="bodyMedium" size={15} color={active ? colors.mile : colors.breath}>
-                {opt.label}
-              </VirraText>
-              <VirraText variant="body" size={12} color={active ? 'rgba(10,10,15,0.6)' : 'rgba(244,237,224,0.45)'}>
-                {opt.sub}
-              </VirraText>
-            </Pressable>
+            <React.Fragment key={opt.value}>
+              <Pressable
+                onPress={() => setCycleProfile(opt.value)}
+                style={[styles.profileOption, active && styles.profileOptionActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <VirraText variant="bodyMedium" size={15} color={active ? colors.mile : colors.breath}>
+                  {opt.label}
+                </VirraText>
+                <View style={styles.subRow}>
+                  <VirraText variant="body" size={12} color={active ? 'rgba(10,10,15,0.6)' : 'rgba(244,237,224,0.45)'}>
+                    {opt.sub}
+                  </VirraText>
+                  {opt.redsLink && (
+                    <Pressable onPress={(e) => { e.stopPropagation(); Linking.openURL(REDS_URL); }} hitSlop={8}>
+                      <VirraText variant="body" size={12} color={colors.dawn} style={styles.redsLink}>
+                        {' '}· Learn about RED-S
+                      </VirraText>
+                    </Pressable>
+                  )}
+                </View>
+              </Pressable>
+
+              {active && opt.value === 'hormonal' && (
+                <HormonalSubPicker
+                  contraceptionType={contraceptionType}
+                  hasPlaceboWeek={hasPlaceboWeek}
+                  currentPackStart={currentPackStart}
+                  onCopperIUDEscape={handleCopperIUDEscape}
+                  onChange={({ contraceptionType: ct, hasPlaceboWeek: hpw, currentPackStart: cps }) => {
+                    setContraceptionType(ct);
+                    setHasPlaceboWeek(hpw);
+                    setCurrentPackStart(cps);
+                  }}
+                />
+              )}
+
+              {active && opt.value === 'pregnant_postpartum' && (
+                <View style={styles.disclaimerCard}>
+                  <VirraText variant="bodyMedium" size={13} color={colors.dawn} style={styles.disclaimerTitle}>
+                    Pregnancy and postpartum aren't a fitness question — they're a healing one.
+                  </VirraText>
+                  <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={styles.disclaimerBody}>
+                    Before we build you a training plan, get cleared to exercise by your midwife, GP, or a women's health physio.
+                  </VirraText>
+                  <VirraText variant="body" size={11} color="rgba(244,237,224,0.3)" style={styles.disclaimerConfirm}>
+                    Continuing confirms you've had that conversation.
+                  </VirraText>
+                </View>
+              )}
+            </React.Fragment>
           );
         })}
       </View>
 
-      {/* Date pickers — natural and irregular only */}
       {showDatePickers && (
         <>
           <View style={styles.section}>
@@ -140,22 +195,14 @@ export default function CycleScreen() {
               )}
             </View>
             <View style={styles.stepper}>
-              <Pressable
-                onPress={() => setCycleLength((n) => Math.max(21, n - 1))}
-                style={styles.stepBtn}
-                hitSlop={12}
-              >
+              <Pressable onPress={() => setCycleLength((n) => Math.max(21, n - 1))} style={styles.stepBtn} hitSlop={12}>
                 <VirraText variant="display" size={28} color={colors.breath}>−</VirraText>
               </Pressable>
               <View style={styles.stepCenter}>
                 <VirraText variant="display" size={36} color={colors.pulse}>{cycleLength}</VirraText>
                 <VirraText variant="mono" size={10} color="rgba(244,237,224,0.4)">days</VirraText>
               </View>
-              <Pressable
-                onPress={() => setCycleLength((n) => Math.min(40, n + 1))}
-                style={styles.stepBtn}
-                hitSlop={12}
-              >
+              <Pressable onPress={() => setCycleLength((n) => Math.min(40, n + 1))} style={styles.stepBtn} hitSlop={12}>
                 <VirraText variant="display" size={28} color={colors.breath}>+</VirraText>
               </Pressable>
             </View>
@@ -166,11 +213,10 @@ export default function CycleScreen() {
         </>
       )}
 
-      {/* Contextual note for non-natural profiles */}
-      {!showDatePickers && NON_NATURAL_NOTE[cycleProfile] && (
+      {!showDatePickers && cycleProfile !== 'hormonal' && STEADY_NOTE[cycleProfile] && (
         <View style={styles.note}>
           <VirraText variant="body" size={14} color="rgba(244,237,224,0.55)" style={styles.noteText}>
-            {NON_NATURAL_NOTE[cycleProfile]}
+            {STEADY_NOTE[cycleProfile]}
           </VirraText>
         </View>
       )}
@@ -181,23 +227,29 @@ export default function CycleScreen() {
 }
 
 const styles = StyleSheet.create({
-  scroll:               { flex: 1 },
-  container:            { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
-  title:                { lineHeight: 34 },
-  sub:                  { lineHeight: 22, marginTop: -spacing.md },
-  section:              { gap: spacing.sm },
-  profileOption:        { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist, gap: 3 },
-  profileOptionActive:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  fieldRow:             { flexDirection: 'row', alignItems: 'center' },
-  fieldLabel:           { letterSpacing: 2 },
-  datePicker:           { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  dateBtn:              { width: 36, alignItems: 'center' },
-  dateText:             { flex: 1, textAlign: 'center' },
-  stepper:              { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  stepBtn:              { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  stepCenter:           { alignItems: 'center', gap: 2 },
-  stepHint:             { textAlign: 'center' },
-  note:                 { backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
-  noteText:             { lineHeight: 22 },
-  cta:                  { marginTop: spacing.sm },
+  scroll:              { flex: 1 },
+  container:           { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl },
+  title:               { lineHeight: 34 },
+  sub:                 { lineHeight: 22, marginTop: -spacing.md },
+  section:             { gap: spacing.sm },
+  profileOption:       { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist, gap: 3 },
+  profileOptionActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  subRow:              { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
+  redsLink:            { textDecorationLine: 'underline' },
+  fieldRow:            { flexDirection: 'row', alignItems: 'center' },
+  fieldLabel:          { letterSpacing: 2 },
+  datePicker:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  dateBtn:             { width: 36, alignItems: 'center' },
+  dateText:            { flex: 1, textAlign: 'center' },
+  stepper:             { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  stepBtn:             { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  stepCenter:          { alignItems: 'center', gap: 2 },
+  stepHint:            { textAlign: 'center' },
+  note:                { backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
+  noteText:            { lineHeight: 22 },
+  disclaimerCard:      { padding: spacing.md, backgroundColor: 'rgba(255,107,61,0.07)', borderRadius: radius.lg, borderWidth: 1, borderColor: 'rgba(255,107,61,0.22)', gap: spacing.sm },
+  disclaimerTitle:     { lineHeight: 20 },
+  disclaimerBody:      { lineHeight: 20 },
+  disclaimerConfirm:   { fontStyle: 'italic' },
+  cta:                 { marginTop: spacing.sm },
 });
