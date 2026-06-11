@@ -56,7 +56,7 @@ const tile = StyleSheet.create({
 
 export default function InsightsScreen() {
   const { session }   = useAuthStore();
-  const { cycleInfo, periodStart, cycleLength, cycleProfile } = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength, cycleProfile, hasPlaceboWeek } = useCycleStore();
 
   const [metrics,          setMetrics]          = useState<InsightMetrics | null>(null);
   const [overallText,      setOverallText]      = useState<string | null>(null);
@@ -153,7 +153,7 @@ export default function InsightsScreen() {
       const phaseForDate = periodStart
         ? getCycleInfo(periodStart, cycleLength ?? 28, date).phase
         : null;
-      const modulated = modulateRunStructure(s.run_structure, phaseForDate, cycleProfile ?? 'natural').adjusted;
+      const modulated = modulateRunStructure(s.run_structure, phaseForDate, cycleProfile ?? 'natural', hasPlaceboWeek).adjusted;
       return summariseRunStructure(modulated);
     }
     if (s.modality === 'strength' && s.strength_structure) {

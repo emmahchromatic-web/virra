@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import type { ContraceptionType } from '@/lib/cycleEngine';
@@ -126,17 +127,23 @@ export function HormonalSubPicker({
               <VirraText variant="mono" size={9} color="rgba(212,255,38,0.6)" style={s.sectionLabel}>
                 CURRENT PACK START DATE
               </VirraText>
-              <View style={s.datePicker}>
-                <Pressable onPress={() => shiftPackDate(-1)} style={s.dateBtn} hitSlop={12}>
-                  <VirraText variant="display" size={22} color={colors.breath}>←</VirraText>
-                </Pressable>
-                <VirraText variant="bodyMedium" size={15} color={colors.breath} style={s.dateText}>
-                  {formatDate(currentPackStart ?? new Date(Date.now() - 14 * MS_PER_DAY))}
-                </VirraText>
-                <Pressable onPress={() => shiftPackDate(1)} style={s.dateBtn} hitSlop={12}>
-                  <VirraText variant="display" size={22} color={colors.breath}>→</VirraText>
-                </Pressable>
-              </View>
+              {(() => {
+                const packBase = currentPackStart ?? new Date(Date.now() - 14 * MS_PER_DAY);
+                const isAtPackMax = packBase >= new Date(new Date().setHours(0, 0, 0, 0));
+                return (
+                  <View style={s.datePicker}>
+                    <Pressable onPress={() => shiftPackDate(-1)} style={s.dateBtn} hitSlop={12}>
+                      <SymbolView name="chevron.left" size={20} tintColor={colors.breath} />
+                    </Pressable>
+                    <VirraText variant="bodyMedium" size={15} color={colors.breath} style={s.dateText}>
+                      {formatDate(packBase)}
+                    </VirraText>
+                    <Pressable onPress={() => shiftPackDate(1)} style={[s.dateBtn, isAtPackMax && { opacity: 0.35 }]} hitSlop={12}>
+                      <SymbolView name="chevron.right" size={20} tintColor={colors.breath} />
+                    </Pressable>
+                  </View>
+                );
+              })()}
             </View>
           )}
         </View>

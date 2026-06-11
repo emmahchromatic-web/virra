@@ -112,6 +112,7 @@ function sample(actual: number, date: string, label = 'easy'): CompletedRunSampl
 const NO_GATES = {
   currentBaseline: 360,
   cycleProfile: 'natural' as const,
+  hasPlaceboWeek: null as boolean | null,
   today: '2026-05-28',
   lastAssessmentDate: null,
   snoozedUntil: null,
