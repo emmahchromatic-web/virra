@@ -39,6 +39,11 @@ describe('TodaysSessionHero', () => {
     );
     fireEvent.press(getByRole('button', { name: /start/i }));
     expect(showSheet).toHaveBeenCalledTimes(1);
+    // Assert cancel is the last option and cancelButtonIndex is set correctly
+    const callOpts = showSheet.mock.calls[0][0];
+    expect(callOpts.cancelButtonIndex).toBe(callOpts.options.length - 1);
+    expect(callOpts.options[callOpts.options.length - 1]).toBe('Cancel');
+    // cb(0) selects first option → runSession
     expect(handler).toHaveBeenCalledWith(runSession);
     showSheet.mockRestore();
   });
