@@ -238,10 +238,11 @@ export default function RunTrackerScreen() {
     });
 
     if (sessionId) {
-      await supabase
+      const { error: sessionErr } = await supabase
         .from('planned_sessions')
         .update({ status: 'completed', activity_id: act.id })
         .eq('id', sessionId);
+      if (sessionErr) console.error('[run] failed to mark session completed', sessionErr);
     }
 
     // Write to HealthKit
