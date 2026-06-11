@@ -146,14 +146,26 @@ describe('useCycleStore — setCycleProfile', () => {
   });
 
   it('preserves cycleInfo when switching to natural', () => {
-    useCycleStore.setState({ cycleProfile: 'irregular', cycleInfo: mockCycleInfo });
+    // Set periodStart so computeForProfile can recompute phase for a flow-mode profile.
+    // Day 7 of a 28-day cycle starting 2025-01-01 → follicular.
+    const periodStart = new Date('2025-01-01');
+    const today       = new Date('2025-01-07'); // day 7
+    useCycleStore.setState({ cycleProfile: 'irregular', periodStart, cycleLength: 28, cycleInfo: mockCycleInfo });
     useCycleStore.getState().setCycleProfile('natural');
-    expect(useCycleStore.getState().cycleInfo).toEqual(mockCycleInfo);
+    useCycleStore.getState().refreshPhase(today);
+    // cycleInfo must not have been cleared — phase and dayOfCycle must match
+    expect(useCycleStore.getState().cycleInfo?.phase).toBe('follicular');
+    expect(useCycleStore.getState().cycleInfo?.dayOfCycle).toBe(7);
   });
 
   it('preserves cycleInfo when switching to irregular', () => {
-    useCycleStore.setState({ cycleProfile: 'natural', cycleInfo: mockCycleInfo });
+    const periodStart = new Date('2025-01-01');
+    const today       = new Date('2025-01-07'); // day 7
+    useCycleStore.setState({ cycleProfile: 'natural', periodStart, cycleLength: 28, cycleInfo: mockCycleInfo });
     useCycleStore.getState().setCycleProfile('irregular');
-    expect(useCycleStore.getState().cycleInfo).toEqual(mockCycleInfo);
+    useCycleStore.getState().refreshPhase(today);
+    // cycleInfo must not have been cleared — phase and dayOfCycle must match
+    expect(useCycleStore.getState().cycleInfo?.phase).toBe('follicular');
+    expect(useCycleStore.getState().cycleInfo?.dayOfCycle).toBe(7);
   });
 });

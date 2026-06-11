@@ -1,55 +1,101 @@
 import { create } from 'zustand';
-import { getCycleInfo, type CyclePhase, type CycleInfo, type CycleProfile } from '@/lib/cycleEngine';
+import {
+  getCycleInfo,
+  deriveCycleMode,
+  type CyclePhase,
+  type CycleInfo,
+  type CycleProfile,
+  type CycleMode,
+  type ContraceptionType,
+} from '@/lib/cycleEngine';
 import { supabase } from '@/lib/supabase';
 
 interface CycleState {
-  cycleProfile: CycleProfile;
-  periodStart:  Date | null;
-  cycleLength:  number;
-  cycleInfo:    CycleInfo | null;
-  setCycleProfile:   (profile: CycleProfile) => void;
-  setPeriodStart:    (date: Date, today?: Date) => void;
-  setCycleLength:    (length: number, today?: Date) => void;
-  refreshPhase:      (today?: Date) => void;
-  loadFromSupabase:  (userId: string, today?: Date) => Promise<void>;
+  cycleProfile:      CycleProfile;
+  periodStart:       Date | null;
+  cycleLength:       number;
+  cycleInfo:         CycleInfo | null;
+  cycleMode:         CycleMode;
+  contraceptionType: ContraceptionType | null;
+  hasPlaceboWeek:    boolean | null;
+  currentPackStart:  Date | null;
+  setCycleProfile:      (profile: CycleProfile) => void;
+  setPeriodStart:       (date: Date, today?: Date) => void;
+  setCycleLength:       (length: number, today?: Date) => void;
+  setHormonalSubData:   (patch: { contraceptionType: ContraceptionType; hasPlaceboWeek: boolean | null; currentPackStart: Date | null }) => void;
+  refreshPhase:         (today?: Date) => void;
+  loadFromSupabase:     (userId: string, today?: Date) => Promise<void>;
 }
 
-function compute(
-  periodStart: Date | null,
-  cycleLength: number,
-  today: Date,
+function computeForProfile(
+  profile:          CycleProfile,
+  hasPlaceboWeek:   boolean | null,
+  periodStart:      Date | null,
+  currentPackStart: Date | null,
+  cycleLength:      number,
+  today:            Date,
 ): CycleInfo | null {
-  if (!periodStart) return null;
-  return getCycleInfo(periodStart, cycleLength, today);
+  const mode = deriveCycleMode(profile, hasPlaceboWeek);
+  if (mode === 'pack') {
+    if (!currentPackStart) return null;
+    return getCycleInfo(currentPackStart, cycleLength, today);
+  }
+  if (mode === 'flow') {
+    if (!periodStart) return null;
+    return getCycleInfo(periodStart, cycleLength, today);
+  }
+  return null; // steady
 }
 
 export const useCycleStore = create<CycleState>((set, get) => ({
-  cycleProfile: 'natural',
-  periodStart:  null,
-  cycleLength:  28,
-  cycleInfo:    null,
+  cycleProfile:      'natural',
+  periodStart:       null,
+  cycleLength:       28,
+  cycleInfo:         null,
+  cycleMode:         'flow',
+  contraceptionType: null,
+  hasPlaceboWeek:    null,
+  currentPackStart:  null,
 
   setCycleProfile: (profile) =>
-    set((s) => ({
-      cycleProfile: profile,
-      cycleInfo: (profile === 'natural' || profile === 'irregular') ? s.cycleInfo : null,
-    })),
+    set((s) => {
+      const newHasPlaceboWeek  = profile !== 'hormonal' ? null : s.hasPlaceboWeek;
+      const newContraception   = profile !== 'hormonal' ? null : s.contraceptionType;
+      const newPackStart       = profile !== 'hormonal' ? null : s.currentPackStart;
+      const mode               = deriveCycleMode(profile, newHasPlaceboWeek);
+      const cycleInfo          = computeForProfile(profile, newHasPlaceboWeek, s.periodStart, newPackStart, s.cycleLength, new Date());
+      return {
+        cycleProfile:      profile,
+        cycleMode:         mode,
+        cycleInfo,
+        contraceptionType: newContraception,
+        hasPlaceboWeek:    newHasPlaceboWeek,
+        currentPackStart:  newPackStart,
+      };
+    }),
+
+  setHormonalSubData: ({ contraceptionType, hasPlaceboWeek, currentPackStart }) =>
+    set((s) => {
+      const mode      = deriveCycleMode(s.cycleProfile, hasPlaceboWeek);
+      const cycleInfo = computeForProfile(s.cycleProfile, hasPlaceboWeek, s.periodStart, currentPackStart, s.cycleLength, new Date());
+      return { contraceptionType, hasPlaceboWeek, currentPackStart, cycleMode: mode, cycleInfo };
+    }),
 
   setPeriodStart: (date, today = new Date()) =>
     set((s) => ({
       periodStart: date,
-      cycleInfo:   compute(date, s.cycleLength, today),
+      cycleInfo:   computeForProfile(s.cycleProfile, s.hasPlaceboWeek, date, s.currentPackStart, s.cycleLength, today),
     })),
 
   setCycleLength: (length, today = new Date()) =>
     set((s) => ({
       cycleLength: length,
-      cycleInfo:   compute(s.periodStart, length, today),
+      cycleInfo:   computeForProfile(s.cycleProfile, s.hasPlaceboWeek, s.periodStart, s.currentPackStart, length, today),
     })),
 
   refreshPhase: (today = new Date()) =>
     set((s) => ({
-      cycleInfo: compute(s.periodStart, s.cycleLength, today),
+      cycleInfo: computeForProfile(s.cycleProfile, s.hasPlaceboWeek, s.periodStart, s.currentPackStart, s.cycleLength, today),
     })),
 
   loadFromSupabase: async (userId, today = new Date()) => {
@@ -63,28 +109,25 @@ export const useCycleStore = create<CycleState>((set, get) => ({
         .maybeSingle(),
       supabase
         .from('user_profiles')
-        .select('cycle_profile')
+        .select('cycle_profile, contraception_type, has_placebo_week, current_pack_start')
         .eq('id', userId)
         .maybeSingle(),
     ]);
 
-    const cycleProfile = (profileRes.data?.cycle_profile as CycleProfile | undefined) ?? 'natural';
+    const cycleProfile      = (profileRes.data?.cycle_profile      as CycleProfile      | undefined) ?? 'natural';
+    const contraceptionType = (profileRes.data?.contraception_type as ContraceptionType | undefined) ?? null;
+    const hasPlaceboWeek    = profileRes.data?.has_placebo_week    ?? null;
+    const currentPackStart  = profileRes.data?.current_pack_start
+      ? new Date(profileRes.data.current_pack_start)
+      : null;
 
-    if (!cycleRes.data) {
-      set({ cycleProfile });
-      return;
-    }
+    const cycleMode   = deriveCycleMode(cycleProfile, hasPlaceboWeek);
+    const periodStart = cycleRes.data ? new Date(cycleRes.data.period_start) : null;
+    const cycleLength = cycleRes.data?.cycle_length_days ?? 28;
+    const cycleInfo   = computeForProfile(cycleProfile, hasPlaceboWeek, periodStart, currentPackStart, cycleLength, today);
 
-    const periodStart = new Date(cycleRes.data.period_start);
-    const cycleLength = cycleRes.data.cycle_length_days ?? 28;
-    set({
-      cycleProfile,
-      periodStart,
-      cycleLength,
-      cycleInfo: compute(periodStart, cycleLength, today),
-    });
+    set({ cycleProfile, contraceptionType, hasPlaceboWeek, currentPackStart, cycleMode, periodStart, cycleLength, cycleInfo });
   },
 }));
 
-// Re-export types so consumers can import from one place
-export type { CyclePhase, CycleInfo, CycleProfile };
+export type { CyclePhase, CycleInfo, CycleProfile, CycleMode, ContraceptionType };
