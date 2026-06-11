@@ -1,20 +1,23 @@
 import React, { createContext, useContext, useState } from 'react';
 import type { FitnessLevel, WeeklyMileageBracket } from '@/lib/healthKitOnboarding';
-import type { CycleProfile } from '@/store/cycle';
+import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
 
 export type RunningGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'general';
 
 interface OnboardingData {
-  firstName:      string;
-  lastName:       string;
-  localAvatarUri: string | null;
-  fitnessLevel:   FitnessLevel | null;
-  weeklyMileage:  WeeklyMileageBracket | null;
-  fiveKTime:      string;
-  runningGoal:    RunningGoal | null;
-  cycleProfile:   CycleProfile;
-  periodStart:    Date | null;
-  cycleLength:    number;
+  firstName:         string;
+  lastName:          string;
+  localAvatarUri:    string | null;
+  fitnessLevel:      FitnessLevel | null;
+  weeklyMileage:     WeeklyMileageBracket | null;
+  fiveKTime:         string;
+  runningGoal:       RunningGoal | null;
+  cycleProfile:      CycleProfile;
+  periodStart:       Date | null;
+  cycleLength:       number;
+  contraceptionType: ContraceptionType | null;
+  hasPlaceboWeek:    boolean | null;
+  currentPackStart:  Date | null;
 }
 
 interface OnboardingContextValue {
@@ -25,16 +28,19 @@ interface OnboardingContextValue {
 }
 
 const defaultData: OnboardingData = {
-  firstName:      '',
-  lastName:       '',
-  localAvatarUri: null,
-  fitnessLevel:   null,
-  weeklyMileage:  null,
-  fiveKTime:      '',
-  runningGoal:    null,
-  cycleProfile:   'natural',
-  periodStart:    null,
-  cycleLength:    28,
+  firstName:         '',
+  lastName:          '',
+  localAvatarUri:    null,
+  fitnessLevel:      null,
+  weeklyMileage:     null,
+  fiveKTime:         '',
+  runningGoal:       null,
+  cycleProfile:      'natural',
+  periodStart:       null,
+  cycleLength:       28,
+  contraceptionType: null,
+  hasPlaceboWeek:    null,
+  currentPackStart:  null,
 };
 
 const OnboardingContext = createContext<OnboardingContextValue>({
