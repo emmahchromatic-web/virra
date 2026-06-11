@@ -83,6 +83,11 @@ export default function DietScreen() {
       running_goal:        data.runningGoal,
       dietary_prefs:       Array.from(selected),
       cycle_profile:       data.cycleProfile,
+      contraception_type:  data.contraceptionType  ?? null,
+      has_placebo_week:    data.hasPlaceboWeek     ?? null,
+      current_pack_start:  data.currentPackStart
+        ? data.currentPackStart.toISOString().split('T')[0]
+        : null,
       onboarding_complete: true,
     });
 
@@ -112,10 +117,17 @@ export default function DietScreen() {
       if (error) console.error('[diet] cycle_logs insert failed:', error);
     }
 
-    const { setCycleProfile, setPeriodStart } = useCycleStore.getState();
+    const { setCycleProfile, setPeriodStart, setHormonalSubData } = useCycleStore.getState();
     setCycleProfile(data.cycleProfile);
     if (data.periodStart) {
       setPeriodStart(data.periodStart);
+    }
+    if (data.cycleProfile === 'hormonal' && data.contraceptionType) {
+      setHormonalSubData({
+        contraceptionType: data.contraceptionType,
+        hasPlaceboWeek:    data.hasPlaceboWeek,
+        currentPackStart:  data.currentPackStart,
+      });
     }
 
     setSaving(false);
