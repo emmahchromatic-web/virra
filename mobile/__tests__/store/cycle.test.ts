@@ -173,3 +173,65 @@ describe('useCycleStore — setCycleProfile', () => {
     expect(useCycleStore.getState().cycleInfo?.dayOfCycle).toBe(7);
   });
 });
+
+describe('useCycleStore — pack mode', () => {
+  beforeEach(() => {
+    useCycleStore.setState({
+      cycleProfile:      'natural',
+      periodStart:       null,
+      cycleLength:       28,
+      cycleInfo:         null,
+      cycleMode:         'flow',
+      contraceptionType: null,
+      hasPlaceboWeek:    null,
+      currentPackStart:  null,
+    });
+  });
+
+  it('pack mode computes cycleInfo from currentPackStart, not periodStart', () => {
+    const packStart = new Date('2026-06-01');
+    // day 20 of 28-day cycle: luteal (ovulatory window is days 13–15; day 16+ = luteal)
+    const today = new Date('2026-06-20');
+    useCycleStore.setState({
+      cycleProfile:     'hormonal',
+      hasPlaceboWeek:   true,
+      cycleMode:        'pack',
+      currentPackStart: packStart,
+      periodStart:      new Date('2025-01-01'), // stale — must NOT be used
+      cycleLength:      28,
+    });
+    useCycleStore.getState().refreshPhase(today);
+    const { cycleInfo, cycleMode } = useCycleStore.getState();
+    expect(cycleMode).toBe('pack');
+    expect(cycleInfo).not.toBeNull();
+    expect(cycleInfo!.phase).toBe('luteal'); // day 20 of 28-day cycle
+    expect(cycleInfo!.dayOfCycle).toBe(20);
+  });
+
+  it('pack mode with null currentPackStart returns null cycleInfo', () => {
+    useCycleStore.setState({
+      cycleProfile:     'hormonal',
+      hasPlaceboWeek:   true,
+      cycleMode:        'pack',
+      currentPackStart: null,
+      cycleLength:      28,
+    });
+    useCycleStore.getState().refreshPhase();
+    expect(useCycleStore.getState().cycleInfo).toBeNull();
+  });
+
+  it('setHormonalSubData sets pack mode and computes cycleInfo from packStart', () => {
+    const packStart = new Date('2026-06-01');
+    const today     = new Date('2026-06-08'); // day 8 = follicular
+    useCycleStore.setState({ cycleProfile: 'hormonal', cycleLength: 28 });
+    useCycleStore.getState().setHormonalSubData({
+      contraceptionType: 'combined_pill',
+      hasPlaceboWeek:    true,
+      currentPackStart:  packStart,
+    });
+    useCycleStore.getState().refreshPhase(today);
+    const { cycleMode, cycleInfo } = useCycleStore.getState();
+    expect(cycleMode).toBe('pack');
+    expect(cycleInfo?.phase).toBe('follicular');
+  });
+});

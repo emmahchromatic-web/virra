@@ -103,7 +103,7 @@ const why = StyleSheet.create({
 
 export default function TrainingScreen() {
   const { session }    = useAuthStore();
-  const { cycleInfo, periodStart, cycleLength } = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength, cycleMode, currentPackStart } = useCycleStore();
 
   const [activePlan,        setActivePlan]        = useState<UserPlan | null>(null);
   const [recentActivities,  setRecentActivities]   = useState<Activity[]>([]);
@@ -258,7 +258,7 @@ export default function TrainingScreen() {
   const phaseLoad = cycleInfo ? PHASE_LOAD[cycleInfo.phase] : null;
 
   const cycleStore = {
-    periodStart: periodStart ?? null,
+    periodStart: (cycleMode === 'pack' ? currentPackStart : periodStart) ?? null,
     cycleLength: cycleLength ?? 28,
     phase:       cycleInfo?.phase ?? null,
   };
