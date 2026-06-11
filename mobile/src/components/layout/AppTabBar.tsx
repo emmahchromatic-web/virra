@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet, ActionSheetIOS } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
+import { useTodayStore } from '@/store/today';
+import type { TodaysSession } from '@/lib/todaysSession';
 
 type SymbolName = React.ComponentProps<typeof SymbolView>['name'];
 
@@ -46,7 +48,16 @@ function TabButton({ route, routeIndex, state, navigation }: {
   );
 }
 
+function routeToSession(session: TodaysSession) {
+  if (session.modality === 'run') {
+    router.push(`/(app)/run?sessionId=${session.id}` as any);
+  } else {
+    router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
+  }
+}
+
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
+  const todaySessions = useTodayStore((s) => s.todaySessions);
   const allRoutes = state.routes
     .map((route: any, routeIndex: number) => ({ route, routeIndex }))
     .filter(({ route }: any) => route.name in TAB_ICONS);
@@ -60,13 +71,31 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         <TabButton key={route.key} route={route} routeIndex={routeIndex} state={state} navigation={navigation} />
       ))}
 
-      {/* Centre run FAB */}
+      {/* Centre FAB — routes by today's planned session modality */}
       <View style={styles.fabWrap}>
         <Pressable
-          onPress={() => router.push('/(app)/run' as any)}
+          onPress={() => {
+            const planned = todaySessions.filter(s => s.status === 'planned');
+            if (planned.length === 0) {
+              router.push('/(app)/run' as any);
+            } else if (planned.length === 1) {
+              routeToSession(planned[0]);
+            } else {
+              const options = [
+                ...planned.map(s =>
+                  `${s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1).toLowerCase()} · ${s.modality.toUpperCase()}`
+                ),
+                'Cancel',
+              ];
+              ActionSheetIOS.showActionSheetWithOptions(
+                { options, cancelButtonIndex: options.length - 1 },
+                (index) => { if (index < planned.length) routeToSession(planned[index]); },
+              );
+            }
+          }}
           style={styles.fab}
           accessibilityRole="button"
-          accessibilityLabel="Start run"
+          accessibilityLabel="Start session"
         >
           <SymbolView name="play.fill" size={24} tintColor={colors.mile} />
         </Pressable>

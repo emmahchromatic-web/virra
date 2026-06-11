@@ -28,6 +28,7 @@ import { PHASE_META } from '@/lib/phaseMeta';
 import { getDailyStats } from '@/lib/healthKitDaily';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { getTodaysSessions } from '@/lib/todaysSession';
+import { useTodayStore } from '@/store/today';
 import {
   getMonthlyStats, getTodayNutritionTotals, getTodayCheckin,
   type MonthlyStats, type NutritionTotals, type TodayCheckin,
@@ -61,6 +62,8 @@ export default function DashboardScreen() {
   const [showFitnessModal, setShowFitnessModal] = useState(false);
   const [weightModalOpen,  setWeightModalOpen]  = useState(false);
 
+  const setStoreSessions = useTodayStore((s) => s.setTodaySessions);
+
   const loadAll = useCallback(async () => {
     if (!session) return;
 
@@ -80,6 +83,7 @@ export default function DashboardScreen() {
     try {
       const sessions = await getTodaysSessions(session.user.id);
       setTodaySessions(sessions);
+      setStoreSessions(sessions);
     } catch { /* no-op */ }
 
     try {
