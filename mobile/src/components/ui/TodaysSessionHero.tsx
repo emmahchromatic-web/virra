@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, type StyleProp, type ViewStyle } from 'react-native';
+import { View, StyleSheet, Pressable, ActionSheetIOS, type StyleProp, type ViewStyle } from 'react-native';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -47,11 +47,37 @@ function StatusBadge({ status }: StatusBadgeProps) {
 
 interface Props {
   sessions:      TodaysSession[];
-  onStartPress?: () => void;
+  onStartPress?: (session: TodaysSession) => void;
   style?:        StyleProp<ViewStyle>;
 }
 
 export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
+  const planned = sessions.filter(s => s.status === 'planned');
+
+  function handleStartPress() {
+    if (!onStartPress || planned.length === 0) return;
+    if (planned.length === 1) {
+      onStartPress(planned[0]);
+      return;
+    }
+    const options = [
+      ...planned.map(s => `${s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1).toLowerCase()} · ${s.modality.toUpperCase()}`),
+      'Cancel',
+    ];
+    ActionSheetIOS.showActionSheetWithOptions(
+      { options, cancelButtonIndex: options.length - 1 },
+      (index) => {
+        if (index < planned.length) onStartPress(planned[index]);
+      },
+    );
+  }
+
+  const buttonLabel = planned.length > 1
+    ? 'START SESSION →'
+    : planned[0]?.modality === 'run'
+      ? 'START RUN'
+      : 'START SESSION';
+
   if (sessions.length === 0) {
     return (
       <VirraCard style={[styles.card, style]}>
@@ -113,16 +139,16 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
           <StatusBadge status={s.status} />
         </View>
       ))}
-      {onStartPress && sessions.some(s => s.status === 'planned') && (
+      {onStartPress && planned.length > 0 && (
         <Pressable
           style={styles.startBtn}
-          onPress={onStartPress}
+          onPress={handleStartPress}
           accessibilityRole="button"
           accessibilityLabel="Start today's session"
         >
           <SymbolView name="play.fill" size={13} tintColor={colors.mile} />
           <VirraText variant="display" size={13} color={colors.mile} style={styles.startLabel}>
-            {sessions.find(s => s.modality === 'run' && s.status === 'planned') ? 'START RUN' : 'START SESSION'}
+            {buttonLabel}
           </VirraText>
         </Pressable>
       )}
