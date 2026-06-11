@@ -196,7 +196,13 @@ export default function DashboardScreen() {
         <View style={styles.heroRow}>
           <TodaysSessionHero
             sessions={todaySessions}
-            onStartPress={() => router.push('/(app)/(tabs)/training' as any)}
+            onStartPress={(session) => {
+              if (session.modality === 'run') {
+                router.push(`/(app)/run?sessionId=${session.id}` as any);
+              } else {
+                router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
+              }
+            }}
             style={styles.sessionHero}
           />
           <VirraCard style={styles.ringsCard}>
