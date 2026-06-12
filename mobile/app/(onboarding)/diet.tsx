@@ -141,7 +141,7 @@ export default function DietScreen() {
         Any dietary preferences?
       </VirraText>
       <VirraText variant="body" color="rgba(244,237,224,0.6)" style={styles.sub}>
-        Shapes your nutrition guidance. Select all that apply — none is fine too.
+        Shapes your nutrition guidance. Select all that apply; none is fine too.
       </VirraText>
 
       <View style={styles.chipGrid}>

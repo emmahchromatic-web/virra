@@ -49,7 +49,7 @@ function MacroBar({ label, actual, target, color, height }: {
   return (
     <View style={macro.row}>
       {label ? (
-        <VirraText variant="mono" size={11} color={colors.muted} style={macro.label}>{label}</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted} style={macro.label} numberOfLines={1}>{label}</VirraText>
       ) : (
         <View style={macro.label} />
       )}
@@ -60,7 +60,7 @@ function MacroBar({ label, actual, target, color, height }: {
         )}
       </View>
       {label ? (
-        <VirraText variant="mono" size={11} color={over ? colors.heat : colors.muted} style={macro.value}>
+        <VirraText variant="mono" size={11} color={over ? colors.heat : colors.muted} style={macro.value} numberOfLines={1}>
           {Math.round(actual)}/{target}g
         </VirraText>
       ) : (
@@ -72,18 +72,18 @@ function MacroBar({ label, actual, target, color, height }: {
 
 const macro = StyleSheet.create({
   row:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  label: { width: 52, letterSpacing: 1 },
+  label: { width: 62, letterSpacing: 1 },
   track:    { flex: 1, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },
   fill:     { height: '100%', borderRadius: radius.full },
   overflow: { backgroundColor: colors.heat, position: 'absolute', right: 0, top: 0, bottom: 0 },
-  value: { width: 72, textAlign: 'right', letterSpacing: 0.5 },
+  value: { width: 76, textAlign: 'right', letterSpacing: 0.5 },
 });
 
 const NUTRITION_WHY: Record<string, string> = {
-  menstrual:  'Iron and magnesium losses during menstruation elevate protein and fat needs. Carb targets are moderate — your body is prioritising repair over performance.',
+  menstrual:  'Iron and magnesium losses during menstruation elevate protein and fat needs. Carb targets are moderate; your body is prioritising repair over performance.',
   follicular: 'Estrogen improves carbohydrate storage efficiency. Higher carb targets here fuel the harder sessions your body is primed to handle.',
   ovulatory:  'Peak metabolic demand. High carbs replenish glycogen rapidly and support the intensity your muscles can output right now.',
-  luteal:     'Progesterone increases carb cravings for real physiological reasons — your body is burning slightly more at rest. Higher carb targets support mood, sleep, and preventing energy crashes.',
+  luteal:     'Progesterone increases carb cravings for real physiological reasons; your body is burning slightly more at rest. Higher carb targets support mood, sleep, and preventing energy crashes.',
 };
 
 function WhyCard({ body }: { body: string }) {

@@ -186,7 +186,7 @@ export default function CycleSettingsScreen() {
                 {active && opt.value === 'pregnant_postpartum' && (
                   <View style={s.disclaimerCard}>
                     <VirraText variant="bodyMedium" size={13} color={colors.dawn} style={s.disclaimerTitle}>
-                      Pregnancy and postpartum aren't a fitness question — they're a healing one.
+                      Pregnancy and postpartum aren't a fitness question; they're a healing one.
                     </VirraText>
                     <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={s.disclaimerBody}>
                       Before we build you a training plan, get cleared to exercise by your midwife, GP, or a women's health physio.

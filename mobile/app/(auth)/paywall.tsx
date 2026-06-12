@@ -16,7 +16,7 @@ const PRIVACY_URL = 'https://virra.app/privacy';
 const FEATURES = [
   'Cycle-adjusted training plans (5K → marathon)',
   'Nutrition targets that shift with your phase',
-  'HealthKit sync — workouts import automatically',
+  'HealthKit sync: workouts import automatically',
   'Daily dashboard built for your cycle',
   'Education library by a qualified PT',
 ];
@@ -96,7 +96,7 @@ export default function PaywallScreen() {
                     variant="bodyMedium"
                     color={pkg === selected ? colors.pulse : colors.breath}
                   >
-                    {pkg.product.title} — {pkg.product.priceString}
+                    {pkg.product.title} · {pkg.product.priceString}
                   </VirraText>
                 </VirraCard>
               </Pressable>
@@ -117,7 +117,7 @@ export default function PaywallScreen() {
           </VirraText>
           <VirraText variant="body" size={11} color={colors.muted} style={styles.legalBody}>
             Virra Pro is an auto-renewing subscription
-            {selected ? ` — ${selected.product.title} at ${selected.product.priceString}` : ''}.
+            {selected ? ` (${selected.product.title} at ${selected.product.priceString})` : ''}.
             Payment is charged to your Apple ID account at the end of the 14-day free trial.
             The subscription renews automatically at the same price for the same period unless
             auto-renew is turned off at least 24 hours before the end of the current period.

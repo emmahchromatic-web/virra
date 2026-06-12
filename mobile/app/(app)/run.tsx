@@ -44,7 +44,7 @@ function formatPace(secPerKm: number | null): string {
 }
 
 const PHASE_CUE: Record<string, string> = {
-  menstrual:  'Keep it easy — effort over pace today.',
+  menstrual:  'Keep it easy. Effort over pace today.',
   follicular: 'Good day to push. Your body is primed.',
   ovulatory:  'Peak window. Give it everything.',
   luteal:     'Steady does it. Honour how you feel.',

@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
 
         <View style={styles.actions}>
           <VirraButton
-            label="Get started — free trial"
+            label="Get started · Free trial"
             onPress={() => router.push('/(auth)/sign-up')}
           />
           <VirraButton

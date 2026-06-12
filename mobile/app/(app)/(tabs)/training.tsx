@@ -42,14 +42,14 @@ interface UserPlan {
 }
 
 const PHASE_WHY: Record<string, string> = {
-  menstrual:  'Estrogen and progesterone are at their lowest. Your body is in repair mode — forcing intensity now delays recovery and increases injury risk.',
+  menstrual:  'Estrogen and progesterone are at their lowest. Your body is in repair mode; forcing intensity now delays recovery and increases injury risk.',
   follicular: 'Rising estrogen improves insulin sensitivity and muscle repair. This is your highest-adaptation window; hard work compounds here.',
-  ovulatory:  'Estrogen peaks alongside a testosterone surge. Neuromuscular recruitment is at its highest — power and speed respond best in this short window.',
+  ovulatory:  'Estrogen peaks alongside a testosterone surge. Neuromuscular recruitment is at its highest; power and speed respond best in this short window.',
   luteal:     'Progesterone rises, core temperature is elevated, and perceived effort increases for the same output. Training smart here preserves the gains made earlier.',
 };
 
 const PHASE_LOAD: Record<string, { intensity: string; note: string }> = {
-  menstrual:  { intensity: 'Easy',     note: 'Keep effort light — rest is training too.' },
+  menstrual:  { intensity: 'Easy',     note: 'Keep effort light. Rest is training too.' },
   follicular: { intensity: 'Build',    note: 'Ramp up. Your body adapts faster now.' },
   ovulatory:  { intensity: 'Peak',     note: 'Hardest sessions belong here.' },
   luteal:     { intensity: 'Maintain', note: 'Hold the work, honour fatigue.' },
@@ -380,7 +380,7 @@ export default function TrainingScreen() {
             </VirraCard>
           ) : (
             <VirraText variant="body" size={13} color={colors.muted}>
-              No activities yet — complete a run to see it here.
+              No activities yet. Complete a run to see it here.
             </VirraText>
           )}
         </View>

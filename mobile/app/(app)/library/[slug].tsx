@@ -99,7 +99,7 @@ export default function ArticleScreen() {
               EDUCATIONAL CONTENT
             </VirraText>
             <VirraText variant="body" size={12} color={colors.muted} style={styles.disclaimerBody}>
-              Virra is an educational and training-guidance product, not a medical service. Articles are not a substitute for advice from a qualified healthcare professional. Consult a doctor before making decisions about exercise, nutrition, or your cycle — especially if pregnant, post-partum, or managing a medical condition.
+              Virra is an educational and training-guidance product, not a medical service. Articles are not a substitute for advice from a qualified healthcare professional. Consult a doctor before making decisions about exercise, nutrition, or your cycle, especially if pregnant, post-partum, or managing a medical condition.
             </VirraText>
           </View>
         </ScrollView>

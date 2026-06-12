@@ -344,7 +344,7 @@ export default function ProfileScreen() {
                   ? 'Syncing from Apple Health…'
                   : trackWeight
                     ? 'Synced from Apple Health'
-                    : 'Off — no weight data syncs or displays'}
+                    : 'Off. No weight data syncs or displays'}
               </VirraText>
             </View>
             <Switch
@@ -544,7 +544,7 @@ export default function ProfileScreen() {
           Virra is an educational and training-guidance product. It is not a medical service, does not provide a diagnosis, and is not a substitute for professional medical advice.
         </VirraText>
         <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
-          Cycle phase, pace, and fuelling recommendations are generated from the data you and Apple Health provide and from general physiology research. Consult a qualified healthcare professional before making decisions about exercise, nutrition, or your cycle — especially if pregnant, post-partum, breastfeeding, on hormonal contraception, perimenopausal, menopausal, or managing any medical condition.
+          Cycle phase, pace, and fuelling recommendations are generated from the data you and Apple Health provide and from general physiology research. Consult a qualified healthcare professional before making decisions about exercise, nutrition, or your cycle, especially if pregnant, post-partum, breastfeeding, on hormonal contraception, perimenopausal, menopausal, or managing any medical condition.
         </VirraText>
         <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
           If you experience pain, dizziness, unusual symptoms, or anything that concerns you, stop exercising and seek medical advice.
@@ -574,7 +574,7 @@ export default function ProfileScreen() {
           TYPEFACES
         </VirraText>
         <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: 2 }}>
-          Big Shoulders Display, Fraunces, Inter, and Space Mono — distributed by Google Fonts under the SIL Open Font License.
+          Big Shoulders Display, Fraunces, Inter, and Space Mono, distributed by Google Fonts under the SIL Open Font License.
         </VirraText>
 
         <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
@@ -622,7 +622,7 @@ export default function ProfileScreen() {
           This permanently erases your profile, training plan, cycle data, activities, nutrition logs, and subscription record. It cannot be undone.
         </VirraText>
         <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
-          If you have an active subscription, cancel it in the App Store first — deleting your account here does not cancel Apple billing.
+          If you have an active subscription, cancel it in the App Store first; deleting your account here does not cancel Apple billing.
         </VirraText>
         <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
           TYPE "DELETE" TO CONFIRM

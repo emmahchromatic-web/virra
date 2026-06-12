@@ -188,7 +188,7 @@ export default function WorkoutPreviewScreen() {
       .single();
 
     if (actErr) {
-      Alert.alert('Save failed', `${actErr.message} — tap Stop again to retry.`);
+      Alert.alert('Save failed', `${actErr.message}. Tap Stop again to retry.`);
       setSaving(false);
       setState('paused');
       return;

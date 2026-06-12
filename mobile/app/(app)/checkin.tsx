@@ -128,7 +128,7 @@ export default function CheckInScreen() {
       {cycleInfo && (
         <View style={styles.phaseBadge}>
           <VirraText variant="mono" size={11} color={colors.pulse} style={styles.badgeText}>
-            DAY {cycleInfo.dayOfCycle} — {cycleInfo.phase.toUpperCase()} PHASE
+            DAY {cycleInfo.dayOfCycle} · {cycleInfo.phase.toUpperCase()} PHASE
           </VirraText>
         </View>
       )}
@@ -136,7 +136,7 @@ export default function CheckInScreen() {
       {hasExisting && !loading && (
         <View style={styles.editingHint}>
           <VirraText variant="mono" size={10} color={colors.muted} style={styles.badgeText}>
-            EDITING TODAY'S CHECK-IN — LAST SAVE IS USED
+            EDITING TODAY'S CHECK-IN · LAST SAVE IS USED
           </VirraText>
         </View>
       )}

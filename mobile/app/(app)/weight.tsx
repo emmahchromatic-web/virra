@@ -14,8 +14,8 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { classifySteady, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
 
 const REASONING: Record<BandPosition, string> = {
-  in_band: 'Day-to-day weight bounces from water, food timing, and hydration. Yours is moving inside the noise band — exactly what a healthy line looks like.',
-  above:   'A touch above your steady line. This happens — sodium, alcohol, GI fullness, a harder week of training. Watch what happens over the next few days.',
+  in_band: 'Day-to-day weight bounces from water, food timing, and hydration. Yours is moving inside the noise band; exactly what a healthy line looks like.',
+  above:   'A touch above your steady line. This happens: sodium, alcohol, GI fullness, a harder week of training. Watch what happens over the next few days.',
   below:   'A touch below your steady line. If training has been heavy, check fuelling: every 1g of glycogen stores 3g of water, so a single hard session can show as a 1+ kg dip.',
 };
 

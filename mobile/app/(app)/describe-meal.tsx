@@ -53,7 +53,7 @@ async function extractEdgeError(error: unknown): Promise<string> {
       if (typeof body?.error === 'string' && body.error.trim()) return body.error.trim();
     } catch { /* body wasn't JSON — fall through */ }
     if (res.status === 429) {
-      return 'Too many estimates in the last minute — wait a moment and try again.';
+      return 'Too many estimates in the last minute. Wait a moment and try again.';
     }
     if (res.status >= 500) {
       return 'Our estimator is having a moment. Try again shortly, or log this one manually.';
@@ -324,7 +324,7 @@ export default function DescribeMealScreen() {
                 </VirraText>
                 <VirraText variant="body" size={14} color={colors.breath} style={styles.disclosureLead}>
                   We send your meal description to Anthropic&apos;s Claude AI, which estimates the
-                  macros and calories. Estimates are educated guesses — you can edit any value
+                  macros and calories. Estimates are educated guesses; you can edit any value
                   before saving.
                 </VirraText>
 
