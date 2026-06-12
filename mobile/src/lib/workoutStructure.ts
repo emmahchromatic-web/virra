@@ -103,8 +103,6 @@ export function summariseRunStructure(s: RunWorkoutStructure): string {
  *   "Lower · Romanian Deadlift, Goblet Squat, +3 more · ~45min"
  */
 export function summariseStrengthStructure(s: StrengthWorkoutStructure): string {
-  const head = s.exercises.slice(0, 2).map((e) => e.name).join(', ');
-  const extra = s.exercises.length > 2 ? `, +${s.exercises.length - 2} more` : '';
   const session = s.session_type.charAt(0).toUpperCase() + s.session_type.slice(1);
-  return `${session} · ${head}${extra} · ~${s.estimated_minutes}min`;
+  return `${session} · ~${s.estimated_minutes}min`;
 }
