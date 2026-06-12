@@ -1,11 +1,14 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
 
+export type WorkoutPreference = 'gym_full' | 'home_dumbbells' | 'home_bodyweight';
+
 export interface ProfilePatch {
   firstName?:                       string;
   lastName?:                        string;
   avatarUrl?:                       string | null;
   stepsTarget?:                     number;
+  workoutPreference?:               WorkoutPreference;
   trackWeight?:                     boolean;
   weightBaselineKg?:                number | null;
   weightExplainerDismissedAt?:      string | null;
@@ -18,6 +21,7 @@ interface ProfileState {
   lastName:                        string;
   avatarUrl:                       string | null;
   stepsTarget:                     number;
+  workoutPreference:               WorkoutPreference;
   haikuDisclosureAcknowledgedAt:   string | null;
   trackWeight:                     boolean;
   weightBaselineKg:                number | null;
@@ -39,6 +43,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   lastName:                      '',
   avatarUrl:                     null,
   stepsTarget:                   8000,
+  workoutPreference:             'gym_full',
   haikuDisclosureAcknowledgedAt: null,
   trackWeight:                    false,
   weightBaselineKg:               null,
@@ -51,7 +56,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   load: async (userId) => {
     const { data } = await supabase
       .from('user_profiles')
-      .select('first_name, last_name, avatar_url, steps_target, haiku_disclosure_acknowledged_at, track_weight, weight_baseline_kg, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
+      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, weight_baseline_kg, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
       .eq('id', userId)
       .maybeSingle();
     if (data) {
@@ -60,6 +65,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         lastName:                       data.last_name    ?? '',
         avatarUrl:                      data.avatar_url   ?? null,
         stepsTarget:                    data.steps_target ?? 8000,
+        workoutPreference:              (data.workout_preference as WorkoutPreference) ?? 'gym_full',
         haikuDisclosureAcknowledgedAt:  data.haiku_disclosure_acknowledged_at ?? null,
         trackWeight:                    data.track_weight ?? false,
         weightBaselineKg:               data.weight_baseline_kg ?? null,
@@ -79,6 +85,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
     if (patch.lastName                   !== undefined) update.last_name                     = patch.lastName;
     if (patch.avatarUrl                  !== undefined) update.avatar_url                    = patch.avatarUrl;
     if (patch.stepsTarget                !== undefined) update.steps_target                  = patch.stepsTarget;
+    if (patch.workoutPreference          !== undefined) update.workout_preference             = patch.workoutPreference;
     if (patch.trackWeight                !== undefined) update.track_weight                  = patch.trackWeight;
     if (patch.weightBaselineKg               !== undefined) update.weight_baseline_kg                = patch.weightBaselineKg;
     if (patch.weightExplainerDismissedAt     !== undefined) update.weight_explainer_dismissed_at     = patch.weightExplainerDismissedAt;
@@ -97,6 +104,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       lastName:                       patch.lastName                       ?? s.lastName,
       avatarUrl:                      patch.avatarUrl                      !== undefined ? patch.avatarUrl                      : s.avatarUrl,
       stepsTarget:                    patch.stepsTarget                    ?? s.stepsTarget,
+      workoutPreference:              patch.workoutPreference               ?? s.workoutPreference,
       trackWeight:                    patch.trackWeight                    ?? s.trackWeight,
       weightBaselineKg:               patch.weightBaselineKg               !== undefined ? patch.weightBaselineKg               : s.weightBaselineKg,
       weightExplainerDismissedAt:     patch.weightExplainerDismissedAt     !== undefined ? patch.weightExplainerDismissedAt     : s.weightExplainerDismissedAt,
@@ -110,6 +118,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
     lastName:                       patch.lastName                       ?? s.lastName,
     avatarUrl:                      patch.avatarUrl                      !== undefined ? patch.avatarUrl                      : s.avatarUrl,
     stepsTarget:                    patch.stepsTarget                    ?? s.stepsTarget,
+    workoutPreference:              patch.workoutPreference               ?? s.workoutPreference,
     trackWeight:                    patch.trackWeight                    ?? s.trackWeight,
     weightBaselineKg:               patch.weightBaselineKg               !== undefined ? patch.weightBaselineKg               : s.weightBaselineKg,
     weightExplainerDismissedAt:     patch.weightExplainerDismissedAt     !== undefined ? patch.weightExplainerDismissedAt     : s.weightExplainerDismissedAt,

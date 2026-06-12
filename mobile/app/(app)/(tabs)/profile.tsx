@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, Alert, TextInput, Image, Linking, Switch,
+  Pressable, Alert, TextInput, Image, Linking, Switch, Share,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -23,7 +23,6 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BreakModal } from '@/components/ui/BreakModal';
 import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
-import { getPermissionsStatus } from '@/lib/permissionsConfig';
 import { enableWeightTracking, readWeightSyncDiagnostic, type WeightSyncDiagnostic } from '@/lib/healthKitWeight';
 
 function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
@@ -58,7 +57,7 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
-  const { firstName, lastName, avatarUrl, stepsTarget, save: saveProfile, trackWeight, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
+  const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
   const [weightSyncing, setWeightSyncing] = useState(false);
   const [weightSyncNote, setWeightSyncNote] = useState<string | null>(null);
   const [weightDiag, setWeightDiag] = useState<WeightSyncDiagnostic | null>(null);
@@ -74,7 +73,6 @@ export default function ProfileScreen() {
   const [lastBreak,      setLastBreak]      = useState<{ break_start: string; break_end: string } | null>(null);
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
-  const [permissionsSummary, setPermissionsSummary] = useState({ granted: 0, total: 0 });
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirm,      setDeleteConfirm]      = useState('');
   const [deleting,           setDeleting]           = useState(false);
@@ -141,12 +139,6 @@ export default function ProfileScreen() {
         .maybeSingle()
         .then(({ data }) => setLastBreak(data ?? null));
       getActiveBlocks(session.user.id).then(setProfileBlocks);
-      getPermissionsStatus().then((entries) => {
-        setPermissionsSummary({
-          granted: entries.filter((e) => e.status === 'granted').length,
-          total:   entries.length,
-        });
-      });
     }, [session]),
   );
 
@@ -427,15 +419,27 @@ export default function ProfileScreen() {
             value={breakSummary}
             onPress={() => router.push('/(app)/breaks' as any)}
           />
-        </VirraCard>
-
-        <VirraCard style={styles.card}>
-          <SectionLabel style={styles.cardLabel}>DEVICE</SectionLabel>
-          <Row
-            label="PERMISSIONS"
-            value={`${permissionsSummary.granted} of ${permissionsSummary.total} granted`}
-            onPress={() => router.push('/(app)/permissions-status' as any)}
-          />
+          <View style={styles.prefRow}>
+            <VirraText variant="mono" size={11} color={colors.muted} style={styles.prefLabel}>WORKOUT LOCATION</VirraText>
+            <View style={styles.prefSegments}>
+              {([
+                { value: 'gym_full',        label: 'Gym'       },
+                { value: 'home_dumbbells',  label: 'Dumbbells' },
+                { value: 'home_bodyweight', label: 'Bodyweight'},
+              ] as const).map((opt) => (
+                <Pressable
+                  key={opt.value}
+                  style={[styles.prefSeg, workoutPreference === opt.value && styles.prefSegActive]}
+                  onPress={() => session && saveProfile(session.user.id, { workoutPreference: opt.value })}
+                  accessibilityRole="button"
+                >
+                  <VirraText variant="mono" size={9} color={workoutPreference === opt.value ? colors.mile : colors.muted} style={{ letterSpacing: 0.5 }}>
+                    {opt.label.toUpperCase()}
+                  </VirraText>
+                </Pressable>
+              ))}
+            </View>
+          </View>
         </VirraCard>
 
         <VirraCard style={styles.card}>
@@ -466,6 +470,22 @@ export default function ProfileScreen() {
             onPress={() => setCreditsModalVisible(true)}
           />
         </VirraCard>
+
+        <Pressable
+          style={styles.referCard}
+          onPress={() => Share.share({
+            message: `I've been training smarter with Virra — the app that adjusts your training and nutrition to your cycle. Try it free: https://virra.app`,
+          })}
+          accessibilityRole="button"
+          accessibilityLabel="Refer a friend"
+        >
+          <SymbolView name="person.2.fill" size={20} tintColor={colors.pulse} />
+          <View style={{ flex: 1 }}>
+            <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1 }}>REFER A FRIEND</VirraText>
+            <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: 2 }}>Share Virra with someone who runs</VirraText>
+          </View>
+          <SymbolView name="square.and.arrow.up" size={16} tintColor={colors.pulse} />
+        </Pressable>
 
         <VirraButton
           label="Sign out"
@@ -658,6 +678,12 @@ const styles = StyleSheet.create({
   cardLabel:         { letterSpacing: 1.5, marginBottom: spacing.xs },
   divider:           { height: 1, backgroundColor: colors.border, marginVertical: 2 },
   signout:           { marginTop: spacing.md },
+  referCard:         { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.pulse}44`, backgroundColor: 'rgba(212,255,38,0.05)', marginTop: spacing.sm },
+  prefRow:           { paddingTop: spacing.xs },
+  prefLabel:         { letterSpacing: 1.5, marginBottom: spacing.xs },
+  prefSegments:      { flexDirection: 'row', gap: spacing.xs },
+  prefSeg:           { flex: 1, alignItems: 'center', paddingVertical: spacing.xs, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  prefSegActive:     { backgroundColor: colors.pulse, borderColor: colors.pulse },
   identityRow:       { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   avatarWrap:        { position: 'relative' },
   avatarImg:         { width: 64, height: 64, borderRadius: 32 },

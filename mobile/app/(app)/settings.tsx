@@ -10,6 +10,7 @@ import {
   type NotificationPreferences,
   type NotifSlot,
 } from '@/lib/notifications';
+import { getPermissionsStatus } from '@/lib/permissionsConfig';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -28,11 +29,18 @@ export default function SettingsScreen() {
   const [notifPrefs, setNotifPrefs] = useState<NotificationPreferences>({
     training: true, breakfast: true, lunch: true, dinner: true, checkin: true, weeklyPlan: true,
   });
+  const [permissionsSummary, setPermissionsSummary] = useState({ granted: 0, total: 0 });
 
   useEffect(() => {
     getUnitSystem().then(setUnits);
     loadNotificationPreferences().then(setNotifPrefs);
     scheduleWeeklyPlanReminder();
+    getPermissionsStatus().then((entries) => {
+      setPermissionsSummary({
+        granted: entries.filter((e: any) => e.granted).length,
+        total:   entries.length,
+      });
+    });
   }, []);
 
   async function handleUnitChange(system: UnitSystem) {
@@ -83,6 +91,15 @@ export default function SettingsScreen() {
         </VirraCard>
 
         <VirraCard style={s.card}>
+          <VirraText variant="mono" size={11} color={colors.muted} style={s.cardLabel}>DEVICE</VirraText>
+          <Pressable style={s.row} onPress={() => router.push('/(app)/permissions-status' as any)} accessibilityRole="button">
+            <VirraText variant="body" size={14} color={colors.breath} style={{ flex: 1 }}>Permissions</VirraText>
+            <VirraText variant="mono" size={11} color={colors.muted}>{permissionsSummary.granted} of {permissionsSummary.total} granted</VirraText>
+            <SymbolView name="chevron.right" size={12} tintColor={colors.muted} />
+          </Pressable>
+        </VirraCard>
+
+        <VirraCard style={s.card}>
           <VirraText variant="mono" size={11} color={colors.muted} style={s.cardLabel}>UNITS</VirraText>
           <View style={s.segmentRow}>
             {(['metric', 'imperial'] as UnitSystem[]).map((option) => (
@@ -118,6 +135,7 @@ const s = StyleSheet.create({
   scroll:        { padding: spacing.lg, gap: spacing.md },
   card:          { gap: spacing.xs },
   cardLabel:     { letterSpacing: 1.5, marginBottom: spacing.xs },
+  row:           { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
   notifRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
   sublabel:      { marginTop: 2, letterSpacing: 0 },
   divider:       { height: 1, backgroundColor: colors.border, marginVertical: 2 },
