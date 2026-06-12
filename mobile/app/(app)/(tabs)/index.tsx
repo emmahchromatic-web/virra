@@ -12,7 +12,7 @@ import { useCycleStore } from '@/store/cycle';
 import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
 import { WeekStrip } from '@/components/ui/WeekStrip'
-import { ReadinessRow } from '@/components/ui/ReadinessRow'
+import { ReadinessRow } from '@/components/ui/ReadinessRow';
 import { useReadinessStore } from '@/store/readiness';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { SectionLabel } from '@/components/ui/SectionLabel';
@@ -49,7 +49,7 @@ export default function DashboardScreen() {
   const trackWeight                 = useProfileStore((s) => s.trackWeight);
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
-  const refreshReadiness = useReadinessStore((s) => s.refresh)
+  const refreshReadiness = useReadinessStore((s) => s.refresh);
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const meta     = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
