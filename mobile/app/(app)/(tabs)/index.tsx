@@ -278,7 +278,7 @@ export default function DashboardScreen() {
           {checkin.done ? (
             <Pressable
               style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }]}
-              onPress={() => router.push('/(app)/checkin')}
+              onPress={() => router.push('/(app)/checkin-trends' as any)}
               accessibilityRole="button"
             >
               <SymbolView name="checkmark.circle.fill" size={28} tintColor={colors.pulse} />
