@@ -11,7 +11,9 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { useCycleStore } from '@/store/cycle';
 import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
-import { WeekStrip } from '@/components/ui/WeekStrip';
+import { WeekStrip } from '@/components/ui/WeekStrip'
+import { ReadinessRow } from '@/components/ui/ReadinessRow'
+import { useReadinessStore } from '@/store/readiness';
 import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { ActivityRings } from '@/components/ui/ActivityRing';
@@ -47,6 +49,7 @@ export default function DashboardScreen() {
   const trackWeight                 = useProfileStore((s) => s.trackWeight);
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
+  const refreshReadiness = useReadinessStore((s) => s.refresh)
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const meta     = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
@@ -95,6 +98,8 @@ export default function DashboardScreen() {
       setMonthlyStats(monthly);
       setNutrition(nutr);
       setCheckin(ci);
+      // Readiness refresh runs after check-in resolves so it can include today's subjective score
+      refreshReadiness(cycleInfo?.phase ?? null, ci).catch(() => {});
     } catch { /* no-op */ }
   }, [session, today, cycleInfo?.phase]); // inferredLoad removed from deps
 
@@ -196,7 +201,10 @@ export default function DashboardScreen() {
           </VirraCard>
         </Pressable>
 
-        {/* 3. Today session + rings */}
+        {/* 3. Readiness */}
+        <ReadinessRow />
+
+        {/* 4. Today session + rings */}
         <View style={styles.heroRow}>
           <TodaysSessionHero
             sessions={todaySessions}
@@ -219,7 +227,7 @@ export default function DashboardScreen() {
           </VirraCard>
         </View>
 
-        {/* 4. Nutrition arc */}
+        {/* 5. Nutrition arc */}
         {nutrition && (
           <NutritionArcCard
             totals={nutrition}
@@ -227,7 +235,7 @@ export default function DashboardScreen() {
           />
         )}
 
-        {/* 5. Quick log */}
+        {/* 6. Quick log */}
         <QuickLogRow
           trackWeight={trackWeight}
           onFoodPress={() => router.push('/(app)/food-search' as any)}
@@ -235,7 +243,7 @@ export default function DashboardScreen() {
           onWeightPress={() => setWeightModalOpen(true)}
         />
 
-        {/* 6. Week strip */}
+        {/* 7. Week strip */}
         {session && (
           <Pressable
             onPress={() => router.push('/(app)/(tabs)/training' as any)}
@@ -249,10 +257,10 @@ export default function DashboardScreen() {
           </Pressable>
         )}
 
-        {/* 7. Phase tips */}
+        {/* 8. Phase tips */}
         <TipsCarousel phase={cycleInfo?.phase ?? null} />
 
-        {/* 8. Fitness update card (conditional) */}
+        {/* 9. Fitness update card (conditional) */}
         {verdict && (
           <FitnessUpdateCard
             verdict={verdict}
@@ -261,7 +269,7 @@ export default function DashboardScreen() {
           />
         )}
 
-        {/* 9. Action tiles */}
+        {/* 10. Action tiles */}
         <View style={styles.actionRow}>
           <Pressable
             style={[styles.actionTile, { borderColor: colors.pulse }]}
