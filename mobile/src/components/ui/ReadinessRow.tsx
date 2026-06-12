@@ -8,7 +8,7 @@ import { VirraText } from './VirraText'
 import { Shimmer } from './Shimmer'
 import { useReadinessStore } from '@/store/readiness'
 import { colors, spacing } from '@/constants/theme'
-import type { Confidence, CyclePhase } from '@/lib/readinessEngine'
+import type { Confidence } from '@/lib/readinessEngine'
 
 const TICK_COUNT = 40
 const ANIM_DURATION_MS = 600
@@ -29,14 +29,10 @@ function scoreToColor(score: number): string {
   return lerpHex('#FF6B3D', '#FF9A3D', score / 50)
 }
 
-function footerText(phase: CyclePhase | null, confidence: Confidence): string {
-  if (confidence === 'low') {
-    return 'LEARNING YOUR BASELINE · CHECK IN TO IMPROVE ACCURACY'
-  }
+function footerText(confidence: Confidence): string {
+  if (confidence === 'low') return 'LEARNING YOUR BASELINE · CHECK IN TO IMPROVE ACCURACY'
   const confLabel = confidence === 'high' ? 'HIGH CONFIDENCE' : 'MEDIUM CONFIDENCE'
-  if (!phase) return confLabel
-  const phaseLabel = phase.toUpperCase()
-  return `${phaseLabel} PHASE · CYCLE-CORRECTED · ${confLabel}`
+  return `CYCLE-CORRECTED · ${confLabel}`
 }
 
 export function ReadinessRow() {
@@ -81,7 +77,6 @@ export function ReadinessRow() {
   if (!today) return null
 
   const color = scoreToColor(today.score)
-  const footerColor = today.confidence === 'low' ? colors.muted : `${color}4D`
 
   return (
     <VirraCard>
@@ -99,8 +94,8 @@ export function ReadinessRow() {
           {today.score}%
         </VirraText>
       </View>
-      <VirraText variant="mono" size={8} style={[s.footer, { color: footerColor }]}>
-        {footerText(today.phase, today.confidence)}
+      <VirraText variant="mono" size={8} color={colors.muted} style={s.footer}>
+        {footerText(today.confidence)}
       </VirraText>
     </VirraCard>
   )
