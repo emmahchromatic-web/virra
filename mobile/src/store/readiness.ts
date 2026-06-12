@@ -20,13 +20,14 @@ interface ReadinessState {
   refresh(phase: CyclePhase | null, checkin: TodayCheckin): Promise<void>
 }
 
-export const useReadinessStore = create<ReadinessState>((set) => ({
+export const useReadinessStore = create<ReadinessState>((set, get) => ({
   today:      null,
   isLoading:  false,
   isFirstRun: false,
 
   async refresh(phase, checkin) {
-    set({ isLoading: true })
+    // Only show shimmer when there is no cached score yet — avoids flash on every foreground
+    if (!get().today) set({ isLoading: true })
 
     try {
       const firstRun = !(await isBackfillDone())
@@ -64,7 +65,7 @@ export const useReadinessStore = create<ReadinessState>((set) => ({
           timeInBed:     sleep?.timeInBed   ?? null,
           deepHours:     sleep?.deepHours   ?? null,
           remHours:      sleep?.remHours    ?? null,
-          acuteLoad7day: loadValues.length  ? loadValues.reduce((s, v) => s + v, 0) : null,
+          acuteLoad7day: loadValues.length  ? loadValues.reduce((s, v) => s + v, 0) / loadValues.length : null,
           checkin:       checkinInput,
         },
         baseline,

@@ -76,13 +76,10 @@ export async function fetchSleepSamples(date: string): Promise<SleepWindow | nul
   const HK = hk()
   if (!HK?.getSleepSamples) return null
 
-  const prevDay = new Date(date)
-  prevDay.setDate(prevDay.getDate() - 1)
-  const windowStart = new Date(prevDay)
-  windowStart.setHours(18, 0, 0, 0)
-
-  const windowEnd = new Date(date)
-  windowEnd.setHours(14, 0, 0, 0)
+  // Parse YYYY-MM-DD as local midnight (new Date('YYYY-MM-DD') is UTC midnight, wrong for UTC-N)
+  const [y, m, d] = date.split('-').map(Number)
+  const windowStart = new Date(y, m - 1, d - 1, 18, 0, 0, 0)  // 6pm local, night before
+  const windowEnd   = new Date(y, m - 1, d,     14, 0, 0, 0)  // 2pm local, given day
 
   return new Promise(resolve => {
     HK.getSleepSamples(
