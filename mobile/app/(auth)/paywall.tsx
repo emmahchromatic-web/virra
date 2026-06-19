@@ -149,7 +149,7 @@ export default function PaywallScreen() {
 
         {(__DEV__ || process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') && (
           <VirraButton
-            label="[DEV] Skip paywall"
+            label="Skip — internal build"
             variant="ghost"
             onPress={() => { setStatus('trial'); routePostPaywall(); }}
             style={{ marginTop: spacing.lg, opacity: 0.5 }}

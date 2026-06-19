@@ -12,7 +12,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.pauldickenson.virra.app",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "supportsTablet": false,
       "icon": {
         "light": "./assets/icon.png",
@@ -25,12 +25,16 @@
         "NSLocationWhenInUseUsageDescription": "Virra uses your location to track your runs. GPS keeps running while your screen is locked during an active run so your route and pace stay accurate.",
         "NSCameraUsageDescription": "Virra uses the camera to scan food barcodes for your nutrition log.",
         "ITSAppUsesNonExemptEncryption": false,
-        "UIBackgroundModes": ["location"]
+        "UIBackgroundModes": [
+          "location"
+        ]
       },
       "entitlements": {
         "com.apple.developer.healthkit": true,
         "com.apple.developer.healthkit.background-delivery": true,
-        "com.apple.developer.applesignin": ["Default"]
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
       }
     },
     "plugins": [
@@ -64,7 +68,8 @@
         {
           "cameraPermission": "Virra uses the camera to scan food barcodes."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

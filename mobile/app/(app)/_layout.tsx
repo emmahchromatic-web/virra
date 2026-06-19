@@ -56,6 +56,10 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (!session || isActive) return;
+    if (process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') {
+      setStatus('trial');
+      return;
+    }
     getEntitlementInfo().then((info) => {
       if (info.isActive && info.isTrial) {
         setStatus('trial', info.trialEnd ?? undefined);
