@@ -19,6 +19,7 @@ interface CycleState {
   contraceptionType: ContraceptionType | null;
   hasPlaceboWeek:    boolean | null;
   currentPackStart:  Date | null;
+  isLoading:         boolean;
   setCycleProfile:      (profile: CycleProfile) => void;
   setPeriodStart:       (date: Date, today?: Date) => void;
   setCycleLength:       (length: number, today?: Date) => void;
@@ -56,6 +57,7 @@ export const useCycleStore = create<CycleState>((set, get) => ({
   contraceptionType: null,
   hasPlaceboWeek:    null,
   currentPackStart:  null,
+  isLoading:         true,
 
   setCycleProfile: (profile) =>
     set((s) => {
@@ -100,6 +102,7 @@ export const useCycleStore = create<CycleState>((set, get) => ({
     })),
 
   loadFromSupabase: async (userId, today = new Date()) => {
+    set({ isLoading: true });
     const [cycleRes, profileRes] = await Promise.all([
       supabase
         .from('cycle_logs')
@@ -127,7 +130,7 @@ export const useCycleStore = create<CycleState>((set, get) => ({
     const cycleLength = cycleRes.data?.cycle_length_days ?? 28;
     const cycleInfo   = computeForProfile(cycleProfile, hasPlaceboWeek, periodStart, currentPackStart, cycleLength, today);
 
-    set({ cycleProfile, contraceptionType, hasPlaceboWeek, currentPackStart, cycleMode, periodStart, cycleLength, cycleInfo });
+    set({ cycleProfile, contraceptionType, hasPlaceboWeek, currentPackStart, cycleMode, periodStart, cycleLength, cycleInfo, isLoading: false });
   },
 }));
 

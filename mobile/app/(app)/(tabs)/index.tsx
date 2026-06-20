@@ -44,7 +44,7 @@ const EXERCISE_MINS_TARGET: Record<TrainingLoad, number> = {
 };
 
 export default function DashboardScreen() {
-  const { cycleInfo, cycleProfile } = useCycleStore();
+  const { cycleInfo, cycleProfile, isLoading: cycleLoading } = useCycleStore();
   const { session }                 = useAuthStore();
   const trackWeight                 = useProfileStore((s) => s.trackWeight);
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
@@ -119,28 +119,6 @@ export default function DashboardScreen() {
     inferredLoad,
   );
 
-  if (!cycleInfo || !meta) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <AppHeader title="VIRRA" showProfile />
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <VirraCard>
-            <VirraText variant="serif" size={17} color={colors.breath} style={{ lineHeight: 26 }}>
-              {cycleProfile === 'natural' || cycleProfile === 'irregular'
-                ? 'Add your cycle data to unlock phase-aware training and nutrition guidance.'
-                : 'Training and nutrition targets are personalised to your training load.'}
-            </VirraText>
-            {(cycleProfile === 'natural' || cycleProfile === 'irregular') && (
-              <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: spacing.sm, letterSpacing: 1.5 }}>
-                GO TO PROFILE → CYCLE SETTINGS
-              </VirraText>
-            )}
-          </VirraCard>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.safe}>
       <AppHeader title="VIRRA" showProfile />
@@ -153,53 +131,73 @@ export default function DashboardScreen() {
           </VirraText>
         )}
 
-        {/* 2. Phase hero */}
-        <Pressable onPress={() => router.push('/(app)/cycle-detail' as any)} accessibilityRole="button">
-          <VirraCard style={styles.phaseCard}>
-            <VirraText variant="mono" size={9} color={meta.color} style={styles.phasePill}>
-              {meta.label.toUpperCase()} PHASE
-            </VirraText>
-            <VirraText variant="serif" size={15} color={colors.breath} style={styles.tagline}>
-              {meta.tagline}
-            </VirraText>
-            <CycleProgressBar
-              dayOfCycle={cycleInfo.dayOfCycle}
-              cycleLength={cycleInfo.cycleLength}
-              phaseColor={meta.color}
-            />
-            <View style={styles.statsRow}>
-              <View style={styles.stat}>
-                <VirraText variant="display" size={28} color={meta.color}>{cycleInfo.dayOfCycle}</VirraText>
-                <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAY</VirraText>
+        {/* 2. Phase hero — inline fallback while cycle data loads or isn't set */}
+        {cycleInfo && meta ? (
+          <Pressable onPress={() => router.push('/(app)/cycle-detail' as any)} accessibilityRole="button">
+            <VirraCard style={styles.phaseCard}>
+              <VirraText variant="mono" size={9} color={meta.color} style={styles.phasePill}>
+                {meta.label.toUpperCase()} PHASE
+              </VirraText>
+              <VirraText variant="serif" size={15} color={colors.breath} style={styles.tagline}>
+                {meta.tagline}
+              </VirraText>
+              <CycleProgressBar
+                dayOfCycle={cycleInfo.dayOfCycle}
+                cycleLength={cycleInfo.cycleLength}
+                phaseColor={meta.color}
+              />
+              <View style={styles.statsRow}>
+                <View style={styles.stat}>
+                  <VirraText variant="display" size={28} color={meta.color}>{cycleInfo.dayOfCycle}</VirraText>
+                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAY</VirraText>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <VirraText variant="display" size={28} color={meta.color}>{cycleInfo.daysUntilNextPeriod}</VirraText>
+                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAYS LEFT</VirraText>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <VirraText variant="display" size={28} color={meta.color}>{cycleInfo.cycleLength}</VirraText>
+                  <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAY CYCLE</VirraText>
+                </View>
               </View>
-              <View style={styles.statDivider} />
-              <View style={styles.stat}>
-                <VirraText variant="display" size={28} color={meta.color}>{cycleInfo.daysUntilNextPeriod}</VirraText>
-                <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAYS LEFT</VirraText>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.stat}>
-                <VirraText variant="display" size={28} color={meta.color}>{cycleInfo.cycleLength}</VirraText>
-                <VirraText variant="mono" size={9} color={colors.muted} style={styles.statLabel}>DAY CYCLE</VirraText>
-              </View>
-            </View>
-            {monthlyStats.sessionsCompleted > 0 && (
-              <View style={styles.streakRow}>
-                <View style={styles.streakLeft}>
-                  <VirraText variant="display" size={20} color={colors.dawn}>
-                    {monthlyStats.sessionsCompleted}
-                  </VirraText>
-                  <VirraText variant="mono" size={8} color={colors.muted} style={styles.streakMeta}>
-                    sessions this month
+              {monthlyStats.sessionsCompleted > 0 && (
+                <View style={styles.streakRow}>
+                  <View style={styles.streakLeft}>
+                    <VirraText variant="display" size={20} color={colors.dawn}>
+                      {monthlyStats.sessionsCompleted}
+                    </VirraText>
+                    <VirraText variant="mono" size={8} color={colors.muted} style={styles.streakMeta}>
+                      sessions this month
+                    </VirraText>
+                  </View>
+                  <VirraText variant="mono" size={9} color={colors.dawn}>
+                    {monthlyStats.adherencePct}% ON PLAN
                   </VirraText>
                 </View>
-                <VirraText variant="mono" size={9} color={colors.dawn}>
-                  {monthlyStats.adherencePct}% ON PLAN
+              )}
+            </VirraCard>
+          </Pressable>
+        ) : !cycleLoading && (
+          <Pressable onPress={() => router.push('/(app)/cycle-settings' as any)} accessibilityRole="button">
+            <VirraCard style={styles.phaseCard}>
+              <VirraText variant="mono" size={9} color={colors.pulse} style={styles.phasePill}>
+                CYCLE PHASE
+              </VirraText>
+              <VirraText variant="serif" size={15} color={colors.breath} style={styles.tagline}>
+                {cycleProfile === 'natural' || cycleProfile === 'irregular'
+                  ? 'Add your cycle data to unlock phase-aware guidance.'
+                  : 'Your training and nutrition targets are personalised to your load.'}
+              </VirraText>
+              {(cycleProfile === 'natural' || cycleProfile === 'irregular') && (
+                <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1.5, marginTop: spacing.xs }}>
+                  SET UP CYCLE →
                 </VirraText>
-              </View>
-            )}
-          </VirraCard>
-        </Pressable>
+              )}
+            </VirraCard>
+          </Pressable>
+        )}
 
         {/* 3. Readiness */}
         <ReadinessRow />

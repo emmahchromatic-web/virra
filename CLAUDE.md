@@ -1,22 +1,6 @@
 # VIRRA — Claude Code Project Guide
 
-## Working style — models & delegation
 
-Work on this project is deliberately split across models, with subagents as the default execution mechanism:
-
-- **Main thread → Opus.** The top-level thread runs on Opus and stays focused on judgment: brainstorming, design, planning, architecture, reviewing subagent output, and deciding what happens next. It holds the plan and the context; it does not get spent on mechanical execution.
-- **Actions, coding, search → Sonnet subagents.** Concrete implementation — writing/editing code, running tests, migrations, refactors, multi-file searches, any well-specified unit of work — is delegated to Sonnet subagents. The main thread curates the context, writes precise instructions, and reviews the result.
-- **Use subagents proactively — this is the default, not the exception.** Reach for a subagent for any concrete task rather than doing it inline on the Opus thread. Prefer dispatching well-scoped Sonnet subagents and keeping the Opus thread as the persistent planner/reviewer.
-- **Why:** this compensates for the loss of Opus plan-mode. Instead of "Opus plans inside plan mode, then execute," the pattern is "Opus plans and reviews on the main thread, Sonnet subagents execute." Keep the high-value reasoning on Opus; fan execution out.
-- **Preferred execution pattern** for any multi-step plan: subagent-driven development — a fresh subagent per task with spec-compliance and code-quality review between tasks. Escalate a subagent to Opus only when a task genuinely needs architecture-level reasoning.
-
-**Concrete triggers — reach for an agent, don't do it inline.** Proactive subagent use is the explicit replacement for Opus plan-mode. The defaults:
-
-- **Research / "where is X" / "how does Y work" → `Explore` agent.** Any multi-file search, naming-convention sweep, or "find all the places that…" goes to a read-only Explore agent. The main thread keeps the conclusion, not the file dumps. Don't hand-grep across the tree on the Opus thread.
-- **Before any large or multi-file change → `Plan` agent (or a planning pass) first.** Non-trivial features, refactors, migrations, anything touching several files or with architectural trade-offs gets a written plan before code is touched. Opus reviews the plan; Sonnet executes it.
-- **Independent work → parallel `Agent` calls in a single message.** When two or more tasks share no state and no ordering dependency, dispatch them concurrently rather than serially. Batch the calls so they run at once.
-- **Implementation (writing/editing code, builds, tests, shell) → Sonnet subagents.** Every concrete, well-specified unit of execution is delegated to a Sonnet `Agent`. The Opus main thread curates context, writes the spec, and reviews the diff — it does not spend itself on mechanical edits.
-- **Stay on the Opus main thread for:** judgment, synthesis, architectural decisions, reviewing subagent output, and deciding what happens next. That is the one thing not to delegate.
 
 ---
 
