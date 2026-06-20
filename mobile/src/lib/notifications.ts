@@ -190,6 +190,7 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     await scheduleOnce(storageKey(slot, date), title, body, trigger);
   }
 
+  // ── Training ────────────────────────────────────────────────────────────────
   if (prefs.training) {
     const { data: sessions, error: sessionsError } = await supabase
       .from('planned_sessions')
@@ -211,7 +212,27 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     }
   }
 
-  if (prefs.breakfast) {
+  // ── Nutrition ───────────────────────────────────────────────────────────────
+  // Check which meal slots have already been logged today so we don't
+  // reschedule a reminder the user already actioned.
+  const loggedMeals = new Set<string>();
+  if (prefs.breakfast || prefs.lunch || prefs.dinner) {
+    const { data: log } = await supabase
+      .from('nutrition_logs')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('recorded_on', date)
+      .maybeSingle();
+    if (log) {
+      const { data: entries } = await supabase
+        .from('food_entries')
+        .select('meal_type')
+        .eq('log_id', log.id);
+      if (entries) for (const e of entries) loggedMeals.add(e.meal_type);
+    }
+  }
+
+  if (prefs.breakfast && !loggedMeals.has('breakfast')) {
     await maybeSchedule(
       'nutrition_breakfast',
       'Fuel right from the start',
@@ -220,7 +241,7 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     );
   }
 
-  if (prefs.lunch) {
+  if (prefs.lunch && !loggedMeals.has('lunch')) {
     await maybeSchedule(
       'nutrition_lunch',
       'Keep the momentum going',
@@ -229,7 +250,7 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     );
   }
 
-  if (prefs.dinner) {
+  if (prefs.dinner && !loggedMeals.has('dinner')) {
     await maybeSchedule(
       'nutrition_dinner',
       'End the day strong',
@@ -238,13 +259,22 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     );
   }
 
+  // ── Check-in ────────────────────────────────────────────────────────────────
   if (prefs.checkin) {
-    await maybeSchedule(
-      'checkin',
-      'A minute to check in',
-      'How are you feeling today? It only takes 30 seconds.',
-      todayAt(20),
-    );
+    const { data: checkin } = await supabase
+      .from('symptom_logs')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('recorded_on', date)
+      .limit(1);
+    if (!checkin || checkin.length === 0) {
+      await maybeSchedule(
+        'checkin',
+        'A minute to check in',
+        'How are you feeling today? It only takes 30 seconds.',
+        todayAt(20),
+      );
+    }
   }
 }
 
