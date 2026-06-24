@@ -15,6 +15,48 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 
+interface FavouriteEntry {
+  food_name:  string;
+  quantity_g: number | null;
+  calories:   number;
+  carbs_g:    number;
+  protein_g:  number;
+  fat_g:      number;
+  fibre_g:    number;
+  count:      number;
+}
+
+interface MealCombo {
+  id:           string;
+  name:         string;
+  meal_type:    string;
+  items_json:   Array<{
+    food_name:  string;
+    quantity_g: number | null;
+    calories:   number;
+    carbs_g:    number;
+    protein_g:  number;
+    fat_g:      number;
+    fibre_g:    number;
+  }>;
+  last_used_at: string | null;
+}
+
+function entryToVirraFood(fav: FavouriteEntry): VirraFood {
+  const g = fav.quantity_g ?? 100;
+  const scale = g > 0 ? 100 / g : 1;
+  return {
+    id:        `fav-${fav.food_name}`,
+    name:      fav.food_name,
+    serving_g: g,
+    calories:  Math.round(fav.calories  * scale),
+    carbs_g:   Math.round(fav.carbs_g   * scale * 10) / 10,
+    protein_g: Math.round(fav.protein_g * scale * 10) / 10,
+    fat_g:     Math.round(fav.fat_g     * scale * 10) / 10,
+    fibre_g:   Math.round((fav.fibre_g ?? 0) * scale * 10) / 10,
+  };
+}
+
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 function formatMacro(n: number): string {
@@ -213,8 +255,44 @@ export default function FoodSearchScreen() {
   const [remoteResults, setRemoteResults]     = useState<VirraFood[]>([]);
   const [remoteSearching, setRemoteSearching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [favourites, setFavourites] = useState<FavouriteEntry[]>([]);
+  const [combos,     setCombos]     = useState<MealCombo[]>([]);
 
   const localResults = searchCommonFoods(query, mealType);
+
+  useEffect(() => {
+    if (!mealType) return;
+    // Fetch history for YOUR REGULARS
+    supabase
+      .from('food_entries')
+      .select('food_name, quantity_g, calories, carbs_g, protein_g, fat_g, fibre_g')
+      .eq('meal_type', mealType)
+      .order('id', { ascending: false })
+      .limit(100)
+      .then(({ data }) => {
+        if (!data) return;
+        const seen = new Map<string, FavouriteEntry>();
+        for (const e of data) {
+          const existing = seen.get(e.food_name);
+          if (existing) {
+            existing.count++;
+          } else {
+            seen.set(e.food_name, { ...e, fibre_g: e.fibre_g ?? 0, count: 1 });
+          }
+        }
+        const sorted = Array.from(seen.values())
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+        setFavourites(seen.size >= 2 ? sorted : []);
+      });
+    // Fetch MY MEALS combos
+    supabase
+      .from('meal_combos')
+      .select('id, name, meal_type, items_json, last_used_at')
+      .eq('meal_type', mealType)
+      .order('last_used_at', { ascending: false })
+      .then(({ data }) => setCombos((data as MealCombo[]) ?? []));
+  }, [mealType]);
 
   // Wrapper used by the list rows — picking from the list resets the barcode-source flag.
   const handleListSelect = (food: VirraFood) => {
@@ -338,6 +416,34 @@ export default function FoodSearchScreen() {
     }
   }
 
+  async function handleAddCombo(combo: MealCombo) {
+    if (!logId) return;
+    setAdding(true);
+    const rows = combo.items_json.map((item) => ({
+      log_id:    logId,
+      meal_type: mealType,
+      food_name: item.food_name,
+      quantity_g: item.quantity_g,
+      calories:  item.calories,
+      carbs_g:   item.carbs_g,
+      protein_g: item.protein_g,
+      fat_g:     item.fat_g,
+      fibre_g:   item.fibre_g ?? 0,
+      source:    'manual' as const,
+    }));
+    const { error } = await supabase.from('food_entries').insert(rows);
+    setAdding(false);
+    if (!error) {
+      supabase.from('meal_combos').update({ last_used_at: new Date().toISOString() }).eq('id', combo.id).then(() => {});
+      if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
+        cancelNutritionReminderForMeal(mealType);
+      }
+      router.back();
+    } else {
+      Alert.alert('Could not add meal', error.message);
+    }
+  }
+
   async function handleOpenScanner() {
     if (!cameraPermission?.granted) {
       const { granted } = await requestCameraPermission();
@@ -448,6 +554,71 @@ export default function FoodSearchScreen() {
           {/* Results list */}
           {!selected && !manual && (
             <>
+              {/* MY MEALS — saved combos for this meal type */}
+              {combos.length > 0 && query.trim().length === 0 && (
+                <>
+                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
+                    MY MEALS
+                  </VirraText>
+                  <VirraCard style={styles.resultsCard}>
+                    {combos.map((combo, i) => {
+                      const totalKcal = Math.round(combo.items_json.reduce((sum, item) => sum + item.calories, 0));
+                      return (
+                        <View key={combo.id}>
+                          {i > 0 && <View style={styles.divider} />}
+                          <Pressable
+                            onPress={() => handleAddCombo(combo)}
+                            style={({ pressed }) => [qk.comboRow, pressed && { opacity: 0.7 }]}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Add ${combo.name}`}
+                          >
+                            <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>
+                              {combo.name}
+                            </VirraText>
+                            <View style={qk.comboRight}>
+                              <VirraText variant="display" size={16} color={colors.pulse}>{totalKcal}</VirraText>
+                              <VirraText variant="mono" size={10} color={colors.muted}>
+                                kcal · {combo.items_json.length} items
+                              </VirraText>
+                            </View>
+                          </Pressable>
+                        </View>
+                      );
+                    })}
+                  </VirraCard>
+                </>
+              )}
+
+              {/* YOUR REGULARS — top 5 auto-favourites */}
+              {favourites.length > 0 && query.trim().length === 0 && (
+                <>
+                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
+                    YOUR REGULARS
+                  </VirraText>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={qk.pillRow}>
+                    {favourites.map((fav) => {
+                      const kcal = Math.round(fav.calories);
+                      return (
+                        <Pressable
+                          key={fav.food_name}
+                          onPress={() => handleListSelect(entryToVirraFood(fav))}
+                          style={({ pressed }) => [qk.pill, pressed && { opacity: 0.7 }]}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Add ${fav.food_name}`}
+                        >
+                          <VirraText variant="body" size={13} color={colors.breath} numberOfLines={1}>
+                            {fav.food_name}
+                          </VirraText>
+                          <VirraText variant="mono" size={10} color={colors.muted}>
+                            {kcal} kcal
+                          </VirraText>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </>
+              )}
+
               {/* Action row — peer affordances to search */}
               <View style={styles.actionRow}>
                 <VirraButton
@@ -529,6 +700,13 @@ const scan = StyleSheet.create({
   hint:             { marginTop: 20, letterSpacing: 1.5 },
   identifyingScreen: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
   identifyingLabel:  { marginTop: spacing.md },
+});
+
+const qk = StyleSheet.create({
+  pillRow:    { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xs },
+  pill:       { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, alignItems: 'center', gap: 2, maxWidth: 160 },
+  comboRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
+  comboRight: { alignItems: 'flex-end', gap: 1 },
 });
 
 const styles = StyleSheet.create({

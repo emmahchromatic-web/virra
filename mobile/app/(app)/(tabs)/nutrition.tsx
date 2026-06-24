@@ -301,6 +301,36 @@ export default function NutritionScreen() {
 
   const byMeal = (meal: MealType) => entries.filter((e) => e.meal_type === meal);
 
+  function handleSaveMeal(meal: MealType) {
+    const items = byMeal(meal);
+    if (items.length < 2 || !session) return;
+    Alert.prompt(
+      'Save as meal',
+      'Give this combination a name',
+      async (name) => {
+        if (!name?.trim()) return;
+        const comboItems = items.map((e) => ({
+          food_name:  e.food_name,
+          quantity_g: e.quantity_g,
+          calories:   e.calories,
+          carbs_g:    e.carbs_g,
+          protein_g:  e.protein_g,
+          fat_g:      e.fat_g,
+          fibre_g:    e.fibre_g,
+        }));
+        await supabase.from('meal_combos').insert({
+          user_id:    session.user.id,
+          name:       name.trim(),
+          meal_type:  meal,
+          items_json: comboItems,
+        });
+      },
+      'plain-text',
+      '',
+      'default',
+    );
+  }
+
   async function handleDeleteEntry(entry: FoodEntry) {
     await supabase.from('food_entries').delete().eq('id', entry.id);
     // Optimistically remove from local state for instant feedback
@@ -391,13 +421,20 @@ export default function NutritionScreen() {
               <VirraText variant="mono" size={10} color={colors.muted} style={styles.mealLabel}>
                 {meal.toUpperCase()}
               </VirraText>
-              <Pressable
-                onPress={() => logId && router.push(`/(app)/food-search?logId=${logId}&mealType=${meal}` as any)}
-                hitSlop={8}
-                disabled={!logId}
-              >
-                <SymbolView name="plus" size={16} tintColor={colors.pulse} />
-              </Pressable>
+              <View style={styles.mealActions}>
+                {byMeal(meal).length >= 2 && (
+                  <Pressable onPress={() => handleSaveMeal(meal)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Save as meal">
+                    <SymbolView name="square.and.arrow.down" size={16} tintColor={colors.muted} />
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={() => logId && router.push(`/(app)/food-search?logId=${logId}&mealType=${meal}` as any)}
+                  hitSlop={8}
+                  disabled={!logId}
+                >
+                  <SymbolView name="plus" size={16} tintColor={colors.pulse} />
+                </Pressable>
+              </View>
             </View>
             {byMeal(meal).length === 0 ? (
               <VirraText variant="body" size={13} color={colors.muted} style={{ paddingVertical: spacing.xs }}>
@@ -443,6 +480,7 @@ const styles = StyleSheet.create({
   macros:             { gap: spacing.sm },
   mealSection:  { gap: spacing.sm },
   mealHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mealActions:  { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   mealLabel:    { letterSpacing: 1.5 },
   entryRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
 });
