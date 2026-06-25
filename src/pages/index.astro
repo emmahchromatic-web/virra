@@ -204,17 +204,18 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     padding: 28px 24px;
     border-radius: 2px;
   }
-  /* Solid-fill brand colours per pillar. Mile is near-black and sits on a
-     near-black page bg, so it relies on --border-strong to render its edge. */
+  /* Solid-fill brand colours per pillar. The Mile slot is inverted to a Breath
+     Bone (cream) fill with Mile Ink text so it reads clearly against the
+     near-black page bg, rather than blending into it. */
   .pillar-pulse { background: var(--pulse); border-color: var(--pulse); }
   .pillar-pulse .pillar-name { color: var(--mile); }
   .pillar-pulse .pillar-body { color: rgba(10, 10, 15, 0.78); }
   .pillar-heat { background: var(--heat); border-color: var(--heat); }
   .pillar-heat .pillar-name { color: var(--breath); }
   .pillar-heat .pillar-body { color: rgba(244, 237, 224, 0.88); }
-  .pillar-mile { background: var(--mile); border-color: var(--border-strong); }
-  .pillar-mile .pillar-name { color: var(--breath); }
-  .pillar-mile .pillar-body { color: rgba(244, 237, 224, 0.7); }
+  .pillar-mile { background: var(--breath); border-color: var(--breath); }
+  .pillar-mile .pillar-name { color: var(--mile); }
+  .pillar-mile .pillar-body { color: rgba(10, 10, 15, 0.78); }
   .pillar-name {
     font-family: var(--font-display);
     font-size: 1.8rem;
