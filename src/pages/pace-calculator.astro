@@ -79,7 +79,7 @@ const copy = {
               <input type="text" id="ptd-pace" placeholder="e.g. 5:12" />
             </label>
           </div>
-          <p class="calc-hint">Fill in any two — the third is calculated.</p>
+          <p class="calc-hint">Fill in any two, and the third is calculated.</p>
           <button class="calc-btn" id="ptd-calc">Calculate</button>
           <div id="ptd-result" class="calc-result" hidden>
             <div class="result-grid">
@@ -158,8 +158,8 @@ const copy = {
             <div class="phase-grid" id="cyc-phases"></div>
             <p class="cycle-disclaimer">
               This tool adjusts training paces based on typical hormonal patterns across the menstrual cycle.
-              It is informational only and is not medical advice. Every body is different —
-              if something feels wrong, trust your body over any algorithm.
+              It is informational only and is not medical advice. Every body is different.
+              If something feels wrong, trust your body over any algorithm.
             </p>
             <a href="" class="share-link" id="cyc-share">Share these results ↗</a>
           </div>
@@ -175,8 +175,8 @@ const copy = {
           <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
           <button type="submit">Email my paces</button>
         </form>
-        <p class="save-hint" id="save-hint" hidden>Run a calculation above first — then I'll know which paces to send.</p>
-        <p class="save-ok" id="save-ok" hidden>Sent. Check your inbox — your paces are on the way.</p>
+        <p class="save-hint" id="save-hint" hidden>Run a calculation above first, then I'll know which paces to send.</p>
+        <p class="save-ok" id="save-ok" hidden>Sent. Check your inbox, your paces are on the way.</p>
         <p class="save-err" id="save-err" hidden>That didn't go through. Try again.</p>
         <p class="save-note">We'll email your paces and add you to The Pack. One email a week. Unsubscribe anytime.</p>
       </div>
@@ -293,7 +293,7 @@ const copy = {
 
       document.getElementById('ptd-result')!.hidden = false;
     } catch {
-      alert('Check your inputs — time should be in M:SS or H:MM:SS format.');
+      alert('Check your inputs: time should be in M:SS or H:MM:SS format.');
     }
   });
 
@@ -327,7 +327,7 @@ const copy = {
 
       document.getElementById('pred-result')!.hidden = false;
     } catch {
-      alert('Check your time — use H:MM:SS format (e.g. 2:00:00).');
+      alert('Check your time: use H:MM:SS format (e.g. 2:00:00).');
     }
   });
 
@@ -398,7 +398,7 @@ const copy = {
 
       document.getElementById('cyc-result')!.hidden = false;
     } catch {
-      alert('Check your pace — use M:SS format (e.g. 6:00).');
+      alert('Check your pace: use M:SS format (e.g. 6:00).');
     }
   });
 

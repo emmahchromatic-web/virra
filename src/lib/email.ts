@@ -36,11 +36,11 @@ export async function sendCoachingAutoReply(name: string, toEmail: string) {
   await resend.emails.send({
     from: 'Emma at VIRRA <hello@virra.app>',
     to: [toEmail],
-    subject: "Got it — I'll be in touch soon.",
+    subject: "Got it, I'll be in touch soon.",
     html: `
       <p>Hi ${name},</p>
       <p>Thanks for reaching out. I've received your enquiry and I'll come back to you within 48 hours with everything you need to know.</p>
-      <p>In the meantime, if you haven't already — <a href="https://virra.app/advice">read the advice section</a>. There's a lot in there that might be useful while you wait.</p>
+      <p>In the meantime, if you haven't already, <a href="https://virra.app/advice">read the advice section</a>. There's a lot in there that might be useful while you wait.</p>
       <p>Emma<br>VIRRA</p>
     `,
   });
@@ -65,7 +65,7 @@ export async function sendPaceResults(
     to: [toEmail],
     subject: 'Your paces, from VIRRA',
     html: `
-      <p>Here are the paces you worked out — keep them somewhere you'll find them.</p>
+      <p>Here are the paces you worked out. Keep them somewhere you'll find them.</p>
       <h2>${esc(result.title)}</h2>
       <table style="border-collapse:collapse;font-family:sans-serif;">${rows}</table>
       ${result.shareUrl ? `<p style="margin-top:16px;"><a href="${esc(result.shareUrl)}">Open these results again →</a></p>` : ''}

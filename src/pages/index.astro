@@ -16,7 +16,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
 ---
 <BaseLayout
   title="VIRRA — Female-first running"
-  description="Cycle-aware training, nutrition and performance — all in one place."
+  description="Cycle-aware training, nutrition and performance, all in one place."
 >
   <Header />
   <main>
@@ -70,7 +70,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
           {home?.founderPortrait
             ? <img
                 src={urlFor(home.founderPortrait).width(360).height(450).url()}
-                alt={`${home?.founderName ?? 'Emma'} — founder of VIRRA`}
+                alt={`${home?.founderName ?? 'Emma'}, founder of VIRRA`}
                 width="360"
                 height="450"
               />
@@ -80,7 +80,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
         <div class="founder-copy">
           <SectionLabel text="The founder" />
           <h2>{home?.founderName ?? 'Emma'}</h2>
-          <p class="founder-bio">{home?.founderBio ?? 'Placeholder founder bio — update in Sanity.'}</p>
+          <p class="founder-bio">{home?.founderBio ?? 'Placeholder founder bio. Update in Sanity.'}</p>
           <a href="/about" class="founder-link">Read Emma's story →</a>
         </div>
       </div>
