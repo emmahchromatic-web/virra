@@ -37,7 +37,7 @@ export default function SettingsScreen() {
     scheduleWeeklyPlanReminder();
     getPermissionsStatus().then((entries) => {
       setPermissionsSummary({
-        granted: entries.filter((e: any) => e.granted).length,
+        granted: entries.filter((e) => e.status === 'granted').length,
         total:   entries.length,
       });
     });

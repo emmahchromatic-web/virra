@@ -8,6 +8,7 @@ export const PERMISSIONS_GRANTED_KEY = 'permissions_granted_v1';
 export interface PermissionItem {
   id:       'health' | 'location' | 'notifications' | 'camera';
   label:    string;
+  title:    string;
   headline: string;
   body:     string;
   why:      string;
@@ -18,6 +19,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
   {
     id:       'health',
     label:    'HEALTH + ACTIVITY',
+    title:    'Health',
     headline: 'Your health data, working for you.',
     body:     "Virra reads your workout history to pre-fill your fitness baseline — and pulls cycle data if you've logged it in Apple Health.",
     why:      'Raw health records stay in Apple Health on your device. Virra only processes aggregated training and cycle signals to generate your plan and insights, and never sells health data.',
@@ -26,6 +28,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
   {
     id:       'location',
     label:    'GPS + LOCATION',
+    title:    'GPS',
     headline: 'Track every run, automatically.',
     body:     'Virra uses GPS to map routes, measure pace in real time, and log splits. The screen can lock during a run — Virra keeps recording in the background until you tap Finish.',
     why:      "We ask for When in Use only — never Always. Location is only collected during an active run.",
@@ -34,6 +37,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
   {
     id:       'notifications',
     label:    'REMINDERS + ALERTS',
+    title:    'Reminders',
     headline: 'Stay on track without checking the app.',
     body:     'Virra sends smart reminders that cancel themselves as soon as the action is done.',
     why:      "Training reminders cancel when your workout is logged. Nutrition reminders cancel when you've logged a meal.",
@@ -42,6 +46,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
   {
     id:       'camera',
     label:    'BARCODE SCANNER',
+    title:    'Barcode',
     headline: 'Log food in seconds.',
     body:     'Scan any barcode to log food instantly — no typing, no searching.',
     why:      'You can always add this later in Settings. It only affects barcode scanning.',

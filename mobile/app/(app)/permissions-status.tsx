@@ -82,7 +82,7 @@ export default function PermissionsStatusScreen() {
                   </View>
                   <View style={styles.titleWrap}>
                     <VirraText variant="bodyMedium" size={15} color={colors.breath}>
-                      {item.label.replace(/ \+ .*/, '').replace(/S$/, '').toLowerCase().replace(/^./, (c) => c.toUpperCase())}
+                      {item.title}
                     </VirraText>
                     <VirraText variant="body" size={12} color="rgba(244,237,224,0.55)" style={{ marginTop: 2 }}>
                       {item.body}
