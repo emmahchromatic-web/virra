@@ -1,4 +1,6 @@
-export type FitnessLevel = 'beginner' | 'recreational' | 'intermediate' | 'advanced';
+// 'returning' is self-reported only (comeback runners: postpartum, injury, time
+// off). deriveFitnessLevel never infers it from HealthKit pace.
+export type FitnessLevel = 'beginner' | 'recreational' | 'intermediate' | 'advanced' | 'returning';
 export type WeeklyMileageBracket = '<5' | '5-15' | '15-30' | '30+';
 
 // ---- Pure derivation (unit-tested) ----

@@ -20,6 +20,7 @@ const FITNESS_OPTIONS: { value: FitnessLevel; label: string; sub: string }[] = [
   { value: 'recreational', label: 'Recreational', sub: 'Running for fun' },
   { value: 'intermediate', label: 'Intermediate', sub: 'Training consistently' },
   { value: 'advanced',     label: 'Advanced',     sub: 'Racing regularly' },
+  { value: 'returning',    label: 'Returning',    sub: 'Coming back after a break' },
 ];
 
 const MILEAGE_OPTIONS: WeeklyMileageBracket[] = ['<5', '5-15', '15-30', '30+'];
@@ -76,7 +77,11 @@ export default function FitnessScreen() {
         </View>
         <View style={styles.cardGrid}>
           {FITNESS_OPTIONS.map((opt) => (
-            <Pressable key={opt.value} onPress={() => setFitnessLevel(opt.value)} style={styles.halfCard}>
+            <Pressable
+              key={opt.value}
+              onPress={() => setFitnessLevel(opt.value)}
+              style={opt.value === 'returning' ? styles.fullCard : styles.halfCard}
+            >
               <VirraCard accent={fitnessLevel === opt.value}>
                 <VirraText variant="bodyMedium" color={colors.breath}>{opt.label}</VirraText>
                 <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)">{opt.sub}</VirraText>
@@ -90,7 +95,7 @@ export default function FitnessScreen() {
       <View style={styles.section}>
         <View style={styles.fieldRow}>
           <VirraText variant="mono" size={10} color={colors.pulse} style={styles.fieldLabel}>
-            WEEKLY MILEAGE (KM)
+            CURRENT AVE. WEEKLY MILEAGE (KM)
           </VirraText>
           {hkBadges.has('mileage') && (
             <VirraText variant="mono" size={10} color="rgba(212,255,38,0.5)">
@@ -162,6 +167,7 @@ const styles = StyleSheet.create({
   fieldLabel:    { letterSpacing: 2 },
   cardGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   halfCard:      { width: '47%' },
+  fullCard:      { width: '100%' },
   segmented:     { flexDirection: 'row', borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
   segment:       { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', backgroundColor: colors.mist },
   segmentActive: { backgroundColor: colors.pulse },
