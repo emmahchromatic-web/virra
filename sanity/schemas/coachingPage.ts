@@ -6,8 +6,14 @@ export const coachingPage = defineType({
   type: 'document',
   fields: [
     // Block 1 — Hero & Enquiry Form
+    defineField({
+      name: 'heroImage',
+      type: 'image',
+      options: { hotspot: true },
+      description: 'Block 1 — welcoming hero image (left column). Warm, smiling, on-brand.',
+    }),
     defineField({ name: 'heroTagline', type: 'string', description: 'Block 1 — italic hero tagline.' }),
-    defineField({ name: 'heroIntro', type: 'text', rows: 3, description: 'Block 1 — short intro line beside the enquiry form.' }),
+    defineField({ name: 'heroIntro', type: 'text', rows: 3, description: 'Block 1 — short intro line above the enquiry form.' }),
     defineField({
       name: 'whoItsFor',
       type: 'array',
