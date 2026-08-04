@@ -3,11 +3,15 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import SectionLabel from '../components/SectionLabel.astro';
-import { client } from '../lib/sanity';
+import { client, urlFor } from '../lib/sanity';
 import { COACHING_QUERY } from '../lib/queries';
 
 const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
 const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+
+const mini = coaching?.miniAbout;
+const quote = coaching?.motivationalQuote;
+const cta = coaching?.ctaBlock;
 
 const faqSchema = coaching?.faq?.length
   ? {
@@ -23,87 +27,93 @@ const faqSchema = coaching?.faq?.length
 ---
 <BaseLayout
   title="1:1 Coaching — VIRRA"
-  description="Bespoke coaching for women runners. Cycle-aware training, nutrition, and real accountability. Three tiers from £50/month."
+  description="Bespoke 1:1 coaching for women runners. Cycle-aware training, nutrition and real accountability. Enquire for a free consultation with Emma."
 >
   <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
   {faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
   <Header />
   <main>
 
-    <!-- HERO -->
-    <section class="c-hero">
-      <div class="wrap">
-        <SectionLabel text="1:1 Coaching with Emma" />
-        <h1>Train with purpose.</h1>
-        {coaching?.heroTagline && (
-          <p class="c-tagline">{coaching.heroTagline}</p>
-        )}
-      </div>
-    </section>
-
-    <!-- WHO IT'S FOR -->
-    {coaching?.whoItsFor?.length > 0 && (
-      <section class="who">
-        <div class="wrap">
-          <SectionLabel text="Who it's for" as="h2" />
-          <ul class="who-list">
-            {coaching.whoItsFor.map((item: string) => (
-              <li>{item}</li>
-            ))}
-          </ul>
+    <!-- BLOCK 1 — HERO & ENQUIRY FORM -->
+    <section class="c-hero" id="enquire">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <SectionLabel text="1:1 Coaching with Emma" />
+          <h1>Train with purpose.</h1>
+          {coaching?.heroTagline && <p class="c-tagline">{coaching.heroTagline}</p>}
+          {coaching?.heroIntro && <p class="hero-intro">{coaching.heroIntro}</p>}
+          {coaching?.whoItsFor?.length > 0 && (
+            <ul class="who-list">
+              {coaching.whoItsFor.map((item: string) => <li>{item}</li>)}
+            </ul>
+          )}
         </div>
-      </section>
-    )}
 
-    <!-- HOW IT WORKS -->
-    <section class="how">
-      <div class="wrap">
-        <SectionLabel text="How it works" as="h2" />
-        <div class="steps-grid">
-          <div class="step">
-            <span class="step-num">01</span>
-            <h3>Enquire</h3>
-            <p>Fill in the form below. Tell Emma about your goals and your running history.</p>
-          </div>
-          <div class="step">
-            <span class="step-num">02</span>
-            <h3>Consult</h3>
-            <p>Emma will get back to you within 48 hours to arrange a free 20-minute call.</p>
-          </div>
-          <div class="step">
-            <span class="step-num">03</span>
-            <h3>Start</h3>
-            <p>Your first programme lands on day one. Coaching begins immediately.</p>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- TIERS -->
-    {coaching?.tiers?.length > 0 && (
-      <section class="tiers">
-        <div class="wrap">
-          <SectionLabel text="Tiers" as="h2" />
-          <div class="tiers-grid">
-            {coaching.tiers.map((tier: any) => (
-              <div class:list={['tier-card', { featured: tier.featured }]}>
-                <span class="tier-tag">{tier.tag}</span>
-                <div class="tier-price">£{tier.price}<small>/mo</small></div>
-                <p class="tier-desc">{tier.description}</p>
-                <ul class="tier-features">
-                  {tier.features.map((f: string) => (
-                    <li>{f}</li>
+        <div class="hero-form">
+          <p class="form-eyebrow">Enquire</p>
+          <p class="form-lead">Fill in the form and Emma will be in touch within 48 hours.</p>
+          <form class="enq-form" id="enq-form">
+            <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
+            <div class="field-row">
+              <label>
+                <span>Full name *</span>
+                <input type="text" name="name" required autocomplete="name" />
+              </label>
+              <label>
+                <span>Email *</span>
+                <input type="email" name="email" required autocomplete="email" />
+              </label>
+            </div>
+            <div class="field-row">
+              <label>
+                <span>Interested in *</span>
+                <select name="tier" required>
+                  <option value="">Select...</option>
+                  {coaching?.tiers?.map((tier: any) => (
+                    <option>{(tier.tag || '').split('·')[0].trim()}</option>
                   ))}
-                </ul>
-                <a href={`?tier=${encodeURIComponent((tier.tag || '').split(/[\s·]+/)[0])}#enquire`} class="tier-cta">Enquire →</a>
-              </div>
-            ))}
-          </div>
+                  <option>Not sure yet</option>
+                </select>
+              </label>
+              <label>
+                <span>Current running level *</span>
+                <select name="level" required>
+                  <option value="">Select...</option>
+                  <option>Complete beginner</option>
+                  <option>Recreational (occasional 5K–10K)</option>
+                  <option>Intermediate (half marathon / consistent training)</option>
+                  <option>Advanced (marathon / competitive)</option>
+                </select>
+              </label>
+            </div>
+            <label class="full">
+              <span>Your goal *</span>
+              <textarea name="goal" required rows="3" placeholder="e.g. Run my first half marathon in under 2 hours by October"></textarea>
+            </label>
+            <div class="field-row">
+              <label>
+                <span>Preferred start month</span>
+                <input type="text" name="startMonth" placeholder="e.g. July 2026" />
+              </label>
+              <label>
+                <span>How did you hear about VIRRA?</span>
+                <input type="text" name="referral" />
+              </label>
+            </div>
+            <label class="checkbox-label">
+              <input type="checkbox" name="newsletter" />
+              <span>Subscribe me to Run Hot (the VIRRA newsletter)</span>
+            </label>
+            <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark"></div>
+            <button type="submit" class="submit-btn">Send enquiry</button>
+          </form>
+          <p class="enq-ok" id="enq-ok" role="status" hidden>Thanks. Emma will be in touch within 48 hours.</p>
+          <p class="enq-err" id="enq-err" role="alert" hidden>Something went wrong. Email <a href="mailto:hello@virra.app">hello@virra.app</a> directly.</p>
         </div>
-      </section>
-    )}
+      </div>
+    </section>
 
-    <!-- TESTIMONIALS -->
+    <!-- BLOCK 2 — TESTIMONIALS -->
     {coaching?.testimonials?.length > 0 && (
       <section class="testimonials">
         <div class="wrap">
@@ -111,7 +121,7 @@ const faqSchema = coaching?.faq?.length
           <div class="testi-grid">
             {coaching.testimonials.map((t: any) => (
               <div class="testi-card">
-                <p class="testi-quote">"{t.quote}"</p>
+                <p class="testi-quote">“{t.quote}”</p>
                 <span class="testi-name">— {t.name}</span>
               </div>
             ))}
@@ -120,13 +130,63 @@ const faqSchema = coaching?.faq?.length
       </section>
     )}
 
-    <!-- FAQ -->
+    <!-- BLOCK 3 — MINI ABOUT EMMA -->
+    {mini && (mini.heading || mini.body) && (
+      <section class="mini-about">
+        <div class:list={['wrap', 'mini-grid', { 'no-img': !mini.image }]}>
+          {mini.image && (
+            <div class="mini-img">
+              <img src={urlFor(mini.image).width(440).height(550).url()} alt={mini.heading || 'Emma'} width="440" height="550" loading="lazy" />
+            </div>
+          )}
+          <div class="mini-copy">
+            <SectionLabel text="Your coach" />
+            {mini.heading && <h2>{mini.heading}</h2>}
+            {mini.body && <p class="mini-body">{mini.body}</p>}
+            <a href="/about" class="mini-link">Read Emma's full story →</a>
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- BLOCK 4 — MOTIVATIONAL QUOTE -->
+    {quote?.quote && (
+      <section class="quote-block">
+        <div class="wrap">
+          <h2 class="visually-hidden">In her words</h2>
+          <blockquote>
+            <p>“{quote.quote}”</p>
+            {quote.attribution && <cite>{quote.attribution}</cite>}
+          </blockquote>
+        </div>
+      </section>
+    )}
+
+    <!-- BLOCK 5 — WHAT'S INCLUDED -->
+    {coaching?.whatsIncluded?.length > 0 && (
+      <section class="included">
+        <div class="wrap">
+          <SectionLabel text="What's included" as="h2" />
+          {coaching.whatsIncludedIntro && <p class="included-intro">{coaching.whatsIncludedIntro}</p>}
+          <div class="included-grid">
+            {coaching.whatsIncluded.map((item: any) => (
+              <div class="included-item">
+                <h3>{item.title}</h3>
+                {item.description && <p>{item.description}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    )}
+
+    <!-- BLOCK 6 — FAQ -->
     {coaching?.faq?.length > 0 && (
       <section class="faq">
         <div class="wrap">
           <SectionLabel text="FAQ" as="h2" />
           <div class="faq-list">
-            {coaching.faq.map((item: any, i: number) => (
+            {coaching.faq.map((item: any) => (
               <details class="faq-item">
                 <summary class="faq-q">{item.question}</summary>
                 <p class="faq-a">{item.answer}</p>
@@ -137,69 +197,14 @@ const faqSchema = coaching?.faq?.length
       </section>
     )}
 
-    <!-- ENQUIRY FORM -->
-    <section class="enquire" id="enquire">
+    <!-- BLOCK 7 — CLOSING CTA -->
+    <section class="cta-block">
       <div class="wrap">
-        <SectionLabel text="Get started" />
-        <h2>Enquire.</h2>
-        <p class="enquire-sub">Fill in the form and Emma will be in touch within 48 hours.</p>
-        <form class="enq-form" id="enq-form">
-          <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
-          <div class="field-row">
-            <label>
-              <span>Full name *</span>
-              <input type="text" name="name" required autocomplete="name" />
-            </label>
-            <label>
-              <span>Email *</span>
-              <input type="email" name="email" required autocomplete="email" />
-            </label>
-          </div>
-          <div class="field-row">
-            <label>
-              <span>Tier interested in *</span>
-              <select name="tier" required>
-                <option value="">Select...</option>
-                {coaching?.tiers?.map((tier: any) => (
-                  <option>{`${(tier.tag || '').split('·')[0].trim()} (£${tier.price}/mo)`}</option>
-                ))}
-                <option>Not sure yet</option>
-              </select>
-            </label>
-            <label>
-              <span>Current running level *</span>
-              <select name="level" required>
-                <option value="">Select...</option>
-                <option>Complete beginner</option>
-                <option>Recreational (occasional 5K–10K)</option>
-                <option>Intermediate (half marathon / consistent training)</option>
-                <option>Advanced (marathon / competitive)</option>
-              </select>
-            </label>
-          </div>
-          <label class="full">
-            <span>Your goal *</span>
-            <textarea name="goal" required rows="3" placeholder="e.g. Run my first half marathon in under 2 hours by October"></textarea>
-          </label>
-          <div class="field-row">
-            <label>
-              <span>Preferred start month</span>
-              <input type="text" name="startMonth" placeholder="e.g. July 2026" />
-            </label>
-            <label>
-              <span>How did you hear about VIRRA?</span>
-              <input type="text" name="referral" />
-            </label>
-          </div>
-          <label class="checkbox-label">
-            <input type="checkbox" name="newsletter" />
-            <span>Subscribe me to Run Hot (the VIRRA newsletter)</span>
-          </label>
-          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark"></div>
-          <button type="submit" class="submit-btn">Send enquiry</button>
-        </form>
-        <p class="enq-ok" id="enq-ok" hidden>Thanks. Emma will be in touch within 48 hours.</p>
-        <p class="enq-err" id="enq-err" hidden>Something went wrong. Email <a href="mailto:hello@virra.app">hello@virra.app</a> directly.</p>
+        <h2>{cta?.heading ?? 'Ready to train with intent?'}</h2>
+        {(cta?.body ?? "Tell Emma your goal and she'll be in touch within 48 hours. No pressure, no shame culture.") && (
+          <p class="cta-body">{cta?.body ?? "Tell Emma your goal and she'll be in touch within 48 hours. No pressure, no shame culture."}</p>
+        )}
+        <a href="#enquire" class="cta-btn">{cta?.buttonLabel ?? 'Start your enquiry'}</a>
       </div>
     </section>
 
@@ -212,7 +217,7 @@ const faqSchema = coaching?.faq?.length
   const ok = document.getElementById('enq-ok') as HTMLElement;
   const err = document.getElementById('enq-err') as HTMLElement;
 
-  // Pre-select the tier when arriving from a tier card (?tier=Standard, etc.)
+  // Pre-select the interest option when arriving from ?tier=Standard, etc.
   const tierParam = new URLSearchParams(window.location.search).get('tier');
   if (tierParam) {
     const select = form.querySelector<HTMLSelectElement>('select[name=tier]');
@@ -262,11 +267,12 @@ const faqSchema = coaching?.faq?.length
 <style>
   .wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
 
-  /* HERO */
-  .c-hero { padding: 100px 0 60px; }
+  /* BLOCK 1 — HERO & FORM */
+  .c-hero { padding: 90px 0 70px; }
+  .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: start; }
   .c-hero h1 {
     font-family: var(--font-display);
-    font-size: clamp(4rem, 11vw, 9rem);
+    font-size: clamp(3.2rem, 7vw, 6rem);
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: -0.04em;
@@ -277,118 +283,113 @@ const faqSchema = coaching?.faq?.length
   .c-tagline {
     font-family: var(--font-editorial);
     font-style: italic;
-    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
+    font-size: clamp(1.2rem, 2.2vw, 1.7rem);
     color: rgba(244,237,224,0.72);
     letter-spacing: -0.015em;
     line-height: 1.3;
+    margin-bottom: 24px;
   }
-
-  /* WHO */
-  .who { padding: 60px 0; border-top: 1px solid var(--border); }
-  .who-list { list-style: none; padding: 0; margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .hero-intro { font-size: 1rem; line-height: 1.7; color: rgba(244,237,224,0.75); margin-bottom: 24px; max-width: 46ch; }
+  .who-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
   .who-list li {
-    font-size: 1rem;
-    color: rgba(244,237,224,0.8);
-    padding-left: 20px;
+    font-size: 0.95rem;
+    color: rgba(244,237,224,0.82);
+    padding-left: 22px;
     position: relative;
+    line-height: 1.5;
   }
   .who-list li::before { content: '—'; position: absolute; left: 0; color: var(--pulse); }
 
-  /* HOW */
-  .how { padding: 60px 0; border-top: 1px solid var(--border); }
-  .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
-  .step { background: var(--mist); border: 1px solid var(--border); padding: 28px 24px; border-radius: 2px; }
-  .step-num {
-    font-family: var(--font-mono);
-    font-size: 0.6rem;
-    letter-spacing: 0.2em;
-    color: var(--heat);
-    display: block;
-    margin-bottom: 12px;
-  }
-  .step h3 {
-    font-family: var(--font-display);
-    font-size: 1.6rem;
-    font-weight: 900;
-    text-transform: uppercase;
-    letter-spacing: -0.01em;
-    line-height: 0.95;
-    color: var(--pulse);
-    margin-bottom: 10px;
-  }
-  .step p { font-size: 0.9rem; line-height: 1.65; color: rgba(244,237,224,0.72); }
-
-  /* TIERS */
-  .tiers { padding: 80px 0; border-top: 1px solid var(--border); }
-  .tiers-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
-  .tier-card {
+  /* Enquiry form card */
+  .hero-form {
     background: var(--mist);
-    border: 1px solid var(--border);
-    padding: 28px 24px;
-    border-radius: 2px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    padding: 32px;
+    position: sticky;
+    top: 88px;
   }
-  .tier-card.featured { border-color: var(--pulse); }
-  .tier-tag {
+  .form-eyebrow {
     font-family: var(--font-mono);
-    font-size: 0.58rem;
+    font-size: 0.62rem;
+    font-weight: 700;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-    color: var(--mile);
-    background: var(--breath);
-    padding: 3px 10px;
-    border-radius: 3px;
-    display: inline-block;
-    align-self: flex-start;
+    color: var(--heat);
+    margin-bottom: 8px;
   }
-  .tier-card.featured .tier-tag { background: var(--pulse); }
-  .tier-price {
-    font-family: var(--font-display);
-    font-size: 2.5rem;
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    color: var(--breath);
-    line-height: 1;
-  }
-  .tier-price small {
-    font-family: var(--font-body);
-    font-size: 0.75rem;
-    font-weight: 400;
+  .form-lead { font-size: 0.92rem; line-height: 1.5; color: rgba(244,237,224,0.72); margin-bottom: 20px; }
+  .enq-form { display: flex; flex-direction: column; gap: 14px; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  label span {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
     color: var(--muted);
-    letter-spacing: 0;
+    margin-bottom: 6px;
   }
-  .tier-desc {
-    font-family: var(--font-editorial);
-    font-style: italic;
-    font-size: 0.95rem;
-    line-height: 1.45;
-    color: rgba(244,237,224,0.8);
-  }
-  .tier-features { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: 1; }
-  .tier-features li {
-    font-size: 0.85rem;
-    color: rgba(244,237,224,0.8);
-    padding-bottom: 6px;
-    border-bottom: 1px dashed var(--border);
-  }
-  .tier-features li:last-child { border-bottom: none; }
-  .tier-cta {
-    display: inline-block;
+  input[type=text], input[type=email], select, textarea {
+    width: 100%;
+    background: rgba(244,237,224,0.03);
+    border: 1px solid var(--border-strong);
+    color: var(--breath);
     font-family: var(--font-body);
-    font-size: 0.75rem;
+    font-size: 0.9rem;
+    font-weight: 300;
+    padding: 11px 14px;
+    border-radius: 2px;
+    transition: border-color 0.2s;
+    line-height: 1.4;
+    box-sizing: border-box;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--pulse); }
+  select {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5L6 6.5L11 1.5' stroke='%23F4EDE0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+  }
+  textarea { resize: vertical; }
+  label.full { display: flex; flex-direction: column; }
+  .checkbox-label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .checkbox-label input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--pulse); flex-shrink: 0; }
+  .checkbox-label span {
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    color: rgba(244,237,224,0.75);
+    text-transform: none;
+    letter-spacing: 0;
+    margin-bottom: 0;
+  }
+  .submit-btn {
+    align-self: flex-start;
+    background: var(--pulse);
+    color: var(--mile);
+    border: none;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--pulse);
-    text-decoration: none;
-    margin-top: auto;
+    padding: 15px 30px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s;
   }
-  .tier-cta:hover { text-decoration: underline; }
+  .submit-btn:hover { background: #c8f020; }
+  .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .enq-ok { color: var(--pulse); font-size: 1rem; margin-top: 16px; }
+  .enq-err { color: var(--dawn); font-size: 0.9rem; margin-top: 16px; }
+  .enq-err a { color: var(--dawn); }
 
-  /* TESTIMONIALS */
-  .testimonials { padding: 80px 0; border-top: 1px solid var(--border); }
+  /* BLOCK 2 — TESTIMONIALS */
+  .testimonials { padding: 70px 0; border-top: 1px solid var(--border); }
   .testi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
   .testi-card { background: var(--mist); border: 1px solid var(--border); padding: 28px 24px; border-radius: 2px; }
   .testi-quote {
@@ -401,8 +402,66 @@ const faqSchema = coaching?.faq?.length
   }
   .testi-name { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
 
-  /* FAQ */
-  .faq { padding: 80px 0; border-top: 1px solid var(--border); }
+  /* BLOCK 3 — MINI ABOUT */
+  .mini-about { padding: 70px 0; border-top: 1px solid var(--border); }
+  .mini-grid { display: grid; grid-template-columns: 300px 1fr; gap: 56px; align-items: center; }
+  .mini-grid.no-img { grid-template-columns: 1fr; max-width: 720px; }
+  .mini-img img { width: 100%; aspect-ratio: 4/5; object-fit: cover; border-radius: 2px; display: block; }
+  .mini-copy h2 {
+    font-family: var(--font-display);
+    font-size: clamp(2.2rem, 4.5vw, 3.5rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    color: var(--breath);
+    margin: 6px 0 18px;
+  }
+  .mini-body { font-size: 1rem; line-height: 1.75; color: rgba(244,237,224,0.75); margin-bottom: 20px; white-space: pre-line; }
+  .mini-link { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--pulse); text-decoration: none; }
+  .mini-link:hover { text-decoration: underline; }
+
+  /* BLOCK 4 — MOTIVATIONAL QUOTE */
+  .quote-block { padding: 80px 0; border-top: 1px solid var(--border); }
+  .quote-block blockquote { max-width: 900px; margin: 0 auto; text-align: center; }
+  .quote-block blockquote p {
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: clamp(1.6rem, 4vw, 2.8rem);
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    color: var(--breath);
+  }
+  .quote-block cite {
+    display: block;
+    margin-top: 22px;
+    font-family: var(--font-mono);
+    font-style: normal;
+    font-size: 0.65rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--heat);
+  }
+
+  /* BLOCK 5 — WHAT'S INCLUDED */
+  .included { padding: 70px 0; border-top: 1px solid var(--border); }
+  .included-intro { font-size: 1rem; line-height: 1.7; color: rgba(244,237,224,0.75); margin-top: 8px; max-width: 60ch; }
+  .included-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 28px; }
+  .included-item { background: var(--mist); border: 1px solid var(--border); padding: 26px 24px; border-radius: 2px; }
+  .included-item h3 {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    color: var(--pulse);
+    margin-bottom: 10px;
+  }
+  .included-item p { font-size: 0.92rem; line-height: 1.6; color: rgba(244,237,224,0.75); }
+
+  /* BLOCK 6 — FAQ */
+  .faq { padding: 70px 0; border-top: 1px solid var(--border); }
   .faq-list { margin-top: 24px; display: flex; flex-direction: column; gap: 2px; }
   .faq-item { border: 1px solid var(--border); border-radius: 2px; }
   .faq-q {
@@ -423,100 +482,50 @@ const faqSchema = coaching?.faq?.length
   .faq-item[open] .faq-q::after { content: '−'; }
   .faq-a { padding: 0 20px 18px; font-size: 0.95rem; line-height: 1.7; color: rgba(244,237,224,0.75); }
 
-  /* ENQUIRY FORM */
-  .enquire { padding: 80px 0; border-top: 1px solid var(--border); }
-  .enquire h2 {
+  /* BLOCK 7 — CLOSING CTA */
+  .cta-block { padding: 80px 0; border-top: 1px solid var(--border); background: var(--mist); text-align: center; }
+  .cta-block h2 {
     font-family: var(--font-display);
-    font-size: clamp(3rem, 7vw, 6rem);
+    font-size: clamp(2.5rem, 6vw, 5rem);
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: -0.04em;
-    line-height: 0.86;
-    margin: 8px 0 12px;
-  }
-  .enquire-sub { font-size: 0.95rem; color: var(--muted); margin-bottom: 32px; }
-  .enq-form { display: flex; flex-direction: column; gap: 16px; max-width: 760px; }
-  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  label span {
-    display: block;
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 6px;
-  }
-  input[type=text], input[type=email], select, textarea {
-    width: 100%;
-    background: rgba(244,237,224,0.03);
-    border: 1px solid var(--border-strong);
+    line-height: 0.88;
     color: var(--breath);
+    margin-bottom: 18px;
+  }
+  .cta-body { font-size: 1.05rem; line-height: 1.6; color: rgba(244,237,224,0.75); margin: 0 auto 30px; max-width: 52ch; }
+  .cta-btn {
+    display: inline-block;
     font-family: var(--font-body);
-    font-size: 0.9rem;
-    font-weight: 300;
-    padding: 12px 16px;
-    border-radius: 2px;
-    transition: border-color 0.2s;
-    line-height: 1.4;
-    box-sizing: border-box;
-  }
-  input:focus, select:focus, textarea:focus { border-color: var(--pulse); }
-  select {
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    padding-right: 44px;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'><path d='M1 1.5L6 6.5L11 1.5' stroke='%23F4EDE0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 16px center;
-  }
-  textarea { resize: vertical; }
-  label.full { display: flex; flex-direction: column; }
-  .checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-  }
-  .checkbox-label input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--pulse); }
-  .checkbox-label span {
-    font-family: var(--font-body);
-    font-size: 0.88rem;
-    color: rgba(244,237,224,0.75);
-    text-transform: none;
-    letter-spacing: 0;
-    margin-bottom: 0;
-  }
-  .submit-btn {
-    align-self: flex-start;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     background: var(--pulse);
     color: var(--mile);
-    border: none;
-    font-family: var(--font-body);
-    font-size: 0.8rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    padding: 16px 32px;
+    padding: 16px 36px;
     border-radius: 999px;
-    cursor: pointer;
+    text-decoration: none;
     transition: background 0.2s;
   }
-  .submit-btn:hover { background: #c8f020; }
-  .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-  .enq-ok { color: var(--pulse); font-size: 1rem; margin-top: 16px; }
-  .enq-err { color: var(--dawn); font-size: 0.9rem; margin-top: 16px; }
-  .enq-err a { color: var(--dawn); }
+  .cta-btn:hover { background: #c8f020; }
 
+  @media (max-width: 900px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 36px; }
+    .hero-form { position: static; }
+    .mini-grid { grid-template-columns: 1fr; gap: 28px; }
+    .mini-img img { max-width: 260px; }
+  }
   @media (max-width: 768px) {
-    /* Consistent, tighter vertical rhythm on smaller screens. */
-    .c-hero, .who, .how, .tiers, .testimonials, .faq, .enquire { padding-top: 56px; padding-bottom: 56px; }
-    .steps-grid, .tiers-grid, .testi-grid { grid-template-columns: 1fr; }
+    .c-hero { padding: 56px 0; }
+    .testimonials, .mini-about, .included, .faq { padding: 56px 0; }
+    .quote-block, .cta-block { padding: 56px 0; }
+    .testi-grid, .included-grid { grid-template-columns: 1fr; }
     .field-row { grid-template-columns: 1fr; }
   }
   @media (max-width: 640px) {
     .wrap { padding: 0 24px; }
-    .c-hero, .who, .how, .tiers, .testimonials, .faq, .enquire { padding-top: 48px; padding-bottom: 48px; }
+    .hero-form { padding: 24px; }
   }
 </style>

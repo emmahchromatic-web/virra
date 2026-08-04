@@ -65,8 +65,14 @@ export const RELATED_ARTICLES_QUERY = `*[_type == "article" && slug.current != $
 
 export const COACHING_QUERY = `*[_type == "coachingPage"][0]{
   heroTagline,
+  heroIntro,
   whoItsFor,
   tiers,
+  miniAbout{ heading, body, image },
+  motivationalQuote,
+  whatsIncludedIntro,
+  whatsIncluded,
+  ctaBlock,
   testimonials,
   faq
 }`;
