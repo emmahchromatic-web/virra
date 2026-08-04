@@ -8,12 +8,25 @@ import { COACHING_QUERY } from '../lib/queries';
 
 const coaching = await client.fetch(COACHING_QUERY).catch(() => null);
 const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+
+const faqSchema = coaching?.faq?.length
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: coaching.faq.map((item: any) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: { '@type': 'Answer', text: item.answer },
+      })),
+    }
+  : null;
 ---
 <BaseLayout
   title="1:1 Coaching — VIRRA"
   description="Bespoke coaching for women runners. Cycle-aware training, nutrition, and real accountability. Three tiers from £50/month."
 >
   <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+  {faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
   <Header />
   <main>
 
