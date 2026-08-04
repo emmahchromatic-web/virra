@@ -11,7 +11,7 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
 ---
 <BaseLayout
   title="About Emma — VIRRA"
-  description="Emma built VIRRA because women's physiology deserves to be at the centre of every training and nutrition decision — not an afterthought."
+  description="Emma built VIRRA because women's physiology deserves to be at the centre of every training and nutrition decision, not an afterthought."
 >
   <Header />
   <main>
@@ -57,7 +57,7 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
     {about?.qualifications?.length > 0 && (
       <section class="quals">
         <div class="wrap">
-          <SectionLabel text="Qualifications" />
+          <SectionLabel text="Qualifications" as="h2" />
           <ul class="quals-list">
             {about.qualifications.map((q: string) => (
               <li>{q}</li>
@@ -71,7 +71,7 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
     {about?.whyVirra && (
       <section class="why">
         <div class="wrap">
-          <SectionLabel text="Why VIRRA" />
+          <SectionLabel text="Why VIRRA" as="h2" />
           <div class="prose">
             <PortableText value={about.whyVirra} />
           </div>
@@ -83,7 +83,7 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
     {about?.pressItems?.length > 0 && (
       <section class="press">
         <div class="wrap">
-          <SectionLabel text="Press" />
+          <SectionLabel text="Press" as="h2" />
           <div class="press-strip">
             {about.pressItems.map((item: any) => (
               <a href={item.url} target="_blank" rel="noopener noreferrer" class="press-item">
@@ -228,9 +228,14 @@ const about = await client.fetch(ABOUT_QUERY).catch(() => null);
   .cta-arrow { font-size: 1.4rem; color: var(--pulse); }
 
   @media (max-width: 900px) {
+    /* Consistent, tighter vertical rhythm on smaller screens. */
+    .about-hero, .story, .quals, .why, .press, .ctas { padding-top: 56px; padding-bottom: 56px; }
     .hero-inner { grid-template-columns: 1fr; gap: 32px; }
     .hero-img img { max-width: 360px; }
     .ctas-inner { grid-template-columns: 1fr; }
   }
-  @media (max-width: 640px) { .wrap { padding: 0 24px; } }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 24px; }
+    .about-hero, .story, .quals, .why, .press, .ctas { padding-top: 48px; padding-bottom: 48px; }
+  }
 </style>

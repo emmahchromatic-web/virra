@@ -1,8 +1,13 @@
 ---
-interface Props { text: string; }
-const { text } = Astro.props;
+// Small mono kicker/eyebrow. Pass `as="h2"` when this label is the section's
+// heading (keeps the document outline correct — see WCAG heading-order work);
+// leave as the default <p> when a separate display heading already sits in the
+// section (e.g. a big <h2> title beneath the kicker).
+interface Props { text: string; as?: 'p' | 'h2'; }
+const { text, as = 'p' } = Astro.props;
+const Tag = as;
 ---
-<p class="section-label">{text}</p>
+<Tag class="section-label">{text}</Tag>
 <style>
   .section-label {
     font-family: var(--font-mono);
@@ -11,5 +16,6 @@ const { text } = Astro.props;
     text-transform: uppercase;
     color: var(--heat);
     margin-bottom: 10px;
+    font-weight: 400;
   }
 </style>

@@ -26,8 +26,18 @@ const filtered = (selectedCategory === 'All'
 
 const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
 const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+const breadcrumb = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.virra.app/' },
+    { '@type': 'ListItem', position: 2, name: 'Advice', item: 'https://www.virra.app/advice' },
+  ],
+};
 ---
 <BaseLayout title="Advice — VIRRA" description="Training, nutrition and cycle-aware advice for women runners.">
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumb)} />
   <Header />
   <main>
     <section class="advice-hero">
@@ -39,7 +49,7 @@ const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     {featuredArticle && (
       <section class="featured">
         <div class="wrap">
-          <SectionLabel text="FEATURED" />
+          <SectionLabel text="FEATURED" as="h2" />
           <ArticleCard
             title={featuredArticle.title}
             slug={featuredArticle.slug}
@@ -73,6 +83,7 @@ const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     <section class="article-grid">
       <div class="wrap">
+        <h2 class="visually-hidden">{selectedCategory === 'All' ? 'All articles' : selectedCategory}</h2>
         {paged.length > 0 ? (
           <div class="grid">
             {paged.map((article: any) => (

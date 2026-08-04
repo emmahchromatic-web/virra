@@ -42,7 +42,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     {home?.pillars?.length > 0 && (
       <section class="pillars">
         <div class="wrap">
-          <SectionLabel text="What VIRRA is" />
+          <SectionLabel text="What VIRRA is" as="h2" />
           <div class="pillars-grid">
             {home.pillars.map((p: any, i: number) => {
               // accentColor is now a 'pulse' | 'heat' | 'mile' enum from Sanity;
@@ -90,7 +90,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     {latestArticles?.length > 0 && (
       <section class="latest">
         <div class="wrap">
-          <SectionLabel text="Latest from VIRRA" />
+          <SectionLabel text="Latest from VIRRA" as="h2" />
           <div class="articles-grid">
             {latestArticles.map((a: any) => (
               <ArticleCard
@@ -229,7 +229,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
 
   /* FOUNDER */
   .founder { padding: 80px 0; border-top: 1px solid var(--border); }
-  .founder-inner { display: grid; grid-template-columns: 240px 1fr; gap: 56px; align-items: center; }
+  .founder-inner { display: grid; grid-template-columns: 180px 1fr; gap: 56px; align-items: center; }
   .founder-img img, .founder-placeholder {
     width: 100%;
     aspect-ratio: 4/5;
@@ -367,13 +367,19 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
   .nl-block :global(.nl-form input[type=email]:focus) { border-color: var(--mile); }
 
   @media (max-width: 900px) {
+    /* Tighter, consistent vertical rhythm on smaller screens — the doubled
+       80px top+bottom paddings otherwise stack into oversized empty bands. */
+    .hero { padding: 64px 0 48px; }
+    .pillars, .founder, .latest, .coaching-teaser, .calc-teaser, .nl-block { padding: 56px 0; }
     .pillars-grid { grid-template-columns: 1fr; }
     .articles-grid { grid-template-columns: 1fr 1fr; }
     .founder-inner { grid-template-columns: 1fr; gap: 32px; }
-    .founder-img img, .founder-placeholder { max-width: 240px; }
+    .founder-img img, .founder-placeholder { max-width: 180px; }
   }
   @media (max-width: 640px) {
     .wrap { padding: 0 24px; }
+    .hero { padding: 48px 0 40px; }
+    .pillars, .founder, .latest, .coaching-teaser, .calc-teaser, .nl-block { padding: 48px 0; }
     .articles-grid { grid-template-columns: 1fr; }
   }
 </style>

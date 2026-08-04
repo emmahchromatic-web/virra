@@ -31,6 +31,20 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 16px; scroll-behavior: smooth; }
 
+/* Visually hidden but available to assistive tech — used for section headings
+   that keep the document outline correct without altering the visual design. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Accessibility: one consistent keyboard-focus indicator (Heat) sitewide.
    Components must NOT suppress this with `outline: none`. */
 :focus-visible {
