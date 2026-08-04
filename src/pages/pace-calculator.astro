@@ -36,14 +36,22 @@ const copy = {
 ---
 <BaseLayout
   title="Running Pace Calculator — VIRRA"
-  description="Pace, time and distance calculator for runners. Race time predictor using Riegel formula. Cycle-aware training paces — adjust for your menstrual phase."
+  description="Pace, time and distance calculator for runners. Race time predictor using Riegel formula. Cycle-aware training paces that adjust for your menstrual phase."
 >
   <Header />
   <main class="calc-main">
     <div class="wrap">
-      <SectionLabel text="Free tool" />
-      <h1>Pace Calculator.</h1>
-      <p class="calc-sub">Three tools. All client-side. No data stored.</p>
+      <div class="calc-hero">
+        <div class="calc-hero-copy">
+          <SectionLabel text="Free tool" />
+          <h1>Pace Calculator.</h1>
+          <p class="calc-sub">Three tools. All client-side. No data stored.</p>
+        </div>
+        <div class="pace-card" aria-hidden="true">
+          <span class="pace-card-label">Your pace</span>
+          <span class="pace-card-figure">5:00<span class="pace-card-unit">km</span></span>
+        </div>
+      </div>
 
       <!-- TABS -->
       <div class="tabs" role="tablist" aria-label="Calculator modes">
@@ -92,7 +100,6 @@ const copy = {
               <p class="splits-label">Splits</p>
               <table class="splits-table" id="ptd-splits"></table>
             </div>
-            <a href="" class="share-link" id="ptd-share">Share these results ↗</a>
           </div>
         </div>
       </div>
@@ -131,7 +138,6 @@ const copy = {
               <div class="result-item"><span class="ri-label">Cameron prediction</span><span class="ri-val" id="pred-r-cameron">—</span></div>
             </div>
             <p class="pred-note">Riegel: T₂ = T₁ × (D₂/D₁)^1.06 · Cameron: adjusts for event-specific efficiency factors. Both assume consistent training and conditions.</p>
-            <a href="" class="share-link" id="pred-share">Share these results ↗</a>
           </div>
         </div>
       </div>
@@ -161,14 +167,13 @@ const copy = {
               It is informational only and is not medical advice. Every body is different.
               If something feels wrong, trust your body over any algorithm.
             </p>
-            <a href="" class="share-link" id="cyc-share">Share these results ↗</a>
           </div>
         </div>
       </div>
 
       <!-- SAVE MY PACES -->
       <div class="save-paces">
-        <SectionLabel text="Save my paces" />
+        <SectionLabel text="Save my paces" as="h2" />
         <p class="save-sub">Run a calculation above, then get a summary of your results in your inbox.</p>
         <form class="save-form" id="save-form">
           <input type="email" name="email" placeholder="your@email.com" autocomplete="email" required aria-label="Email address" />
@@ -278,8 +283,7 @@ const copy = {
       `).join('');
 
       const params = new URLSearchParams({ dist: String(distKm), time: String(totalSecs), unit });
-      const shareEl = document.getElementById('ptd-share') as HTMLAnchorElement;
-      shareEl.href = `${location.origin}/pace-calculator?${params}#pace`;
+      const shareUrl = `${location.origin}/pace-calculator?${params}#pace`;
 
       lastResult = {
         title: 'Pace / Time / Distance',
@@ -288,7 +292,7 @@ const copy = {
           { label: 'Time', value: secsToHMS(totalSecs) },
           { label: 'Pace', value: `${secsToMMSS(pacePerKm)}/km · ${secsToMMSS(paceMi)}/mi` },
         ],
-        shareUrl: shareEl.href,
+        shareUrl,
       };
 
       document.getElementById('ptd-result')!.hidden = false;
@@ -312,8 +316,7 @@ const copy = {
       document.getElementById('pred-r-cameron')!.textContent = secsToHMS(cameron);
 
       const params = new URLSearchParams({ d1: String(d1), t1: String(t1Secs), d2: String(d2) });
-      const shareEl = document.getElementById('pred-share') as HTMLAnchorElement;
-      shareEl.href = `${location.origin}/pace-calculator?${params}#predictor`;
+      const shareUrl = `${location.origin}/pace-calculator?${params}#predictor`;
 
       lastResult = {
         title: 'Race Time Predictor',
@@ -322,7 +325,7 @@ const copy = {
           { label: `Predicted ${d2} km (Riegel)`, value: secsToHMS(riegel) },
           { label: `Predicted ${d2} km (Cameron)`, value: secsToHMS(cameron) },
         ],
-        shareUrl: shareEl.href,
+        shareUrl,
       };
 
       document.getElementById('pred-result')!.hidden = false;
@@ -372,7 +375,7 @@ const copy = {
         return `
           <div class="phase-card${isActive ? ' active' : ''}">
             <span class="phase-tag${isActive ? ' active-tag' : ''}">${isActive ? '← Now' : ''}</span>
-            <h3 class="phase-name">${phase.charAt(0).toUpperCase() + phase.slice(1)}</h3>
+            <h2 class="phase-name">${phase.charAt(0).toUpperCase() + phase.slice(1)}</h2>
             <div class="phase-pace">${secsToMMSS(adjustedPace)}/km</div>
             <p class="phase-guidance">${phaseCopy.guidance}</p>
             <p class="phase-why">${phaseCopy.why}</p>
@@ -381,8 +384,7 @@ const copy = {
       }).join('');
 
       const params = new URLSearchParams({ start: dateInput, len: String(cycleLength), pace: String(basePace) });
-      const shareEl = document.getElementById('cyc-share') as HTMLAnchorElement;
-      shareEl.href = `${location.origin}/pace-calculator?${params}#cycle`;
+      const shareUrl = `${location.origin}/pace-calculator?${params}#cycle`;
 
       lastResult = {
         title: 'Cycle-Aware Paces',
@@ -393,7 +395,7 @@ const copy = {
             value: `${secsToMMSS(applyPaceModifier(basePace, phaseModifiers[phase]))}/km`,
           })),
         ],
-        shareUrl: shareEl.href,
+        shareUrl,
       };
 
       document.getElementById('cyc-result')!.hidden = false;
@@ -466,6 +468,15 @@ const copy = {
 <style>
   .wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
   .calc-main { padding: 100px 0 80px; }
+
+  .calc-hero {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 48px;
+    align-items: center;
+    margin-bottom: 40px;
+  }
+  .calc-hero-copy { min-width: 0; }
   .calc-main h1 {
     font-family: var(--font-display);
     font-size: clamp(4rem, 11vw, 9rem);
@@ -475,7 +486,43 @@ const copy = {
     line-height: 0.86;
     margin: 12px 0 8px;
   }
-  .calc-sub { font-size: 1.1rem; font-family: var(--font-editorial); font-style: italic; color: color-mix(in srgb, var(--breath) 70%, transparent); margin-bottom: 40px; }
+  .calc-sub { font-size: 1.1rem; font-family: var(--font-editorial); font-style: italic; color: color-mix(in srgb, var(--breath) 70%, transparent); margin: 0; }
+
+  /* Illustrated card (KDD5): flat Pulse Lime block, Space Mono pace figure in Mile Ink. */
+  .pace-card {
+    background: var(--pulse);
+    border-radius: 2px;
+    padding: 28px 32px 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    min-width: 240px;
+  }
+  .pace-card-label {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--mile);
+    margin-bottom: 10px;
+  }
+  .pace-card-figure {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: clamp(3.5rem, 6vw, 5rem);
+    line-height: 0.9;
+    color: var(--mile);
+    display: flex;
+    align-items: baseline;
+    gap: 0.12em;
+  }
+  .pace-card-unit {
+    font-size: 0.32em;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
 
   .tabs { display: flex; gap: 2px; margin-bottom: 2px; flex-wrap: wrap; }
   .tab {
@@ -566,9 +613,6 @@ const copy = {
 
   .cycle-disclaimer { font-size: 0.78rem; line-height: 1.65; color: var(--muted); border: 1px solid var(--border); padding: 14px 18px; border-radius: 2px; margin-top: 16px; }
 
-  .share-link { display: inline-block; font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--pulse); text-decoration: none; margin-top: 16px; }
-  .share-link:hover { text-decoration: underline; }
-
   .save-paces { margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border); }
   .save-sub { font-size: 0.9rem; color: var(--muted); margin: 8px 0 20px; }
   .save-form { display: flex; gap: 8px; max-width: 420px; }
@@ -609,6 +653,8 @@ const copy = {
   @media (max-width: 480px) { .save-form { flex-direction: column; } }
 
   @media (max-width: 900px) {
+    .calc-hero { grid-template-columns: 1fr; gap: 24px; }
+    .pace-card { align-self: start; }
     .inputs-row { grid-template-columns: 1fr 1fr; }
     .result-grid { grid-template-columns: 1fr 1fr; }
     .phase-grid { grid-template-columns: 1fr 1fr; }
