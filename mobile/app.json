@@ -34,6 +34,9 @@
         "com.apple.developer.healthkit.background-delivery": true,
         "com.apple.developer.applesignin": [
           "Default"
+        ],
+        "keychain-access-groups": [
+          "$(AppIdentifierPrefix)com.pauldickenson.virra.app"
         ]
       }
     },
