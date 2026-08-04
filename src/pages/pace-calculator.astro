@@ -96,10 +96,6 @@ const copy = {
               <div class="result-item"><span class="ri-label">Pace /km</span><span class="ri-val" id="ptd-r-pace-km">—</span></div>
               <div class="result-item"><span class="ri-label">Pace /mi</span><span class="ri-val" id="ptd-r-pace-mi">—</span></div>
             </div>
-            <div class="splits-wrap">
-              <p class="splits-label">Splits</p>
-              <table class="splits-table" id="ptd-splits"></table>
-            </div>
           </div>
         </div>
       </div>
@@ -137,7 +133,13 @@ const copy = {
               <div class="result-item"><span class="ri-label">Riegel prediction</span><span class="ri-val" id="pred-r-riegel">—</span></div>
               <div class="result-item"><span class="ri-label">Cameron prediction</span><span class="ri-val" id="pred-r-cameron">—</span></div>
             </div>
-            <p class="pred-note">Riegel: T₂ = T₁ × (D₂/D₁)^1.06 · Cameron: adjusts for event-specific efficiency factors. Both assume consistent training and conditions.</p>
+            <dl class="pred-methods">
+              <dt>Riegel</dt>
+              <dd>The standard predictor. It assumes you slow down by a set, predictable amount as the distance climbs. Simple and dependable, though it can read a little optimistic for the marathon.</dd>
+              <dt>Cameron</dt>
+              <dd>Built from real race results across distances, so it usually lands a touch more realistically over the longer stuff.</dd>
+            </dl>
+            <p class="pred-note">Both assume consistent training, sensible pacing and similar conditions on the day.</p>
           </div>
         </div>
       </div>
@@ -194,7 +196,7 @@ const copy = {
 <script>
   import {
     calcTime, calcPace, calcDistance,
-    buildSplits, riegelPredict, cameronPredict,
+    riegelPredict, cameronPredict,
     getCurrentPhase, applyPaceModifier,
     secsToHMS, secsToMMSS, parseHMS,
     distanceToKm, kmToMiles,
@@ -265,7 +267,6 @@ const copy = {
       }
 
       const paceMi = pacePerKm * 1.60934;
-      const splits = buildSplits(distKm, pacePerKm, unit);
 
       document.getElementById('ptd-r-dist')!.textContent = unit === 'km'
         ? `${distKm.toFixed(2)} km`
@@ -273,14 +274,6 @@ const copy = {
       document.getElementById('ptd-r-time')!.textContent = secsToHMS(totalSecs);
       document.getElementById('ptd-r-pace-km')!.textContent = `${secsToMMSS(pacePerKm)}/km`;
       document.getElementById('ptd-r-pace-mi')!.textContent = `${secsToMMSS(paceMi)}/mi`;
-
-      const table = document.getElementById('ptd-splits') as HTMLTableElement;
-      table.innerHTML = splits.map((s) => `
-        <tr>
-          <td class="split-lbl">${s.label}</td>
-          <td class="split-val">${s.paceDisplay}</td>
-        </tr>
-      `).join('');
 
       const params = new URLSearchParams({ dist: String(distKm), time: String(totalSecs), unit });
       const shareUrl = `${location.origin}/pace-calculator?${params}#pace`;
@@ -593,13 +586,18 @@ const copy = {
   .ri-label { display: block; font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
   .ri-val { display: block; font-family: var(--font-display); font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; color: var(--pulse); }
 
-  .splits-wrap { margin-bottom: 20px; }
-  .splits-label { font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
-  .splits-table { width: 100%; border-collapse: collapse; }
-  .splits-table :global(.split-lbl) { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); padding: 5px 0; border-bottom: 1px solid var(--border); }
-  .splits-table :global(.split-val) { font-family: var(--font-mono); font-size: 0.75rem; color: var(--breath); text-align: right; border-bottom: 1px solid var(--border); padding: 5px 0; }
+  .pred-methods { display: grid; gap: 16px; margin-bottom: 4px; }
+  .pred-methods dt {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    margin-bottom: 5px;
+  }
+  .pred-methods dd { margin: 0; font-size: 0.85rem; line-height: 1.55; color: rgba(244,237,224,0.75); }
 
-  .pred-note { font-size: 0.8rem; color: var(--muted); line-height: 1.6; margin-top: 16px; }
+  .pred-note { font-size: 0.78rem; color: var(--muted); line-height: 1.6; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 
   .phase-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
   .phase-card { background: var(--mile); border: 1px solid var(--border); padding: 20px; border-radius: 2px; }
@@ -608,8 +606,24 @@ const copy = {
   .active-tag { color: var(--pulse); }
   .phase-name { font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--breath); margin-bottom: 6px; }
   .phase-pace { font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: var(--pulse); letter-spacing: -0.03em; margin-bottom: 10px; }
-  .phase-guidance { font-size: 0.85rem; line-height: 1.5; color: var(--breath); margin-bottom: 8px; }
-  .phase-why { font-size: 0.78rem; line-height: 1.5; color: var(--muted); }
+  .phase-guidance { font-size: 0.9rem; line-height: 1.5; color: var(--breath); font-weight: 500; margin-bottom: 12px; }
+  .phase-why {
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: rgba(244,237,224,0.62);
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .phase-why::before {
+    content: 'Why';
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--heat);
+    margin-bottom: 6px;
+  }
 
   .cycle-disclaimer { font-size: 0.78rem; line-height: 1.65; color: var(--muted); border: 1px solid var(--border); padding: 14px 18px; border-radius: 2px; margin-top: 16px; }
 
