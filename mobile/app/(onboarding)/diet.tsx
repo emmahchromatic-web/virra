@@ -132,7 +132,7 @@ export default function DietScreen() {
     }
 
     setSaving(false);
-    router.replace('/(auth)/paywall');
+    router.replace('/(onboarding)/body-metrics');
   }
 
   return (

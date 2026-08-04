@@ -20,7 +20,7 @@ const FITNESS_OPTIONS: { value: FitnessLevel; label: string; sub: string }[] = [
   { value: 'recreational', label: 'Recreational', sub: 'Running for fun' },
   { value: 'intermediate', label: 'Intermediate', sub: 'Training consistently' },
   { value: 'advanced',     label: 'Advanced',     sub: 'Racing regularly' },
-  { value: 'returning',    label: 'Returning',    sub: 'Coming back after a break' },
+  { value: 'returning',    label: 'Returning',    sub: 'Coming back after a break (injury, postpartum, time off)' },
 ];
 
 const MILEAGE_OPTIONS: WeeklyMileageBracket[] = ['<5', '5-15', '15-30', '30+'];
