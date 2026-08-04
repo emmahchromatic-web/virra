@@ -31,7 +31,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
         {home?.heroSubline && (
           <p class="hero-sub">{home.heroSubline}</p>
         )}
-        <p class="hero-context">Run Hot lands in your inbox every Sunday. One email, written for women who run.</p>
+        <p class="hero-context">Run Hot is our weekly newsletter: one email every Sunday on training, fuelling and cycle science, written for women who run.</p>
         <div class="hero-nl">
           <NewsletterForm source="hero" />
         </div>
@@ -135,6 +135,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     <!-- NEWSLETTER BLOCK -->
     <section class="nl-block">
       <div class="wrap">
+        <div class="nl-accent" aria-hidden="true"><span></span><span></span><span></span></div>
         <SectionLabel text="Run Hot" />
         <h2>{home?.newsletterHeadline ?? 'Join The Pack.'}</h2>
         {home?.newsletterSubline && <p class="nl-block-sub">{home.newsletterSubline}</p>}
@@ -339,9 +340,14 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
   }
   .cta-btn-outline:hover { background: var(--pulse); color: var(--mile); }
 
-  /* NEWSLETTER BLOCK */
-  .nl-block { padding: 80px 0; background: var(--heat); border-top: 1px solid var(--border); }
-  /* All text Mile Ink at full opacity — WCAG AA on Heat Magenta (4.66:1 minimum) */
+  /* NEWSLETTER BLOCK — cream editorial block. Mile Ink text for legibility (AAA on
+     Breath), with the three bold colours (Pulse/Heat/Dawn) as a flat accent motif. */
+  .nl-block { padding: 80px 0; background: var(--breath); border-top: 1px solid var(--border); }
+  .nl-accent { display: flex; gap: 6px; margin-bottom: 22px; }
+  .nl-accent span { width: 44px; height: 6px; border-radius: 2px; }
+  .nl-accent span:nth-child(1) { background: var(--pulse); }
+  .nl-accent span:nth-child(2) { background: var(--heat); }
+  .nl-accent span:nth-child(3) { background: var(--dawn); }
   .nl-block :global(.section-label) { color: var(--mile); }
   .nl-block h2 {
     font-family: var(--font-display);
@@ -353,17 +359,17 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
     color: var(--mile);
     margin: 8px 0 20px;
   }
-  .nl-block-sub { font-size: 1.05rem; color: var(--mile); margin-bottom: 28px; }
-  .nl-block :global(.nl-label) { color: var(--mile); }
+  .nl-block-sub { font-size: 1.05rem; color: rgba(10,10,15,0.78); margin-bottom: 28px; }
+  .nl-block :global(.nl-label) { color: rgba(10,10,15,0.6); }
   .nl-block :global(.nl-ok) { color: var(--mile); }
-  .nl-block :global(.nl-err) { color: var(--mile); }
-  .nl-block :global(.nl-note) { color: var(--mile); }
+  .nl-block :global(.nl-err) { color: var(--mile); font-weight: 600; }
+  .nl-block :global(.nl-note) { color: rgba(10,10,15,0.55); }
   .nl-block :global(.nl-form input[type=email]) {
-    background: rgba(10,10,15,0.06);
-    border-color: rgba(10,10,15,0.3);
+    background: rgba(10,10,15,0.04);
+    border-color: rgba(10,10,15,0.25);
     color: var(--mile);
   }
-  .nl-block :global(.nl-form input[type=email]::placeholder) { color: rgba(10,10,15,0.5); }
+  .nl-block :global(.nl-form input[type=email]::placeholder) { color: rgba(10,10,15,0.45); }
   .nl-block :global(.nl-form input[type=email]:focus) { border-color: var(--mile); }
 
   @media (max-width: 900px) {
