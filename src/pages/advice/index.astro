@@ -39,7 +39,7 @@ const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
     {featuredArticle && (
       <section class="featured">
         <div class="wrap">
-          <SectionLabel text="FEATURED" />
+          <SectionLabel text="FEATURED" as="h2" />
           <ArticleCard
             title={featuredArticle.title}
             slug={featuredArticle.slug}
@@ -73,6 +73,7 @@ const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     <section class="article-grid">
       <div class="wrap">
+        <h2 class="visually-hidden">{selectedCategory === 'All' ? 'All articles' : selectedCategory}</h2>
         {paged.length > 0 ? (
           <div class="grid">
             {paged.map((article: any) => (

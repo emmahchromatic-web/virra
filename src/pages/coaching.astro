@@ -32,7 +32,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
     {coaching?.whoItsFor?.length > 0 && (
       <section class="who">
         <div class="wrap">
-          <SectionLabel text="Who it's for" />
+          <SectionLabel text="Who it's for" as="h2" />
           <ul class="who-list">
             {coaching.whoItsFor.map((item: string) => (
               <li>{item}</li>
@@ -45,7 +45,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
     <!-- HOW IT WORKS -->
     <section class="how">
       <div class="wrap">
-        <SectionLabel text="How it works" />
+        <SectionLabel text="How it works" as="h2" />
         <div class="steps-grid">
           <div class="step">
             <span class="step-num">01</span>
@@ -70,7 +70,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
     {coaching?.tiers?.length > 0 && (
       <section class="tiers">
         <div class="wrap">
-          <SectionLabel text="Tiers" />
+          <SectionLabel text="Tiers" as="h2" />
           <div class="tiers-grid">
             {coaching.tiers.map((tier: any) => (
               <div class:list={['tier-card', { featured: tier.featured }]}>
@@ -94,7 +94,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
     {coaching?.testimonials?.length > 0 && (
       <section class="testimonials">
         <div class="wrap">
-          <SectionLabel text="What clients say" />
+          <SectionLabel text="What clients say" as="h2" />
           <div class="testi-grid">
             {coaching.testimonials.map((t: any) => (
               <div class="testi-card">
@@ -111,7 +111,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
     {coaching?.faq?.length > 0 && (
       <section class="faq">
         <div class="wrap">
-          <SectionLabel text="FAQ" />
+          <SectionLabel text="FAQ" as="h2" />
           <div class="faq-list">
             {coaching.faq.map((item: any, i: number) => (
               <details class="faq-item">
@@ -497,8 +497,13 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
   .enq-err a { color: var(--dawn); }
 
   @media (max-width: 768px) {
+    /* Consistent, tighter vertical rhythm on smaller screens. */
+    .c-hero, .who, .how, .tiers, .testimonials, .faq, .enquire { padding-top: 56px; padding-bottom: 56px; }
     .steps-grid, .tiers-grid, .testi-grid { grid-template-columns: 1fr; }
     .field-row { grid-template-columns: 1fr; }
   }
-  @media (max-width: 640px) { .wrap { padding: 0 24px; } }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 24px; }
+    .c-hero, .who, .how, .tiers, .testimonials, .faq, .enquire { padding-top: 48px; padding-bottom: 48px; }
+  }
 </style>

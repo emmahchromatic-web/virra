@@ -10,15 +10,15 @@
       </svg>
     </button>
     <p class="sub-eyebrow">Run Hot</p>
-    <h2 id="sub-title">Run Hot.<br>Sent to The Pack.</h2>
+    <p id="sub-title" class="sub-title">Run Hot.<br>Sent to The Pack.</p>
     <p class="sub-sub">One email a week; training, fuelling and cycle science. No fluff.</p>
     <form class="sub-form" id="sub-form">
       <input type="email" name="email" placeholder="your@email.com" autocomplete="email" required aria-label="Email address" />
       <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
       <button type="submit">Join The Pack</button>
     </form>
-    <p class="sub-ok" id="sub-ok" hidden>You're in. Welcome to The Pack.</p>
-    <p class="sub-err" id="sub-err" hidden>That didn't go through. Check the address and try again.</p>
+    <p class="sub-ok" id="sub-ok" role="status" hidden>You're in. Welcome to The Pack.</p>
+    <p class="sub-err" id="sub-err" role="alert" hidden>That didn't go through. Check the address and try again.</p>
     <p class="sub-note">No spam, ever. Unsubscribe anytime.</p>
   </div>
 </div>
@@ -144,7 +144,7 @@
     color: var(--heat);
     margin-bottom: 8px;
   }
-  .sub-panel h2 {
+  .sub-panel .sub-title {
     font-family: var(--font-display);
     font-size: clamp(2rem, 7vw, 2.8rem);
     font-weight: 900;
