@@ -1,0 +1,317 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Logo from '../components/Logo.astro';
+import { client, urlFor } from '../lib/sanity';
+import { NEWSLETTER_LANDING_QUERY } from '../lib/queries';
+
+const c = await client.fetch(NEWSLETTER_LANDING_QUERY).catch(() => null);
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
+
+// Sensible strength-guide defaults so the page is complete before Sanity is filled.
+const eyebrow = c?.eyebrow ?? 'Free guide · Strength training for women who run';
+const headline = c?.headline ?? 'Run stronger.';
+const headlineAccent = c?.headlineAccent ?? 'Stay unbroken.';
+const subhead = c?.subhead ?? 'The strength guide for female runners: build the power and resilience that keeps you running, trained around your physiology, not retro-fitted from men’s.';
+const benefits = c?.benefits ?? [
+  'The lifts that actually make you a faster, more durable runner',
+  'How to train strength around your cycle, not against it',
+  'A simple weekly plan that fits around your runs',
+];
+const ctaLabel = c?.ctaLabel ?? 'Get the guide';
+const note = c?.note ?? 'We’ll email you the guide and add you to Run Hot: one email a week, female-first running, no diet culture. Unsubscribe anytime.';
+const successMessage = c?.successMessage ?? 'Check your inbox. Your guide is on the way, and you’re in The Pack.';
+const guideKicker = c?.guideKicker ?? 'The Strength Guide';
+const guideTitle = c?.guideTitle ?? 'Strong Runner';
+const guideSubtitle = c?.guideSubtitle ?? 'Strength training for women who run. Power, resilience, and staying injury-free.';
+const guideCover = c?.guideCover ? urlFor(c.guideCover).width(760).height(1000).url() : null;
+const seoTitle = c?.seoTitle ?? 'Free Strength Guide for Female Runners — VIRRA';
+const seoDescription = c?.seoDescription ?? 'Get the free strength training guide for women who run: build power, resilience and stay injury-free, trained around your physiology. Join Run Hot.';
+---
+<BaseLayout title={seoTitle} description={seoDescription}>
+  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+  <main class="rh">
+    <header class="rh-top">
+      <Logo size="1.5rem" />
+    </header>
+
+    <section class="rh-hero">
+      <div class="rh-copy">
+        <p class="rh-eyebrow">{eyebrow}</p>
+        <h1 class="rh-headline">
+          {headline}{headlineAccent && <><br /><span class="accent">{headlineAccent}</span></>}
+        </h1>
+        {subhead && <p class="rh-sub">{subhead}</p>}
+
+        {benefits?.length > 0 && (
+          <ul class="rh-benefits">
+            {benefits.map((b: string) => <li>{b}</li>)}
+          </ul>
+        )}
+
+        <form class="rh-form" id="rh-form" novalidate>
+          <div class="rh-row">
+            <input type="email" name="email" placeholder="your@email.com" autocomplete="email" required aria-label="Email address" />
+            <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
+            <button type="submit">{ctaLabel} →</button>
+          </div>
+          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark"></div>
+        </form>
+        <p class="rh-ok" id="rh-ok" role="status" hidden>{successMessage}</p>
+        <p class="rh-err" id="rh-err" role="alert" hidden>Something went wrong. Try again, or email <a href="mailto:hello@virra.app">hello@virra.app</a>.</p>
+        <p class="rh-note">{note}</p>
+      </div>
+
+      <div class="rh-visual">
+        {guideCover
+          ? <img class="rh-cover-img" src={guideCover} alt={`${guideTitle}, free guide cover`} width="760" height="1000" loading="eager" />
+          : (
+            <div class="rh-cover" aria-hidden="true">
+              <div class="cover-top">
+                <span class="cover-brand">VIRRA</span>
+                <span class="cover-tag">Free guide</span>
+              </div>
+              <div class="cover-mid">
+                <p class="cover-kicker">{guideKicker}</p>
+                <p class="cover-title">{guideTitle}</p>
+                <p class="cover-sub">{guideSubtitle}</p>
+              </div>
+              <div class="cover-rule"><span></span><span></span><span></span></div>
+            </div>
+          )
+        }
+      </div>
+    </section>
+
+    <footer class="rh-foot">
+      <span>© VIRRA {new Date().getFullYear()}</span>
+      <a href="/privacy">Privacy</a>
+    </footer>
+  </main>
+</BaseLayout>
+
+<script>
+  const form = document.getElementById('rh-form') as HTMLFormElement;
+  const ok = document.getElementById('rh-ok') as HTMLElement;
+  const err = document.getElementById('rh-err') as HTMLElement;
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = (form.elements.namedItem('email') as HTMLInputElement).value;
+    const hp = (form.elements.namedItem('_hp') as HTMLInputElement).value;
+    const cfToken = (form.querySelector('[name="cf-turnstile-response"]') as HTMLInputElement | null)?.value ?? '';
+    const btn = form.querySelector('button')!;
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '...';
+    err.hidden = true;
+
+    const res = await fetch('/api/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, source: 'run-hot-landing', _hp: hp, cfToken }),
+    });
+
+    if (res.ok) {
+      form.hidden = true;
+      ok.hidden = false;
+    } else {
+      btn.disabled = false;
+      btn.textContent = original;
+      err.hidden = false;
+    }
+  });
+</script>
+
+<style>
+  .rh {
+    min-height: 100vh;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 48px;
+    display: flex;
+    flex-direction: column;
+  }
+  .rh-top { padding: 28px 0; }
+
+  .rh-hero {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 64px;
+    align-items: center;
+    padding: 32px 0 64px;
+  }
+
+  /* Left — copy + form */
+  .rh-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--pulse);
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .rh-eyebrow::before { content: ''; width: 32px; height: 1px; background: currentColor; opacity: 0.6; }
+  .rh-headline {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 7vw, 6rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.04em;
+    line-height: 0.86;
+    color: var(--breath);
+    margin-bottom: 24px;
+  }
+  .rh-headline .accent { color: var(--heat); }
+  .rh-sub {
+    font-family: var(--font-editorial);
+    font-style: italic;
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+    line-height: 1.35;
+    color: rgba(244,237,224,0.78);
+    letter-spacing: -0.015em;
+    max-width: 34ch;
+    margin-bottom: 28px;
+  }
+  .rh-benefits { list-style: none; padding: 0; margin: 0 0 32px; display: flex; flex-direction: column; gap: 12px; }
+  .rh-benefits li {
+    font-size: 0.98rem;
+    line-height: 1.5;
+    color: rgba(244,237,224,0.82);
+    padding-left: 30px;
+    position: relative;
+  }
+  .rh-benefits li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.5em;
+    width: 14px;
+    height: 2px;
+    background: var(--pulse);
+  }
+
+  .rh-form { display: flex; flex-direction: column; gap: 14px; max-width: 480px; }
+  .rh-row { display: flex; gap: 10px; }
+  .cf-turnstile { min-height: 65px; }
+  .rh-form input[type=email] {
+    flex: 1;
+    background: rgba(244,237,224,0.05);
+    border: 1px solid var(--border-strong);
+    color: var(--breath);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    padding: 15px 18px;
+    border-radius: 2px;
+    transition: border-color 0.2s;
+  }
+  .rh-form input[type=email]:focus { border-color: var(--pulse); outline: none; }
+  .rh-form input[type=email]::placeholder { color: var(--muted); }
+  .rh-form button {
+    background: var(--pulse);
+    color: var(--mile);
+    border: none;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 15px 28px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .rh-form button:hover { background: #c8f020; }
+  .rh-form button:disabled { opacity: 0.6; cursor: not-allowed; }
+  .rh-ok { color: var(--pulse); font-size: 1.05rem; line-height: 1.5; margin-top: 8px; max-width: 42ch; }
+  .rh-err { color: var(--dawn); font-size: 0.9rem; margin-top: 10px; }
+  .rh-err a { color: var(--dawn); }
+  .rh-note { font-size: 0.72rem; line-height: 1.5; color: var(--muted); margin-top: 16px; max-width: 46ch; }
+
+  /* Right — rendered guide cover */
+  .rh-visual { display: flex; justify-content: center; }
+  .rh-cover-img { width: 100%; max-width: 400px; height: auto; border-radius: 2px; display: block; }
+  .rh-cover {
+    width: 100%;
+    max-width: 400px;
+    aspect-ratio: 3 / 4;
+    background: var(--mist);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    padding: 32px 30px;
+    display: flex;
+    flex-direction: column;
+  }
+  .cover-top { display: flex; justify-content: space-between; align-items: center; }
+  .cover-brand {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    color: var(--pulse);
+  }
+  .cover-tag {
+    font-family: var(--font-mono);
+    font-size: 0.5rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .cover-mid { margin-top: auto; }
+  .cover-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--heat);
+    margin-bottom: 14px;
+  }
+  .cover-title {
+    font-family: var(--font-display);
+    font-size: clamp(2.4rem, 5vw, 3.2rem);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    color: var(--breath);
+    margin-bottom: 14px;
+  }
+  .cover-sub { font-size: 0.85rem; line-height: 1.5; color: rgba(244,237,224,0.6); }
+  .cover-rule { display: flex; gap: 6px; margin-top: 28px; }
+  .cover-rule span { height: 4px; flex: 1; border-radius: 2px; }
+  .cover-rule span:nth-child(1) { background: var(--pulse); }
+  .cover-rule span:nth-child(2) { background: var(--heat); }
+  .cover-rule span:nth-child(3) { background: var(--dawn); }
+
+  /* Footer — minimal */
+  .rh-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 0;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .rh-foot a { color: var(--muted); text-decoration: none; }
+  .rh-foot a:hover { color: var(--breath); }
+
+  @media (max-width: 860px) {
+    .rh-hero { grid-template-columns: 1fr; gap: 40px; padding: 16px 0 48px; }
+    .rh-visual { order: -1; justify-content: flex-start; }
+    .rh-cover, .rh-cover-img { max-width: 300px; }
+  }
+  @media (max-width: 560px) {
+    .rh { padding: 0 24px; }
+    .rh-row { flex-direction: column; }
+    .rh-form button { padding: 15px 28px; }
+  }
+</style>
