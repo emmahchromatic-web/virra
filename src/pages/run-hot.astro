@@ -18,14 +18,16 @@ const benefits = c?.benefits ?? [
   'A simple weekly plan that fits around your runs',
 ];
 const ctaLabel = c?.ctaLabel ?? 'Get the guide';
-const note = c?.note ?? 'We’ll email you the guide and add you to Run Hot: one email a week, female-first running, no diet culture. Unsubscribe anytime.';
-const successMessage = c?.successMessage ?? 'Check your inbox. Your guide is on the way, and you’re in The Pack.';
+const note = c?.note ?? 'Your guide downloads straight away. You’ll also join Run Hot: one email a week, female-first running, no diet culture. Unsubscribe anytime.';
+const successMessage = c?.successMessage ?? 'You’re in. Welcome to The Pack. Grab your guide below.';
 const guideKicker = c?.guideKicker ?? 'The Strength Guide';
 const guideTitle = c?.guideTitle ?? 'Strong Runner';
 const guideSubtitle = c?.guideSubtitle ?? 'Strength training for women who run. Power, resilience, and staying injury-free.';
 const guideCover = c?.guideCover ? urlFor(c.guideCover).width(800).url() : null;
 const coverW = c?.guideCover?.dimensions?.width ?? 800;
 const coverH = c?.guideCover?.dimensions?.height ?? 1000;
+// Sanity file URL; `?dl=` forces a download (cross-origin download attrs are ignored).
+const guideFileUrl = c?.guideFileUrl ? `${c.guideFileUrl}?dl=` : null;
 const seoTitle = c?.seoTitle ?? 'Free Strength Guide for Female Runners — VIRRA';
 const seoDescription = c?.seoDescription ?? 'Get the free strength training guide for women who run: build power, resilience and stay injury-free, trained around your physiology. Join Run Hot.';
 ---
@@ -58,7 +60,10 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
           </div>
           <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark"></div>
         </form>
-        <p class="rh-ok" id="rh-ok" role="status" hidden>{successMessage}</p>
+        <div class="rh-ok" id="rh-ok" role="status" hidden>
+          <p>{successMessage}</p>
+          {guideFileUrl && <a class="rh-download" href={guideFileUrl}>Download your guide →</a>}
+        </div>
         <p class="rh-err" id="rh-err" role="alert" hidden>Something went wrong. Try again, or email <a href="mailto:hello@virra.app">hello@virra.app</a>.</p>
         <p class="rh-note">{note}</p>
       </div>
@@ -229,7 +234,23 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
   }
   .rh-form button:hover { background: #c8f020; }
   .rh-form button:disabled { opacity: 0.6; cursor: not-allowed; }
-  .rh-ok { color: var(--pulse); font-size: 1.05rem; line-height: 1.5; margin-top: 8px; max-width: 42ch; }
+  .rh-ok { margin-top: 8px; max-width: 42ch; }
+  .rh-ok p { color: var(--pulse); font-size: 1.05rem; line-height: 1.5; margin-bottom: 16px; }
+  .rh-download {
+    display: inline-block;
+    background: var(--pulse);
+    color: var(--mile);
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 15px 28px;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: background 0.2s;
+  }
+  .rh-download:hover { background: #c8f020; }
   .rh-err { color: var(--dawn); font-size: 0.9rem; margin-top: 10px; }
   .rh-err a { color: var(--dawn); }
   .rh-note { font-size: 0.72rem; line-height: 1.5; color: var(--muted); margin-top: 16px; max-width: 46ch; }
