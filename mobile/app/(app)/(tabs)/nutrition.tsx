@@ -7,7 +7,8 @@ import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
-import { getNutritionTargets, LOAD_LABELS, type TrainingLoad } from '@/lib/nutritionTargets';
+import { useProfileStore, personalMetricsFields } from '@/store/profile';
+import { resolveNutritionTargets, buildPersonalMetrics, LOAD_LABELS, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext, type DailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -218,6 +219,8 @@ const row = StyleSheet.create({
 export default function NutritionScreen() {
   const { session } = useAuthStore();
   const { cycleInfo } = useCycleStore();
+  const profile = useProfileStore();
+  const metrics = buildPersonalMetrics(personalMetricsFields(profile));
 
   const [load,    setLoad]    = useState<TrainingLoad>('easy');
   const [entries, setEntries] = useState<FoodEntry[]>([]);
@@ -227,7 +230,7 @@ export default function NutritionScreen() {
   const [editing, setEditing] = useState<FoodEntry | null>(null);
 
   const today   = new Date().toISOString().split('T')[0];
-  const targets = getNutritionTargets(cycleInfo?.phase ?? null, load);
+  const targets = resolveNutritionTargets(metrics, cycleInfo?.phase ?? null, load);
 
   const totals = entries.reduce(
     (acc, e) => ({
@@ -273,7 +276,8 @@ export default function NutritionScreen() {
     }
 
     const effectiveLoad    = ctx?.inferred_load ?? load;
-    const effectiveTargets = getNutritionTargets(cycleInfo?.phase ?? null, effectiveLoad);
+    const effectiveMetrics = buildPersonalMetrics(personalMetricsFields(useProfileStore.getState()));
+    const effectiveTargets = resolveNutritionTargets(effectiveMetrics, cycleInfo?.phase ?? null, effectiveLoad);
 
     const { data: log } = await supabase
       .from('nutrition_logs')

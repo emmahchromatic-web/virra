@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
-import { getNutritionTargets } from '@/lib/nutritionTargets';
+import { resolveNutritionTargets } from '@/lib/nutritionTargets';
 import type { CyclePhase } from '@/store/cycle';
-import type { TrainingLoad } from '@/lib/nutritionTargets';
+import type { TrainingLoad, PersonalMetrics } from '@/lib/nutritionTargets';
 
 export interface MonthlyStats {
   sessionsCompleted: number;
@@ -51,8 +51,9 @@ export async function getTodayNutritionTotals(
   today:        string,
   phase:        CyclePhase | null,
   inferredLoad: TrainingLoad,
+  metrics:      PersonalMetrics | null = null,
 ): Promise<NutritionTotals> {
-  const fallbackTargets = getNutritionTargets(phase, inferredLoad);
+  const fallbackTargets = resolveNutritionTargets(metrics, phase, inferredLoad);
 
   const { data: log } = await supabase
     .from('nutrition_logs')

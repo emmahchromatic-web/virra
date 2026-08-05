@@ -10,7 +10,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { useCycleStore } from '@/store/cycle';
 import { useAuthStore } from '@/store/auth';
-import { useProfileStore } from '@/store/profile';
+import { useProfileStore, personalMetricsFields } from '@/store/profile';
 import { WeekStrip } from '@/components/ui/WeekStrip'
 import { ReadinessRow } from '@/components/ui/ReadinessRow';
 import { useReadinessStore } from '@/store/readiness';
@@ -36,6 +36,7 @@ import {
   type MonthlyStats, type NutritionTotals, type TodayCheckin,
 } from '@/lib/dashboardData';
 import { buildNarrative } from '@/lib/phaseNarrative';
+import { buildPersonalMetrics } from '@/lib/nutritionTargets';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
 
@@ -90,9 +91,10 @@ export default function DashboardScreen() {
     } catch { /* no-op */ }
 
     try {
+      const metrics = buildPersonalMetrics(personalMetricsFields(useProfileStore.getState()));
       const [monthly, nutr, ci] = await Promise.all([
         getMonthlyStats(session.user.id, today),
-        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, resolvedLoad),
+        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, resolvedLoad, metrics),
         getTodayCheckin(session.user.id, today),
       ]);
       setMonthlyStats(monthly);

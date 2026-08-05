@@ -5,10 +5,11 @@ import {
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCycleStore } from '@/store/cycle';
+import { useProfileStore, personalMetricsFields } from '@/store/profile';
 import { useSessionStore } from '@/store/sessionStore';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { inferLoadFromLabel } from '@/lib/dailyTrainingContext';
-import { getNutritionTargets } from '@/lib/nutritionTargets';
+import { resolveNutritionTargets, buildPersonalMetrics, type PersonalMetrics } from '@/lib/nutritionTargets';
 import { getCyclePhase } from '@/lib/cycleEngine';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { CyclePhase } from '@/lib/cycleEngine';
@@ -94,6 +95,7 @@ function buildWeekRows(
   sessions:    Session[],
   periodStart: Date | null,
   cycleLength: number,
+  metrics:     PersonalMetrics | null,
 ): DayRow[] {
   return Array.from({ length: 7 }, (_, i) => {
     const iso        = offsetISO(monday, i);
@@ -101,7 +103,7 @@ function buildWeekRows(
     const daySessions = sessions.filter((s) => s.scheduled_date === iso);
     const load       = topLoad(daySessions);
     const phase      = periodStart ? getCyclePhase(periodStart, cycleLength, date) : null;
-    const { calories } = getNutritionTargets(phase, load);
+    const { calories } = resolveNutritionTargets(metrics, phase, load);
     return {
       iso,
       dayName:  DAY_NAMES[i],
@@ -125,6 +127,11 @@ function fmtRange(monday: string): string {
 
 export default function WeekAheadScreen() {
   const { periodStart, cycleLength }      = useCycleStore();
+  const profile                           = useProfileStore();
+  const metrics                           = useMemo(
+    () => buildPersonalMetrics(personalMetricsFields(profile)),
+    [profile.weightSteadyBaselineKg, profile.weightBaselineKg, profile.heightCm, profile.dateOfBirth],
+  );
   const monday                            = useMemo(() => nextMondayISO(), []);
   const { days }                          = useWeekSessions(monday);
   const [busy, setBusy]                   = useState<string | null>(null);
@@ -141,8 +148,8 @@ export default function WeekAheadScreen() {
           status:         s.status,
         })),
     );
-    return buildWeekRows(monday, sessions, periodStart, cycleLength ?? 28);
-  }, [days, monday, periodStart, cycleLength]);
+    return buildWeekRows(monday, sessions, periodStart, cycleLength ?? 28, metrics);
+  }, [days, monday, periodStart, cycleLength, metrics]);
 
   async function handleDrop(sessionId: string) {
     setBusy(sessionId);

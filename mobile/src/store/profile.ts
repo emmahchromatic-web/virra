@@ -10,6 +10,8 @@ export interface ProfilePatch {
   stepsTarget?:                     number;
   workoutPreference?:               WorkoutPreference;
   trackWeight?:                     boolean;
+  heightCm?:                        number | null;
+  dateOfBirth?:                     string | null;
   weightBaselineKg?:                number | null;
   weightExplainerDismissedAt?:      string | null;
   weightSteadyBaselineKg?:          number | null;
@@ -24,6 +26,8 @@ interface ProfileState {
   workoutPreference:               WorkoutPreference;
   haikuDisclosureAcknowledgedAt:   string | null;
   trackWeight:                     boolean;
+  heightCm:                        number | null;
+  dateOfBirth:                     string | null;
   weightBaselineKg:                number | null;
   weightExplainerDismissedAt:      string | null;
   weightSteadyBaselineKg:          number | null;
@@ -46,6 +50,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
   workoutPreference:             'gym_full',
   haikuDisclosureAcknowledgedAt: null,
   trackWeight:                    false,
+  heightCm:                       null,
+  dateOfBirth:                    null,
   weightBaselineKg:               null,
   weightExplainerDismissedAt:     null,
   weightSteadyBaselineKg:         null,
@@ -56,7 +62,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   load: async (userId) => {
     const { data } = await supabase
       .from('user_profiles')
-      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, weight_baseline_kg, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
+      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, height_cm, date_of_birth, weight_baseline_kg, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
       .eq('id', userId)
       .maybeSingle();
     if (data) {
@@ -68,6 +74,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
         workoutPreference:              (data.workout_preference as WorkoutPreference) ?? 'gym_full',
         haikuDisclosureAcknowledgedAt:  data.haiku_disclosure_acknowledged_at ?? null,
         trackWeight:                    data.track_weight ?? false,
+        heightCm:                       data.height_cm ?? null,
+        dateOfBirth:                    data.date_of_birth ?? null,
         weightBaselineKg:               data.weight_baseline_kg ?? null,
         weightExplainerDismissedAt:     data.weight_explainer_dismissed_at ?? null,
         weightSteadyBaselineKg:         data.weight_steady_baseline_kg ?? null,
@@ -87,6 +95,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
     if (patch.stepsTarget                !== undefined) update.steps_target                  = patch.stepsTarget;
     if (patch.workoutPreference          !== undefined) update.workout_preference             = patch.workoutPreference;
     if (patch.trackWeight                !== undefined) update.track_weight                  = patch.trackWeight;
+    if (patch.heightCm                   !== undefined) update.height_cm                     = patch.heightCm;
+    if (patch.dateOfBirth                !== undefined) update.date_of_birth                 = patch.dateOfBirth;
     if (patch.weightBaselineKg               !== undefined) update.weight_baseline_kg                = patch.weightBaselineKg;
     if (patch.weightExplainerDismissedAt     !== undefined) update.weight_explainer_dismissed_at     = patch.weightExplainerDismissedAt;
     if (patch.weightSteadyBaselineKg         !== undefined) update.weight_steady_baseline_kg         = patch.weightSteadyBaselineKg;
@@ -106,6 +116,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
       stepsTarget:                    patch.stepsTarget                    ?? s.stepsTarget,
       workoutPreference:              patch.workoutPreference               ?? s.workoutPreference,
       trackWeight:                    patch.trackWeight                    ?? s.trackWeight,
+      heightCm:                       patch.heightCm                       !== undefined ? patch.heightCm                       : s.heightCm,
+      dateOfBirth:                    patch.dateOfBirth                    !== undefined ? patch.dateOfBirth                    : s.dateOfBirth,
       weightBaselineKg:               patch.weightBaselineKg               !== undefined ? patch.weightBaselineKg               : s.weightBaselineKg,
       weightExplainerDismissedAt:     patch.weightExplainerDismissedAt     !== undefined ? patch.weightExplainerDismissedAt     : s.weightExplainerDismissedAt,
       weightSteadyBaselineKg:         patch.weightSteadyBaselineKg         !== undefined ? patch.weightSteadyBaselineKg         : s.weightSteadyBaselineKg,
@@ -142,3 +154,18 @@ export const useProfileStore = create<ProfileState>((set) => ({
     }
   },
 }));
+
+/**
+ * Raw fields the nutrition engine needs, with the correct weight-source
+ * precedence: prefer the recent steady baseline, fall back to the onboarding
+ * baseline. Pass the result to buildPersonalMetrics().
+ */
+export function personalMetricsFields(
+  s: Pick<ProfileState, 'weightSteadyBaselineKg' | 'weightBaselineKg' | 'heightCm' | 'dateOfBirth'>,
+): { weightKg: number | null; heightCm: number | null; dateOfBirth: string | null } {
+  return {
+    weightKg:    s.weightSteadyBaselineKg ?? s.weightBaselineKg,
+    heightCm:    s.heightCm,
+    dateOfBirth: s.dateOfBirth,
+  };
+}
