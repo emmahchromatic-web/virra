@@ -97,9 +97,12 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
 </BaseLayout>
 
 <script>
+  import { track } from '@vercel/analytics';
   const form = document.getElementById('rh-form') as HTMLFormElement;
   const ok = document.getElementById('rh-ok') as HTMLElement;
   const err = document.getElementById('rh-err') as HTMLElement;
+  // Guide download is a key conversion on this page.
+  document.querySelector('.rh-download')?.addEventListener('click', () => track('guide-download'));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -119,6 +122,7 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
     });
 
     if (res.ok) {
+      track('run-hot-signup', { source: 'run-hot-landing' });
       form.hidden = true;
       ok.hidden = false;
     } else {

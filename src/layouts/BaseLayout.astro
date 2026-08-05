@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import CookieBanner from '../components/CookieBanner.astro';
+import Analytics from '@vercel/analytics/astro';
 
 interface Props {
   title: string;
@@ -65,5 +66,6 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 <body>
   <slot />
   <CookieBanner />
+  <Analytics />
 </body>
 </html>
