@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, Pressable, Alert,
+  View, ScrollView, StyleSheet, Pressable, Alert, TextInput,
   NativeModules, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,13 +11,17 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { cancelTrainingReminderToday } from '@/lib/notifications';
-import { colors, spacing, radius } from '@/constants/theme';
+import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
+import { VirraModal } from '@/components/ui/VirraModal';
+import { VirraButton } from '@/components/ui/VirraButton';
 import { formatPace } from '@/lib/volumePlan';
 import { generateStrengthStructure } from '@/lib/strengthWorkoutGenerator';
 import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
-import type { RunWorkoutStructure, StrengthWorkoutStructure } from '@/lib/workoutStructure';
+import type { StrengthExercise } from '@/lib/strengthTypes';
+import { getExerciseMeta } from '@/lib/exerciseLibrary';
+import type { RunWorkoutStructure, StrengthWorkoutStructure, PlannedExercise } from '@/lib/workoutStructure';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -43,6 +47,65 @@ interface SessionData {
   strength_structure:       StrengthWorkoutStructure | null;
   cycle_reason_short:       string | null;
   cycle_adjusted_pace_secs: number | null;
+}
+
+// One logged set the user works through during a strength session.
+interface LoggedSet {
+  targetReps: number;
+  actualReps: string;  // free text while editing; parsed on save
+  weightKg:   string;
+  done:       boolean;
+}
+
+function seedLoggedSets(structure: StrengthWorkoutStructure): Record<string, LoggedSet[]> {
+  const out: Record<string, LoggedSet[]> = {};
+  for (const ex of structure.exercises) {
+    out[ex.id] = ex.target_sets.map((ts) => ({
+      targetReps: ts.reps,
+      actualReps: '',
+      weightKg:   '',
+      done:       false,
+    }));
+  }
+  return out;
+}
+
+// "3-1-1" → "3·1·1"; passthrough for word tempos ("explosive", "hold").
+function prettyTempo(tempo: string): string {
+  return /^[0-9-]+$/.test(tempo) ? tempo.replace(/-/g, '·') : tempo.toUpperCase();
+}
+
+// Description / cues / tempo tooltip shown from the (i) button on an exercise.
+function ExerciseInfo({ exercise }: { exercise: PlannedExercise }) {
+  const meta = getExerciseMeta(exercise.name);
+  return (
+    <View style={{ gap: spacing.sm }}>
+      {meta?.tempo && (
+        <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1 }}>
+          TEMPO {prettyTempo(meta.tempo)}
+          {/^[0-9-]+$/.test(meta.tempo) ? '  ·  lower · pause · lift (seconds)' : ''}
+        </VirraText>
+      )}
+      {meta?.description && (
+        <VirraText variant="body" size={14} color={colors.breath} style={{ lineHeight: 20 }}>
+          {meta.description}
+        </VirraText>
+      )}
+      {!!meta?.cues?.length && (
+        <View style={{ gap: 4, marginTop: spacing.xs }}>
+          {meta.cues.map((c, i) => (
+            <View key={i} style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <VirraText variant="mono" size={12} color={colors.pulse}>·</VirraText>
+              <VirraText variant="body" size={13} color="rgba(244,237,224,0.7)">{c}</VirraText>
+            </View>
+          ))}
+        </View>
+      )}
+      <VirraText variant="mono" size={11} color={colors.muted} style={{ marginTop: spacing.xs }}>
+        {exercise.target_sets.length} × {exercise.target_sets[0]?.reps} reps · {exercise.rest_seconds}s rest
+      </VirraText>
+    </View>
+  );
 }
 
 function formatElapsed(totalSeconds: number): string {
@@ -79,6 +142,12 @@ export default function WorkoutPreviewScreen() {
   const [elapsedS,    setElapsedS]    = useState(0);
   const [saving,      setSaving]      = useState(false);
 
+  // Strength logging state
+  const [logged,       setLogged]       = useState<Record<string, LoggedSet[]>>({});
+  const [infoExercise, setInfoExercise] = useState<PlannedExercise | null>(null);
+  const [rpeOpen,      setRpeOpen]      = useState(false);
+  const [sessionRpe,   setSessionRpe]   = useState<number | null>(null);
+
   const startedAt        = useRef<Date | null>(null);
   const pausedAt         = useRef<number | null>(null);
   const pausedDurationMs = useRef(0);
@@ -113,6 +182,7 @@ export default function WorkoutPreviewScreen() {
             });
           }
           setSessionData(row);
+          if (row.strength_structure) setLogged(seedLoggedSets(row.strength_structure));
         }
         setState('idle');
       });
@@ -178,7 +248,46 @@ export default function WorkoutPreviewScreen() {
     );
   }
 
-  async function saveSession(durationSeconds: number) {
+  // ---- Strength logging helpers ----
+
+  function updateLoggedSet(exId: string, setIdx: number, field: 'actualReps' | 'weightKg', value: string) {
+    setLogged((prev) => {
+      const sets = prev[exId] ? [...prev[exId]] : [];
+      if (!sets[setIdx]) return prev;
+      sets[setIdx] = { ...sets[setIdx], [field]: value };
+      return { ...prev, [exId]: sets };
+    });
+  }
+
+  function toggleSetDone(exId: string, setIdx: number) {
+    setLogged((prev) => {
+      const sets = prev[exId] ? [...prev[exId]] : [];
+      if (!sets[setIdx]) return prev;
+      const nextDone = !sets[setIdx].done;
+      // On completing a set, default empty reps to the target so a quick tap
+      // records a "did as prescribed" set. Carry the weight to the next set.
+      const actualReps = nextDone && sets[setIdx].actualReps === ''
+        ? String(sets[setIdx].targetReps)
+        : sets[setIdx].actualReps;
+      sets[setIdx] = { ...sets[setIdx], done: nextDone, actualReps };
+      if (nextDone && sets[setIdx + 1] && sets[setIdx + 1].weightKg === '' && sets[setIdx].weightKg !== '') {
+        sets[setIdx + 1] = { ...sets[setIdx + 1], weightKg: sets[setIdx].weightKg };
+      }
+      return { ...prev, [exId]: sets };
+    });
+  }
+
+  // A set counts as "logged" if the user checked it off or typed anything in.
+  function isSetLogged(s: LoggedSet): boolean {
+    return s.done || s.actualReps.trim() !== '' || s.weightKg.trim() !== '';
+  }
+
+  function handleFinishStrength() {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setRpeOpen(true);
+  }
+
+  async function saveSession(durationSeconds: number, rpe: number | null = null) {
     if (!session || !startedAt.current) return;
     setSaving(true);
 
@@ -211,10 +320,62 @@ export default function WorkoutPreviewScreen() {
       .single();
 
     if (actErr) {
-      Alert.alert('Save failed', `${actErr.message}. Tap Stop again to retry.`);
+      Alert.alert('Save failed', `${actErr.message}. Tap Finish again to retry.`);
       setSaving(false);
-      setState('paused');
+      setState('active');
       return;
+    }
+
+    // Strength: persist per-set logs (relational) + the strength sidecar
+    // (roll-up blob + session RPE). Best-effort — a logging failure must not
+    // block completing the session.
+    const structure = sessionData?.strength_structure;
+    if (structure && modality === 'strength') {
+      const setRows: Record<string, unknown>[] = [];
+      const rollup: StrengthExercise[] = [];
+      for (const ex of structure.exercises) {
+        const done = (logged[ex.id] ?? [])
+          .map((s, i) => ({ s, i }))
+          .filter(({ s }) => isSetLogged(s));
+        if (done.length === 0) continue;
+        for (const { s, i } of done) {
+          const reps   = parseInt(s.actualReps, 10);
+          const weight = parseFloat(s.weightKg);
+          setRows.push({
+            user_id:            session.user.id,
+            activity_id:        act.id,
+            planned_session_id: sessionId ?? null,
+            exercise_id:        ex.id,
+            exercise_name:      ex.name,
+            set_index:          i,
+            target_reps:        s.targetReps,
+            actual_reps:        Number.isFinite(reps)   ? reps   : null,
+            weight_kg:          Number.isFinite(weight) ? weight : null,
+          });
+        }
+        rollup.push({
+          name: ex.name,
+          sets: done.map(({ s }) => {
+            const reps   = parseInt(s.actualReps, 10);
+            const weight = parseFloat(s.weightKg);
+            return {
+              reps:      Number.isFinite(reps)   ? reps   : s.targetReps,
+              weight_kg: Number.isFinite(weight) ? weight : 0,
+            };
+          }),
+        });
+      }
+      if (setRows.length > 0) {
+        const { error: logErr } = await supabase.from('strength_set_logs').insert(setRows);
+        if (logErr) console.error('[workout-preview] failed to insert set logs', logErr);
+      }
+      const { error: detErr } = await supabase.from('strength_details').insert({
+        activity_id:    act.id,
+        session_type:   structure.session_type,
+        exercises_json: rollup,
+        session_rpe:    rpe,
+      });
+      if (detErr) console.error('[workout-preview] failed to insert strength details', detErr);
     }
 
     // Mark planned session completed
@@ -236,6 +397,8 @@ export default function WorkoutPreviewScreen() {
     : '', [sessionData]);
   const modality = sessionData?.modality ?? 'other';
   const steps    = useMemo(() => sessionData ? buildStepLines(sessionData) : [], [sessionData]);
+  const strengthStructure = sessionData?.strength_structure ?? null;
+  const isLogging = (state === 'active' || state === 'paused') && !!strengthStructure;
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
@@ -294,7 +457,83 @@ export default function WorkoutPreviewScreen() {
         </ScrollView>
       )}
 
-      {(state === 'active' || state === 'paused') && (
+      {/* Strength: log every set / rep */}
+      {isLogging && strengthStructure && (
+        <View style={{ flex: 1 }}>
+          <View style={s.logHeader}>
+            <View style={s.logTimer}>
+              <SymbolView name="timer" size={13} tintColor={colors.muted} />
+              <VirraText variant="mono" size={14} color={colors.breath}>{formatElapsed(elapsedS)}</VirraText>
+            </View>
+            <Pressable style={s.finishBtn} onPress={handleFinishStrength} disabled={saving} accessibilityRole="button">
+              <VirraText variant="display" size={13} color={colors.mile} style={{ letterSpacing: 1.5 }}>FINISH</VirraText>
+            </Pressable>
+          </View>
+
+          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+            {strengthStructure.exercises.map((ex) => {
+              const meta = getExerciseMeta(ex.name);
+              const sets = logged[ex.id] ?? [];
+              return (
+                <VirraCard key={ex.id} style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+                  <View style={s.exHeader}>
+                    <View style={{ flex: 1 }}>
+                      <VirraText variant="display" size={17} color={colors.breath}>{ex.name}</VirraText>
+                      {meta?.tempo && (
+                        <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1, marginTop: 2 }}>
+                          TEMPO {prettyTempo(meta.tempo)}
+                        </VirraText>
+                      )}
+                    </View>
+                    {meta && (
+                      <Pressable onPress={() => setInfoExercise(ex)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${ex.name} description`}>
+                        <SymbolView name="info.circle" size={20} tintColor={colors.muted} />
+                      </Pressable>
+                    )}
+                  </View>
+
+                  <View style={s.setHeaderRow}>
+                    <VirraText variant="mono" size={10} color={colors.muted} style={s.colSet}>SET</VirraText>
+                    <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>REPS</VirraText>
+                    <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>KG</VirraText>
+                    <View style={s.colDone} />
+                  </View>
+
+                  {sets.map((st, i) => (
+                    <View key={i} style={s.setRow}>
+                      <VirraText variant="mono" size={14} color={colors.muted} style={s.colSet}>{i + 1}</VirraText>
+                      <TextInput
+                        style={[s.setInput, s.colInput, st.done && s.setInputDone]}
+                        value={st.actualReps}
+                        onChangeText={(v) => updateLoggedSet(ex.id, i, 'actualReps', v)}
+                        placeholder={String(st.targetReps)}
+                        placeholderTextColor="rgba(244,237,224,0.3)"
+                        keyboardType="number-pad"
+                        maxLength={3}
+                      />
+                      <TextInput
+                        style={[s.setInput, s.colInput, st.done && s.setInputDone]}
+                        value={st.weightKg}
+                        onChangeText={(v) => updateLoggedSet(ex.id, i, 'weightKg', v)}
+                        placeholder="0"
+                        placeholderTextColor="rgba(244,237,224,0.3)"
+                        keyboardType="decimal-pad"
+                        maxLength={6}
+                      />
+                      <Pressable style={s.colDone} onPress={() => toggleSetDone(ex.id, i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Complete ${ex.name} set ${i + 1}`}>
+                        <SymbolView name={st.done ? 'checkmark.circle.fill' : 'circle'} size={24} tintColor={st.done ? colors.pulse : colors.muted} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </VirraCard>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* Timer-only: yoga / other (no structure) */}
+      {(state === 'active' || state === 'paused') && !strengthStructure && (
         <View style={s.timerContainer}>
           <VirraText
             variant="display"
@@ -336,6 +575,37 @@ export default function WorkoutPreviewScreen() {
           </View>
         </View>
       )}
+
+      {/* Exercise description / cues / tempo */}
+      <VirraModal visible={!!infoExercise} onClose={() => setInfoExercise(null)} title={infoExercise?.name ?? ''}>
+        {infoExercise && <ExerciseInfo exercise={infoExercise} />}
+      </VirraModal>
+
+      {/* Session RPE on finish */}
+      <VirraModal visible={rpeOpen} onClose={() => { if (!saving) setRpeOpen(false); }} title="How hard was that?">
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
+          Rate the whole session — 1 is easy, 10 is max effort.
+        </VirraText>
+        <View style={s.rpeRow}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+            <Pressable
+              key={n}
+              onPress={() => setSessionRpe(n)}
+              style={[s.rpeChip, sessionRpe === n && s.rpeChipSel]}
+              accessibilityRole="button"
+              accessibilityLabel={`RPE ${n}`}
+            >
+              <VirraText variant="mono" size={14} color={sessionRpe === n ? colors.mile : colors.breath}>{n}</VirraText>
+            </Pressable>
+          ))}
+        </View>
+        <VirraButton
+          label="SAVE SESSION"
+          onPress={() => { setRpeOpen(false); saveSession(elapsedS, sessionRpe); }}
+          loading={saving}
+          style={{ marginTop: spacing.sm }}
+        />
+      </VirraModal>
     </SafeAreaView>
   );
 }
@@ -358,6 +628,32 @@ const s = StyleSheet.create({
     justifyContent:  'center',
     gap:             spacing.xs,
   },
+  // Strength logging
+  logHeader: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: colors.border,
+  },
+  logTimer:   { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  finishBtn:  { backgroundColor: colors.pulse, borderRadius: radius.full, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
+  exHeader:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  setHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
+  setRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  colSet:     { width: 28, textAlign: 'center' },
+  colInput:   { flex: 1, textAlign: 'center' },
+  colDone:    { width: 32, alignItems: 'center', justifyContent: 'center' },
+  setInput: {
+    backgroundColor: colors.mile, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, paddingVertical: spacing.sm, color: colors.breath,
+    fontFamily: fonts.mono, fontSize: 15,
+  },
+  setInputDone: { borderColor: colors.pulse },
+  rpeRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginVertical: spacing.md },
+  rpeChip: {
+    width: 44, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border,
+  },
+  rpeChipSel: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   timerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg, gap: spacing.lg },
   timerText:      { lineHeight: 80 },
   timerSteps:     { maxHeight: 120, width: '100%' },
