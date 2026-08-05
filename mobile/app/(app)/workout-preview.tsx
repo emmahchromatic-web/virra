@@ -86,14 +86,22 @@ export default function WorkoutPreviewScreen() {
 
   useEffect(() => {
     if (!sessionId) { setState('idle'); return; }
+    // NOTE: cycle_reason_short / cycle_adjusted_pace_secs are computed at
+    // runtime (see todaysSession.ts) and are NOT columns on planned_sessions —
+    // selecting them made this query error out, leaving every non-run session
+    // stuck on the generic timer with no exercises.
     supabase
       .from('planned_sessions')
-      .select('id, session_label, modality, run_structure, strength_structure, cycle_reason_short, cycle_adjusted_pace_secs')
+      .select('id, session_label, modality, run_structure, strength_structure')
       .eq('id', sessionId)
       .single()
       .then(({ data, error }) => {
         if (!error && data) {
-          const row = data as SessionData;
+          const row: SessionData = {
+            ...(data as Omit<SessionData, 'cycle_reason_short' | 'cycle_adjusted_pace_secs'>),
+            cycle_reason_short:       null,
+            cycle_adjusted_pace_secs: null,
+          };
           // Recover strength sessions saved without a structure (e.g. a plan
           // whose label never mapped to a library key). Generate on the fly so
           // the exercise list renders instead of just a bare timer.

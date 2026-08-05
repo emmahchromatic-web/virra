@@ -48,12 +48,13 @@ jest.mock('@/lib/supabase', () => {
   });
   const mockInsertSingle = jest.fn().mockResolvedValue({ data: { id: 'act-1' }, error: null });
   const mockUpdateEq    = jest.fn().mockResolvedValue({ data: null, error: null });
+  const mockSelect = jest.fn(() => ({
+    eq: jest.fn(() => ({ single: mockSelectSingle })),
+  }));
   return {
     supabase: {
       from: jest.fn(() => ({
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({ single: mockSelectSingle })),
-        })),
+        select: mockSelect,
         insert: jest.fn(() => ({
           select: jest.fn(() => ({ single: mockInsertSingle })),
         })),
@@ -65,6 +66,7 @@ jest.mock('@/lib/supabase', () => {
     __selectSingle: mockSelectSingle,
     __insertSingle: mockInsertSingle,
     __updateEq:     mockUpdateEq,
+    __select:       mockSelect,
   };
 });
 
@@ -111,6 +113,18 @@ describe('WorkoutPreviewScreen', () => {
     expect(await findByText(/lower body/i)).toBeTruthy();
     expect(await findByText(/squat/i)).toBeTruthy();
     expect(await findByText(/deadlift/i)).toBeTruthy();
+  });
+
+  it('only selects columns that exist on planned_sessions', async () => {
+    // Regression: selecting the runtime-computed cycle_reason_short /
+    // cycle_adjusted_pace_secs errored the query, leaving every non-run
+    // session stuck on a bare timer with no exercises.
+    const { findByText } = render(<WorkoutPreviewScreen />);
+    await findByText(/lower body/i);
+    const selectArg = supabaseMock.__select.mock.calls[0][0] as string;
+    expect(selectArg).not.toMatch(/cycle_reason_short/);
+    expect(selectArg).not.toMatch(/cycle_adjusted_pace_secs/);
+    expect(selectArg).toMatch(/strength_structure/);
   });
 
   it("shows timer when LET'S GO is pressed", async () => {
