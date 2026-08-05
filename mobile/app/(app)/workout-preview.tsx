@@ -15,6 +15,8 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { formatPace } from '@/lib/volumePlan';
+import { generateStrengthStructure } from '@/lib/strengthWorkoutGenerator';
+import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
 import type { RunWorkoutStructure, StrengthWorkoutStructure } from '@/lib/workoutStructure';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
@@ -90,7 +92,20 @@ export default function WorkoutPreviewScreen() {
       .eq('id', sessionId)
       .single()
       .then(({ data, error }) => {
-        if (!error && data) setSessionData(data as SessionData);
+        if (!error && data) {
+          const row = data as SessionData;
+          // Recover strength sessions saved without a structure (e.g. a plan
+          // whose label never mapped to a library key). Generate on the fly so
+          // the exercise list renders instead of just a bare timer.
+          if (row.modality === 'strength' && !row.strength_structure) {
+            row.strength_structure = generateStrengthStructure({
+              session_type:           normalizeStrengthSessionType(row.session_label),
+              phase:                  cycleInfo?.phase ?? null,
+              recent_primary_muscles: [],
+            });
+          }
+          setSessionData(row);
+        }
         setState('idle');
       });
   }, [sessionId]);
