@@ -41,17 +41,9 @@ const copy = {
   <Header />
   <main class="calc-main">
     <div class="wrap">
-      <div class="calc-hero">
-        <div class="calc-hero-copy">
-          <SectionLabel text="Free tool" />
-          <h1>Pace Calculator.</h1>
-          <p class="calc-sub">Three tools. All client-side. No data stored.</p>
-        </div>
-        <div class="pace-card" aria-hidden="true">
-          <span class="pace-card-label">Your pace</span>
-          <span class="pace-card-figure">5:00<span class="pace-card-unit">km</span></span>
-        </div>
-      </div>
+      <SectionLabel text="Free tool" />
+      <h1>Pace Calculator.</h1>
+      <p class="calc-sub">Three tools. All client-side. No data stored.</p>
 
       <!-- TABS -->
       <div class="tabs" role="tablist" aria-label="Calculator modes">
@@ -462,14 +454,6 @@ const copy = {
   .wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
   .calc-main { padding: 100px 0 80px; }
 
-  .calc-hero {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 48px;
-    align-items: center;
-    margin-bottom: 40px;
-  }
-  .calc-hero-copy { min-width: 0; }
   .calc-main h1 {
     font-family: var(--font-display);
     font-size: clamp(4rem, 11vw, 9rem);
@@ -479,43 +463,7 @@ const copy = {
     line-height: 0.86;
     margin: 12px 0 8px;
   }
-  .calc-sub { font-size: 1.1rem; font-family: var(--font-editorial); font-style: italic; color: color-mix(in srgb, var(--breath) 70%, transparent); margin: 0; }
-
-  /* Illustrated card (KDD5): flat Pulse Lime block, Space Mono pace figure in Mile Ink. */
-  .pace-card {
-    background: var(--pulse);
-    border-radius: 2px;
-    padding: 28px 32px 32px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    min-width: 240px;
-  }
-  .pace-card-label {
-    font-family: var(--font-body);
-    font-weight: 600;
-    font-size: 0.7rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--mile);
-    margin-bottom: 10px;
-  }
-  .pace-card-figure {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    font-size: clamp(3.5rem, 6vw, 5rem);
-    line-height: 0.9;
-    color: var(--mile);
-    display: flex;
-    align-items: baseline;
-    gap: 0.12em;
-  }
-  .pace-card-unit {
-    font-size: 0.32em;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
+  .calc-sub { font-size: 1.1rem; font-family: var(--font-editorial); font-style: italic; color: color-mix(in srgb, var(--breath) 70%, transparent); margin-bottom: 40px; }
 
   .tabs { display: flex; gap: 2px; margin-bottom: 2px; flex-wrap: wrap; }
   .tab {
@@ -600,21 +548,23 @@ const copy = {
   .pred-note { font-size: 0.78rem; color: var(--muted); line-height: 1.6; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
 
   .phase-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
-  .phase-card { background: var(--mile); border: 1px solid var(--border); padding: 20px; border-radius: 2px; }
-  .phase-card.active { border-color: var(--pulse); }
-  .phase-tag { display: block; font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; min-height: 1em; }
-  .active-tag { color: var(--pulse); }
-  .phase-name { font-family: var(--font-display); font-size: 1.2rem; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--breath); margin-bottom: 6px; }
-  .phase-pace { font-family: var(--font-display); font-size: 2rem; font-weight: 900; color: var(--pulse); letter-spacing: -0.03em; margin-bottom: 10px; }
-  .phase-guidance { font-size: 0.9rem; line-height: 1.5; color: var(--breath); font-weight: 500; margin-bottom: 12px; }
-  .phase-why {
+  /* Phase cards are injected by the client script, so they don't carry Astro's
+     scoped-style attribute — these selectors must be :global() to reach them. */
+  :global(.phase-card) { background: var(--mist); border: 1px solid var(--border); padding: 20px; border-radius: 2px; }
+  :global(.phase-card.active) { border-color: var(--pulse); }
+  :global(.phase-tag) { display: block; font-family: var(--font-mono); font-size: 0.55rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; min-height: 1em; }
+  :global(.active-tag) { color: var(--pulse); }
+  :global(.phase-name) { font-family: var(--font-display); font-size: 1.4rem; font-weight: 900; text-transform: uppercase; letter-spacing: -0.01em; color: var(--breath); margin-bottom: 4px; }
+  :global(.phase-pace) { font-family: var(--font-display); font-size: 2.2rem; font-weight: 900; color: var(--pulse); letter-spacing: -0.03em; line-height: 1; margin-bottom: 14px; }
+  :global(.phase-guidance) { font-size: 0.9rem; line-height: 1.5; color: var(--breath); font-weight: 500; margin-bottom: 14px; }
+  :global(.phase-why) {
     font-size: 0.78rem;
     line-height: 1.55;
     color: rgba(244,237,224,0.62);
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
+    padding-top: 14px;
+    border-top: 1px solid var(--border-strong);
   }
-  .phase-why::before {
+  :global(.phase-why)::before {
     content: 'Why';
     display: block;
     font-family: var(--font-mono);
@@ -667,8 +617,6 @@ const copy = {
   @media (max-width: 480px) { .save-form { flex-direction: column; } }
 
   @media (max-width: 900px) {
-    .calc-hero { grid-template-columns: 1fr; gap: 24px; }
-    .pace-card { align-self: start; }
     .inputs-row { grid-template-columns: 1fr 1fr; }
     .result-grid { grid-template-columns: 1fr 1fr; }
     .phase-grid { grid-template-columns: 1fr 1fr; }
