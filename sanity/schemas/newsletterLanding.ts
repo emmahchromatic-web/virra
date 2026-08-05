@@ -6,6 +6,8 @@ export const newsletterLanding = defineType({
   type: 'document',
   description: 'The standalone lead-magnet signup page at /run-hot (no site nav). Drives Run Hot signups.',
   fields: [
+    defineField({ name: 'seoTitle', title: 'SEO title', type: 'string', description: 'Browser-tab / search-result title. Change this when the lead magnet changes.' }),
+    defineField({ name: 'seoDescription', title: 'SEO description', type: 'text', rows: 2, description: 'Search / social description. Change this when the lead magnet changes.' }),
     defineField({ name: 'eyebrow', type: 'string', description: 'Small kicker / social-proof line above the headline (e.g. "Free guide · Strength for women who run").' }),
     defineField({ name: 'headline', type: 'string', description: 'Main headline — the first (Breath-coloured) part.' }),
     defineField({ name: 'headlineAccent', type: 'string', description: 'Headline — the Heat-coloured accent part (renders after the headline).' }),

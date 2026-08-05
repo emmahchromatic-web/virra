@@ -23,11 +23,10 @@ const guideKicker = c?.guideKicker ?? 'The Strength Guide';
 const guideTitle = c?.guideTitle ?? 'Strong Runner';
 const guideSubtitle = c?.guideSubtitle ?? 'Strength training for women who run. Power, resilience, and staying injury-free.';
 const guideCover = c?.guideCover ? urlFor(c.guideCover).width(760).height(1000).url() : null;
+const seoTitle = c?.seoTitle ?? 'Free Strength Guide for Female Runners — VIRRA';
+const seoDescription = c?.seoDescription ?? 'Get the free strength training guide for women who run: build power, resilience and stay injury-free, trained around your physiology. Join Run Hot.';
 ---
-<BaseLayout
-  title="Free Strength Guide for Female Runners — VIRRA"
-  description="Get the free strength training guide for women who run: build power, resilience and stay injury-free, trained around your physiology. Join Run Hot."
->
+<BaseLayout title={seoTitle} description={seoDescription}>
   <main class="rh">
     <header class="rh-top">
       <Logo size="1.5rem" />

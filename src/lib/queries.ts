@@ -102,6 +102,8 @@ export const CYCLE_CALCULATOR_COPY_QUERY = `*[_type == "cycleCalculatorCopy"][0]
 }`;
 
 export const NEWSLETTER_LANDING_QUERY = `*[_type == "newsletterLanding"][0]{
+  seoTitle,
+  seoDescription,
   eyebrow,
   headline,
   headlineAccent,
