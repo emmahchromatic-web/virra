@@ -23,7 +23,9 @@ const successMessage = c?.successMessage ?? 'Check your inbox. Your guide is on 
 const guideKicker = c?.guideKicker ?? 'The Strength Guide';
 const guideTitle = c?.guideTitle ?? 'Strong Runner';
 const guideSubtitle = c?.guideSubtitle ?? 'Strength training for women who run. Power, resilience, and staying injury-free.';
-const guideCover = c?.guideCover ? urlFor(c.guideCover).width(760).height(1000).url() : null;
+const guideCover = c?.guideCover ? urlFor(c.guideCover).width(800).url() : null;
+const coverW = c?.guideCover?.dimensions?.width ?? 800;
+const coverH = c?.guideCover?.dimensions?.height ?? 1000;
 const seoTitle = c?.seoTitle ?? 'Free Strength Guide for Female Runners — VIRRA';
 const seoDescription = c?.seoDescription ?? 'Get the free strength training guide for women who run: build power, resilience and stay injury-free, trained around your physiology. Join Run Hot.';
 ---
@@ -63,7 +65,7 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
 
       <div class="rh-visual">
         {guideCover
-          ? <img class="rh-cover-img" src={guideCover} alt={`${guideTitle}, free guide cover`} width="760" height="1000" loading="eager" />
+          ? <img class="rh-cover-img" src={guideCover} alt={`${guideTitle}, free guide cover`} width={coverW} height={coverH} loading="eager" />
           : (
             <div class="rh-cover" aria-hidden="true">
               <div class="cover-top">
