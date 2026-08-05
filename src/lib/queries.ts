@@ -115,7 +115,8 @@ export const NEWSLETTER_LANDING_QUERY = `*[_type == "newsletterLanding"][0]{
   guideKicker,
   guideTitle,
   guideSubtitle,
-  guideCover{ ..., "dimensions": asset->metadata.dimensions }
+  guideCover{ ..., "dimensions": asset->metadata.dimensions },
+  "guideFileUrl": guideFile.asset->url
 }`;
 
 export const SITE_SETTINGS_QUERY = `*[_type == "siteSettings"][0]{

@@ -29,6 +29,7 @@ export const newsletterLanding = defineType({
     defineField({ name: 'guideTitle', type: 'string', description: 'Cover title.' }),
     defineField({ name: 'guideSubtitle', type: 'text', rows: 2, description: 'Cover sub-line.' }),
     defineField({ name: 'guideCover', type: 'image', options: { hotspot: true }, description: 'Optional — a real cover render. Overrides the built cover.' }),
+    defineField({ name: 'guideFile', title: 'Guide file (PDF)', type: 'file', options: { accept: '.pdf' }, description: 'The downloadable guide. When set, a Download button appears on the signup success screen.' }),
   ],
   preview: { prepare: () => ({ title: 'Newsletter Landing Page (/run-hot)' }) },
 });
