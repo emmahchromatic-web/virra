@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, AppState, AppStateStatus,
+  Pressable, AppState, AppStateStatus, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
@@ -37,6 +37,7 @@ import {
 } from '@/lib/dashboardData';
 import { buildNarrative } from '@/lib/phaseNarrative';
 import { buildPersonalMetrics } from '@/lib/nutritionTargets';
+import { getOrCreateTodayLogId } from '@/lib/nutritionLog';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
 
@@ -113,6 +114,25 @@ export default function DashboardScreen() {
     });
     return () => sub.remove();
   }, [loadAll]);
+
+  // Quick-log food from the dashboard. food-search needs a nutrition_logs row
+  // to attach entries to; unlike the Nutrition tab, the home screen has no log
+  // loaded, so create/resolve today's row first, then navigate. Without this
+  // the add-food handlers silently no-op (no logId → nothing is inserted).
+  async function handleFoodQuickLog() {
+    if (!session) return;
+    const metrics = buildPersonalMetrics(personalMetricsFields(useProfileStore.getState()));
+    const logId = await getOrCreateTodayLogId({
+      userId:       session.user.id,
+      today,
+      phase:        cycleInfo?.phase ?? null,
+      load:         inferredLoad,
+      metrics,
+      inferredLoad,
+    });
+    if (!logId) { Alert.alert('Could not open food log', 'Please check your connection and try again.'); return; }
+    router.push(`/(app)/food-search?logId=${logId}&mealType=snack` as any);
+  }
 
   const narrative = buildNarrative(
     cycleInfo?.phase ?? null,
@@ -238,7 +258,7 @@ export default function DashboardScreen() {
         {/* 6. Quick log */}
         <QuickLogRow
           trackWeight={trackWeight}
-          onFoodPress={() => router.push('/(app)/food-search' as any)}
+          onFoodPress={handleFoodQuickLog}
           onActivityPress={() => router.push('/(app)/manual-activity' as any)}
           onWeightPress={() => setWeightModalOpen(true)}
         />
