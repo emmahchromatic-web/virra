@@ -46,7 +46,7 @@ function parseServiceAccount(raw: string): ServiceAccountCreds {
 export async function appendCoachingEnquiry(fields: {
   name: string;
   email: string;
-  tier: string;
+  helpWith: string;
   level: string;
   goal: string;
   startMonth: string;
@@ -75,7 +75,7 @@ export async function appendCoachingEnquiry(fields: {
       values: [[
         fields.name,
         fields.email,
-        fields.tier,
+        fields.helpWith,
         fields.level,
         fields.goal,
         fields.startMonth || '',
