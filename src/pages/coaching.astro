@@ -223,6 +223,7 @@ const faqSchema = coaching?.faq?.length
 </BaseLayout>
 
 <script>
+  import { track } from '@vercel/analytics';
   const form = document.getElementById('enq-form') as HTMLFormElement;
   const ok = document.getElementById('enq-ok') as HTMLElement;
   const err = document.getElementById('enq-err') as HTMLElement;
@@ -254,6 +255,7 @@ const faqSchema = coaching?.faq?.length
     });
 
     if (res.ok) {
+      track('coaching-enquiry');
       form.hidden = true;
       ok.hidden = false;
     } else {

@@ -193,6 +193,7 @@ const copy = {
     secsToHMS, secsToMMSS, parseHMS,
     distanceToKm, kmToMiles,
   } from '../lib/calculator';
+  import { track } from '@vercel/analytics';
 
   // Most recently calculated result, used by the "Save my paces" form.
   type SaveResult = { title: string; rows: { label: string; value: string }[]; shareUrl: string };
@@ -437,6 +438,7 @@ const copy = {
     });
 
     if (res.ok) {
+      track('calc-save');
       saveForm.hidden = true;
       saveOk.hidden = false;
     } else {

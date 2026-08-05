@@ -24,6 +24,7 @@
 </div>
 
 <script>
+  import { track } from '@vercel/analytics';
   const modal = document.getElementById('subscribe-modal') as HTMLElement;
   const panel = modal.querySelector<HTMLElement>('.sub-panel')!;
   const form = document.getElementById('sub-form') as HTMLFormElement;
@@ -92,6 +93,7 @@
     });
 
     if (res.ok) {
+      track('run-hot-signup', { source: 'header-modal' });
       form.hidden = true;
       ok.hidden = false;
     } else {

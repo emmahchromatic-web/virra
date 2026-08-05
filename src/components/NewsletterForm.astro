@@ -28,6 +28,7 @@ const formId = `nl-${source}`;
 </div>
 
 <script>
+  import { track } from '@vercel/analytics';
   document.querySelectorAll<HTMLDivElement>('.nl-wrap').forEach((wrap) => {
     const source = wrap.dataset.source!;
     const form = wrap.querySelector<HTMLFormElement>('.nl-form')!;
@@ -49,6 +50,7 @@ const formId = `nl-${source}`;
       });
 
       if (res.ok) {
+        track('run-hot-signup', { source });
         form.hidden = true;
         ok.hidden = false;
       } else {
