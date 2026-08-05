@@ -5,6 +5,7 @@ import { client, urlFor } from '../lib/sanity';
 import { NEWSLETTER_LANDING_QUERY } from '../lib/queries';
 
 const c = await client.fetch(NEWSLETTER_LANDING_QUERY).catch(() => null);
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY ?? '';
 
 // Sensible strength-guide defaults so the page is complete before Sanity is filled.
 const eyebrow = c?.eyebrow ?? 'Free guide · Strength training for women who run';
@@ -27,6 +28,7 @@ const seoTitle = c?.seoTitle ?? 'Free Strength Guide for Female Runners — VIRR
 const seoDescription = c?.seoDescription ?? 'Get the free strength training guide for women who run: build power, resilience and stay injury-free, trained around your physiology. Join Run Hot.';
 ---
 <BaseLayout title={seoTitle} description={seoDescription}>
+  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
   <main class="rh">
     <header class="rh-top">
       <Logo size="1.5rem" />
@@ -47,9 +49,12 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
         )}
 
         <form class="rh-form" id="rh-form" novalidate>
-          <input type="email" name="email" placeholder="your@email.com" autocomplete="email" required aria-label="Email address" />
-          <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
-          <button type="submit">{ctaLabel} →</button>
+          <div class="rh-row">
+            <input type="email" name="email" placeholder="your@email.com" autocomplete="email" required aria-label="Email address" />
+            <input type="text" name="_hp" style="display:none" tabindex="-1" autocomplete="off" />
+            <button type="submit">{ctaLabel} →</button>
+          </div>
+          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="dark"></div>
         </form>
         <p class="rh-ok" id="rh-ok" role="status" hidden>{successMessage}</p>
         <p class="rh-err" id="rh-err" role="alert" hidden>Something went wrong. Try again, or email <a href="mailto:hello@virra.app">hello@virra.app</a>.</p>
@@ -93,6 +98,7 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
     e.preventDefault();
     const email = (form.elements.namedItem('email') as HTMLInputElement).value;
     const hp = (form.elements.namedItem('_hp') as HTMLInputElement).value;
+    const cfToken = (form.querySelector('[name="cf-turnstile-response"]') as HTMLInputElement | null)?.value ?? '';
     const btn = form.querySelector('button')!;
     const original = btn.textContent;
     btn.disabled = true;
@@ -102,7 +108,7 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
     const res = await fetch('/api/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, source: 'run-hot-landing', _hp: hp }),
+      body: JSON.stringify({ email, source: 'run-hot-landing', _hp: hp, cfToken }),
     });
 
     if (res.ok) {
@@ -188,7 +194,9 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
     background: var(--pulse);
   }
 
-  .rh-form { display: flex; gap: 10px; max-width: 480px; }
+  .rh-form { display: flex; flex-direction: column; gap: 14px; max-width: 480px; }
+  .rh-row { display: flex; gap: 10px; }
+  .cf-turnstile { min-height: 65px; }
   .rh-form input[type=email] {
     flex: 1;
     background: rgba(244,237,224,0.05);
@@ -303,7 +311,7 @@ const seoDescription = c?.seoDescription ?? 'Get the free strength training guid
   }
   @media (max-width: 560px) {
     .rh { padding: 0 24px; }
-    .rh-form { flex-direction: column; }
+    .rh-row { flex-direction: column; }
     .rh-form button { padding: 15px 28px; }
   }
 </style>
