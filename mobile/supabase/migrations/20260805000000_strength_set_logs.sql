@@ -3,8 +3,9 @@
 -- rep"), plus a session-level RPE on the strength sidecar. The guided runner
 -- previously recorded duration only.
 
--- One row per performed set.
-create table public.strength_set_logs (
+-- One row per performed set. (Idempotent so it is safe to apply via the
+-- Supabase SQL editor and again through the migration CLI later.)
+create table if not exists public.strength_set_logs (
   id                 uuid primary key default gen_random_uuid(),
   user_id            uuid not null references auth.users(id) on delete cascade,
   activity_id        uuid references public.activities(id) on delete cascade,
@@ -21,14 +22,15 @@ create table public.strength_set_logs (
 
 alter table public.strength_set_logs enable row level security;
 
+drop policy if exists "owner_all" on public.strength_set_logs;
 create policy "owner_all" on public.strength_set_logs
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
 -- History / PR lookups by movement over time, and fast fetch by activity.
-create index strength_set_logs_user_exercise_idx
+create index if not exists strength_set_logs_user_exercise_idx
   on public.strength_set_logs (user_id, exercise_name, completed_at desc);
-create index strength_set_logs_activity_idx
+create index if not exists strength_set_logs_activity_idx
   on public.strength_set_logs (activity_id);
 
 -- Session-level RPE captured on the finish screen (1-10).
