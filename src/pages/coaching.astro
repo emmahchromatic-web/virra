@@ -35,7 +35,7 @@ const faqSchema = coaching?.faq?.length
   <main>
 
     <!-- BLOCK 1 — HERO & ENQUIRY FORM -->
-    <section class="c-hero" id="enquire">
+    <section class="c-hero">
       <div class="wrap hero-grid">
         <div class="hero-media">
           {coaching?.heroImage
@@ -57,7 +57,7 @@ const faqSchema = coaching?.faq?.length
             )}
           </div>
 
-          <div class="hero-form">
+          <div class="hero-form" id="enquire">
           <p class="form-eyebrow">Enquire</p>
           <p class="form-lead">Fill in the form and Emma will be in touch within 48 hours.</p>
           <form class="enq-form" id="enq-form">
@@ -74,12 +74,13 @@ const faqSchema = coaching?.faq?.length
             </div>
             <div class="field-row">
               <label>
-                <span>Interested in *</span>
-                <select name="tier" required>
+                <span>How can VIRRA help you? *</span>
+                <select name="helpWith" required>
                   <option value="">Select...</option>
-                  {coaching?.tiers?.map((tier: any) => (
-                    <option>{(tier.tag || '').split('·')[0].trim()}</option>
-                  ))}
+                  <option>Lose weight / lean up</option>
+                  <option>Build strength</option>
+                  <option>Race prep</option>
+                  <option>Train with my cycle</option>
                   <option>Not sure yet</option>
                 </select>
               </label>
@@ -226,16 +227,6 @@ const faqSchema = coaching?.faq?.length
   const ok = document.getElementById('enq-ok') as HTMLElement;
   const err = document.getElementById('enq-err') as HTMLElement;
 
-  // Pre-select the interest option when arriving from ?tier=Standard, etc.
-  const tierParam = new URLSearchParams(window.location.search).get('tier');
-  if (tierParam) {
-    const select = form.querySelector<HTMLSelectElement>('select[name=tier]');
-    const match = select && Array.from(select.options).find(
-      (o) => o.value && o.text.toLowerCase().startsWith(tierParam.toLowerCase()),
-    );
-    if (select && match) select.value = match.value;
-  }
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = form.querySelector<HTMLButtonElement>('button[type=submit]')!;
@@ -248,7 +239,7 @@ const faqSchema = coaching?.faq?.length
       cfToken: fd.get('cf-turnstile-response'),
       name: fd.get('name'),
       email: fd.get('email'),
-      tier: fd.get('tier'),
+      helpWith: fd.get('helpWith'),
       level: fd.get('level'),
       goal: fd.get('goal'),
       startMonth: fd.get('startMonth'),
@@ -323,6 +314,7 @@ const faqSchema = coaching?.faq?.length
     border: 1px solid var(--border-strong);
     border-radius: 4px;
     padding: 32px;
+    scroll-margin-top: 90px;
   }
   .form-eyebrow {
     font-family: var(--font-mono);

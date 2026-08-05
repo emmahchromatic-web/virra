@@ -10,7 +10,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   const body = await request.json() as {
     name: string;
     email: string;
-    tier: string;
+    helpWith: string;
     level: string;
     goal: string;
     startMonth?: string;
@@ -33,14 +33,14 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((body.email ?? '').trim());
 
-  if (!body.name || !emailValid || !body.tier || !body.level || !body.goal) {
+  if (!body.name || !emailValid || !body.helpWith || !body.level || !body.goal) {
     return new Response(JSON.stringify({ error: 'Missing or invalid required fields' }), { status: 400 });
   }
 
   const fields = {
     name: body.name.trim(),
     email: body.email.trim(),
-    tier: body.tier,
+    helpWith: body.helpWith,
     level: body.level,
     goal: body.goal.trim(),
     startMonth: body.startMonth ?? '',

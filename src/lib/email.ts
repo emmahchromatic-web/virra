@@ -5,7 +5,7 @@ const resend = new Resend(import.meta.env.RESEND_API_KEY);
 export async function sendCoachingNotification(fields: {
   name: string;
   email: string;
-  tier: string;
+  helpWith: string;
   level: string;
   goal: string;
   startMonth: string;
@@ -15,13 +15,13 @@ export async function sendCoachingNotification(fields: {
   await resend.emails.send({
     from: 'VIRRA <hello@virra.app>',
     to: [import.meta.env.EMMA_EMAIL],
-    subject: `New coaching enquiry — ${fields.tier} — ${fields.name}`,
+    subject: `New coaching enquiry — ${fields.helpWith} — ${fields.name}`,
     html: `
       <h2>New coaching enquiry</h2>
       <table>
         <tr><td><b>Name</b></td><td>${fields.name}</td></tr>
         <tr><td><b>Email</b></td><td>${fields.email}</td></tr>
-        <tr><td><b>Tier</b></td><td>${fields.tier}</td></tr>
+        <tr><td><b>Looking for</b></td><td>${fields.helpWith}</td></tr>
         <tr><td><b>Level</b></td><td>${fields.level}</td></tr>
         <tr><td><b>Goal</b></td><td>${fields.goal}</td></tr>
         <tr><td><b>Start month</b></td><td>${fields.startMonth || '—'}</td></tr>
