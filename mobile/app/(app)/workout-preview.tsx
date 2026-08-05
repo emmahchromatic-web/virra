@@ -21,6 +21,7 @@ import { generateStrengthStructure } from '@/lib/strengthWorkoutGenerator';
 import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
 import type { StrengthExercise } from '@/lib/strengthTypes';
 import { getExerciseMeta } from '@/lib/exerciseLibrary';
+import { getLastLoggedWeights } from '@/lib/strengthHistory';
 import type { RunWorkoutStructure, StrengthWorkoutStructure, PlannedExercise } from '@/lib/workoutStructure';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
@@ -68,6 +69,23 @@ function seedLoggedSets(structure: StrengthWorkoutStructure): Record<string, Log
     }));
   }
   return out;
+}
+
+// Fill each still-empty weight field with last session's load for that movement,
+// without clobbering anything the user has already typed.
+function applyPrefillWeights(
+  logged: Record<string, LoggedSet[]>,
+  structure: StrengthWorkoutStructure,
+  weights: Record<string, number>,
+): Record<string, LoggedSet[]> {
+  const next = { ...logged };
+  for (const ex of structure.exercises) {
+    const w = weights[ex.name];
+    if (w == null) continue;
+    next[ex.id] = (next[ex.id] ?? []).map((s) =>
+      s.weightKg === '' ? { ...s, weightKg: String(w) } : s);
+  }
+  return next;
 }
 
 // "3-1-1" → "3·1·1"; passthrough for word tempos ("explosive", "hold").
@@ -182,7 +200,16 @@ export default function WorkoutPreviewScreen() {
             });
           }
           setSessionData(row);
-          if (row.strength_structure) setLogged(seedLoggedSets(row.strength_structure));
+          const structure = row.strength_structure;
+          if (structure) {
+            setLogged(seedLoggedSets(structure));
+            // Pre-fill each set with last session's weight for that movement.
+            if (session) {
+              getLastLoggedWeights(session.user.id, structure.exercises.map((e) => e.name))
+                .then((weights) => setLogged((prev) => applyPrefillWeights(prev, structure, weights)))
+                .catch(() => {});
+            }
+          }
         }
         setState('idle');
       });
@@ -277,9 +304,11 @@ export default function WorkoutPreviewScreen() {
     });
   }
 
-  // A set counts as "logged" if the user checked it off or typed anything in.
+  // A set is logged once the user checks it off. (We no longer treat a filled
+  // field as "logged" because weights are now pre-populated from last session —
+  // an untouched pre-filled set shouldn't be recorded as done.)
   function isSetLogged(s: LoggedSet): boolean {
-    return s.done || s.actualReps.trim() !== '' || s.weightKg.trim() !== '';
+    return s.done;
   }
 
   function handleFinishStrength() {
@@ -438,7 +467,20 @@ export default function WorkoutPreviewScreen() {
             )}
           </VirraCard>
 
-          {steps.length > 0 && (
+          {strengthStructure ? (
+            <VirraCard style={{ gap: spacing.sm, marginTop: spacing.md }}>
+              <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>WORKOUT</VirraText>
+              {strengthStructure.exercises.map((ex, i) => (
+                <View key={ex.id} style={s.exListRow}>
+                  <VirraText variant="mono" size={12} color="rgba(244,237,224,0.4)" style={s.exListNum}>{i + 1}</VirraText>
+                  <VirraText variant="mono" size={12} color={colors.breath} style={s.exListName} numberOfLines={1}>{ex.name}</VirraText>
+                  <VirraText variant="mono" size={12} color="rgba(244,237,224,0.55)" style={s.exListReps}>
+                    {ex.target_sets.length} × {ex.target_sets[0]?.reps ?? 0} reps
+                  </VirraText>
+                </View>
+              ))}
+            </VirraCard>
+          ) : steps.length > 0 ? (
             <VirraCard style={{ gap: spacing.xs, marginTop: spacing.md }}>
               <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>WORKOUT</VirraText>
               {steps.map((line, i) => (
@@ -448,7 +490,7 @@ export default function WorkoutPreviewScreen() {
                 </View>
               ))}
             </VirraCard>
-          )}
+          ) : null}
 
           <Pressable style={s.ctaBtn} onPress={startTimer} accessibilityRole="button">
             <SymbolView name="play.fill" size={15} tintColor={colors.mile} />
@@ -479,11 +521,16 @@ export default function WorkoutPreviewScreen() {
                   <View style={s.exHeader}>
                     <View style={{ flex: 1 }}>
                       <VirraText variant="display" size={17} color={colors.breath}>{ex.name}</VirraText>
-                      {meta?.tempo && (
-                        <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1, marginTop: 2 }}>
-                          TEMPO {prettyTempo(meta.tempo)}
+                      <View style={s.exMetaRow}>
+                        {meta?.tempo && (
+                          <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1 }}>
+                            TEMPO {prettyTempo(meta.tempo)}
+                          </VirraText>
+                        )}
+                        <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
+                          REST {ex.rest_seconds}S
                         </VirraText>
-                      )}
+                      </View>
                     </View>
                     {meta && (
                       <Pressable onPress={() => setInfoExercise(ex)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${ex.name} description`}>
@@ -618,6 +665,10 @@ const s = StyleSheet.create({
   scroll:         { padding: spacing.lg, gap: spacing.md, paddingBottom: 40 },
   sessionRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   stepRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  exListRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  exListNum:      { width: 18 },
+  exListName:     { flex: 1 },
+  exListReps:     { textAlign: 'right' },
   ctaBtn: {
     marginTop:       spacing.lg,
     backgroundColor: colors.pulse,
@@ -637,6 +688,7 @@ const s = StyleSheet.create({
   logTimer:   { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   finishBtn:  { backgroundColor: colors.pulse, borderRadius: radius.full, paddingHorizontal: spacing.lg, paddingVertical: spacing.xs },
   exHeader:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  exMetaRow:  { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 2 },
   setHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs },
   setRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   colSet:     { width: 28, textAlign: 'center' },

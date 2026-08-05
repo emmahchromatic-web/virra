@@ -25,6 +25,10 @@ jest.mock('@/lib/notifications', () => ({
   cancelTrainingReminderToday: jest.fn(),
 }));
 
+jest.mock('@/lib/strengthHistory', () => ({
+  getLastLoggedWeights: jest.fn().mockResolvedValue({}),
+}));
+
 // A strength session using real exercise-library names so getExerciseMeta
 // returns tempo/description content.
 const STRENGTH_ROW = {
