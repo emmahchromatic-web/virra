@@ -213,7 +213,9 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
   .pillar-pulse .pillar-body { color: rgba(10, 10, 15, 0.78); }
   .pillar-heat { background: var(--heat); border-color: var(--heat); }
   .pillar-heat .pillar-name { color: var(--breath); }
-  .pillar-heat .pillar-body { color: rgba(244, 237, 224, 0.88); }
+  /* Mile Ink, not Breath: no light colour reaches the 4.5:1 AA body-text
+     contrast on Heat (Breath tops out at ~3:1). 0.9 ink = 5.2:1. */
+  .pillar-heat .pillar-body { color: rgba(10, 10, 15, 0.9); }
   .pillar-mile { background: var(--breath); border-color: var(--breath); }
   .pillar-mile .pillar-name { color: var(--mile); }
   .pillar-mile .pillar-body { color: rgba(10, 10, 15, 0.78); }
@@ -363,7 +365,7 @@ const latestArticles = await client.fetch(LATEST_ARTICLES_QUERY).catch(() => [])
   .nl-block :global(.nl-label) { color: rgba(10,10,15,0.6); }
   .nl-block :global(.nl-ok) { color: var(--mile); }
   .nl-block :global(.nl-err) { color: var(--mile); font-weight: 600; }
-  .nl-block :global(.nl-note) { color: rgba(10,10,15,0.55); }
+  .nl-block :global(.nl-note) { color: rgba(10,10,15,0.62); } /* ≥4.5:1 on Breath (0.55 was 4.22:1) */
   .nl-block :global(.nl-form input[type=email]) {
     background: rgba(10,10,15,0.04);
     border-color: rgba(10,10,15,0.25);
