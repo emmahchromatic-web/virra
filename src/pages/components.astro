@@ -1,0 +1,393 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// VIRRA Component Library — a living style guide rendered from the real design
+// tokens and component patterns used across the site. Internal reference only
+// (noindex + excluded from the sitemap). Trello #100 (7ahcEbJr).
+
+const swatches = [
+  { name: 'Pulse',  var: '--pulse',  hex: '#D4FF26', ink: 'dark',  note: 'Primary action / signal' },
+  { name: 'Heat',   var: '--heat',   hex: '#FF2E7E', ink: 'dark',  note: 'Accent / kickers / focus' },
+  { name: 'Dawn',   var: '--dawn',   hex: '#FF6B3D', ink: 'dark',  note: 'Warm secondary accent' },
+  { name: 'Breath', var: '--breath', hex: '#F4EDE0', ink: 'dark',  note: 'Foreground text / light surfaces' },
+  { name: 'Mile',   var: '--mile',   hex: '#0A0A0F', ink: 'light', note: 'Page background (near-black)' },
+  { name: 'Mist',   var: '--mist',   hex: '#1C1C24', ink: 'light', note: 'Raised surfaces / dark cards' },
+];
+
+const tokens = [
+  { var: '--muted',         value: 'rgba(244,237,224,0.5)',  note: 'Secondary / de-emphasised text' },
+  { var: '--border',        value: 'rgba(244,237,224,0.10)', note: 'Hairline dividers, card borders' },
+  { var: '--border-strong', value: 'rgba(244,237,224,0.20)', note: 'Inputs, stronger edges' },
+];
+
+const sections = [
+  ['colour', 'Colour'], ['type', 'Typography'], ['buttons', 'Buttons'],
+  ['tags', 'Tags & labels'], ['forms', 'Inputs & forms'], ['cards', 'Cards'],
+  ['modal', 'Modal'], ['a11y', 'Accessibility'],
+];
+---
+
+<BaseLayout title="Component Library — VIRRA" noindex={true}>
+  <div class="cl">
+    <header class="cl-head">
+      <p class="cl-kicker">VIRRA · Design System</p>
+      <h1 class="cl-h1">Component<br>Library</h1>
+      <p class="cl-lede">
+        The shared UI primitives every VIRRA page is built from — rendered live from
+        the real design tokens. Flat, high-contrast, anti-diet-culture. No gradients.
+      </p>
+      <nav class="cl-toc" aria-label="Sections">
+        {sections.map(([id, label]) => <a href={`#${id}`}>{label}</a>)}
+      </nav>
+    </header>
+
+    <!-- COLOUR -->
+    <section id="colour" class="cl-section">
+      <p class="cl-num">01</p>
+      <h2 class="cl-h2">Colour</h2>
+      <p class="cl-desc">The six-colour system. Bright colours never gradient — they sit flat on Mile.</p>
+      <div class="swatch-grid">
+        {swatches.map((s) => (
+          <div class="swatch">
+            <div class={`swatch-chip ink-${s.ink}`} style={`background:${s.hex}`}>{s.hex}</div>
+            <div class="swatch-meta">
+              <span class="swatch-name">{s.name}</span>
+              <code>{s.var}</code>
+              <span class="swatch-note">{s.note}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <h3 class="cl-h3">Utility tokens</h3>
+      <ul class="token-list">
+        {tokens.map((t) => (
+          <li><code>{t.var}</code><span class="token-val">{t.value}</span><span class="swatch-note">{t.note}</span></li>
+        ))}
+      </ul>
+    </section>
+
+    <!-- TYPOGRAPHY -->
+    <section id="type" class="cl-section">
+      <p class="cl-num">02</p>
+      <h2 class="cl-h2">Typography</h2>
+      <p class="cl-desc">Four families, each with one job.</p>
+      <div class="type-row">
+        <span class="type-tag">Display · Big Shoulders 900</span>
+        <p class="type-display">Run Hot</p>
+        <span class="swatch-note">Headings, uppercase, letter-spacing −0.02em, line-height 0.9</span>
+      </div>
+      <div class="type-row">
+        <span class="type-tag">Editorial · Fraunces italic</span>
+        <p class="type-editorial">for women who run</p>
+        <span class="swatch-note">Emphasis, pull quotes, the human voice</span>
+      </div>
+      <div class="type-row">
+        <span class="type-tag">Body · Inter 300 / 400</span>
+        <p class="type-body">Cycle-aware training, nutrition and performance, all in one place — built around your physiology, not against it.</p>
+        <span class="swatch-note">Paragraphs and UI copy</span>
+      </div>
+      <div class="type-row">
+        <span class="type-tag">Mono · Space Mono</span>
+        <p class="type-mono">KICKERS · LABELS · BUTTONS · DATES</p>
+        <span class="swatch-note">Uppercase, letter-spacing 0.2em</span>
+      </div>
+    </section>
+
+    <!-- BUTTONS -->
+    <section id="buttons" class="cl-section">
+      <p class="cl-num">03</p>
+      <h2 class="cl-h2">Buttons</h2>
+      <p class="cl-desc">Pill buttons, mono caps. Tab to any button to see the sitewide Heat focus ring.</p>
+      <div class="demo-panel">
+        <button class="btn btn-primary">Join The Pack</button>
+        <button class="btn btn-secondary">Start your enquiry</button>
+        <button class="btn btn-tertiary">Explore coaching</button>
+        <button class="btn btn-primary" disabled>Disabled</button>
+      </div>
+      <ul class="spec">
+        <li><span class="tag tag-pulse">Primary</span> Pulse fill, Mile label — the main action on a screen</li>
+        <li><span class="tag tag-heat">Secondary</span> Heat fill, Mile label — a strong alternative action</li>
+        <li><span class="tag">Tertiary</span> Outlined, Breath label — low-emphasis / in-context links</li>
+      </ul>
+    </section>
+
+    <!-- TAGS -->
+    <section id="tags" class="cl-section">
+      <p class="cl-num">04</p>
+      <h2 class="cl-h2">Tags &amp; labels</h2>
+      <p class="cl-desc">Space Mono, uppercase, wide tracking. Used for kickers, categories and metadata.</p>
+      <div class="demo-panel">
+        <span class="tag tag-heat">Run Hot</span>
+        <span class="tag tag-pulse">New</span>
+        <span class="tag">Training</span>
+        <span class="kicker">Featured · The Pack</span>
+      </div>
+    </section>
+
+    <!-- FORMS -->
+    <section id="forms" class="cl-section">
+      <p class="cl-num">05</p>
+      <h2 class="cl-h2">Inputs &amp; forms</h2>
+      <p class="cl-desc">Inputs focus to a Pulse border; the Heat focus ring meets WCAG AA against Mile. Try tabbing through.</p>
+      <form class="demo-form" onsubmit="return false">
+        <label class="field">
+          <span class="field-label">Email address</span>
+          <input type="email" name="email" placeholder="your@email.com" autocomplete="email" />
+        </label>
+        <label class="field">
+          <span class="field-label">How can VIRRA help you?</span>
+          <select name="helpWith">
+            <option>Lose weight / lean up</option>
+            <option>Build strength</option>
+            <option>Race prep</option>
+            <option>Train with my cycle</option>
+            <option>Not sure yet</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Message</span>
+          <textarea name="message" rows="3" placeholder="Tell me a bit about your running…"></textarea>
+        </label>
+        <button type="submit" class="btn btn-primary">Send enquiry</button>
+      </form>
+    </section>
+
+    <!-- CARDS -->
+    <section id="cards" class="cl-section">
+      <p class="cl-num">06</p>
+      <h2 class="cl-h2">Cards</h2>
+      <p class="cl-desc">Two surfaces: Mist (dark, default) and Breath (cream, for emphasis blocks).</p>
+      <div class="card-grid">
+        <article class="card card-dark">
+          <span class="kicker">Training</span>
+          <h3 class="card-title">Run With Your Cycle</h3>
+          <p class="card-dek">Why your training should flex across four phases, not fight them.</p>
+          <span class="card-meta">6 August 2026</span>
+        </article>
+        <article class="card card-light">
+          <span class="kicker">The Pack</span>
+          <h3 class="card-title">Run Hot, weekly</h3>
+          <p class="card-dek">One email a week — training, fuelling and cycle science. No fluff.</p>
+          <button class="btn btn-primary">Join The Pack</button>
+        </article>
+      </div>
+    </section>
+
+    <!-- MODAL -->
+    <section id="modal" class="cl-section">
+      <p class="cl-num">07</p>
+      <h2 class="cl-h2">Modal</h2>
+      <p class="cl-desc">
+        Opens on a trigger, traps focus, closes on <kbd>Esc</kbd> or a backdrop click, and
+        returns focus to the trigger. The live site uses this exact pattern in
+        <code>SubscribeModal.astro</code>.
+      </p>
+      <div class="demo-panel">
+        <button class="btn btn-secondary" data-demo-open>Open demo modal</button>
+      </div>
+    </section>
+
+    <div id="demo-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="demo-modal-title" hidden>
+      <div class="modal-panel">
+        <button type="button" class="modal-close" data-demo-close aria-label="Close">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 5L19 19M19 5L5 19" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <p class="kicker" style="color:var(--heat)">Demo</p>
+        <p id="demo-modal-title" class="modal-title">Focus is trapped<br>in here.</p>
+        <p class="modal-body">Tab cycles between the controls below. Press Esc, click the backdrop, or use Close to dismiss — focus returns to the button that opened it.</p>
+        <div class="modal-actions">
+          <button class="btn btn-primary" data-demo-close>Got it</button>
+          <button class="btn btn-tertiary" data-demo-close>Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- A11Y -->
+    <section id="a11y" class="cl-section">
+      <p class="cl-num">08</p>
+      <h2 class="cl-h2">Accessibility</h2>
+      <ul class="spec">
+        <li>One consistent keyboard-focus ring sitewide: <code>2px solid Heat</code>, 2px offset. Components must never <code>outline: none</code>.</li>
+        <li>All interactive primitives are native elements — keyboard-navigable and screen-reader labelled by default.</li>
+        <li>Body text and button labels meet WCAG AA contrast against their surface.</li>
+        <li><code>prefers-reduced-motion</code> is respected — transitions drop out.</li>
+      </ul>
+    </section>
+
+    <footer class="cl-foot">
+      <p class="kicker">VIRRA Design System · Internal reference</p>
+    </footer>
+  </div>
+
+  <script>
+    // Modal: focus trap + Esc + backdrop close, returning focus to the trigger.
+    // Mirrors SubscribeModal.astro so the documented behaviour is the real one.
+    const modal = document.getElementById('demo-modal') as HTMLElement;
+    let lastTrigger: HTMLElement | null = null;
+
+    const focusables = (): HTMLElement[] =>
+      Array.from(modal.querySelectorAll<HTMLElement>('button:not([disabled])'))
+        .filter((el) => el.offsetParent !== null);
+
+    function onKeydown(e: KeyboardEvent) {
+      if (e.key === 'Escape') { close(); return; }
+      if (e.key !== 'Tab') return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+
+    function open(trigger: HTMLElement) {
+      lastTrigger = trigger;
+      modal.hidden = false;
+      document.body.style.overflow = 'hidden';
+      document.addEventListener('keydown', onKeydown);
+      focusables()[0]?.focus();
+    }
+    function close() {
+      modal.hidden = true;
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', onKeydown);
+      lastTrigger?.focus();
+    }
+
+    document.querySelectorAll<HTMLElement>('[data-demo-open]').forEach((el) =>
+      el.addEventListener('click', () => open(el)));
+    modal.querySelectorAll('[data-demo-close]').forEach((el) =>
+      el.addEventListener('click', close));
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  </script>
+
+  <style>
+    .cl { max-width: 940px; margin: 0 auto; padding: 72px 24px 96px; }
+
+    /* Header */
+    .cl-kicker, .cl-num, .type-tag, .kicker {
+      font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.2em;
+    }
+    .cl-kicker { font-size: 0.62rem; color: var(--heat); margin-bottom: 16px; }
+    .cl-h1 {
+      font-family: var(--font-display); font-weight: 900; text-transform: uppercase;
+      font-size: clamp(3rem, 12vw, 6rem); line-height: 0.85; letter-spacing: -0.03em;
+      color: var(--breath); margin-bottom: 20px;
+    }
+    .cl-lede { max-width: 560px; font-size: 1.05rem; line-height: 1.7; color: var(--muted); }
+    .cl-toc { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 28px; }
+    .cl-toc a {
+      font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--breath); text-decoration: none; padding: 7px 12px;
+      border: 1px solid var(--border-strong); border-radius: 999px; transition: border-color 0.2s, color 0.2s;
+    }
+    .cl-toc a:hover { border-color: var(--pulse); color: var(--pulse); }
+
+    /* Section scaffolding */
+    .cl-section { padding-top: 72px; margin-top: 56px; border-top: 1px solid var(--border); scroll-margin-top: 24px; }
+    .cl-num { font-size: 0.62rem; color: var(--muted); margin-bottom: 10px; }
+    .cl-h2 {
+      font-family: var(--font-display); font-weight: 900; text-transform: uppercase;
+      font-size: clamp(1.8rem, 5vw, 2.6rem); line-height: 0.9; letter-spacing: -0.02em;
+      color: var(--breath); margin-bottom: 12px;
+    }
+    .cl-h3 { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; font-size: 1rem; letter-spacing: 0.01em; color: var(--breath); margin: 32px 0 14px; }
+    .cl-desc { max-width: 620px; font-size: 0.98rem; line-height: 1.65; color: var(--muted); margin-bottom: 28px; }
+
+    /* Colour */
+    .swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+    .swatch { border: 1px solid var(--border); border-radius: 3px; overflow: hidden; background: var(--mist); }
+    .swatch-chip {
+      height: 96px; display: flex; align-items: flex-end; padding: 10px 12px;
+      font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700;
+    }
+    .ink-dark { color: var(--mile); } .ink-light { color: var(--breath); }
+    .swatch-meta { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .swatch-name { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: 1.05rem; letter-spacing: -0.01em; color: var(--breath); }
+    .swatch-meta code, .token-list code, .spec code, .cl-desc code { font-family: var(--font-mono); font-size: 0.72rem; color: var(--pulse); }
+    .swatch-note { font-size: 0.78rem; line-height: 1.4; color: var(--muted); }
+    .token-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .token-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .token-val { font-family: var(--font-mono); font-size: 0.74rem; color: var(--breath); }
+
+    /* Typography */
+    .type-row { padding: 20px 0; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+    .type-tag { font-size: 0.58rem; color: var(--muted); }
+    .type-display { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(2.4rem, 8vw, 4rem); line-height: 0.85; letter-spacing: -0.02em; color: var(--breath); }
+    .type-editorial { font-family: var(--font-editorial); font-style: italic; font-size: clamp(1.8rem, 5vw, 2.6rem); color: var(--heat); }
+    .type-body { font-family: var(--font-body); font-size: 1.05rem; line-height: 1.7; color: rgba(244,237,224,0.8); max-width: 560px; }
+    .type-mono { font-family: var(--font-mono); font-size: 0.9rem; letter-spacing: 0.2em; color: var(--breath); }
+
+    /* Demo panels */
+    .demo-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 28px; background: var(--mist); border: 1px solid var(--border); border-radius: 3px; }
+
+    /* Buttons — the shared primitives */
+    .btn {
+      font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.15em;
+      text-transform: uppercase; padding: 14px 24px; border-radius: 999px; border: 1px solid transparent;
+      cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .btn-primary { background: var(--pulse); color: var(--mile); }
+    .btn-primary:hover { background: #c8f020; }
+    .btn-secondary { background: var(--heat); color: var(--mile); }
+    .btn-secondary:hover { background: #ff4a90; }
+    .btn-tertiary { background: transparent; color: var(--breath); border-color: var(--border-strong); }
+    .btn-tertiary:hover { border-color: var(--pulse); color: var(--pulse); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* Tags & labels */
+    .tag { font-family: var(--font-mono); font-size: 0.58rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; padding: 5px 10px; border-radius: 999px; background: var(--border-strong); color: var(--breath); }
+    .tag-heat { background: var(--heat); color: var(--mile); }
+    .tag-pulse { background: var(--pulse); color: var(--mile); }
+    .kicker { font-size: 0.58rem; letter-spacing: 0.2em; color: var(--heat); }
+
+    .spec { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-top: 22px; }
+    .spec li { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; font-size: 0.92rem; line-height: 1.5; color: var(--muted); }
+
+    /* Forms */
+    .demo-form { display: flex; flex-direction: column; gap: 18px; max-width: 460px; padding: 28px; background: var(--mist); border: 1px solid var(--border); border-radius: 3px; }
+    .field { display: flex; flex-direction: column; gap: 7px; }
+    .field-label { font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--breath); }
+    .demo-form input, .demo-form select, .demo-form textarea {
+      width: 100%; background: rgba(244,237,224,0.04); border: 1px solid var(--border-strong);
+      color: var(--breath); font-family: var(--font-body); font-size: 0.95rem; padding: 13px 16px;
+      border-radius: 2px; transition: border-color 0.2s;
+    }
+    .demo-form input:focus, .demo-form select:focus, .demo-form textarea:focus { border-color: var(--pulse); }
+    .demo-form input::placeholder, .demo-form textarea::placeholder { color: var(--muted); }
+    .demo-form textarea { resize: vertical; }
+    .demo-form .btn { align-self: flex-start; }
+
+    /* Cards */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    .card { border-radius: 3px; padding: 26px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+    .card-dark { background: var(--mist); border: 1px solid var(--border); }
+    .card-light { background: var(--breath); border: 1px solid var(--breath); }
+    .card-title { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: 1.5rem; line-height: 0.95; letter-spacing: -0.01em; }
+    .card-dark .card-title { color: var(--breath); }
+    .card-light .card-title, .card-light .kicker { color: var(--mile); }
+    .card-dek { font-size: 0.9rem; line-height: 1.6; }
+    .card-dark .card-dek { color: var(--muted); }
+    .card-light .card-dek { color: rgba(10,10,15,0.7); }
+    .card-meta { font-family: var(--font-mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+    /* Modal */
+    .modal { position: fixed; inset: 0; z-index: 1000; background: rgba(10,10,15,0.78); display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .modal[hidden] { display: none; }
+    .modal-panel { position: relative; width: 100%; max-width: 440px; background: var(--mist); border: 1px solid var(--border-strong); border-radius: 4px; padding: 40px 32px 28px; }
+    .modal-close { position: absolute; top: 14px; right: 14px; background: none; border: none; color: var(--breath); cursor: pointer; padding: 6px; line-height: 0; }
+    .modal-title { font-family: var(--font-display); font-weight: 900; text-transform: uppercase; font-size: clamp(1.8rem, 6vw, 2.4rem); line-height: 0.9; letter-spacing: -0.02em; color: var(--breath); margin: 10px 0 12px; }
+    .modal-body { font-size: 0.92rem; line-height: 1.55; color: var(--muted); margin-bottom: 22px; }
+    .modal-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .cl-foot { margin-top: 72px; padding-top: 32px; border-top: 1px solid var(--border); }
+    kbd { font-family: var(--font-mono); font-size: 0.72rem; background: var(--border-strong); padding: 2px 6px; border-radius: 3px; color: var(--breath); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .btn, .cl-toc a, .demo-form input, .demo-form select, .demo-form textarea { transition: none; }
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</BaseLayout>
