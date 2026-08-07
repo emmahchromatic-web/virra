@@ -1,9 +1,15 @@
+import type { FoodUnit } from './foodUnits';
+
 export type MealAffinity = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 export interface VirraFood {
   id:        string;
   name:      string;
   detail?:   string;
+  // Quantity unit. Omit for foods sold by mass — 'g' is the default everywhere.
+  // Set 'ml' for anything sold by volume (oils, drinks) so the UI stops calling
+  // a pint 500 grams. The numbers are unchanged: 1 ml ≈ 1 g for these.
+  unit?:     FoodUnit;
   serving_g: number;
   calories:  number;
   carbs_g:   number;
@@ -64,9 +70,9 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'mussels-raw', name: 'Mussels', detail: 'raw', serving_g: 100, calories: 74, carbs_g: 3.4, protein_g: 12.1, fat_g: 1.8, fibre_g: 0 },
 
   // Dairy & Eggs
-  { id: 'whole-milk-as-packed', name: 'Whole milk', detail: 'as packed', serving_g: 100, calories: 67, carbs_g: 4.7, protein_g: 3.4, fat_g: 4, fibre_g: 0, meals: ['breakfast'] },
-  { id: 'semi-skimmed-milk-as-packed', name: 'Semi-skimmed milk', detail: 'as packed', serving_g: 100, calories: 50, carbs_g: 4.7, protein_g: 3.5, fat_g: 1.7, fibre_g: 0, meals: ['breakfast'] },
-  { id: 'skimmed-milk-as-packed', name: 'Skimmed milk', detail: 'as packed', serving_g: 100, calories: 35, carbs_g: 4.8, protein_g: 3.4, fat_g: 0.3, fibre_g: 0, meals: ['breakfast'] },
+  { id: 'whole-milk-as-packed', name: 'Whole milk', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 67, carbs_g: 4.7, protein_g: 3.4, fat_g: 4, fibre_g: 0, meals: ['breakfast'] },
+  { id: 'semi-skimmed-milk-as-packed', name: 'Semi-skimmed milk', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 50, carbs_g: 4.7, protein_g: 3.5, fat_g: 1.7, fibre_g: 0, meals: ['breakfast'] },
+  { id: 'skimmed-milk-as-packed', name: 'Skimmed milk', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 35, carbs_g: 4.8, protein_g: 3.4, fat_g: 0.3, fibre_g: 0, meals: ['breakfast'] },
   { id: 'cheddar-mature-as-eaten', name: 'Cheddar, mature', detail: 'as eaten', serving_g: 100, calories: 416, carbs_g: 0.1, protein_g: 25, fat_g: 35, fibre_g: 0 },
   { id: 'mozzarella-as-eaten', name: 'Mozzarella', detail: 'as eaten', serving_g: 100, calories: 256, carbs_g: 1, protein_g: 18.6, fat_g: 19, fibre_g: 0 },
   { id: 'feta-as-eaten', name: 'Feta', detail: 'as eaten', serving_g: 100, calories: 264, carbs_g: 1.5, protein_g: 14, fat_g: 22, fibre_g: 0 },
@@ -77,9 +83,9 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'greek-yogurt-0-fat-as-packed', name: 'Greek yogurt, 0% fat', detail: 'as packed', serving_g: 100, calories: 57, carbs_g: 4, protein_g: 10, fat_g: 0.4, fibre_g: 0, meals: ['breakfast', 'snack'] },
   { id: 'natural-yogurt-whole-as-packed', name: 'Natural yogurt, whole', detail: 'as packed', serving_g: 100, calories: 79, carbs_g: 7.8, protein_g: 5.7, fat_g: 3, fibre_g: 0, meals: ['breakfast', 'snack'] },
   { id: 'butter-as-eaten', name: 'Butter', detail: 'as eaten', serving_g: 100, calories: 744, carbs_g: 0.6, protein_g: 0.5, fat_g: 82, fibre_g: 0 },
-  { id: 'single-cream-as-packed', name: 'Single cream', detail: 'as packed', serving_g: 100, calories: 193, carbs_g: 4, protein_g: 2.4, fat_g: 19, fibre_g: 0 },
-  { id: 'double-cream-as-packed', name: 'Double cream', detail: 'as packed', serving_g: 100, calories: 467, carbs_g: 2.7, protein_g: 1.7, fat_g: 50, fibre_g: 0 },
-  { id: 'soured-cream-as-packed', name: 'Soured cream', detail: 'as packed', serving_g: 100, calories: 205, carbs_g: 3.8, protein_g: 2.9, fat_g: 20, fibre_g: 0 },
+  { id: 'single-cream-as-packed', name: 'Single cream', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 193, carbs_g: 4, protein_g: 2.4, fat_g: 19, fibre_g: 0 },
+  { id: 'double-cream-as-packed', name: 'Double cream', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 467, carbs_g: 2.7, protein_g: 1.7, fat_g: 50, fibre_g: 0 },
+  { id: 'soured-cream-as-packed', name: 'Soured cream', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 205, carbs_g: 3.8, protein_g: 2.9, fat_g: 20, fibre_g: 0 },
   { id: 'whole-egg-raw', name: 'Whole egg', detail: 'raw', serving_g: 100, calories: 143, carbs_g: 0.7, protein_g: 12.5, fat_g: 9.7, fibre_g: 0, meals: ['breakfast', 'lunch'] },
   { id: 'egg-white-raw', name: 'Egg white', detail: 'raw', serving_g: 100, calories: 52, carbs_g: 0.7, protein_g: 11, fat_g: 0, fibre_g: 0, meals: ['breakfast'] },
   { id: 'egg-yolk-raw', name: 'Egg yolk', detail: 'raw', serving_g: 100, calories: 322, carbs_g: 1, protein_g: 16, fat_g: 27, fibre_g: 0, meals: ['breakfast'] },
@@ -208,9 +214,9 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'peanut-butter-smooth-no-added-sugar', name: 'Peanut butter, smooth', detail: 'no added sugar', serving_g: 100, calories: 606, carbs_g: 13, protein_g: 23, fat_g: 50, fibre_g: 6, meals: ['breakfast', 'snack'] },
 
   // Fats & Oils
-  { id: 'olive-oil-as-packed', name: 'Olive oil', detail: 'as packed', serving_g: 100, calories: 899, carbs_g: 0, protein_g: 0, fat_g: 99.9, fibre_g: 0 },
-  { id: 'rapeseed-oil-as-packed', name: 'Rapeseed oil', detail: 'as packed', serving_g: 100, calories: 899, carbs_g: 0, protein_g: 0, fat_g: 99.9, fibre_g: 0 },
-  { id: 'sunflower-oil-as-packed', name: 'Sunflower oil', detail: 'as packed', serving_g: 100, calories: 899, carbs_g: 0, protein_g: 0, fat_g: 99.9, fibre_g: 0 },
+  { id: 'olive-oil-as-packed', name: 'Olive oil', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 899, carbs_g: 0, protein_g: 0, fat_g: 99.9, fibre_g: 0 },
+  { id: 'rapeseed-oil-as-packed', name: 'Rapeseed oil', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 899, carbs_g: 0, protein_g: 0, fat_g: 99.9, fibre_g: 0 },
+  { id: 'sunflower-oil-as-packed', name: 'Sunflower oil', detail: 'as packed', unit: 'ml', serving_g: 100, calories: 899, carbs_g: 0, protein_g: 0, fat_g: 99.9, fibre_g: 0 },
   { id: 'coconut-oil-as-packed', name: 'Coconut oil', detail: 'as packed', serving_g: 100, calories: 892, carbs_g: 0, protein_g: 0, fat_g: 99.1, fibre_g: 0 },
   { id: 'lard-as-packed', name: 'Lard', detail: 'as packed', serving_g: 100, calories: 891, carbs_g: 0, protein_g: 0, fat_g: 99, fibre_g: 0 },
 
@@ -228,7 +234,7 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'whey-protein', name: 'Protein powder', detail: 'whey, 1 scoop ~30g', serving_g: 30, calories: 375, carbs_g: 6, protein_g: 75, fat_g: 5, fibre_g: 0.0, meals: ['snack', 'breakfast'] },
   { id: 'mixed-nuts', name: 'Mixed nuts', serving_g: 30, calories: 607, carbs_g: 21, protein_g: 20, fat_g: 52, fibre_g: 5.0, meals: ['snack'] },
   { id: 'dark-chocolate', name: 'Dark chocolate', detail: '70%+', serving_g: 30, calories: 600, carbs_g: 46, protein_g: 7.8, fat_g: 43, fibre_g: 11.0, meals: ['snack'] },
-  { id: 'coconut-water', name: 'Coconut water', serving_g: 330, calories: 19, carbs_g: 4.7, protein_g: 0.2, fat_g: 0.2, fibre_g: 0.0, meals: ['snack'] },
+  { id: 'coconut-water', name: 'Coconut water', unit: 'ml', serving_g: 330, calories: 19, carbs_g: 4.7, protein_g: 0.2, fat_g: 0.2, fibre_g: 0.0, meals: ['snack'] },
   { id: 'energy-gel', name: 'Energy gel', detail: 'generic, 1 sachet ~40g', serving_g: 40, calories: 100, carbs_g: 25, protein_g: 0, fat_g: 0, fibre_g: 0.0, meals: ['snack'] },
 ];
 

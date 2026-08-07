@@ -1,7 +1,10 @@
 import { type VirraFood } from './commonFoods';
+import { inferUnitFromName, type FoodUnit } from './foodUnits';
 
 const OFF_HOST = 'https://world.openfoodfacts.org';
-const OFF_FIELDS = 'code,product_name,product_name_en,brands,nutriments';
+const OFF_FIELDS =
+  'code,product_name,product_name_en,brands,nutriments,' +
+  'product_quantity_unit,serving_quantity_unit,quantity';
 const USER_AGENT = 'Virra-iOS/1.0 (food logger; hello@virra.app)';
 
 // Throws on network failure (caller can distinguish offline vs not-found).
@@ -78,6 +81,31 @@ export function parseOFFSearchResults(data: unknown): VirraFood[] {
   return out;
 }
 
+/**
+ * Whether an OFF product is sold by volume. OFF records this directly on most
+ * products; where it doesn't, the pack size string ("500 ml", "1 L") usually
+ * gives it away. Falls back to the product name only when neither is present.
+ */
+export function unitForOFFProduct(p: Record<string, unknown>, name: string): FoodUnit {
+  const direct = [p.product_quantity_unit, p.serving_quantity_unit]
+    .find((v) => typeof v === 'string' && v.trim());
+  if (typeof direct === 'string') {
+    const u = direct.trim().toLowerCase();
+    if (u === 'ml' || u === 'l' || u === 'cl' || u === 'dl') return 'ml';
+    if (u === 'g' || u === 'kg' || u === 'mg') return 'g';
+  }
+
+  // e.g. "500 ml", "1L", "33 cl". Anchored to the end so "250 g (drained 150ml)"
+  // style strings don't misfire on a parenthetical.
+  const quantity = typeof p.quantity === 'string' ? p.quantity.trim().toLowerCase() : '';
+  if (quantity) {
+    if (/(?:^|[\d\s])(?:ml|cl|dl|l|litres?|liters?)\s*$/.test(quantity)) return 'ml';
+    if (/(?:^|[\d\s])(?:g|kg|mg|grams?)\s*$/.test(quantity)) return 'g';
+  }
+
+  return inferUnitFromName(name);
+}
+
 function productToVirraFood(p: Record<string, unknown>, id: string): VirraFood | null {
   const name = ((p.product_name_en ?? p.product_name) as string | undefined)?.trim();
   if (!name) return null;
@@ -97,6 +125,9 @@ function productToVirraFood(p: Record<string, unknown>, id: string): VirraFood |
     id,
     name,
     detail:    brand,
+    // Always explicit for OFF products: unlike the curated catalogue, we have
+    // no guarantee a missing unit means grams.
+    unit:      unitForOFFProduct(p, name),
     serving_g: 100,
     calories:  toNum(n['energy-kcal_100g']),
     carbs_g:   toNum(n['carbohydrates_100g']),

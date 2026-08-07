@@ -7,6 +7,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { searchCommonFoods, scaleFood, type VirraFood } from '@/lib/commonFoods';
+import { foodUnit, per100Label, unitInputLabel, inferUnitFromName, type FoodUnit } from '@/lib/foodUnits';
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { lookupBarcode, searchByName } from '@/lib/openFoodFacts';
@@ -16,7 +17,8 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 
 interface FavouriteEntry {
-  food_name:  string;
+  food_name:     string;
+  quantity_unit: string | null;
   quantity_g: number | null;
   calories:   number;
   carbs_g:    number;
@@ -33,6 +35,7 @@ interface MealCombo {
   items_json:   Array<{
     food_name:  string;
     quantity_g: number | null;
+    quantity_unit?: FoodUnit | null;
     calories:   number;
     carbs_g:    number;
     protein_g:  number;
@@ -48,6 +51,9 @@ function entryToVirraFood(fav: FavouriteEntry): VirraFood {
   return {
     id:        `fav-${fav.food_name}`,
     name:      fav.food_name,
+    // Rows logged before quantity_unit existed have no stored unit, so fall
+    // back to the name rather than silently calling a past pint 500 grams.
+    unit:      fav.quantity_unit === 'ml' ? 'ml' : inferUnitFromName(fav.food_name),
     serving_g: g,
     calories:  Math.round(fav.calories  * scale),
     carbs_g:   Math.round(fav.carbs_g   * scale * 10) / 10,
@@ -84,7 +90,7 @@ function FoodRow({ food, onSelect, showOffChip }: {
         {food.detail && (
           <VirraText variant="mono" size={11} color={colors.muted}>{food.detail.toUpperCase()}</VirraText>
         )}
-        <VirraText variant="mono" size={11} color={colors.muted}>per 100g</VirraText>
+        <VirraText variant="mono" size={11} color={colors.muted}>{per100Label(foodUnit(food))}</VirraText>
       </View>
       <View style={row.cals}>
         <VirraText variant="display" size={18} color={colors.pulse}>
@@ -116,6 +122,7 @@ function AddPanel({
   onCancel: () => void;
   adding:   boolean;
 }) {
+  const unit   = foodUnit(food);
   const [grams, setGrams] = useState(String(food.serving_g));
   const parsed = parseFloat(grams) || 0;
   const scaled = parsed > 0 ? scaleFood(food, parsed) : null;
@@ -128,7 +135,7 @@ function AddPanel({
       )}
 
       <View style={panel.row}>
-        <VirraText variant="mono" size={10} color={colors.muted} style={panel.rowLabel}>GRAMS</VirraText>
+        <VirraText variant="mono" size={10} color={colors.muted} style={panel.rowLabel}>{unitInputLabel(unit)}</VirraText>
         <View style={panel.inputWrap}>
           <Pressable onPress={() => setGrams(String(Math.max(1, parsed - 10)))} style={panel.stepBtn}>
             <SymbolView name="minus" size={14} tintColor={colors.breath} />
@@ -265,7 +272,7 @@ export default function FoodSearchScreen() {
     // Fetch history for YOUR REGULARS
     supabase
       .from('food_entries')
-      .select('food_name, quantity_g, calories, carbs_g, protein_g, fat_g, fibre_g')
+      .select('food_name, quantity_g, quantity_unit, calories, carbs_g, protein_g, fat_g, fibre_g')
       .eq('meal_type', mealType)
       .order('id', { ascending: false })
       .limit(100)
@@ -349,6 +356,7 @@ export default function FoodSearchScreen() {
       meal_type: mealType,
       food_name: food.name,
       quantity_g: grams,
+      quantity_unit: foodUnit(food),
       calories:  macros.calories,
       carbs_g:   macros.carbs_g,
       protein_g: macros.protein_g,
@@ -424,6 +432,7 @@ export default function FoodSearchScreen() {
       meal_type: mealType,
       food_name: item.food_name,
       quantity_g: item.quantity_g,
+      quantity_unit: item.quantity_unit ?? 'g',
       calories:  item.calories,
       carbs_g:   item.carbs_g,
       protein_g: item.protein_g,
