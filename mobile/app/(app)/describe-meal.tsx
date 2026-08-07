@@ -13,6 +13,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { inferUnitFromName, unitInputLabel } from '@/lib/foodUnits';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -128,7 +129,7 @@ function ItemRow({
 
       <View style={itemRow.grid}>
         {([
-          { key: 'quantity_g', label: 'GRAMS' },
+          { key: 'quantity_g', label: unitInputLabel(inferUnitFromName(item.food_name)) },
           { key: 'calories',   label: 'KCAL' },
           { key: 'carbs_g',    label: 'CARBS' },
           { key: 'protein_g',  label: 'PROTEIN' },
@@ -268,6 +269,9 @@ export default function DescribeMealScreen() {
       meal_type:   mealType,
       food_name:   item.food_name,
       quantity_g:  item.quantity_g,
+      // The estimator only returns a gram figure, so the name is all we have
+      // to go on for whether it should read as millilitres.
+      quantity_unit: inferUnitFromName(item.food_name),
       calories:    item.calories,
       carbs_g:     item.carbs_g,
       protein_g:   item.protein_g,

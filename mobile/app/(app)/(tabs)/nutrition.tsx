@@ -16,6 +16,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { FoodEntryEditModal } from '@/components/ui/FoodEntryEditModal';
+import { toFoodUnit, formatQuantity, type FoodUnit } from '@/lib/foodUnits';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type MealType = typeof MEAL_TYPES[number];
@@ -30,6 +31,7 @@ interface FoodEntry {
   fat_g:        number;
   fibre_g:      number;
   quantity_g:   number | null;
+  quantity_unit: FoodUnit | string | null;
   source:       'manual' | 'common' | 'off' | 'barcode' | 'haiku';
   haiku_input:  string | null;
   log_id:       string;
@@ -176,7 +178,9 @@ function FoodEntryRow({ entry, onEdit, onDelete }: FoodEntryRowProps) {
           )}
         </View>
         <VirraText variant="mono" size={12} color={colors.muted}>
-          {Math.round(entry.calories)} kcal
+          {entry.quantity_g
+            ? `${formatQuantity(entry.quantity_g, toFoodUnit(entry.quantity_unit))} · ${Math.round(entry.calories)} kcal`
+            : `${Math.round(entry.calories)} kcal`}
         </VirraText>
       </Pressable>
     </Swipeable>
@@ -252,7 +256,7 @@ export default function NutritionScreen() {
     if (session && logId) {
       supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source, haiku_input, log_id')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, quantity_unit, source, haiku_input, log_id')
         .eq('log_id', logId)
         .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
     }
@@ -296,7 +300,7 @@ export default function NutritionScreen() {
       setLogId(log.id);
       const { data: food } = await supabase
         .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source, haiku_input, log_id')
+        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, quantity_unit, source, haiku_input, log_id')
         .eq('log_id', log.id);
       setEntries((food as FoodEntry[]) ?? []);
     }
@@ -316,6 +320,7 @@ export default function NutritionScreen() {
         const comboItems = items.map((e) => ({
           food_name:  e.food_name,
           quantity_g: e.quantity_g,
+          quantity_unit: toFoodUnit(e.quantity_unit),
           calories:   e.calories,
           carbs_g:    e.carbs_g,
           protein_g:  e.protein_g,
@@ -345,7 +350,7 @@ export default function NutritionScreen() {
     if (!logId) return;
     supabase
       .from('food_entries')
-      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, source, haiku_input, log_id')
+      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, quantity_unit, source, haiku_input, log_id')
       .eq('log_id', logId)
       .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
   }

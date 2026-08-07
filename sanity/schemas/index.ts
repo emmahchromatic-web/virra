@@ -5,6 +5,7 @@ import { aboutPage } from './aboutPage';
 import { legalPage } from './legalPage';
 import { cycleCalculatorCopy } from './cycleCalculatorCopy';
 import { siteSettings } from './siteSettings';
+import { newsletterLanding } from './newsletterLanding';
 
 export const schemaTypes = [
   article,
@@ -14,4 +15,5 @@ export const schemaTypes = [
   legalPage,
   cycleCalculatorCopy,
   siteSettings,
+  newsletterLanding,
 ];

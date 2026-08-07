@@ -4,8 +4,10 @@ interface SteadyRow {
   weight_kg: number;
 }
 
-const MIN_READINGS = 7;
-const WINDOW_DAYS  = 30;
+/** Exported so the calibrating UI counts against the same rule the maths uses.
+ *  These drifting apart is what produced the "60/7 READINGS LOGGED" ribbon. */
+export const MIN_READINGS = 7;
+export const WINDOW_DAYS  = 30;
 
 export function medianAll(rows: SteadyRow[]): number | null {
   if (rows.length < MIN_READINGS) return null;

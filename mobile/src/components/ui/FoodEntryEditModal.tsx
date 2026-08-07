@@ -6,6 +6,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraModal } from './VirraModal';
 import { VirraButton } from './VirraButton';
 import { VirraText } from './VirraText';
+import { toFoodUnit, unitInputLabel, type FoodUnit } from '@/lib/foodUnits';
 
 export interface FoodEntry {
   id:           string;
@@ -17,6 +18,7 @@ export interface FoodEntry {
   fat_g:        number;
   fibre_g:      number;
   quantity_g:   number | null;
+  quantity_unit?: FoodUnit | string | null;
   source?:      'manual' | 'common' | 'off' | 'barcode' | 'haiku';
   haiku_input?: string | null;
   log_id?:      string;
@@ -34,7 +36,10 @@ export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) 
   const [error,     setError]     = useState<string | null>(null);
   const [saving,    setSaving]    = useState(false);
 
-  // Derive the "base" grams value — what the stored macros represent.
+  // The stored quantity is unit-agnostic; quantity_unit says what it means.
+  const unit = toFoodUnit(entry?.quantity_unit);
+
+  // Derive the "base" quantity — what the stored macros represent.
   const baseGrams = entry
     ? (entry.quantity_g && entry.quantity_g > 0 ? entry.quantity_g : 100)
     : 100;
@@ -55,7 +60,7 @@ export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) 
     if (!entry) return;
 
     if (!isValidNum) {
-      setError('Enter a value between 1 and 4999 grams.');
+      setError(`Enter a value between 1 and 4999 ${unit === 'ml' ? 'millilitres' : 'grams'}.`);
       return;
     }
 
@@ -126,10 +131,10 @@ export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) 
         </View>
       )}
 
-      {/* Grams input */}
+      {/* Quantity input */}
       <View style={s.inputGroup}>
         <VirraText variant="mono" size={11} color={colors.muted} style={s.inputLabel}>
-          GRAMS
+          {unitInputLabel(unit)}
         </VirraText>
         <TextInput
           style={s.input}

@@ -34,7 +34,17 @@ export default function BodyMetricsScreen() {
   }
 
   async function finish(withMetrics: boolean) {
-    if (!session) { router.replace('/(auth)/paywall'); return; }
+    // Same failure as the diet step: with no session the update is impossible.
+    // This previously dropped the user at the paywall and silently discarded
+    // whatever they had entered.
+    if (!session) {
+      Alert.alert(
+        'You are not signed in',
+        'We could not save your details because your session has expired. Sign in again and we will pick up from here.',
+        [{ text: 'Sign in', onPress: () => router.replace('/(auth)/sign-in') }],
+      );
+      return;
+    }
     if (withMetrics) {
       setSaving(true);
       const { error } = await supabase

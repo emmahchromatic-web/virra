@@ -101,6 +101,24 @@ export const CYCLE_CALCULATOR_COPY_QUERY = `*[_type == "cycleCalculatorCopy"][0]
   luteal
 }`;
 
+export const NEWSLETTER_LANDING_QUERY = `*[_type == "newsletterLanding"][0]{
+  seoTitle,
+  seoDescription,
+  eyebrow,
+  headline,
+  headlineAccent,
+  subhead,
+  benefits,
+  ctaLabel,
+  note,
+  successMessage,
+  guideKicker,
+  guideTitle,
+  guideSubtitle,
+  guideCover{ ..., "dimensions": asset->metadata.dimensions },
+  "guideFileUrl": guideFile.asset->url
+}`;
+
 export const SITE_SETTINGS_QUERY = `*[_type == "siteSettings"][0]{
   newsletterCaption,
   legalLinks,

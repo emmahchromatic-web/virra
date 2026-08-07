@@ -48,7 +48,16 @@ export default function DietScreen() {
   }
 
   async function handleContinue() {
-    if (!session) return;
+    // No session means nothing can be written. Say so instead of leaving the
+    // user pressing a button that silently does nothing.
+    if (!session) {
+      Alert.alert(
+        'You are not signed in',
+        'We could not save your profile because your session has expired. Sign in again and we will pick up from here.',
+        [{ text: 'Sign in', onPress: () => router.replace('/(auth)/sign-in') }],
+      );
+      return;
+    }
     setSaving(true);
     const userId = session.user.id;
     const today  = new Date().toISOString().split('T')[0];

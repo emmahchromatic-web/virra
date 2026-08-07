@@ -32,8 +32,24 @@ describe('parseOFFProduct', () => {
     }, BARCODE);
     expect(result).toEqual({
       id: `off-${BARCODE}`, name: 'Whole Milk', detail: 'Arla', serving_g: 100,
+      // OFF sent no unit field for this fixture, so the name decides — milk is
+      // sold by volume and must not come back as grams.
+      unit: 'ml',
       calories: 67, carbs_g: 4.7, protein_g: 3.4, fat_g: 4.0, fibre_g: 0,
     });
+  });
+
+  it('takes the unit from OFF when it supplies one', () => {
+    const result = parseOFFProduct({
+      status: 1,
+      product: {
+        product_name_en: 'Greek Style Yogurt',
+        brands: 'Fage',
+        product_quantity_unit: 'g',
+        nutriments: { 'energy-kcal_100g': 133 },
+      },
+    }, BARCODE);
+    expect(result?.unit).toBe('g');
   });
 
   it('falls back to product_name when product_name_en is absent', () => {

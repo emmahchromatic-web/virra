@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import Svg, { Line, Circle, Rect, Text as SvgText } from 'react-native-svg';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
+import { MIN_READINGS, WINDOW_DAYS as BASELINE_WINDOW_DAYS } from '@/lib/weightBaselineSteady';
 
 export interface WeightReading {
   recorded_on: string;
@@ -38,6 +39,14 @@ export function WeightSteadyChart({ baselineKg, readings, today = new Date() }: 
     ? inWindow.map((r) => r.weight_kg - baselineKg)
     : [];
 
+  // The chart plots 90 days, but calibration only counts the last 30. Counting
+  // the chart window against the calibration minimum is what produced readings
+  // like "60/7"; clamp as well so the numerator can never overshoot.
+  const towardsBaseline = Math.min(
+    readings.filter((r) => daysBetween(today, new Date(r.recorded_on)) <= BASELINE_WINDOW_DAYS).length,
+    MIN_READINGS,
+  );
+
   const { min: yMin, max: yMax } = autoScaleY(deltas);
 
   function xForDate(d: Date) {
@@ -58,7 +67,7 @@ export function WeightSteadyChart({ baselineKg, readings, today = new Date() }: 
       {calibrating && (
         <View style={styles.ribbon}>
           <VirraText variant="mono" size={9} color={colors.muted}>
-            CALIBRATING — {inWindow.length}/7 READINGS LOGGED
+            CALIBRATING — {towardsBaseline}/{MIN_READINGS} READINGS LOGGED
           </VirraText>
         </View>
       )}
