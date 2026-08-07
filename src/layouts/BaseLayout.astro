@@ -8,12 +8,14 @@ interface Props {
   description?: string;
   ogImage?: string;
   ogType?: 'website' | 'article';
+  noindex?: boolean;
 }
 const {
   title,
   description = 'Female-first running. Cycle-aware training, nutrition and performance, all in one place.',
   ogImage = '/og-default.png',
   ogType = 'website',
+  noindex = false,
 } = Astro.props;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 ---
@@ -51,6 +53,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 
   <title>{title}</title>
   <meta name="description" content={description} />
+  {noindex && <meta name="robots" content="noindex, follow" />}
 
   <meta property="og:type" content={ogType} />
   <meta property="og:title" content={title} />
