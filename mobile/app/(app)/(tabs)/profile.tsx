@@ -79,7 +79,14 @@ export default function ProfileScreen() {
   const [lastBreak,      setLastBreak]      = useState<{ break_start: string; break_end: string } | null>(null);
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
+  const [nameModalVisible, setNameModalVisible] = useState(false);
+  const [firstNameInput,   setFirstNameInput]   = useState('');
+  const [lastNameInput,    setLastNameInput]    = useState('');
+  const [nameError,        setNameError]        = useState('');
+  // Deleting an account is irreversible, so it takes two deliberate steps:
+  // 'explain' spells out what goes and what stays, 'confirm' asks them to type it.
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteStage,        setDeleteStage]        = useState<'explain' | 'confirm'>('explain');
   const [deleteConfirm,      setDeleteConfirm]      = useState('');
   const [deleting,           setDeleting]           = useState(false);
   const [medicalModalVisible, setMedicalModalVisible] = useState(false);
@@ -169,6 +176,41 @@ export default function ProfileScreen() {
       : `Last: ${fmtBreakRange(lastBreak.break_start, lastBreak.break_end)}`)
     : 'None scheduled';
 
+  function openNameModal() {
+    setFirstNameInput(firstName ?? '');
+    setLastNameInput(lastName ?? '');
+    setNameError('');
+    setNameModalVisible(true);
+  }
+
+  async function handleNameSave() {
+    if (!session) return;
+    const first = firstNameInput.trim();
+    const last  = lastNameInput.trim();
+    if (!first) {
+      setNameError('Enter at least a first name.');
+      return;
+    }
+    setNameError('');
+    setNameModalVisible(false);
+    setSaving(true);
+    try { await saveProfile(session.user.id, { firstName: first, lastName: last }); }
+    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    finally { setSaving(false); }
+  }
+
+  function openDeleteModal() {
+    setDeleteStage('explain');
+    setDeleteConfirm('');
+    setDeleteModalVisible(true);
+  }
+
+  function closeDeleteModal() {
+    setDeleteModalVisible(false);
+    setDeleteStage('explain');
+    setDeleteConfirm('');
+  }
+
   async function handlePickAvatar() {
     if (!session) return;
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -224,8 +266,7 @@ export default function ProfileScreen() {
       Alert.alert('Could not delete account', (e as Error).message);
     } finally {
       setDeleting(false);
-      setDeleteModalVisible(false);
-      setDeleteConfirm('');
+      closeDeleteModal();
     }
   }
 
@@ -343,14 +384,22 @@ export default function ProfileScreen() {
                 <SymbolView name="camera.fill" size={10} tintColor={colors.mile} />
               </View>
             </Pressable>
-            <View style={styles.identityText}>
-              <VirraText variant="display" size={18} color={colors.breath}>{displayName}</VirraText>
+            <Pressable
+              style={styles.identityText}
+              onPress={openNameModal}
+              accessibilityRole="button"
+              accessibilityLabel="Edit your name"
+            >
+              <View style={styles.identityNameRow}>
+                <VirraText variant="display" size={18} color={colors.breath}>{displayName}</VirraText>
+                <SymbolView name="pencil" size={13} tintColor={colors.muted} />
+              </View>
               {uploadingAvatar && (
                 <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1, marginTop: 2 }}>
                   UPDATING PHOTO…
                 </VirraText>
               )}
-            </View>
+            </Pressable>
           </View>
         </VirraCard>
 
@@ -556,7 +605,7 @@ export default function ProfileScreen() {
         />
 
         <Pressable
-          onPress={() => setDeleteModalVisible(true)}
+          onPress={openDeleteModal}
           style={{ marginTop: spacing.sm, alignItems: 'center', paddingVertical: spacing.sm }}
         >
           <VirraText variant="mono" size={10} color={colors.heat} style={{ letterSpacing: 1.5 }}>
@@ -739,37 +788,110 @@ export default function ProfileScreen() {
         <VirraButton label="SAVE" onPress={handleDobSave} loading={saving} disabled={!dobDraft} />
       </VirraModal>
 
-      {/* Delete account modal */}
+      {/* Edit name modal */}
       <VirraModal
-        visible={deleteModalVisible}
-        onClose={() => { setDeleteModalVisible(false); setDeleteConfirm(''); }}
-        title="Delete account"
+        visible={nameModalVisible}
+        onClose={() => setNameModalVisible(false)}
+        title="Your name"
       >
-        <VirraText variant="body" size={14} color={colors.breath}>
-          This permanently erases your profile, training plan, cycle data, activities, nutrition logs, and subscription record. It cannot be undone.
-        </VirraText>
-        <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
-          If you have an active subscription, cancel it in the App Store first; deleting your account here does not cancel Apple billing.
-        </VirraText>
-        <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
-          TYPE "DELETE" TO CONFIRM
+        <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+          FIRST NAME
         </VirraText>
         <TextInput
-          value={deleteConfirm}
-          onChangeText={setDeleteConfirm}
-          autoCapitalize="characters"
+          value={firstNameInput}
+          onChangeText={(t) => { setFirstNameInput(t); setNameError(''); }}
+          autoCapitalize="words"
+          autoComplete="given-name"
           style={styles.modalInput}
-          placeholder="DELETE"
+          placeholder="First"
           placeholderTextColor="rgba(244,237,224,0.3)"
         />
-        <VirraButton
-          label="Delete my account"
-          variant="primary"
-          onPress={handleDeleteAccount}
-          loading={deleting}
-          disabled={deleteConfirm.trim().toUpperCase() !== 'DELETE' || deleting}
-          style={{ marginTop: spacing.md, backgroundColor: colors.heat }}
+        <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.sm }}>
+          LAST NAME
+        </VirraText>
+        <TextInput
+          value={lastNameInput}
+          onChangeText={(t) => { setLastNameInput(t); setNameError(''); }}
+          autoCapitalize="words"
+          autoComplete="family-name"
+          style={styles.modalInput}
+          placeholder="Last"
+          placeholderTextColor="rgba(244,237,224,0.3)"
+          returnKeyType="done"
+          onSubmitEditing={handleNameSave}
         />
+        {nameError ? (
+          <VirraText variant="mono" size={10} color={colors.heat} style={{ letterSpacing: 1, marginTop: spacing.xs }}>
+            {nameError.toUpperCase()}
+          </VirraText>
+        ) : null}
+        <VirraButton label="SAVE" onPress={handleNameSave} loading={saving} style={{ marginTop: spacing.md }} />
+      </VirraModal>
+
+      {/* Delete account — two deliberate steps, because it cannot be undone */}
+      <VirraModal
+        visible={deleteModalVisible}
+        onClose={closeDeleteModal}
+        title="Delete account"
+      >
+        {deleteStage === 'explain' ? (
+          <>
+            <VirraText variant="body" size={14} color={colors.breath}>
+              This permanently erases your Virra account: your profile, training plan, cycle data, activities, nutrition logs, and subscription record. It cannot be undone, and we cannot recover it for you afterwards.
+            </VirraText>
+            <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: spacing.sm }}>
+              Anything Virra wrote to Apple Health stays in Apple Health. Your workouts and weight readings remain yours to keep, and you can delete them yourself in the Health app at any time.
+            </VirraText>
+            <VirraText variant="body" size={13} color={colors.muted} style={{ marginTop: spacing.sm }}>
+              If you have an active subscription, cancel it in the App Store first. Deleting your account here does not cancel Apple billing.
+            </VirraText>
+            <VirraButton
+              label="Continue"
+              variant="primary"
+              onPress={() => setDeleteStage('confirm')}
+              style={{ marginTop: spacing.md, backgroundColor: colors.heat }}
+            />
+            <VirraButton
+              label="Keep my account"
+              variant="ghost"
+              onPress={closeDeleteModal}
+              style={{ marginTop: spacing.xs }}
+            />
+          </>
+        ) : (
+          <>
+            <VirraText variant="body" size={14} color={colors.breath}>
+              Last check. This is permanent.
+            </VirraText>
+            <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5, marginTop: spacing.md }}>
+              TYPE &ldquo;DELETE&rdquo; TO CONFIRM
+            </VirraText>
+            <TextInput
+              value={deleteConfirm}
+              onChangeText={setDeleteConfirm}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={styles.modalInput}
+              placeholder="DELETE"
+              placeholderTextColor="rgba(244,237,224,0.3)"
+            />
+            <VirraButton
+              label="Delete my account"
+              variant="primary"
+              onPress={handleDeleteAccount}
+              loading={deleting}
+              disabled={deleteConfirm.trim().toUpperCase() !== 'DELETE' || deleting}
+              style={{ marginTop: spacing.md, backgroundColor: colors.heat }}
+            />
+            <VirraButton
+              label="Back"
+              variant="ghost"
+              onPress={() => { setDeleteStage('explain'); setDeleteConfirm(''); }}
+              disabled={deleting}
+              style={{ marginTop: spacing.xs }}
+            />
+          </>
+        )}
       </VirraModal>
 
     </SafeAreaView>
@@ -796,6 +918,7 @@ const styles = StyleSheet.create({
   avatarImg:         { width: 64, height: 64, borderRadius: 32 },
   avatarPlaceholder: { backgroundColor: colors.mile, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   cameraBadge:       { position: 'absolute', bottom: 0, right: 0, width: 20, height: 20, borderRadius: 10, backgroundColor: colors.pulse, alignItems: 'center', justifyContent: 'center' },
+  identityNameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   identityText:      { flex: 1 },
   modalInput:        { backgroundColor: colors.mile, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, color: colors.breath, fontFamily: 'SpaceMono_400Regular', fontSize: 24, textAlign: 'center', paddingVertical: spacing.md },
 });
