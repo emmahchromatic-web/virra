@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo } from '@/lib/cycleEngine';
 import { cancelTrainingReminderToday } from '@/lib/notifications';
+import { fetchRunHeartRate, type TimeWindow } from '@/lib/healthKitHeartRate';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
@@ -67,8 +68,10 @@ export default function RunTrackerScreen() {
   const [saving,       setSaving]       = useState(false);
 
   const startedAt     = useRef<Date | null>(null);
+  const endedAt       = useRef<Date | null>(null);    // when Stop was tapped, not when Save was
   const pausedAt      = useRef<number>(0);            // total paused seconds
   const pauseStart    = useRef<number | null>(null);
+  const pauseWindows  = useRef<TimeWindow[]>([]);     // excluded from the heart-rate window
   const gpsTrace      = useRef<GpsPoint[]>([]);
   const locationSub   = useRef<Location.LocationSubscription | null>(null);
   const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -154,8 +157,10 @@ export default function RunTrackerScreen() {
   // ---- Controls ----
   async function handleStart() {
     startedAt.current      = new Date();
+    endedAt.current        = null;
     pausedAt.current       = 0;
     pauseStart.current     = null;
+    pauseWindows.current   = [];
     gpsTrace.current       = [];
     lastKmAt.current       = 0;
     lastSplitTime.current  = 0;
@@ -178,7 +183,9 @@ export default function RunTrackerScreen() {
 
   async function handleResume() {
     if (pauseStart.current) {
-      pausedAt.current += Math.floor((Date.now() - pauseStart.current) / 1000);
+      const resumedAt = Date.now();
+      pausedAt.current += Math.floor((resumedAt - pauseStart.current) / 1000);
+      pauseWindows.current.push({ start: pauseStart.current, end: resumedAt });
       pauseStart.current = null;
     }
     await startTracking();
@@ -189,9 +196,13 @@ export default function RunTrackerScreen() {
   function handleStop() {
     stopTimer();
     stopTracking();
+    const stoppedAt = Date.now();
     if (pauseStart.current) {
-      pausedAt.current += Math.floor((Date.now() - pauseStart.current) / 1000);
+      pausedAt.current += Math.floor((stoppedAt - pauseStart.current) / 1000);
+      pauseWindows.current.push({ start: pauseStart.current, end: stoppedAt });
+      pauseStart.current = null;
     }
+    endedAt.current = new Date(stoppedAt);
     setRunState('finished');
   }
 
@@ -202,10 +213,18 @@ export default function RunTrackerScreen() {
     if (!session || !startedAt.current) return;
     setSaving(true);
 
-    const endedAt       = new Date();
+    const finishedAt    = endedAt.current ?? new Date();
     const avgPaceSecKm  = distanceM > 100
       ? Math.round(elapsedS / (distanceM / 1000))
       : null;
+
+    // Heart rate comes from whatever the watch recorded during the run. Nulls
+    // when there's no watch, no read access, or samples haven't synced yet.
+    const { hrAvg, hrMax } = await fetchRunHeartRate(
+      startedAt.current,
+      finishedAt,
+      pauseWindows.current,
+    );
 
     const phaseAtTime = periodStart
       ? getCycleInfo(periodStart, cycleLength ?? 28, startedAt.current).phase
@@ -234,6 +253,8 @@ export default function RunTrackerScreen() {
       activity_id:             act.id,
       avg_pace_seconds_per_km: avgPaceSecKm,
       splits_json:             splits.map((s, i) => ({ km: i + 1, sec: s })),
+      hr_avg:                  hrAvg,
+      hr_max:                  hrMax,
       gps_trace:               gpsTrace.current,
     });
 
@@ -252,7 +273,7 @@ export default function RunTrackerScreen() {
         {
           type:         'Running',
           startDate:    startedAt.current.toISOString(),
-          endDate:      endedAt.toISOString(),
+          endDate:      finishedAt.toISOString(),
           duration:     elapsedS,
           distance:     Math.round(distanceM),
           distanceUnit: 'meter',
