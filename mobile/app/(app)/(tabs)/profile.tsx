@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, Alert, TextInput, Image, Linking, Switch, Share,
+  Pressable, Alert, TextInput, Image, Linking, Switch, Share, Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
@@ -57,7 +58,7 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
-  const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
+  const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, heightCm, dateOfBirth, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
   const [weightSyncing, setWeightSyncing] = useState(false);
   const [weightSyncNote, setWeightSyncNote] = useState<string | null>(null);
   const [weightDiag, setWeightDiag] = useState<WeightSyncDiagnostic | null>(null);
@@ -70,6 +71,11 @@ export default function ProfileScreen() {
   const [stepsModalVisible, setStepsModalVisible] = useState(false);
   const [stepsInput,        setStepsInput]        = useState('');
   const [stepsError,        setStepsError]        = useState('');
+  const [heightModalVisible, setHeightModalVisible] = useState(false);
+  const [heightInput,        setHeightInput]        = useState('');
+  const [heightError,        setHeightError]        = useState('');
+  const [dobModalVisible,    setDobModalVisible]    = useState(false);
+  const [dobDraft,           setDobDraft]           = useState<Date | null>(null);
   const [lastBreak,      setLastBreak]      = useState<{ break_start: string; break_end: string } | null>(null);
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [profileBlocks,  setProfileBlocks]  = useState<TrainingBlock[]>([]);
@@ -293,6 +299,42 @@ export default function ProfileScreen() {
     finally { setSaving(false); }
   }
 
+  function openHeightModal() {
+    setHeightInput(heightCm != null ? String(heightCm) : '');
+    setHeightError('');
+    setHeightModalVisible(true);
+  }
+
+  async function handleHeightSave() {
+    if (!session) return;
+    const val = parseInt(heightInput, 10);
+    if (isNaN(val) || val < 140 || val > 210) {
+      setHeightError('Enter a height in cm between 140 and 210.');
+      return;
+    }
+    setHeightError('');
+    setHeightModalVisible(false);
+    setSaving(true);
+    try { await saveProfile(session.user.id, { heightCm: val }); }
+    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    finally { setSaving(false); }
+  }
+
+  function openDobModal() {
+    setDobDraft(dateOfBirth ? new Date(dateOfBirth) : new Date(new Date().getFullYear() - 30, 0, 1));
+    setDobModalVisible(true);
+  }
+
+  async function handleDobSave() {
+    if (!session || !dobDraft) return;
+    setDobModalVisible(false);
+    setSaving(true);
+    // Store as a plain 'YYYY-MM-DD' date (no time/zone), matching onboarding.
+    try { await saveProfile(session.user.id, { dateOfBirth: dobDraft.toISOString().split('T')[0] }); }
+    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    finally { setSaving(false); }
+  }
+
   async function handleCycleLengthSave() {
     const days = parseInt(cycleLengthInput, 10);
     if (isNaN(days) || days < 21 || days > 40) {
@@ -400,6 +442,25 @@ export default function ProfileScreen() {
             <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: spacing.xs }}>
               {weightSyncNote}
             </VirraText>
+          )}
+          {trackWeight && (
+            <View style={{ marginTop: spacing.sm, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border }}>
+              <Row
+                label="HEIGHT"
+                value={heightCm != null ? `${heightCm} cm` : 'Not set'}
+                onPress={openHeightModal}
+              />
+              <Row
+                label="DATE OF BIRTH"
+                value={dateOfBirth
+                  ? new Date(dateOfBirth).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                  : 'Not set'}
+                onPress={openDobModal}
+              />
+              <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: spacing.xs }}>
+                Used with your weight to personalise your nutrition targets. Without these we fall back to standard targets.
+              </VirraText>
+            </View>
           )}
           {trackWeight && weightDiag && (
             <View style={{ marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border }}>
@@ -679,6 +740,52 @@ export default function ProfileScreen() {
           </VirraText>
         ) : null}
         <VirraButton label="SAVE" onPress={handleStepsTargetSave} loading={saving} />
+      </VirraModal>
+
+      <VirraModal
+        visible={heightModalVisible}
+        onClose={() => { setHeightModalVisible(false); setHeightError(''); }}
+        title="Height"
+      >
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
+          Set your height in centimetres (140–210).
+        </VirraText>
+        <TextInput
+          value={heightInput}
+          onChangeText={setHeightInput}
+          keyboardType="number-pad"
+          maxLength={3}
+          style={styles.modalInput}
+          placeholder="cm"
+          placeholderTextColor="rgba(244,237,224,0.3)"
+        />
+        {heightError ? (
+          <VirraText variant="mono" size={10} color={colors.heat} style={{ letterSpacing: 1 }}>
+            {heightError.toUpperCase()}
+          </VirraText>
+        ) : null}
+        <VirraButton label="SAVE" onPress={handleHeightSave} loading={saving} />
+      </VirraModal>
+
+      <VirraModal
+        visible={dobModalVisible}
+        onClose={() => setDobModalVisible(false)}
+        title="Date of birth"
+      >
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
+          Your age refines your calorie targets.
+        </VirraText>
+        <View style={{ alignItems: 'center', marginVertical: spacing.sm }}>
+          <DateTimePicker
+            value={dobDraft ?? new Date(new Date().getFullYear() - 30, 0, 1)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            maximumDate={new Date()}
+            themeVariant="dark"
+            onChange={(_event, selected) => { if (selected) setDobDraft(selected); }}
+          />
+        </View>
+        <VirraButton label="SAVE" onPress={handleDobSave} loading={saving} disabled={!dobDraft} />
       </VirraModal>
 
       {/* Edit name modal */}

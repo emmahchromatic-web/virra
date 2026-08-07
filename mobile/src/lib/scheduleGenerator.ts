@@ -3,7 +3,7 @@ import type { BlockPhase, PhaseSegment } from './seasonEngine';
 import { generateRunStructure } from './runWorkoutGenerator';
 import { generateStrengthStructure } from './strengthWorkoutGenerator';
 import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
-import type { SessionType as StrengthSessionType } from './strengthTypes';
+import { normalizeStrengthSessionType } from './strengthTypes';
 import { sessionTarget, matchActivityToSession, type MatchSession } from './sessionMatcher';
 
 export const DAY_TEMPLATES: Record<number, number[]> = {
@@ -137,7 +137,7 @@ export function generateSchedule(
           });
         } else if (modality === 'strength') {
           row.strength_structure = generateStrengthStructure({
-            session_type:           slot.label as StrengthSessionType,
+            session_type:           normalizeStrengthSessionType(slot.label),
             phase:                  null,
             recent_primary_muscles: [],
           });

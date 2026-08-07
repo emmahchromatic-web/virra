@@ -1,7 +1,7 @@
 import { generateRunStructure } from './runWorkoutGenerator';
 import { generateStrengthStructure } from './strengthWorkoutGenerator';
 import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
-import type { SessionType } from './strengthTypes';
+import { normalizeStrengthSessionType } from './strengthTypes';
 
 export interface HydrateContext {
   baseline_pace_secs: number;
@@ -46,7 +46,7 @@ export function hydratePlannedSessionStructures(
     }
     if (row.modality === 'strength' && !row.strength_structure) {
       const strength_structure = generateStrengthStructure({
-        session_type: row.session_label as SessionType,
+        session_type: normalizeStrengthSessionType(row.session_label),
         phase: null,
         recent_primary_muscles: [],
       });

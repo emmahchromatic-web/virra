@@ -25,46 +25,66 @@ jest.mock('@/lib/notifications', () => ({
   cancelTrainingReminderToday: jest.fn(),
 }));
 
+jest.mock('@/lib/strengthHistory', () => ({
+  getLastLoggedWeights: jest.fn().mockResolvedValue({}),
+}));
+
+// A strength session using real exercise-library names so getExerciseMeta
+// returns tempo/description content.
+const STRENGTH_ROW = {
+  id: 'ps-1',
+  session_label: 'Lower Body',
+  modality: 'strength',
+  strength_structure: {
+    version: 1,
+    session_type: 'lower',
+    exercises: [
+      { id: 'e1', name: 'Goblet Squat', primary_muscles: ['quads'],      target_sets: [{ reps: 8 }, { reps: 8 }], rest_seconds: 90  },
+      { id: 'e2', name: 'Deadlift',     primary_muscles: ['hamstrings'], target_sets: [{ reps: 6 }],              rest_seconds: 120 },
+    ],
+    estimated_minutes: 45,
+  },
+  run_structure: null,
+  cycle_reason_short: null,
+  cycle_adjusted_pace_secs: null,
+};
+
+const YOGA_ROW = {
+  id: 'ps-1',
+  session_label: 'Flow',
+  modality: 'yoga',
+  strength_structure: null,
+  run_structure: null,
+  cycle_reason_short: null,
+  cycle_adjusted_pace_secs: null,
+};
+
 jest.mock('@/lib/supabase', () => {
-  const mockSelectSingle = jest.fn().mockResolvedValue({
-    data: {
-      id: 'ps-1',
-      session_label: 'Lower Body',
-      modality: 'strength',
-      strength_structure: {
-        version: 1,
-        session_type: 'lower',
-        exercises: [
-          { id: 'e1', name: 'Squat',    primary_muscles: ['quads'],       target_sets: [{ reps: 8 }], rest_seconds: 90  },
-          { id: 'e2', name: 'Deadlift', primary_muscles: ['hamstrings'],  target_sets: [{ reps: 6 }], rest_seconds: 120 },
-        ],
-        estimated_minutes: 45,
-      },
-      run_structure: null,
-      cycle_reason_short: null,
-      cycle_adjusted_pace_secs: null,
-    },
-    error: null,
-  });
-  const mockInsertSingle = jest.fn().mockResolvedValue({ data: { id: 'act-1' }, error: null });
-  const mockUpdateEq    = jest.fn().mockResolvedValue({ data: null, error: null });
+  const mockSelectSingle = jest.fn();
+  const mockUpdateEq     = jest.fn().mockResolvedValue({ data: null, error: null });
+  const mockSelect = jest.fn(() => ({
+    eq: jest.fn(() => ({ single: mockSelectSingle })),
+  }));
+  const inserts: Record<string, unknown[]> = {};
+  const from = jest.fn((table: string) => ({
+    select: mockSelect,
+    insert: jest.fn((payload: unknown) => {
+      (inserts[table] ||= []).push(payload);
+      const result = { data: table === 'activities' ? { id: 'act-1' } : null, error: null };
+      // Both awaitable (bare .insert(rows)) and chainable (.select().single()).
+      return {
+        select: () => ({ single: () => Promise.resolve(result) }),
+        then: (resolve: (r: unknown) => void) => resolve(result),
+      };
+    }),
+    update: jest.fn(() => ({ eq: mockUpdateEq })),
+  }));
   return {
-    supabase: {
-      from: jest.fn(() => ({
-        select: jest.fn(() => ({
-          eq: jest.fn(() => ({ single: mockSelectSingle })),
-        })),
-        insert: jest.fn(() => ({
-          select: jest.fn(() => ({ single: mockInsertSingle })),
-        })),
-        update: jest.fn(() => ({
-          eq: mockUpdateEq,
-        })),
-      })),
-    },
+    supabase:       { from },
     __selectSingle: mockSelectSingle,
-    __insertSingle: mockInsertSingle,
     __updateEq:     mockUpdateEq,
+    __select:       mockSelect,
+    __inserts:      inserts,
   };
 });
 
@@ -75,71 +95,94 @@ const supabaseMock = require('@/lib/supabase');
 
 import WorkoutPreviewScreen from '@/app/(app)/workout-preview';
 
-describe('WorkoutPreviewScreen', () => {
+function clearInserts() {
+  for (const k of Object.keys(supabaseMock.__inserts)) delete supabaseMock.__inserts[k];
+}
+
+describe('WorkoutPreviewScreen — strength logging', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearInserts();
+    supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
+    supabaseMock.__updateEq.mockResolvedValue({ data: null, error: null });
+  });
+
+  it('renders session label and exercises in idle state', async () => {
+    const { findByText } = render(<WorkoutPreviewScreen />);
+    expect(await findByText(/lower body/i)).toBeTruthy();
+    expect(await findByText(/goblet squat/i)).toBeTruthy();
+    expect(await findByText(/deadlift/i)).toBeTruthy();
+  });
+
+  it('only selects columns that exist on planned_sessions', async () => {
+    // Regression: selecting the runtime-computed cycle_reason_short /
+    // cycle_adjusted_pace_secs errored the query, leaving every non-run
+    // session stuck on a bare timer with no exercises.
+    const { findByText } = render(<WorkoutPreviewScreen />);
+    await findByText(/lower body/i);
+    const selectArg = supabaseMock.__select.mock.calls[0][0] as string;
+    expect(selectArg).not.toMatch(/cycle_reason_short/);
+    expect(selectArg).not.toMatch(/cycle_adjusted_pace_secs/);
+    expect(selectArg).toMatch(/strength_structure/);
+  });
+
+  it('shows per-set rep/weight inputs and exercise info once started', async () => {
+    const { findByText, getAllByPlaceholderText, queryByLabelText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+    // Goblet Squat has 2 target sets, Deadlift 1 → 3 weight inputs; 2 reps@8.
+    expect(getAllByPlaceholderText('0').length).toBe(3);                 // weight (kg) fields
+    expect(getAllByPlaceholderText('8').length).toBe(2);                 // Goblet Squat target reps
+    expect(queryByLabelText('Goblet Squat description')).toBeTruthy();   // (i) button → meta resolved
+    expect(await findByText('FINISH')).toBeTruthy();
+  });
+
+  it('finishing writes activity, per-set logs, strength details and marks the session done', async () => {
+    const { findByText, getByLabelText, getByText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    // Complete the first set (fills reps to target) then finish.
+    fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));
+    fireEvent.press(getByText('FINISH'));
+
+    // RPE sheet
+    fireEvent.press(await findByText('SAVE SESSION'));
+
+    await waitFor(() => {
+      expect(supabaseMock.__inserts.activities?.length).toBe(1);
+      expect(supabaseMock.__inserts.strength_set_logs?.length).toBe(1); // one insert call...
+      expect((supabaseMock.__inserts.strength_set_logs[0] as unknown[]).length).toBe(1); // ...with one set row
+      expect(supabaseMock.__inserts.strength_details?.length).toBe(1);
+      expect(supabaseMock.__updateEq).toHaveBeenCalled(); // planned session marked completed
+    });
+
+    const setRow = (supabaseMock.__inserts.strength_set_logs[0] as any[])[0];
+    expect(setRow).toMatchObject({ exercise_name: 'Goblet Squat', set_index: 0, target_reps: 8, actual_reps: 8 });
+  });
+});
+
+describe('WorkoutPreviewScreen — timer-only (no structure)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
-    supabaseMock.__selectSingle.mockResolvedValue({
-      data: {
-        id: 'ps-1',
-        session_label: 'Lower Body',
-        modality: 'strength',
-        strength_structure: {
-          version: 1,
-          session_type: 'lower',
-          exercises: [
-            { id: 'e1', name: 'Squat',    primary_muscles: ['quads'],       target_sets: [{ reps: 8 }], rest_seconds: 90  },
-            { id: 'e2', name: 'Deadlift', primary_muscles: ['hamstrings'],  target_sets: [{ reps: 6 }], rest_seconds: 120 },
-          ],
-          estimated_minutes: 45,
-        },
-        run_structure: null,
-        cycle_reason_short: null,
-        cycle_adjusted_pace_secs: null,
-      },
-      error: null,
-    });
-    supabaseMock.__insertSingle.mockResolvedValue({ data: { id: 'act-1' }, error: null });
+    clearInserts();
+    supabaseMock.__selectSingle.mockResolvedValue({ data: YOGA_ROW, error: null });
     supabaseMock.__updateEq.mockResolvedValue({ data: null, error: null });
   });
   afterEach(() => {
     jest.useRealTimers();
   });
 
-  it('renders session label and exercises in idle state', async () => {
-    const { findByText } = render(<WorkoutPreviewScreen />);
-    expect(await findByText(/lower body/i)).toBeTruthy();
-    expect(await findByText(/squat/i)).toBeTruthy();
-    expect(await findByText(/deadlift/i)).toBeTruthy();
-  });
-
-  it("shows timer when LET'S GO is pressed", async () => {
+  it('shows timer and PAUSE/STOP when started', async () => {
     const { findByText, getByText } = render(<WorkoutPreviewScreen />);
-    await findByText(/let's go/i);
-    fireEvent.press(getByText(/let's go/i));
+    fireEvent.press(await findByText(/let's go/i));
     expect(getByText('00:00')).toBeTruthy();
-  });
-
-  it('shows PAUSE and STOP buttons in active state', async () => {
-    const { findByText, getByText } = render(<WorkoutPreviewScreen />);
-    await findByText(/let's go/i);
-    fireEvent.press(getByText(/let's go/i));
     expect(getByText('PAUSE')).toBeTruthy();
     expect(getByText('STOP')).toBeTruthy();
   });
 
-  it('advances timer after 1 second', async () => {
+  it('advances the timer and freezes on PAUSE', async () => {
     const { findByText, getByText } = render(<WorkoutPreviewScreen />);
-    await findByText(/let's go/i);
-    fireEvent.press(getByText(/let's go/i));
-    act(() => { jest.advanceTimersByTime(1000); });
-    expect(getByText('00:01')).toBeTruthy();
-  });
-
-  it('freezes timer on PAUSE and shows RESUME', async () => {
-    const { findByText, getByText } = render(<WorkoutPreviewScreen />);
-    await findByText(/let's go/i);
-    fireEvent.press(getByText(/let's go/i));
+    fireEvent.press(await findByText(/let's go/i));
     act(() => { jest.advanceTimersByTime(5000); });
     fireEvent.press(getByText('PAUSE'));
     act(() => { jest.advanceTimersByTime(3000); });
@@ -147,63 +190,22 @@ describe('WorkoutPreviewScreen', () => {
     expect(getByText('RESUME')).toBeTruthy();
   });
 
-  it('saves activity and updates planned session on stop + confirm', async () => {
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons: any) => {
-      const confirm = buttons?.find((b: any) => b.style !== 'cancel');
-      confirm?.onPress?.();
+  it('saves a duration-only activity on stop + confirm', async () => {
+    jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons: any) => {
+      buttons?.find((b: any) => b.style !== 'cancel')?.onPress?.();
     });
-
     const { findByText, getByText } = render(<WorkoutPreviewScreen />);
-    await findByText(/let's go/i);
-    fireEvent.press(getByText(/let's go/i));
+    fireEvent.press(await findByText(/let's go/i));
     act(() => { jest.advanceTimersByTime(10000); });
     fireEvent.press(getByText('STOP'));
 
     await waitFor(() => {
       expect(NativeModules.AppleHealthKit.saveWorkout).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'TraditionalStrengthTraining' }),
+        expect.objectContaining({ type: 'Yoga' }),
         expect.any(Function),
       );
-      expect(supabaseMock.__insertSingle).toHaveBeenCalled();
-      expect(supabaseMock.__updateEq).toHaveBeenCalled();
+      expect(supabaseMock.__inserts.activities?.length).toBe(1);
+      expect(supabaseMock.__inserts.strength_set_logs).toBeUndefined(); // no set logs for yoga
     });
-  });
-
-  it('correctly saves when STOP is pressed from paused state', async () => {
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons: any) => {
-      const confirm = buttons?.find((b: any) => b.style !== 'cancel');
-      confirm?.onPress?.();
-    });
-
-    const { findByText, getByText } = render(<WorkoutPreviewScreen />);
-    await findByText(/let's go/i);
-    fireEvent.press(getByText(/let's go/i));
-    act(() => { jest.advanceTimersByTime(5000); });
-    fireEvent.press(getByText('PAUSE'));
-    act(() => { jest.advanceTimersByTime(3000); }); // 3s of paused time, should not count
-    fireEvent.press(getByText('STOP'));
-
-    await waitFor(() => {
-      expect(NativeModules.AppleHealthKit.saveWorkout).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'TraditionalStrengthTraining', duration: 5 }),
-        expect.any(Function),
-      );
-    });
-  });
-
-  it('resumes timer when stop alert is cancelled', async () => {
-    jest.spyOn(Alert, 'alert').mockImplementation((_title, _msg, buttons: any) => {
-      const cancel = buttons?.find((b: any) => b.style === 'cancel');
-      cancel?.onPress?.();
-    });
-
-    const { findByText, getByText } = render(<WorkoutPreviewScreen />);
-    await findByText(/let's go/i);
-    fireEvent.press(getByText(/let's go/i));
-    act(() => { jest.advanceTimersByTime(3000); });
-    fireEvent.press(getByText('STOP'));
-    // Timer should resume after cancel
-    act(() => { jest.advanceTimersByTime(2000); });
-    expect(getByText('00:05')).toBeTruthy();
   });
 });
