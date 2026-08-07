@@ -46,6 +46,27 @@ describe('WeightSteadyChart', () => {
     expect(queryByText(/CALIBRATING/i)).toBeNull();
   });
 
+  // The ribbon used to count the chart's 90-day window against the 7-reading
+  // minimum, which applies to a 30-day window — producing "60/7 READINGS LOGGED".
+  it('counts only readings inside the 30-day calibration window', () => {
+    const readings = [
+      ...Array.from({ length: 20 }, (_, i) => reading(40 + i, 60)), // outside the window
+      ...Array.from({ length: 3 },  (_, i) => reading(i, 60)),      // inside it
+    ];
+    const { getByText } = render(
+      <WeightSteadyChart baselineKg={null} readings={readings} today={today} />
+    );
+    expect(getByText('CALIBRATING — 3/7 READINGS LOGGED')).toBeTruthy();
+  });
+
+  it('never shows a count above the minimum it needs', () => {
+    const readings = Array.from({ length: 25 }, (_, i) => reading(i, 60));
+    const { getByText } = render(
+      <WeightSteadyChart baselineKg={null} readings={readings} today={today} />
+    );
+    expect(getByText('CALIBRATING — 7/7 READINGS LOGGED')).toBeTruthy();
+  });
+
   it('renders without crashing with an empty readings array', () => {
     const { toJSON } = render(
       <WeightSteadyChart baselineKg={null} readings={[]} today={today} />

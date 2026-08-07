@@ -4,14 +4,17 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
+import { useCycleStore } from '@/store/cycle';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { WeightSteadyChart, type WeightReading } from '@/components/ui/WeightSteadyChart';
+import { CycleWeightChart } from '@/components/ui/CycleWeightChart';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { classifySteady, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
+import { classifyReading, classifySteady, EXPECTED_BAND, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
+import type { CyclePhase } from '@/lib/cycleEngine';
 
 const REASONING: Record<BandPosition, string> = {
   in_band: 'Day-to-day weight bounces from water, food timing, and hydration. Yours is moving inside the noise band; exactly what a healthy line looks like.',
@@ -19,12 +22,25 @@ const REASONING: Record<BandPosition, string> = {
   below:   'A touch below your steady line. If training has been heavy, check fuelling: every 1g of glycogen stores 3g of water, so a single hard session can show as a 1+ kg dip.',
 };
 
+const CYCLE_REASONING: Record<BandPosition, string> = {
+  in_band: 'You are inside the range your body typically sits in at this point in your cycle. Nothing to act on.',
+  above:   'Above the range that is typical for this phase. Sodium, alcohol, a hard session, or GI fullness will all do this. Look again in a few days.',
+  below:   'Below the range that is typical for this phase. If training has been heavy, check fuelling: every 1g of glycogen stores 3g of water, so one hard session can read as a 1+ kg dip.',
+};
+
+const PHASE_LABEL: Record<CyclePhase, string> = {
+  menstrual: 'MENSTRUAL', follicular: 'FOLLICULAR', ovulatory: 'OVULATORY', luteal: 'LUTEAL',
+};
+
 function formatDelta(d: number): string {
   const sign = d >= 0 ? '+' : '−';
   return `${sign}${Math.abs(d).toFixed(1)} kg`;
 }
 
-function statusLabel(pos: BandPosition): string {
+function statusLabel(pos: BandPosition, cycleMode: boolean): string {
+  if (cycleMode) {
+    return pos === 'in_band' ? 'IN BAND' : pos === 'above' ? 'ABOVE BAND' : 'BELOW BAND';
+  }
   return pos === 'in_band' ? 'STEADY' : pos === 'above' ? 'ABOVE LINE' : 'BELOW LINE';
 }
 
@@ -36,7 +52,12 @@ export default function WeightScreen() {
   const { session }    = useAuthStore();
   const trackWeight       = useProfileStore((s) => s.trackWeight);
   const steadyBaseline    = useProfileStore((s) => s.weightSteadyBaselineKg);
+  const cycleBaseline     = useProfileStore((s) => s.weightBaselineKg);
   const weightDataVersion = useProfileStore((s) => s.weightDataVersion);
+  const cycleProfile      = useCycleStore((s) => s.cycleProfile);
+  const cycleInfo         = useCycleStore((s) => s.cycleInfo);
+  const periodStart       = useCycleStore((s) => s.periodStart);
+  const cycleLength       = useCycleStore((s) => s.cycleLength);
 
   const [readings, setReadings] = useState<WeightReading[]>([]);
   const [addOpen,  setAddOpen]  = useState(false);
@@ -58,13 +79,25 @@ export default function WeightScreen() {
     return () => { cancelled = true; };
   }, [session?.user.id, trackWeight, addOpen, weightDataVersion]);
 
+  // Mirror WeightGlanceCard: a cycling user's weight is read against the
+  // phase-shaped expected band, not a flat steady line. This screen used to be
+  // steady-only, so cycle users sat on CALIBRATING forever — the steady
+  // baseline is not the one their profile computes.
+  // Cycle mode needs a logged period start to place readings in the cycle; with
+  // no period start we fall back to the steady view rather than showing nothing.
+  const isCycleMode = (cycleProfile === 'natural' || cycleProfile === 'irregular') && periodStart !== null;
+  const phase       = cycleInfo?.phase ?? 'follicular';
+
+  const baseline    = isCycleMode ? cycleBaseline : steadyBaseline;
   const latest      = readings.length ? readings[readings.length - 1] : null;
   const latestKg    = latest?.weight_kg ?? null;
-  const calibrating = steadyBaseline === null;
+  const calibrating = baseline === null;
   const delta       = !calibrating && latestKg !== null
-    ? Math.round((latestKg - steadyBaseline) * 10) / 10
+    ? Math.round((latestKg - baseline) * 10) / 10
     : null;
-  const position    = delta !== null ? classifySteady(delta) : null;
+  const position    = delta !== null
+    ? (isCycleMode ? classifyReading(delta, phase) : classifySteady(delta))
+    : null;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -94,11 +127,11 @@ export default function WeightScreen() {
             <VirraCard>
               <View style={styles.row}>
                 <VirraText variant="mono" size={10} color={colors.muted} style={styles.kicker}>
-                  TODAY
+                  {isCycleMode ? `TODAY · ${PHASE_LABEL[phase]}` : 'TODAY'}
                 </VirraText>
                 {position && (
                   <View style={[styles.pill, { borderColor: pillColor(position) }]}>
-                    <VirraText variant="mono" size={10} color={pillColor(position)}>{statusLabel(position)}</VirraText>
+                    <VirraText variant="mono" size={10} color={pillColor(position)}>{statusLabel(position, isCycleMode)}</VirraText>
                   </View>
                 )}
                 {!position && (
@@ -114,7 +147,7 @@ export default function WeightScreen() {
                 <>
                   <VirraText variant="display" size={28} color={colors.pulse}>{formatDelta(delta)}</VirraText>
                   <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-                    FROM YOUR STEADY BASELINE
+                    {isCycleMode ? 'FROM YOUR FOLLICULAR BASELINE' : 'FROM YOUR STEADY BASELINE'}
                   </VirraText>
                 </>
               )}
@@ -127,14 +160,23 @@ export default function WeightScreen() {
                   <VirraText variant="mono" size={10} color={colors.pulse}>+ ADD WEIGHT</VirraText>
                 </Pressable>
               </View>
-              <WeightSteadyChart baselineKg={steadyBaseline} readings={readings} />
+              {isCycleMode ? (
+                <CycleWeightChart
+                  baselineKg={cycleBaseline}
+                  readings={readings}
+                  periodStart={periodStart!}
+                  cycleLength={cycleLength}
+                />
+              ) : (
+                <WeightSteadyChart baselineKg={steadyBaseline} readings={readings} />
+              )}
             </VirraCard>
 
             {position && (
               <VirraCard>
                 <SectionLabel style={styles.kicker}>WHAT TO EXPECT</SectionLabel>
                 <VirraText variant="body" size={14} color={colors.breath} style={{ marginTop: spacing.xs }}>
-                  {REASONING[position]}
+                  {isCycleMode ? CYCLE_REASONING[position] : REASONING[position]}
                 </VirraText>
               </VirraCard>
             )}
@@ -147,10 +189,21 @@ export default function WeightScreen() {
                 </View>
                 {howOpen && (
                   <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
-                    <VirraText variant="body" size={13} color={colors.breath}>• Your steady line is the median of your last 30 days of readings.</VirraText>
-                    <VirraText variant="body" size={13} color={colors.breath}>• Daily fluctuation of ±{STEADY_BAND.upper.toFixed(1)} kg is normal noise.</VirraText>
-                    <VirraText variant="body" size={13} color={colors.breath}>• Beyond the band? Look at the last few days, not just one.</VirraText>
-                    <VirraText variant="body" size={13} color={colors.breath}>• We don't track streaks, goal weight, or progress towards a target.</VirraText>
+                    {isCycleMode ? (
+                      <>
+                        <VirraText variant="body" size={13} color={colors.breath}>• Your baseline is the median of your follicular-phase readings — the steadiest point in your cycle.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• The band moves with your cycle. A luteal lift of up to +{EXPECTED_BAND.luteal.upper.toFixed(1)} kg is expected water, not fat.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• Outside the band? Look at the last few days, not just one.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• We don't track streaks, goal weight, or progress towards a target.</VirraText>
+                      </>
+                    ) : (
+                      <>
+                        <VirraText variant="body" size={13} color={colors.breath}>• Your steady line is the median of your last 30 days of readings.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• Daily fluctuation of ±{STEADY_BAND.upper.toFixed(1)} kg is normal noise.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• Beyond the band? Look at the last few days, not just one.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• We don't track streaks, goal weight, or progress towards a target.</VirraText>
+                      </>
+                    )}
                   </View>
                 )}
               </VirraCard>
