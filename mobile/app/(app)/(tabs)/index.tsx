@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, AppState, AppStateStatus, Alert,
+  Pressable, AppState, AppStateStatus,
 } from 'react-native';
 import { router } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
@@ -38,6 +38,7 @@ import {
 import { buildNarrative } from '@/lib/phaseNarrative';
 import { buildPersonalMetrics } from '@/lib/nutritionTargets';
 import { getOrCreateTodayLogId } from '@/lib/nutritionLog';
+import { appAlert } from '@/components/ui/VirraAlert';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
 
@@ -130,7 +131,7 @@ export default function DashboardScreen() {
       metrics,
       inferredLoad,
     });
-    if (!logId) { Alert.alert('Could not open food log', 'Please check your connection and try again.'); return; }
+    if (!logId) { appAlert('Could not open food log', 'Please check your connection and try again.'); return; }
     router.push(`/(app)/food-search?logId=${logId}&mealType=snack` as any);
   }
 

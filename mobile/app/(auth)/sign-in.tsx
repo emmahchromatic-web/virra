@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import { View, TextInput, StyleSheet, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { supabase } from '@/lib/supabase';
@@ -7,6 +7,7 @@ import { useCycleStore } from '@/store/cycle';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { appAlert } from '@/components/ui/VirraAlert';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
 
 async function routeAfterSignIn(userId: string) {
@@ -43,13 +44,13 @@ export default function SignInScreen() {
           provider: 'apple',
           token: credential.identityToken,
         });
-        if (error) Alert.alert('Apple sign in failed', error.message);
+        if (error) appAlert('Apple sign in failed', error.message);
         else if (data.user) await routeAfterSignIn(data.user.id);
       }
     } catch (e: any) {
       if (e.code !== 'ERR_REQUEST_CANCELED') {
         const msg = e.message || `Error ${e.code ?? 'unknown'}`;
-        Alert.alert('Apple sign in failed', msg);
+        appAlert('Apple sign in failed', msg);
       }
     }
   }
@@ -60,7 +61,7 @@ export default function SignInScreen() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      Alert.alert('Sign in failed', error.message);
+      appAlert('Sign in failed', error.message);
     } else if (data.user) {
       await routeAfterSignIn(data.user.id);
     }
@@ -131,7 +132,7 @@ export default function SignInScreen() {
             variant="ghost"
             onPress={async () => {
               const { data, error } = await supabase.auth.signInAnonymously();
-              if (error) { Alert.alert('DEV bypass failed', error.message); return; }
+              if (error) { appAlert('DEV bypass failed', error.message); return; }
               if (data.user) {
                 // Seed cycle store so the dashboard phase card renders
                 useCycleStore.getState().setPeriodStart(

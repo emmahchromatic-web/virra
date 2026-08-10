@@ -30,6 +30,7 @@ import { useAuthStore } from '@/store/auth';
 import { configureRevenueCat } from '@/lib/revenuecat';
 import { colors } from '@/constants/theme';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
+import { VirraAlertHost } from '@/components/ui/VirraAlert';
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
@@ -107,11 +108,16 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
-      <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(onboarding)" />
-      <Stack.Screen name="(app)" />
-      <Stack.Screen name="re-permissions" />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(onboarding)" />
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="re-permissions" />
+      </Stack>
+      {/* Host for appAlert() — themed replacement for Alert.alert. Sits above
+          the navigator so alerts render over any screen. */}
+      <VirraAlertHost />
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, Alert, TextInput, Image, Linking, Switch, Share, Platform,
+  Pressable, TextInput, Image, Linking, Switch, Share, Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
@@ -20,6 +20,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraModal } from '@/components/ui/VirraModal';
+import { appAlert } from '@/components/ui/VirraAlert';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BreakModal } from '@/components/ui/BreakModal';
 import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
@@ -195,7 +196,7 @@ export default function ProfileScreen() {
     setNameModalVisible(false);
     setSaving(true);
     try { await saveProfile(session.user.id, { firstName: first, lastName: last }); }
-    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    catch (e) { appAlert('Could not update', (e as Error).message); }
     finally { setSaving(false); }
   }
 
@@ -236,7 +237,7 @@ export default function ProfileScreen() {
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
       await saveProfile(session.user.id, { avatarUrl: `${urlData.publicUrl}?t=${Date.now()}` });
     } catch (e) {
-      Alert.alert('Could not update photo', (e as Error).message);
+      appAlert('Could not update photo', (e as Error).message);
     } finally {
       setUploadingAvatar(false);
     }
@@ -249,7 +250,7 @@ export default function ProfileScreen() {
 
   async function openExternal(url: string) {
     try { await Linking.openURL(url); }
-    catch { Alert.alert('Could not open link', url); }
+    catch { appAlert('Could not open link', url); }
   }
 
   async function handleDeleteAccount() {
@@ -263,7 +264,7 @@ export default function ProfileScreen() {
       await signOut();
       router.replace('/(auth)');
     } catch (e) {
-      Alert.alert('Could not delete account', (e as Error).message);
+      appAlert('Could not delete account', (e as Error).message);
     } finally {
       setDeleting(false);
       closeDeleteModal();
@@ -281,7 +282,7 @@ export default function ProfileScreen() {
       .order('period_start', { ascending: false })
       .limit(1);
     setSaving(false);
-    if (error) Alert.alert('Could not update', error.message);
+    if (error) appAlert('Could not update', error.message);
   }
 
   async function handleStepsTargetSave() {
@@ -295,7 +296,7 @@ export default function ProfileScreen() {
     setStepsModalVisible(false);
     setSaving(true);
     try { await saveProfile(session.user.id, { stepsTarget: val }); }
-    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    catch (e) { appAlert('Could not update', (e as Error).message); }
     finally { setSaving(false); }
   }
 
@@ -316,7 +317,7 @@ export default function ProfileScreen() {
     setHeightModalVisible(false);
     setSaving(true);
     try { await saveProfile(session.user.id, { heightCm: val }); }
-    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    catch (e) { appAlert('Could not update', (e as Error).message); }
     finally { setSaving(false); }
   }
 
@@ -331,7 +332,7 @@ export default function ProfileScreen() {
     setSaving(true);
     // Store as a plain 'YYYY-MM-DD' date (no time/zone), matching onboarding.
     try { await saveProfile(session.user.id, { dateOfBirth: dobDraft.toISOString().split('T')[0] }); }
-    catch (e) { Alert.alert('Could not update', (e as Error).message); }
+    catch (e) { appAlert('Could not update', (e as Error).message); }
     finally { setSaving(false); }
   }
 
