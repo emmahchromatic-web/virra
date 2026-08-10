@@ -2,6 +2,22 @@ import { supabase } from '@/lib/supabase';
 import { resolveNutritionTargets, type PersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import type { CyclePhase } from '@/store/cycle';
 
+export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+/**
+ * Pick a sensible default meal slot from the time of day, so a quick-log from
+ * the dashboard lands in the right meal instead of always defaulting to snack:
+ * before 12 → breakfast, 12–3pm → lunch, 3–6pm → snack, 6pm onward → dinner.
+ * The user can still change it on the food-search screen.
+ */
+export function defaultMealSlot(date: Date = new Date()): MealType {
+  const hour = date.getHours();
+  if (hour < 12) return 'breakfast';
+  if (hour < 15) return 'lunch';
+  if (hour < 18) return 'snack';
+  return 'dinner';
+}
+
 export interface TodayLogContext {
   userId:        string;
   today:         string;              // 'YYYY-MM-DD'
