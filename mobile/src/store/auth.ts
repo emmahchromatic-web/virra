@@ -1,5 +1,6 @@
 // mobile/src/store/auth.ts
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
@@ -18,7 +19,26 @@ export const useAuthStore = create<AuthState>((set) => ({
   setSession: (session) =>
     set({ session, user: session?.user ?? null, isLoading: false }),
   signOut: async () => {
-    await supabase.auth.signOut();
+    // Sign out on THIS device. supabase-js only clears its persisted token when
+    // the server revoke request succeeds (or returns 401/403/404); a network
+    // error, timeout or 5xx makes it skip the local cleanup and leave the token
+    // in AsyncStorage — so the next launch reads it back and silently signs the
+    // user in again. Attempt the (local-scope) revoke, then sweep any residual
+    // Supabase auth token ourselves so sign-out can't be undone by a flaky
+    // network.
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // The storage sweep below is what actually guarantees sign-out.
+    }
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const authKeys = keys.filter((k) => k.startsWith('sb-') && k.includes('-auth-token'));
+      if (authKeys.length) await AsyncStorage.multiRemove(authKeys);
+    } catch {
+      // Best effort — the in-memory clear below still logs the user out for
+      // this session even if storage can't be touched.
+    }
     set({ session: null, user: null });
   },
 }));

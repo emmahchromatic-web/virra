@@ -1,6 +1,8 @@
 // mobile/__tests__/store/auth.test.ts
 import { act, renderHook } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/auth';
+import { supabase } from '@/lib/supabase';
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
@@ -9,8 +11,10 @@ jest.mock('@/lib/supabase', () => ({
 }));
 
 describe('useAuthStore', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     useAuthStore.setState({ session: null, user: null, isLoading: true });
+    await AsyncStorage.clear();
+    (supabase.auth.signOut as jest.Mock).mockResolvedValue({ error: null });
   });
 
   it('starts with null session and isLoading true', () => {
@@ -49,5 +53,31 @@ describe('useAuthStore', () => {
 
     expect(result.current.session).toBeNull();
     expect(result.current.user).toBeNull();
+  });
+
+  it('signOut removes the persisted Supabase token even when the revoke fails', async () => {
+    // The bug: supabase-js skips clearing its stored token when the network
+    // revoke errors, so the next launch silently signs the user back in.
+    await AsyncStorage.setItem('sb-elebuieojodsjmghwjub-auth-token', '{"access_token":"x"}');
+    await AsyncStorage.setItem('sb-elebuieojodsjmghwjub-auth-token-code-verifier', 'v');
+    await AsyncStorage.setItem('virra:sessions:v1', '{"byId":{}}'); // unrelated cache must survive
+    (supabase.auth.signOut as jest.Mock).mockResolvedValue({
+      error: { name: 'AuthRetryableFetchError', status: 0, message: 'Network request failed' },
+    });
+
+    const { result } = renderHook(() => useAuthStore());
+    await act(async () => { await result.current.signOut(); });
+
+    const keys = await AsyncStorage.getAllKeys();
+    expect(keys).not.toContain('sb-elebuieojodsjmghwjub-auth-token');
+    expect(keys).not.toContain('sb-elebuieojodsjmghwjub-auth-token-code-verifier');
+    expect(keys).toContain('virra:sessions:v1');
+    expect(result.current.session).toBeNull();
+  });
+
+  it('signOut uses local scope so it only signs out this device', async () => {
+    const { result } = renderHook(() => useAuthStore());
+    await act(async () => { await result.current.signOut(); });
+    expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
   });
 });
