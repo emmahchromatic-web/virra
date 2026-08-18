@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Pressable, StyleSheet, ScrollView, Linking } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView, Linking, Alert } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { HormonalSubPicker } from '@/components/cycle/HormonalSubPicker';
 import { useOnboarding } from '@/context/OnboardingContext';
+import { useAuthStore } from '@/store/auth';
+import { completeOnboarding } from '@/lib/completeOnboarding';
 import { fetchHKCycleData } from '@/lib/healthKitOnboarding';
 import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
 
@@ -39,7 +41,8 @@ const STEADY_NOTE: Partial<Record<CycleProfile, string>> = {
 const REDS_URL = 'https://virra.app/advice/reds'; // TODO: update to real article slug before launch
 
 export default function CycleScreen() {
-  const { setStep, setData } = useOnboarding();
+  const { setStep, data, setData } = useOnboarding();
+  const { session }                = useAuthStore();
   useFocusEffect(React.useCallback(() => { setStep(6); }, [setStep]));
 
   const [cycleProfile,      setCycleProfile]      = useState<CycleProfile>('natural');
@@ -49,6 +52,7 @@ export default function CycleScreen() {
   const [hasPlaceboWeek,    setHasPlaceboWeek]     = useState<boolean | null>(null);
   const [currentPackStart,  setCurrentPackStart]   = useState<Date | null>(null);
   const [hkBadges,          setHkBadges]           = useState<Set<string>>(new Set());
+  const [saving,            setSaving]             = useState(false);
 
   const showDatePickers = cycleProfile === 'natural' || cycleProfile === 'irregular';
 
@@ -75,16 +79,41 @@ export default function CycleScreen() {
     setCurrentPackStart(null);
   }
 
-  function handleContinue() {
-    setData({
+  // Cycle is the last data-collection step, so it finalises onboarding (this
+  // commit used to live on the now-removed dietary step). Build the merged data
+  // explicitly rather than reading it back from context, which setData hasn't
+  // committed yet within this handler.
+  async function handleContinue() {
+    const merged = {
+      ...data,
       cycleProfile,
       periodStart:       showDatePickers ? periodStart : null,
       cycleLength:       showDatePickers ? cycleLength : DEFAULT_CYCLE,
       contraceptionType: cycleProfile === 'hormonal' ? contraceptionType : null,
       hasPlaceboWeek:    cycleProfile === 'hormonal' ? hasPlaceboWeek : null,
       currentPackStart:  cycleProfile === 'hormonal' && hasPlaceboWeek ? currentPackStart : null,
-    });
-    router.push('/(onboarding)/diet');
+    };
+    setData(merged);
+
+    // No session means nothing can be written. Say so instead of leaving the
+    // user pressing a button that silently does nothing.
+    if (!session) {
+      Alert.alert(
+        'You are not signed in',
+        'We could not save your profile because your session has expired. Sign in again and we will pick up from here.',
+        [{ text: 'Sign in', onPress: () => router.replace('/(auth)/sign-in') }],
+      );
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await completeOnboarding(session.user.id, merged);
+    setSaving(false);
+    if (error) {
+      Alert.alert('Something went wrong', error);
+      return;
+    }
+    router.replace('/(onboarding)/body-metrics');
   }
 
   return (
@@ -220,7 +249,7 @@ export default function CycleScreen() {
         </View>
       )}
 
-      <VirraButton label="CONTINUE" onPress={handleContinue} style={styles.cta} />
+      <VirraButton label="CONTINUE" onPress={handleContinue} loading={saving} style={styles.cta} />
     </ScrollView>
   );
 }
