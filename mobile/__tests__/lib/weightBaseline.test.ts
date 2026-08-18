@@ -83,9 +83,10 @@ describe('computeBaseline (integration)', () => {
       { weight_kg: 60, cycle_phase_at_time: 'follicular' },
       { weight_kg: 61, cycle_phase_at_time: 'follicular' },
     );
-    const baseline = await computeBaseline('user-1');
+    const { baseline, bands } = await computeBaseline('user-1');
     expect(baseline).toBeNull();
-    expect(supabaseMock.__update).toHaveBeenCalledWith(expect.objectContaining({ weight_baseline_kg: null }));
+    expect(bands).toBeNull();
+    expect(supabaseMock.__update).toHaveBeenCalledWith(expect.objectContaining({ weight_baseline_kg: null, weight_phase_bands: null }));
   });
 
   it('writes the median when enough follicular data', async () => {
@@ -96,10 +97,33 @@ describe('computeBaseline (integration)', () => {
       { weight_kg: 61.2, cycle_phase_at_time: 'follicular' },
       { weight_kg: 61.6, cycle_phase_at_time: 'follicular' },
     );
-    const baseline = await computeBaseline('user-1');
+    const { baseline } = await computeBaseline('user-1');
     expect(baseline).toBeCloseTo(60.8);
     expect(supabaseMock.__update).toHaveBeenCalledWith(expect.objectContaining({
       weight_baseline_kg: 60.8,
     }));
+  });
+
+  it('learns a personal luteal band from the user\'s own readings', async () => {
+    // Baseline = follicular median 60.0. Luteal readings cluster ~+0.2 kg — a
+    // flat cycle, so the learned luteal band should sit near zero, NOT the
+    // population +0.5..+2.0.
+    supabaseMock.__data.push(
+      { weight_kg: 59.8, cycle_phase_at_time: 'follicular' },
+      { weight_kg: 60.0, cycle_phase_at_time: 'follicular' },
+      { weight_kg: 60.0, cycle_phase_at_time: 'follicular' },
+      { weight_kg: 60.0, cycle_phase_at_time: 'follicular' },
+      { weight_kg: 60.2, cycle_phase_at_time: 'follicular' },
+      { weight_kg: 60.1, cycle_phase_at_time: 'luteal' },
+      { weight_kg: 60.2, cycle_phase_at_time: 'luteal' },
+      { weight_kg: 60.3, cycle_phase_at_time: 'luteal' },
+      { weight_kg: 60.2, cycle_phase_at_time: 'luteal' },
+    );
+    const { baseline, bands } = await computeBaseline('user-1');
+    expect(baseline).toBeCloseTo(60.0);
+    expect(bands?.luteal).toBeDefined();
+    // Flat luteal → band centred near 0, well below the population +0.5 floor.
+    expect(bands!.luteal!.lower).toBeLessThan(0.5);
+    expect(bands!.luteal!.upper).toBeLessThan(2.0);
   });
 });
