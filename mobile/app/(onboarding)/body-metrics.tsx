@@ -71,7 +71,7 @@ export default function BodyMetricsScreen() {
         Personalise your fuelling.
       </VirraText>
       <VirraText variant="body" size={15} color="rgba(244,237,224,0.6)" style={styles.sub}>
-        A few basics let Virra tune your nutrition targets to you, not a generic average. This is optional — skip to use standard targets.
+        A few basics let Virra tune your nutrition targets to you, not a generic average. This is optional. Skip to use standard targets.
       </VirraText>
 
       {/* Date of birth */}
@@ -127,7 +127,7 @@ export default function BodyMetricsScreen() {
               Use my Apple Health weight
             </VirraText>
             <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={{ marginTop: 2 }}>
-              Sharpens your fuelling targets. You&apos;re in control — weight is never shown unless you turn this on.
+              Sharpens your fuelling targets. You&apos;re in control: weight is never shown unless you turn this on.
             </VirraText>
           </View>
           <Switch
