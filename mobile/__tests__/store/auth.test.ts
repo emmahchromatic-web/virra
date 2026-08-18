@@ -60,7 +60,7 @@ describe('useAuthStore', () => {
     // revoke errors, so the next launch silently signs the user back in.
     await AsyncStorage.setItem('sb-elebuieojodsjmghwjub-auth-token', '{"access_token":"x"}');
     await AsyncStorage.setItem('sb-elebuieojodsjmghwjub-auth-token-code-verifier', 'v');
-    await AsyncStorage.setItem('virra:sessions:v1', '{"byId":{}}'); // unrelated cache must survive
+    await AsyncStorage.setItem('virra:unit_system', 'metric'); // device pref must survive
     (supabase.auth.signOut as jest.Mock).mockResolvedValue({
       error: { name: 'AuthRetryableFetchError', status: 0, message: 'Network request failed' },
     });
@@ -71,7 +71,7 @@ describe('useAuthStore', () => {
     const keys = await AsyncStorage.getAllKeys();
     expect(keys).not.toContain('sb-elebuieojodsjmghwjub-auth-token');
     expect(keys).not.toContain('sb-elebuieojodsjmghwjub-auth-token-code-verifier');
-    expect(keys).toContain('virra:sessions:v1');
+    expect(keys).toContain('virra:unit_system');
     expect(result.current.session).toBeNull();
   });
 
@@ -79,5 +79,29 @@ describe('useAuthStore', () => {
     const { result } = renderHook(() => useAuthStore());
     await act(async () => { await result.current.signOut(); });
     expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('signOut clears this user\'s cached data but keeps device-level prefs', async () => {
+    await AsyncStorage.multiSet([
+      ['virra:sessions:v1', '{"byId":{}}'],
+      ['readiness_daily_v1', '{}'],
+      ['hk_weight_anchor_v1', '2026-08-12'],
+      ['notif_prefs_v1', '{}'],
+      ['notif_training_2026-08-12', 'id'],
+      ['virra:unit_system', 'metric'],      // device pref — must survive
+      ['permissions_granted_v1', '1'],      // mirrors OS state — must survive
+    ]);
+
+    const { result } = renderHook(() => useAuthStore());
+    await act(async () => { await result.current.signOut(); });
+
+    const keys = await AsyncStorage.getAllKeys();
+    expect(keys).not.toContain('virra:sessions:v1');
+    expect(keys).not.toContain('readiness_daily_v1');
+    expect(keys).not.toContain('hk_weight_anchor_v1');
+    expect(keys).not.toContain('notif_prefs_v1');
+    expect(keys).not.toContain('notif_training_2026-08-12');
+    expect(keys).toContain('virra:unit_system');
+    expect(keys).toContain('permissions_granted_v1');
   });
 });

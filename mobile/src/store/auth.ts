@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { clearUserScopedCaches } from '@/lib/localCaches';
 
 interface AuthState {
   session:    Session | null;
@@ -39,6 +40,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Best effort — the in-memory clear below still logs the user out for
       // this session even if storage can't be touched.
     }
+    // Drop this user's cached data so the next account on this device starts
+    // clean rather than briefly seeing the previous user's schedule/readiness.
+    await clearUserScopedCaches();
     set({ session: null, user: null });
   },
 }));
