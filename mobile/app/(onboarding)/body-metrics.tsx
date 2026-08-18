@@ -16,7 +16,7 @@ const DEFAULT_DOB = new Date(new Date().getFullYear() - 30, 0, 1);
 export default function BodyMetricsScreen() {
   const { setStep } = useOnboarding();
   const { session } = useAuthStore();
-  useFocusEffect(React.useCallback(() => { setStep(8); }, [setStep]));
+  useFocusEffect(React.useCallback(() => { setStep(7); }, [setStep]));
 
   const [dob, setDob]                 = useState<Date | null>(null);
   const [showPicker, setShowPicker]   = useState(false);
