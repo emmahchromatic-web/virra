@@ -192,7 +192,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     },
     body: JSON.stringify({
       model:      "claude-haiku-4-5-20251001",
-      max_tokens: 800,
+      // A meal with many ingredients (e.g. a stir fry with 12+ components)
+      // produces a large JSON object. 800 tokens truncated it mid-object, so the
+      // parse failed and the app showed "Couldn't estimate this". Descriptions are
+      // capped at 500 chars, so 2048 comfortably fits the estimate for any of them.
+      max_tokens: 2048,
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: description }],
     }),
