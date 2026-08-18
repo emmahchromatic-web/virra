@@ -1,7 +1,7 @@
 import { recomputeBaseline } from '@/lib/weightBaselineDispatcher';
 
 jest.mock('@/lib/weightBaseline', () => ({
-  computeBaseline: jest.fn().mockResolvedValue(60.0),
+  computeBaseline: jest.fn().mockResolvedValue({ baseline: 60.0, bands: { luteal: { lower: 0, upper: 0.5 } } }),
 }));
 jest.mock('@/lib/weightBaselineSteady', () => ({
   computeSteadyBaseline: jest.fn().mockResolvedValue(60.5),
@@ -91,6 +91,6 @@ describe('recomputeBaseline', () => {
     expect(setLocal).toHaveBeenCalledWith(
       expect.objectContaining({ weightSteadyBaselineKg: 60.5 }),
     );
-    expect(setLocal).toHaveBeenCalledWith({ weightBaselineKg: 60.0 });
+    expect(setLocal).toHaveBeenCalledWith({ weightBaselineKg: 60.0, weightPhaseBands: { luteal: { lower: 0, upper: 0.5 } } });
   });
 });

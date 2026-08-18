@@ -6,9 +6,9 @@ import { VirraCard } from './VirraCard';
 import { useProfileStore } from '@/store/profile';
 import { useCycleStore } from '@/store/cycle';
 import {
-  EXPECTED_BAND, STEADY_BAND,
-  classifyReading, classifySteady,
-  type BandPosition,
+  STEADY_BAND,
+  classifyReading, classifySteady, bandFor,
+  type BandPosition, type PhaseBands,
 } from '@/lib/weightBand';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
@@ -74,10 +74,10 @@ function formatDelta(d: number): string {
   return `${sign}${Math.abs(d).toFixed(1)} kg`;
 }
 
-function CycleMiniBand({ phase, delta }: { phase: CyclePhase; delta: number }) {
+function CycleMiniBand({ phase, delta, personal }: { phase: CyclePhase; delta: number; personal?: PhaseBands | null }) {
   const min = -1, max = 3;
   const pct = (v: number) => Math.max(0, Math.min(1, (v - min) / (max - min)));
-  const { lower, upper } = EXPECTED_BAND[phase];
+  const { lower, upper } = bandFor(phase, personal);
   return (
     <View style={mini.track}>
       <View style={[mini.band, { left: `${pct(lower) * 100}%`, right: `${(1 - pct(upper)) * 100}%` }]} />
@@ -107,6 +107,7 @@ const mini = StyleSheet.create({
 export function WeightGlanceCard({ latestKg, onPress }: Props) {
   const trackWeight    = useProfileStore((s) => s.trackWeight);
   const cycleBaseline  = useProfileStore((s) => s.weightBaselineKg);
+  const cyclePhaseBands = useProfileStore((s) => s.weightPhaseBands);
   const steadyBaseline = useProfileStore((s) => s.weightSteadyBaselineKg);
   const cycleProfile   = useCycleStore((s) => s.cycleProfile);
   const cycleInfo      = useCycleStore((s) => s.cycleInfo);
@@ -116,7 +117,7 @@ export function WeightGlanceCard({ latestKg, onPress }: Props) {
   const isCycleMode = cycleProfile === 'natural' || cycleProfile === 'irregular';
 
   const card = isCycleMode
-    ? renderCycleBody({ latestKg, baseline: cycleBaseline, phase: cycleInfo?.phase ?? 'follicular' })
+    ? renderCycleBody({ latestKg, baseline: cycleBaseline, phase: cycleInfo?.phase ?? 'follicular', personal: cyclePhaseBands })
     : renderSteadyBody({ latestKg, baseline: steadyBaseline });
 
   if (!card) return null;
@@ -128,8 +129,8 @@ export function WeightGlanceCard({ latestKg, onPress }: Props) {
 }
 
 function renderCycleBody({
-  latestKg, baseline, phase,
-}: { latestKg: number | null; baseline: number | null; phase: CyclePhase }) {
+  latestKg, baseline, phase, personal,
+}: { latestKg: number | null; baseline: number | null; phase: CyclePhase; personal?: PhaseBands | null }) {
   // No reading yet → show the generic phase expectation (formerly the
   // standalone WHAT TO EXPECT card).
   if (latestKg === null) {
@@ -169,7 +170,7 @@ function renderCycleBody({
   }
 
   const delta       = Math.round((latestKg - baseline) * 10) / 10;
-  const position    = classifyReading(delta, phase);
+  const position    = classifyReading(delta, phase, personal);
   const statusLabel = position === 'in_band' ? 'IN BAND' : position === 'above' ? 'ABOVE BAND' : 'BELOW BAND';
   return (
     <VirraCard>
@@ -186,7 +187,7 @@ function renderCycleBody({
         FROM YOUR FOLLICULAR BASELINE
       </VirraText>
       <View style={styles.bandWrap}>
-        <CycleMiniBand phase={phase} delta={delta} />
+        <CycleMiniBand phase={phase} delta={delta} personal={personal} />
         <View style={styles.bandAxis}>
           <VirraText variant="mono" size={9} color={colors.muted}>-1 kg</VirraText>
           <VirraText variant="mono" size={9} color={colors.muted}>+3 kg</VirraText>
