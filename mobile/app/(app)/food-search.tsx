@@ -65,6 +65,11 @@ function entryToVirraFood(fav: FavouriteEntry): VirraFood {
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
+const MEAL_ORDER: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+const MEAL_LABEL: Record<MealType, string> = {
+  breakfast: 'BREAKFAST', lunch: 'LUNCH', dinner: 'DINNER', snack: 'SNACK',
+};
+
 function formatMacro(n: number): string {
   return n < 10 ? n.toFixed(1) : String(Math.round(n));
 }
@@ -249,6 +254,9 @@ const panel = StyleSheet.create({
 
 export default function FoodSearchScreen() {
   const { logId, mealType } = useLocalSearchParams<{ logId: string; mealType: MealType }>();
+  // The route seeds the meal from the time of day (defaultMealSlot); the user can
+  // change it here, so it's state, not a fixed prop.
+  const [activeMeal, setActiveMeal] = useState<MealType>(mealType ?? 'snack');
 
   const [query,    setQuery]    = useState('');
   const [selected, setSelected] = useState<VirraFood | null>(null);
@@ -265,15 +273,15 @@ export default function FoodSearchScreen() {
   const [favourites, setFavourites] = useState<FavouriteEntry[]>([]);
   const [combos,     setCombos]     = useState<MealCombo[]>([]);
 
-  const localResults = searchCommonFoods(query, mealType);
+  const localResults = searchCommonFoods(query, activeMeal);
 
   useEffect(() => {
-    if (!mealType) return;
+    if (!activeMeal) return;
     // Fetch history for YOUR REGULARS
     supabase
       .from('food_entries')
       .select('food_name, quantity_g, quantity_unit, calories, carbs_g, protein_g, fat_g, fibre_g')
-      .eq('meal_type', mealType)
+      .eq('meal_type', activeMeal)
       .order('id', { ascending: false })
       .limit(100)
       .then(({ data }) => {
@@ -296,10 +304,10 @@ export default function FoodSearchScreen() {
     supabase
       .from('meal_combos')
       .select('id, name, meal_type, items_json, last_used_at')
-      .eq('meal_type', mealType)
+      .eq('meal_type', activeMeal)
       .order('last_used_at', { ascending: false })
       .then(({ data }) => setCombos((data as MealCombo[]) ?? []));
-  }, [mealType]);
+  }, [activeMeal]);
 
   // Wrapper used by the list rows — picking from the list resets the barcode-source flag.
   const handleListSelect = (food: VirraFood) => {
@@ -353,7 +361,7 @@ export default function FoodSearchScreen() {
 
     const { error } = await supabase.from('food_entries').insert({
       log_id:    logId,
-      meal_type: mealType,
+      meal_type: activeMeal,
       food_name: food.name,
       quantity_g: grams,
       quantity_unit: foodUnit(food),
@@ -367,8 +375,8 @@ export default function FoodSearchScreen() {
     });
     setAdding(false);
     if (error) { Alert.alert('Could not add food', error.message); return; }
-    if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
-      cancelNutritionReminderForMeal(mealType);
+    if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
+      cancelNutritionReminderForMeal(activeMeal);
     }
     router.back();
   }
@@ -379,7 +387,7 @@ export default function FoodSearchScreen() {
 
     const { error } = await supabase.from('food_entries').insert({
       log_id:    logId,
-      meal_type: mealType,
+      meal_type: activeMeal,
       food_name: m.food_name.trim(),
       quantity_g: null,
       calories:  parseFloat(m.calories)   || 0,
@@ -391,8 +399,8 @@ export default function FoodSearchScreen() {
     });
     setAdding(false);
     if (error) { Alert.alert('Could not add food', error.message); return; }
-    if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
-      cancelNutritionReminderForMeal(mealType);
+    if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
+      cancelNutritionReminderForMeal(activeMeal);
     }
     router.back();
   }
@@ -429,7 +437,7 @@ export default function FoodSearchScreen() {
     setAdding(true);
     const rows = combo.items_json.map((item) => ({
       log_id:    logId,
-      meal_type: mealType,
+      meal_type: activeMeal,
       food_name: item.food_name,
       quantity_g: item.quantity_g,
       quantity_unit: item.quantity_unit ?? 'g',
@@ -444,8 +452,8 @@ export default function FoodSearchScreen() {
     setAdding(false);
     if (!error) {
       supabase.from('meal_combos').update({ last_used_at: new Date().toISOString() }).eq('id', combo.id).then(() => {});
-      if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
-        cancelNutritionReminderForMeal(mealType);
+      if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
+        cancelNutritionReminderForMeal(activeMeal);
       }
       router.back();
     } else {
@@ -511,9 +519,30 @@ export default function FoodSearchScreen() {
             <SymbolView name="xmark" size={18} tintColor={colors.muted} />
           </Pressable>
           <VirraText variant="mono" size={10} color={colors.muted}>
-            ADD TO {(mealType ?? 'meal').toUpperCase()}
+            LOG FOOD
           </VirraText>
           <View style={{ width: 32 }} />
+        </View>
+
+        {/* Meal selector — seeded from the time of day, changeable here */}
+        <View style={styles.mealTabs}>
+          {MEAL_ORDER.map((m) => {
+            const active = m === activeMeal;
+            return (
+              <Pressable
+                key={m}
+                onPress={() => setActiveMeal(m)}
+                style={[styles.mealTab, active && styles.mealTabActive]}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Log to ${m}`}
+              >
+                <VirraText variant="mono" size={10} color={active ? colors.mile : colors.muted}>
+                  {MEAL_LABEL[m]}
+                </VirraText>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Search bar */}
@@ -633,7 +662,7 @@ export default function FoodSearchScreen() {
                 <VirraButton
                   label="Describe a meal"
                   variant="primary"
-                  onPress={() => router.push({ pathname: '/(app)/describe-meal', params: { logId: logId ?? '', mealType: mealType ?? 'snack' } })}
+                  onPress={() => router.push({ pathname: '/(app)/describe-meal', params: { logId: logId ?? '', activeMeal: activeMeal ?? 'snack' } })}
                   style={{ flex: 1.4 }}
                 />
                 <VirraButton
@@ -722,6 +751,9 @@ const styles = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: colors.mile },
   header:      { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   closeBtn:    { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  mealTabs:    { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  mealTab:     { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  mealTabActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   searchRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   inputWrap:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.mist, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border },
   input:       { flex: 1, color: colors.breath, fontFamily: fonts.body, fontSize: 15, paddingVertical: 2 },

@@ -6,16 +6,23 @@ export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
 /**
  * Pick a sensible default meal slot from the time of day, so a quick-log from
- * the dashboard lands in the right meal instead of always defaulting to snack:
- * before 12 → breakfast, 12–3pm → lunch, 3–6pm → snack, 6pm onward → dinner.
+ * the dashboard lands in the right meal instead of always defaulting to snack.
+ * Anything between the main meal windows (and overnight) defaults to a snack.
  * The user can still change it on the food-search screen.
+ *
+ *   05:00–10:00  breakfast
+ *   10:00–12:00  snack
+ *   12:00–14:30  lunch
+ *   14:30–17:00  snack
+ *   17:00–21:00  dinner
+ *   21:00–05:00  snack
  */
 export function defaultMealSlot(date: Date = new Date()): MealType {
-  const hour = date.getHours();
-  if (hour < 12) return 'breakfast';
-  if (hour < 15) return 'lunch';
-  if (hour < 18) return 'snack';
-  return 'dinner';
+  const mins = date.getHours() * 60 + date.getMinutes();
+  if (mins >= 300  && mins < 600)  return 'breakfast'; // 05:00–09:59
+  if (mins >= 720  && mins < 870)  return 'lunch';     // 12:00–14:29
+  if (mins >= 1020 && mins < 1260) return 'dinner';    // 17:00–20:59
+  return 'snack';                                      // all other times
 }
 
 export interface TodayLogContext {
