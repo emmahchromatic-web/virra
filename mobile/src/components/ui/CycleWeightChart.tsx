@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import Svg, { Line, Text as SvgText, Circle, Path } from 'react-native-svg';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
-import { EXPECTED_BAND } from '@/lib/weightBand';
+import { bandFor, type PhaseBands } from '@/lib/weightBand';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
 export interface WeightReading {
@@ -16,6 +16,9 @@ interface Props {
   readings:    WeightReading[];
   periodStart: Date;
   cycleLength: number;
+  /** The user's learned per-phase bands; falls back to the population band per
+   *  phase where absent. */
+  bands?:      PhaseBands | null;
   today?:      Date;
 }
 
@@ -63,14 +66,14 @@ function phaseForDay(day: number, cycleLength: number): CyclePhase {
   return 'luteal';
 }
 
-function bandPath(cycleLength: number): string {
+function bandPath(cycleLength: number, bands?: PhaseBands | null): string {
   const days = Array.from({ length: cycleLength }, (_, i) => i + 1);
-  const upper = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(EXPECTED_BAND[phaseForDay(d, cycleLength)].upper)}`);
-  const lower = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(EXPECTED_BAND[phaseForDay(d, cycleLength)].lower)}`).reverse();
+  const upper = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(bandFor(phaseForDay(d, cycleLength), bands).upper)}`);
+  const lower = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(bandFor(phaseForDay(d, cycleLength), bands).lower)}`).reverse();
   return `M ${upper.join(' L ')} L ${lower.join(' L ')} Z`;
 }
 
-export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLength, today = new Date() }: Props) {
+export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLength, bands, today = new Date() }: Props) {
   const anchor      = anchorToCurrentCycle(periodStart, cycleLength, today);
   const todayInfo   = dayOfCycleFor(today, anchor, cycleLength);
   const calibrating = baselineKg === null;
@@ -117,7 +120,7 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
           >{y >= 0 ? `+${y}` : String(y)}</SvgText>
         ))}
         {!calibrating && (
-          <Path d={bandPath(cycleLength)} fill="rgba(212,255,38,0.18)" stroke="rgba(212,255,38,0.4)" strokeWidth={1} />
+          <Path d={bandPath(cycleLength, bands)} fill="rgba(212,255,38,0.18)" stroke="rgba(212,255,38,0.4)" strokeWidth={1} />
         )}
         {todayInfo.cycleOffset === 0 && (
           <>

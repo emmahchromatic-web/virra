@@ -37,7 +37,7 @@ import {
 } from '@/lib/dashboardData';
 import { buildNarrative } from '@/lib/phaseNarrative';
 import { buildPersonalMetrics } from '@/lib/nutritionTargets';
-import { getOrCreateTodayLogId } from '@/lib/nutritionLog';
+import { getOrCreateTodayLogId, defaultMealSlot } from '@/lib/nutritionLog';
 import { appAlert } from '@/components/ui/VirraAlert';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
@@ -132,7 +132,7 @@ export default function DashboardScreen() {
       inferredLoad,
     });
     if (!logId) { appAlert('Could not open food log', 'Please check your connection and try again.'); return; }
-    router.push(`/(app)/food-search?logId=${logId}&mealType=snack` as any);
+    router.push(`/(app)/food-search?logId=${logId}&mealType=${defaultMealSlot()}` as any);
   }
 
   const narrative = buildNarrative(

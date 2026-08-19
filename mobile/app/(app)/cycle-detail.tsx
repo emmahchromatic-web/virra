@@ -27,6 +27,7 @@ export default function CycleDetailScreen() {
   const { cycleInfo, cycleProfile, periodStart, cycleLength } = useCycleStore();
   const trackWeight       = useProfileStore((s) => s.trackWeight);
   const weightBaselineKg  = useProfileStore((s) => s.weightBaselineKg);
+  const weightPhaseBands  = useProfileStore((s) => s.weightPhaseBands);
   const weightDataVersion = useProfileStore((s) => s.weightDataVersion);
   const [resetting, setResetting] = useState(false);
   const [readings, setReadings]   = useState<WeightReading[]>([]);
@@ -154,6 +155,7 @@ export default function CycleDetailScreen() {
                     readings={readings}
                     periodStart={periodStart}
                     cycleLength={cycleLength}
+                    bands={weightPhaseBands}
                   />
                 </VirraCard>
                 <WeightGlanceCard

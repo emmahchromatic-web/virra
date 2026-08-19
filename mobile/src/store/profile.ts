@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import type { PhaseBands } from '@/lib/weightBand';
 
 export type WorkoutPreference = 'gym_full' | 'home_dumbbells' | 'home_bodyweight';
 
@@ -13,6 +14,7 @@ export interface ProfilePatch {
   heightCm?:                        number | null;
   dateOfBirth?:                     string | null;
   weightBaselineKg?:                number | null;
+  weightPhaseBands?:                PhaseBands | null;
   weightExplainerDismissedAt?:      string | null;
   weightSteadyBaselineKg?:          number | null;
   weightSteadyBaselineComputedAt?:  string | null;
@@ -29,6 +31,7 @@ interface ProfileState {
   heightCm:                        number | null;
   dateOfBirth:                     string | null;
   weightBaselineKg:                number | null;
+  weightPhaseBands:                PhaseBands | null;
   weightExplainerDismissedAt:      string | null;
   weightSteadyBaselineKg:          number | null;
   weightSteadyBaselineComputedAt:  string | null;
@@ -53,6 +56,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   heightCm:                       null,
   dateOfBirth:                    null,
   weightBaselineKg:               null,
+  weightPhaseBands:               null,
   weightExplainerDismissedAt:     null,
   weightSteadyBaselineKg:         null,
   weightSteadyBaselineComputedAt: null,
@@ -62,7 +66,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   load: async (userId) => {
     const { data } = await supabase
       .from('user_profiles')
-      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, height_cm, date_of_birth, weight_baseline_kg, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
+      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, height_cm, date_of_birth, weight_baseline_kg, weight_phase_bands, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
       .eq('id', userId)
       .maybeSingle();
     if (data) {
@@ -77,6 +81,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         heightCm:                       data.height_cm ?? null,
         dateOfBirth:                    data.date_of_birth ?? null,
         weightBaselineKg:               data.weight_baseline_kg ?? null,
+        weightPhaseBands:               (data.weight_phase_bands as PhaseBands | null) ?? null,
         weightExplainerDismissedAt:     data.weight_explainer_dismissed_at ?? null,
         weightSteadyBaselineKg:         data.weight_steady_baseline_kg ?? null,
         weightSteadyBaselineComputedAt: data.weight_steady_baseline_computed_at ?? null,
@@ -133,6 +138,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
     workoutPreference:              patch.workoutPreference               ?? s.workoutPreference,
     trackWeight:                    patch.trackWeight                    ?? s.trackWeight,
     weightBaselineKg:               patch.weightBaselineKg               !== undefined ? patch.weightBaselineKg               : s.weightBaselineKg,
+    weightPhaseBands:               patch.weightPhaseBands               !== undefined ? patch.weightPhaseBands               : s.weightPhaseBands,
     weightExplainerDismissedAt:     patch.weightExplainerDismissedAt     !== undefined ? patch.weightExplainerDismissedAt     : s.weightExplainerDismissedAt,
     weightSteadyBaselineKg:         patch.weightSteadyBaselineKg         !== undefined ? patch.weightSteadyBaselineKg         : s.weightSteadyBaselineKg,
     weightSteadyBaselineComputedAt: patch.weightSteadyBaselineComputedAt !== undefined ? patch.weightSteadyBaselineComputedAt : s.weightSteadyBaselineComputedAt,

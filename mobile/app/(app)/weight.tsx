@@ -13,7 +13,7 @@ import { WeightSteadyChart, type WeightReading } from '@/components/ui/WeightSte
 import { CycleWeightChart } from '@/components/ui/CycleWeightChart';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { SectionLabel } from '@/components/ui/SectionLabel';
-import { classifyReading, classifySteady, EXPECTED_BAND, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
+import { classifyReading, classifySteady, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
 const REASONING: Record<BandPosition, string> = {
@@ -53,6 +53,7 @@ export default function WeightScreen() {
   const trackWeight       = useProfileStore((s) => s.trackWeight);
   const steadyBaseline    = useProfileStore((s) => s.weightSteadyBaselineKg);
   const cycleBaseline     = useProfileStore((s) => s.weightBaselineKg);
+  const cyclePhaseBands   = useProfileStore((s) => s.weightPhaseBands);
   const weightDataVersion = useProfileStore((s) => s.weightDataVersion);
   const cycleProfile      = useCycleStore((s) => s.cycleProfile);
   const cycleInfo         = useCycleStore((s) => s.cycleInfo);
@@ -96,7 +97,7 @@ export default function WeightScreen() {
     ? Math.round((latestKg - baseline) * 10) / 10
     : null;
   const position    = delta !== null
-    ? (isCycleMode ? classifyReading(delta, phase) : classifySteady(delta))
+    ? (isCycleMode ? classifyReading(delta, phase, cyclePhaseBands) : classifySteady(delta))
     : null;
 
   return (
@@ -166,6 +167,7 @@ export default function WeightScreen() {
                   readings={readings}
                   periodStart={periodStart!}
                   cycleLength={cycleLength}
+                  bands={cyclePhaseBands}
                 />
               ) : (
                 <WeightSteadyChart baselineKg={steadyBaseline} readings={readings} />
@@ -192,7 +194,7 @@ export default function WeightScreen() {
                     {isCycleMode ? (
                       <>
                         <VirraText variant="body" size={13} color={colors.breath}>• Your baseline is the median of your follicular-phase readings — the steadiest point in your cycle.</VirraText>
-                        <VirraText variant="body" size={13} color={colors.breath}>• The band moves with your cycle. A luteal lift of up to +{EXPECTED_BAND.luteal.upper.toFixed(1)} kg is expected water, not fat.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• The band is learned from your own past cycles: the range your weight actually sits in at each phase, not a generic average. Any luteal lift you see is water, not fat.</VirraText>
                         <VirraText variant="body" size={13} color={colors.breath}>• Outside the band? Look at the last few days, not just one.</VirraText>
                         <VirraText variant="body" size={13} color={colors.breath}>• We don't track streaks, goal weight, or progress towards a target.</VirraText>
                       </>

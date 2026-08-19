@@ -29,7 +29,7 @@ export async function recomputeBaseline(userId: string): Promise<void> {
   });
 
   if (isCycle) {
-    const cycle = await computeBaseline(userId);
-    setLocal({ weightBaselineKg: cycle });
+    const { baseline, bands } = await computeBaseline(userId);
+    setLocal({ weightBaselineKg: baseline, weightPhaseBands: bands });
   }
 }

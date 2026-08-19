@@ -55,6 +55,22 @@ const CYCLE_PROFILE_LABEL: Record<CycleProfile, string> = {
   prefer_not_to_say:   'Prefer not to say',
 };
 
+// supabase.functions.invoke only surfaces a generic "non-2xx status code" message.
+// Our Edge Functions return { error } in the response body — read it out so a
+// failure is diagnosable instead of opaque.
+async function functionErrorMessage(error: unknown): Promise<string> {
+  const ctx = (error as { context?: Response }).context;
+  if (ctx && typeof ctx.json === 'function') {
+    try {
+      const body = await ctx.json();
+      if (body?.error) return String(body.error);
+    } catch {
+      // body wasn't JSON — fall back to the generic message below
+    }
+  }
+  return (error as Error).message ?? 'Unknown error';
+}
+
 export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
@@ -260,7 +276,7 @@ export default function ProfileScreen() {
       const { data: { session: s } } = await supabase.auth.getSession();
       if (!s) throw new Error('Not signed in');
       const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
-      if (error) throw error;
+      if (error) throw new Error(await functionErrorMessage(error));
       await signOut();
       router.replace('/(auth)');
     } catch (e) {

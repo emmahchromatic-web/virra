@@ -4,7 +4,7 @@ import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
 
 export type RunningGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'general';
 
-interface OnboardingData {
+export interface OnboardingData {
   firstName:         string;
   lastName:          string;
   localAvatarUri:    string | null;
