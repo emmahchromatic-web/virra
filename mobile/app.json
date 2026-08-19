@@ -12,7 +12,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.pauldickenson.virra.app",
-      "buildNumber": "8",
+      "buildNumber": "9",
       "supportsTablet": false,
       "icon": {
         "light": "./assets/icon.png",
