@@ -10,6 +10,7 @@ import { VirraButton } from './VirraButton';
 import { getDaySessionDetail, formatPace } from '@/lib/volumePlan';
 import type { CyclePhase } from '@/lib/cycleEngine';
 import type { DayDetail, SessionDetail, RunSessionDetail, StrengthSessionDetail, UserEvent } from '@/lib/volumePlan';
+import { isStrengthV2 } from '@/lib/workoutStructure';
 import { useCycleStore } from '@/store/cycle';
 import { useSessionStore } from '@/store/sessionStore';
 
@@ -208,11 +209,38 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
           </>
         )}
 
-        {!isRun && s.status !== 'dropped' && (
-          <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
-            ~{s.estimated_minutes}min
-          </VirraText>
-        )}
+        {!isRun && s.status !== 'dropped' && (() => {
+          const structure = (s as StrengthSessionDetail).structure;
+          if (isStrengthV2(structure)) {
+            return (
+              <View style={modal.sectionList}>
+                <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
+                  ~{s.estimated_minutes}min
+                </VirraText>
+                {structure.sections.map((sec) => (
+                  <View key={sec.section} style={modal.sectionRow}>
+                    <VirraText variant="mono" size={10} color={colors.dawn} style={modal.sectionName}>
+                      {sec.label.toUpperCase()}
+                    </VirraText>
+                    <VirraText variant="body" size={12} color={colors.breath} style={{ flex: 1 }}>
+                      {sec.exercises.map((ex) => ex.name).join(', ')}
+                    </VirraText>
+                  </View>
+                ))}
+                {structure.deload_note && (
+                  <VirraText variant="mono" size={10} color="#5BA4CF" style={{ marginTop: 2, letterSpacing: 0.3 }}>
+                    DELOAD · {structure.deload_note}
+                  </VirraText>
+                )}
+              </View>
+            );
+          }
+          return (
+            <VirraText variant="mono" size={10} color={colors.muted} style={modal.detail}>
+              ~{s.estimated_minutes}min
+            </VirraText>
+          );
+        })()}
 
         {s.status === 'planned' && (
           <View style={modal.actions}>
@@ -378,6 +406,9 @@ const modal = StyleSheet.create({
   whyText:      { lineHeight: 20 },
   adjustedFrom: { letterSpacing: 1, marginTop: 2 },
   stepList:     { gap: 2, marginTop: spacing.xs },
+  sectionList:  { gap: 4, marginTop: spacing.xs },
+  sectionRow:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  sectionName:  { width: 84, letterSpacing: 0.5, paddingTop: 2 },
   stepRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 3 },
   stepKind:     { width: 70 },
   repeatChildren: { flex: 1, gap: 2 },

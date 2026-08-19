@@ -24,9 +24,12 @@ export default function BrowsePlansScreen() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // is_active hides templates replaced by Get Strong (the old generic
+      // strength template) from the picker without deleting the row.
       const { data } = await supabase
         .from('plan_templates')
         .select('id, name, sport_type, distance_goal, duration_weeks, description, tagline')
+        .eq('is_active', true)
         .order('sort_order');
       if (!cancelled) {
         setTemplates((data ?? []) as PlanTemplate[]);
