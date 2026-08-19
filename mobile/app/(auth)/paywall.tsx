@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Alert, ScrollView, Pressable, Linking } from 'react-native';
+import { View, StyleSheet, SafeAreaView, ScrollView, Pressable, Linking } from 'react-native';
 import { router } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
@@ -9,6 +9,7 @@ import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://virra.app/privacy';
@@ -49,7 +50,7 @@ export default function PaywallScreen() {
       setStatus('active');
       await routePostPaywall();
     } else {
-      Alert.alert('Purchase failed', error ?? 'Please try again or restore purchases below.');
+      appAlert('Purchase failed', error ?? 'Please try again or restore purchases below.');
     }
   }
 
@@ -61,7 +62,7 @@ export default function PaywallScreen() {
       setStatus('active');
       await routePostPaywall();
     } else {
-      Alert.alert('No active subscription found');
+      appAlert('No active subscription found');
     }
   }
 

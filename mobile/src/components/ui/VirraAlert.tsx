@@ -1,0 +1,113 @@
+import React from 'react';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { create } from 'zustand';
+import { colors, spacing, radius } from '@/constants/theme';
+import { VirraText } from '@/components/ui/VirraText';
+import { VirraModal } from '@/components/ui/VirraModal';
+
+// Mirrors React Native's AlertButton so call sites swap over mechanically.
+export type AlertButtonStyle = 'default' | 'cancel' | 'destructive';
+export interface AlertButton {
+  text:     string;
+  onPress?: () => void;
+  style?:   AlertButtonStyle;
+}
+
+interface AlertConfig {
+  title:    string;
+  message?: string;
+  buttons:  AlertButton[];
+}
+
+interface AlertState {
+  current: AlertConfig | null;
+  show:    (config: AlertConfig) => void;
+  dismiss: () => void;
+}
+
+const useAlertStore = create<AlertState>((set) => ({
+  current: null,
+  show:    (config) => set({ current: config }),
+  dismiss: () => set({ current: null }),
+}));
+
+/**
+ * Themed, imperative replacement for React Native's Alert.alert. Same call
+ * shape — appAlert(title, message?, buttons?) — so swapping call sites is
+ * mechanical, but it renders as an on-brand VirraModal instead of the OS
+ * dialog. Callable from anywhere (event handlers, async catch blocks), not
+ * just inside render. Falls back to a single OK button when none are given.
+ */
+export function appAlert(title: string, message?: string, buttons?: AlertButton[]): void {
+  useAlertStore.getState().show({
+    title,
+    message,
+    buttons: buttons?.length ? buttons : [{ text: 'OK' }],
+  });
+}
+
+function labelColor(style?: AlertButtonStyle): string {
+  if (style === 'destructive') return colors.heat;
+  if (style === 'cancel')      return colors.muted;
+  return colors.mile; // 'default' sits on the pulse fill
+}
+
+/** Mount once near the app root so appAlert() has somewhere to render. */
+export function VirraAlertHost() {
+  const current = useAlertStore((s) => s.current);
+  const dismiss = useAlertStore((s) => s.dismiss);
+  if (!current) return null;
+
+  function press(button: AlertButton) {
+    dismiss();
+    button.onPress?.();
+  }
+
+  return (
+    <VirraModal visible onClose={dismiss} title={current.title}>
+      {current.message ? (
+        <VirraText variant="body" size={15} color={colors.breath} style={styles.message}>
+          {current.message}
+        </VirraText>
+      ) : null}
+      <View style={styles.buttons}>
+        {current.buttons.map((button, i) => {
+          const isDefault = button.style === 'default' || button.style === undefined;
+          return (
+            <Pressable
+              key={`${button.text}-${i}`}
+              onPress={() => press(button)}
+              accessibilityRole="button"
+              accessibilityLabel={button.text}
+              style={({ pressed }) => [
+                styles.button,
+                isDefault ? styles.buttonDefault : styles.buttonPlain,
+                pressed && styles.buttonPressed,
+              ]}
+            >
+              <VirraText variant="mono" size={13} color={labelColor(button.style)} style={styles.label}>
+                {button.text.toUpperCase()}
+              </VirraText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </VirraModal>
+  );
+}
+
+const styles = StyleSheet.create({
+  message: { lineHeight: 21 },
+  buttons: { gap: spacing.sm, marginTop: spacing.xs },
+  button: {
+    paddingVertical:   spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius:      radius.sm,
+    alignItems:        'center',
+    justifyContent:    'center',
+  },
+  buttonDefault: { backgroundColor: colors.pulse },
+  buttonPlain:   { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
+  buttonPressed: { opacity: 0.82 },
+  label:         { letterSpacing: 1.5 },
+});

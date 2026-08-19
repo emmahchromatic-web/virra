@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, SafeAreaView, Alert, AppState } from 'react-native';
+import { View, TextInput, StyleSheet, SafeAreaView, AppState } from 'react-native';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import type { AuthError } from '@supabase/supabase-js';
@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 // Supabase reports an unconfirmed address differently across versions, so match
 // on the stable error code first and fall back to the message.
@@ -77,13 +78,13 @@ export default function SignUpScreen() {
           provider: 'apple',
           token: credential.identityToken,
         });
-        if (error) Alert.alert('Sign up failed', error.message);
+        if (error) appAlert('Sign up failed', error.message);
         else router.replace('/(onboarding)/welcome');
       }
     } catch (e: any) {
       if (e.code !== 'ERR_REQUEST_CANCELED') {
         const msg = e.message || `Error ${e.code ?? 'unknown'}`;
-        Alert.alert('Sign up failed', msg);
+        appAlert('Sign up failed', msg);
       }
     }
   }
@@ -94,7 +95,7 @@ export default function SignUpScreen() {
     const { data, error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (error) {
-      Alert.alert('Sign up failed', error.message);
+      appAlert('Sign up failed', error.message);
       return;
     }
     // A session means the account is usable immediately (confirmation off).
