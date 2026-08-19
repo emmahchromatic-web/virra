@@ -143,3 +143,108 @@ export async function getAuthoredSession(
 
   return { programmeId, dayIndex, variant, block, sections };
 }
+
+/** Bucket a flat list of programme_exercises rows into ordered sections. */
+function groupRows(rows: Row[]): AuthoredSectionGroup[] {
+  const buckets = new Map<ProgrammeSection, AuthoredExercise[]>();
+  for (const raw of rows) {
+    const ex = Array.isArray(raw.exercises) ? raw.exercises[0] : raw.exercises;
+    if (!ex) continue;
+    const list = buckets.get(raw.section) ?? [];
+    list.push({
+      name:        ex.name,
+      description: ex.description,
+      sets:        raw.sets,
+      reps:        raw.reps,
+      tempo:       raw.tempo,
+      rest:        raw.rest,
+    });
+    buckets.set(raw.section, list);
+  }
+  return SECTION_ORDER
+    .filter((s) => buckets.has(s))
+    .map((s) => ({ section: s, label: SECTION_LABEL[s], exercises: buckets.get(s)! }));
+}
+
+/** Extract the day index from a programme_days id ("<slug>-d3" → 3). */
+function dayIndexOf(programmeDayId: string): number | null {
+  const m = programmeDayId.match(/-d(\d+)$/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * Pre-fetch EVERY authored session for a programme + equipment variant in one
+ * query (all days × all three 12-week blocks), keyed `${dayIndex}:${block}`.
+ * Called once at enrol time so `generateSchedule` can stay synchronous — it
+ * just reads the map instead of awaiting a query per session.
+ */
+export async function loadProgrammeSessions(
+  programmeId: string,
+  variant:     ProgrammeVariant,
+): Promise<Map<string, AuthoredSectionGroup[]>> {
+  const { data, error } = await supabase
+    .from('programme_exercises')
+    .select('programme_day_id, block, section, position, sets, reps, tempo, rest, exercises(name, description)')
+    .like('programme_day_id', `${programmeId}-d%`)
+    .eq('variant', variant)
+    .order('programme_day_id')
+    .order('block')
+    .order('position');
+
+  const out = new Map<string, AuthoredSectionGroup[]>();
+  if (error) {
+    console.warn('[getStrongSession] loadProgrammeSessions failed:', error.message);
+    return out;
+  }
+
+  // Split the flat result into `${dayIndex}:${block}` buckets first, then group
+  // each bucket into ordered sections.
+  const grouped = new Map<string, Row[]>();
+  for (const raw of (data ?? []) as (Row & { programme_day_id: string; block: number })[]) {
+    const dayIndex = dayIndexOf(raw.programme_day_id);
+    if (dayIndex == null) continue;
+    const key  = `${dayIndex}:${raw.block}`;
+    const list = grouped.get(key) ?? [];
+    list.push(raw);
+    grouped.set(key, list);
+  }
+  for (const [key, rows] of grouped) {
+    const sections = groupRows(rows);
+    if (sections.length > 0) out.set(key, sections);
+  }
+  return out;
+}
+
+/**
+ * Programme metadata the enrol flow needs alongside the sessions: the
+ * focus → day_index map (focus labels are unique within a programme, so the
+ * mapping is 1:1) and the deload_note prescription.
+ */
+export async function loadProgrammeMeta(
+  programmeId: string,
+): Promise<{ focusToDayIndex: Record<string, number>; deloadNote: string | null }> {
+  const [daysRes, progRes] = await Promise.all([
+    supabase
+      .from('programme_days')
+      .select('day_index, focus')
+      .eq('programme_id', programmeId)
+      .order('day_index'),
+    supabase
+      .from('programmes')
+      .select('deload_note')
+      .eq('id', programmeId)
+      .maybeSingle(),
+  ]);
+
+  const focusToDayIndex: Record<string, number> = {};
+  if (daysRes.error) {
+    console.warn('[getStrongSession] loadProgrammeMeta days failed:', daysRes.error.message);
+  } else {
+    for (const d of (daysRes.data ?? []) as { day_index: number; focus: string }[]) {
+      focusToDayIndex[d.focus] = d.day_index;
+    }
+  }
+
+  const deloadNote = (progRes.data as { deload_note: string | null } | null)?.deload_note ?? null;
+  return { focusToDayIndex, deloadNote };
+}

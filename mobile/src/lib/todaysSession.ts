@@ -29,7 +29,7 @@ interface PlannedSessionRow {
   status:         TodaysSession['status'];
   activity_id:    string | null;
   run_structure?:      import('./workoutStructure').RunWorkoutStructure | null;
-  strength_structure?: import('./workoutStructure').StrengthWorkoutStructure | null;
+  strength_structure?: import('./workoutStructure').AnyStrengthStructure | null;
 }
 
 function mapLabelToSessionType(label: string): SessionType {

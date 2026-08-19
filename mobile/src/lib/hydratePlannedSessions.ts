@@ -1,7 +1,10 @@
 import { generateRunStructure } from './runWorkoutGenerator';
 import { generateStrengthStructure } from './strengthWorkoutGenerator';
-import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
+import type { RunWorkoutStructure, AnyStrengthStructure } from './workoutStructure';
 import { normalizeStrengthSessionType } from './strengthTypes';
+import { getAuthoredSession, blockForWeek, variantForPreference } from './getStrongSession';
+import { buildProgrammeStructure } from './strengthProgramme';
+import type { WorkoutPreference } from '@/store/profile';
 
 export interface HydrateContext {
   baseline_pace_secs: number;
@@ -13,7 +16,7 @@ export interface HydrateInput {
   modality: string;
   session_label: string;
   run_structure: RunWorkoutStructure | null;
-  strength_structure: StrengthWorkoutStructure | null;
+  strength_structure: AnyStrengthStructure | null;
 }
 
 export interface HydrateOutput extends HydrateInput {
@@ -53,6 +56,64 @@ export function hydratePlannedSessionStructures(
       return { ...row, strength_structure, __hydrated: true };
     }
     return row;
+  });
+}
+
+/**
+ * Recover an authored v2 structure for a programme session that was saved
+ * without one (a rare backfill — enrol-time normally populates it). We only
+ * have block_id + session_label + week_number, so join
+ * block → training_blocks.template_id → plan_templates.programme_id, then read
+ * the authored session for that focus + equipment variant + 12-week block.
+ * Returns null for non-programme sessions (caller falls back to v1).
+ */
+export async function recoverProgrammeStructure(
+  row: { session_label: string; week_number: number; block_id: string | null },
+  userId: string,
+  supabaseClient: { from: (table: string) => any },
+): Promise<AnyStrengthStructure | null> {
+  if (!row.block_id) return null;
+
+  const { data: blockRow } = await supabaseClient
+    .from('training_blocks')
+    .select('template_id')
+    .eq('id', row.block_id)
+    .maybeSingle();
+  if (!blockRow?.template_id) return null;
+
+  const { data: tmpl } = await supabaseClient
+    .from('plan_templates')
+    .select('programme_id')
+    .eq('id', blockRow.template_id)
+    .maybeSingle();
+  const programmeId: string | null = tmpl?.programme_id ?? null;
+  if (!programmeId) return null;
+
+  // focus → day_index (1:1 within a programme)
+  const { data: days } = await supabaseClient
+    .from('programme_days')
+    .select('day_index, focus')
+    .eq('programme_id', programmeId);
+  const dayIndex = (days ?? []).find((d: any) => d.focus === row.session_label)?.day_index;
+  if (dayIndex == null) return null;
+
+  const { data: profileRow } = await supabaseClient
+    .from('user_profiles')
+    .select('workout_preference')
+    .eq('id', userId)
+    .maybeSingle();
+  const variant = variantForPreference((profileRow?.workout_preference as WorkoutPreference | undefined) ?? 'gym_full');
+  const block   = blockForWeek(row.week_number);
+
+  const authored = await getAuthoredSession(programmeId, dayIndex, variant, block);
+  if (!authored) return null;
+
+  return buildProgrammeStructure(authored.sections, {
+    programmeId,
+    dayIndex,
+    variant,
+    block,
+    focus: row.session_label,
   });
 }
 
