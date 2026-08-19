@@ -6,7 +6,7 @@ import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
 import type { ModulationResult, SessionType, SessionPaceTarget } from './cycleModulation';
 import { modulateForCycle, modulateRunStructure } from './cycleModulation';
 import type { CycleProfile } from '@/store/cycle';
-import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
+import type { RunWorkoutStructure, AnyStrengthStructure } from './workoutStructure';
 import { hydratePlannedSessionStructures, persistHydratedRows } from './hydratePlannedSessions';
 
 // ---- Interfaces ----
@@ -58,7 +58,7 @@ export interface StrengthSessionDetail {
   status:             string;
   cycle_modulation:   ModulationResult | null;
   // Phase I — workout structure
-  structure:          StrengthWorkoutStructure | null;
+  structure:          AnyStrengthStructure | null;
 }
 
 export type SessionDetail = RunSessionDetail | StrengthSessionDetail;
@@ -672,7 +672,7 @@ export async function getDaySessionDetail(
 
         const sRow = s as typeof s & {
           run_structure:      RunWorkoutStructure | null;
-          strength_structure: StrengthWorkoutStructure | null;
+          strength_structure: AnyStrengthStructure | null;
         };
         const structure = (structureById[s.id]?.run_structure ?? sRow.run_structure) ?? null;
         const modulated_structure = structure
@@ -713,7 +713,7 @@ export async function getDaySessionDetail(
       );
       const sRow = s as typeof s & {
         run_structure:      RunWorkoutStructure | null;
-        strength_structure: StrengthWorkoutStructure | null;
+        strength_structure: AnyStrengthStructure | null;
       };
       allSessions.push({
         kind:               'strength',

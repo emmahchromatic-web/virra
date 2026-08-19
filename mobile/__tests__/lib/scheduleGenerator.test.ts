@@ -49,8 +49,13 @@ describe('generateSchedule — structure attachment', () => {
       { baseline_pace_secs: 360 },
     );
     for (const r of rows) {
-      expect(r.strength_structure).toBeDefined();
-      expect(r.strength_structure!.exercises.length).toBeGreaterThanOrEqual(5);
+      const structure = r.strength_structure!;
+      expect(structure).toBeDefined();
+      // No programme context -> generated v1 structure with a flat exercise list.
+      expect(structure.version).toBe(1);
+      if (structure.version === 1) {
+        expect(structure.exercises.length).toBeGreaterThanOrEqual(5);
+      }
     }
     expect(rows.find((r) => r.session_label === 'lower')!.strength_structure!.session_type).toBe('lower');
     expect(rows.find((r) => r.session_label === 'upper')!.strength_structure!.session_type).toBe('upper');

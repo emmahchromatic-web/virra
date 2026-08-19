@@ -1,7 +1,9 @@
 import { supabase } from './supabase';
-import { generateAndSaveSchedule, type SessionSlot, type GenerateContext } from './scheduleGenerator';
+import { generateAndSaveSchedule, type SessionSlot, type GenerateContext, type ProgrammeContext } from './scheduleGenerator';
 import { recomputeSeasonForUser } from './seasonEngine';
 import { useCycleStore } from '@/store/cycle';
+import { loadProgrammeSessions, loadProgrammeMeta, variantForPreference } from './getStrongSession';
+import type { WorkoutPreference } from '@/store/profile';
 
 // Cycle phase multipliers: follicular = peak adaptation window, menstrual/luteal = reduced capacity.
 const PHASE_MULTIPLIER: Record<string, number> = {
@@ -121,17 +123,41 @@ export async function addBlock(
   if (opts.templateId) {
     const { data: tmpl } = await supabase
       .from('plan_templates')
-      .select('sessions_json')
+      .select('sessions_json, programme_id')
       .eq('id', opts.templateId)
       .single();
     if (tmpl?.sessions_json) {
-      // Fetch baseline pace for workout structure generation
+      // Fetch baseline pace (run structures) + equipment preference (programmes).
       const { data: profileRow } = await supabase
         .from('user_profiles')
-        .select('baseline_pace_seconds_per_km')
+        .select('baseline_pace_seconds_per_km, workout_preference')
         .eq('id', userId)
         .maybeSingle();
       const baselinePaceSecs = profileRow?.baseline_pace_seconds_per_km ?? 360;
+
+      // Get Strong programmes bridge through plan_templates.programme_id: pre-fetch
+      // the authored sessions once so generateSchedule stays synchronous.
+      let programme: ProgrammeContext | undefined;
+      const programmeId = (tmpl as { programme_id?: string | null }).programme_id ?? null;
+      if (programmeId) {
+        const pref    = (profileRow?.workout_preference as WorkoutPreference | undefined) ?? 'gym_full';
+        const variant = variantForPreference(pref);
+        const [sessions, meta] = await Promise.all([
+          loadProgrammeSessions(programmeId, variant),
+          loadProgrammeMeta(programmeId),
+        ]);
+        // Cycle trackers (flow / pack) skip the fixed deload; the read-time cycle
+        // layer eases them. Steady users (no phase tracking) get the week 4/8/12 deload.
+        const tracksCycle = useCycleStore.getState().cycleMode !== 'steady';
+        programme = {
+          programmeId,
+          variant,
+          sessions,
+          focusToDayIndex: meta.focusToDayIndex,
+          applyDeload:     !tracksCycle,
+          deloadNote:      meta.deloadNote,
+        };
+      }
 
       await generateAndSaveSchedule(
         userId,
@@ -142,7 +168,7 @@ export async function addBlock(
         opts.slotAssignments,
         opts.maxWeeks,
         undefined, // phaseSegments not used by this caller
-        { baseline_pace_secs: baselinePaceSecs } satisfies GenerateContext,
+        { baseline_pace_secs: baselinePaceSecs, programme } satisfies GenerateContext,
       );
     }
   }

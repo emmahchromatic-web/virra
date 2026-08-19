@@ -2,8 +2,10 @@ import { supabase } from './supabase';
 import type { BlockPhase, PhaseSegment } from './seasonEngine';
 import { generateRunStructure } from './runWorkoutGenerator';
 import { generateStrengthStructure } from './strengthWorkoutGenerator';
-import type { RunWorkoutStructure, StrengthWorkoutStructure } from './workoutStructure';
+import type { RunWorkoutStructure, AnyStrengthStructure } from './workoutStructure';
 import { normalizeStrengthSessionType } from './strengthTypes';
+import { blockForWeek, type AuthoredSectionGroup, type ProgrammeVariant } from './getStrongSession';
+import { buildProgrammeStructure, applyDeloadModulation } from './strengthProgramme';
 import { sessionTarget, matchActivityToSession, type MatchSession } from './sessionMatcher';
 
 export const DAY_TEMPLATES: Record<number, number[]> = {
@@ -70,11 +72,28 @@ export interface PlannedSessionInsert {
   session_label:  string;
   status:         'planned';
   run_structure?:      RunWorkoutStructure;
-  strength_structure?: StrengthWorkoutStructure;
+  strength_structure?: AnyStrengthStructure;
+}
+
+/**
+ * Authored Get Strong programme, pre-fetched at enrol time (see
+ * trainingBlocks.addBlock). When present on the context, the strength branch
+ * builds authored v2 structures instead of generating from the exercise pool.
+ */
+export interface ProgrammeContext {
+  programmeId:     string;
+  variant:         ProgrammeVariant;
+  /** All days × all blocks, keyed `${dayIndex}:${block}` (loadProgrammeSessions). */
+  sessions:        Map<string, AuthoredSectionGroup[]>;
+  focusToDayIndex: Record<string, number>;
+  /** True when the user does NOT track a cycle — enables the week 4/8/12 deload. */
+  applyDeload:     boolean;
+  deloadNote:      string | null;
 }
 
 export interface GenerateContext {
   baseline_pace_secs: number;
+  programme?:         ProgrammeContext;
 }
 
 export function generateSchedule(
@@ -136,7 +155,31 @@ export function generateSchedule(
             distance_km,
           });
         } else if (modality === 'strength') {
-          row.strength_structure = generateStrengthStructure({
+          const prog = context.programme;
+          const authored = prog
+            ? (() => {
+                const dayIndex = prog.focusToDayIndex[slot.label];
+                if (dayIndex == null) return null;
+                const block    = blockForWeek(week.week);
+                const sections = prog.sessions.get(`${dayIndex}:${block}`);
+                if (!sections) return null;
+                let v2 = buildProgrammeStructure(sections, {
+                  programmeId: prog.programmeId,
+                  dayIndex,
+                  variant:     prog.variant,
+                  block,
+                  focus:       slot.label,
+                });
+                // Non-cycle-tracking users deload on weeks 4, 8, 12; cycle
+                // trackers keep authored volume (the read-time cycle layer eases them).
+                if (prog.applyDeload && week.week % 4 === 0) {
+                  v2 = applyDeloadModulation(v2, prog.deloadNote);
+                }
+                return v2;
+              })()
+            : null;
+
+          row.strength_structure = authored ?? generateStrengthStructure({
             session_type:           normalizeStrengthSessionType(slot.label),
             phase:                  null,
             recent_primary_muscles: [],

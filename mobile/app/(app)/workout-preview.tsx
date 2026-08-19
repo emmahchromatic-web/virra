@@ -22,7 +22,10 @@ import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
 import type { StrengthExercise } from '@/lib/strengthTypes';
 import { getExerciseMeta } from '@/lib/exerciseLibrary';
 import { getLastLoggedWeights } from '@/lib/strengthHistory';
-import type { RunWorkoutStructure, StrengthWorkoutStructure, PlannedExercise } from '@/lib/workoutStructure';
+import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
+import { parseRestSeconds } from '@/lib/strengthProgramme';
+import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStructure';
+import { isStrengthV2 } from '@/lib/workoutStructure';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -44,8 +47,10 @@ interface SessionData {
   id:                       string;
   session_label:            string;
   modality:                 string;
+  week_number:              number | null;
+  block_id:                 string | null;
   run_structure:            RunWorkoutStructure | null;
-  strength_structure:       StrengthWorkoutStructure | null;
+  strength_structure:       AnyStrengthStructure | null;
   cycle_reason_short:       string | null;
   cycle_adjusted_pace_secs: number | null;
 }
@@ -58,9 +63,78 @@ interface LoggedSet {
   done:       boolean;
 }
 
-function seedLoggedSets(structure: StrengthWorkoutStructure): Record<string, LoggedSet[]> {
+// Normalised, render-ready view of one exercise — flattens both v1 (generated,
+// tempo/description via getExerciseMeta) and v2 (authored, tempo/description
+// persisted in the structure) into a single shape the logger works on.
+interface LogExercise {
+  id:            string;
+  name:          string;
+  description:   string | null;
+  tempo:         string | null;
+  cues:          string[];
+  rest_seconds:  number;
+  rest_label:    string;
+  reps_label:    string;
+  target_sets:   { reps: number }[];
+  section:       string | null;
+  section_label: string | null;
+}
+
+// Parse an authored reps string ("8", "8-10", "30s") to a numeric target for
+// the logger. Non-numeric prescriptions (holds, AMRAP) default to 0 so the user
+// just types the actual value.
+function parseReps(reps: string | null): number {
+  if (!reps) return 0;
+  const m = reps.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}
+
+// Flatten a strength structure (v1 or v2) into ordered LogExercise rows.
+function toLogExercises(structure: AnyStrengthStructure): LogExercise[] {
+  if (isStrengthV2(structure)) {
+    const out: LogExercise[] = [];
+    structure.sections.forEach((sec, si) => {
+      sec.exercises.forEach((ex, ei) => {
+        const setCount = ex.sets ?? 1;
+        const reps     = parseReps(ex.reps);
+        out.push({
+          id:            `${si}-${ei}`,
+          name:          ex.name,
+          description:   ex.description,
+          tempo:         ex.tempo,
+          cues:          [],
+          rest_seconds:  parseRestSeconds(ex.rest),
+          rest_label:    ex.rest ? ex.rest.toUpperCase() : '—',
+          reps_label:    ex.reps ?? '—',
+          target_sets:   Array.from({ length: setCount }, () => ({ reps })),
+          section:       sec.section,
+          section_label: sec.label,
+        });
+      });
+    });
+    return out;
+  }
+  return structure.exercises.map((ex) => {
+    const meta = getExerciseMeta(ex.name);
+    return {
+      id:            ex.id,
+      name:          ex.name,
+      description:   meta?.description ?? null,
+      tempo:         meta?.tempo ?? null,
+      cues:          meta?.cues ?? [],
+      rest_seconds:  ex.rest_seconds,
+      rest_label:    `${ex.rest_seconds}S`,
+      reps_label:    String(ex.target_sets[0]?.reps ?? 0),
+      target_sets:   ex.target_sets.map((ts) => ({ reps: ts.reps })),
+      section:       null,
+      section_label: null,
+    };
+  });
+}
+
+function seedLoggedSets(exercises: LogExercise[]): Record<string, LoggedSet[]> {
   const out: Record<string, LoggedSet[]> = {};
-  for (const ex of structure.exercises) {
+  for (const ex of exercises) {
     out[ex.id] = ex.target_sets.map((ts) => ({
       targetReps: ts.reps,
       actualReps: '',
@@ -75,11 +149,11 @@ function seedLoggedSets(structure: StrengthWorkoutStructure): Record<string, Log
 // without clobbering anything the user has already typed.
 function applyPrefillWeights(
   logged: Record<string, LoggedSet[]>,
-  structure: StrengthWorkoutStructure,
+  exercises: LogExercise[],
   weights: Record<string, number>,
 ): Record<string, LoggedSet[]> {
   const next = { ...logged };
-  for (const ex of structure.exercises) {
+  for (const ex of exercises) {
     const w = weights[ex.name];
     if (w == null) continue;
     next[ex.id] = (next[ex.id] ?? []).map((s) =>
@@ -88,30 +162,38 @@ function applyPrefillWeights(
   return next;
 }
 
-// "3-1-1" → "3·1·1"; passthrough for word tempos ("explosive", "hold").
+// "3-1-1" → "3·1·1", "3-1-1-0" → "3·1·1·0"; passthrough for word tempos.
 function prettyTempo(tempo: string): string {
   return /^[0-9-]+$/.test(tempo) ? tempo.replace(/-/g, '·') : tempo.toUpperCase();
 }
 
+// The 4-part authored tempo means lower · pause(bottom) · lift · pause(top);
+// the legacy 3-part library tempo omits the top pause.
+function tempoGloss(tempo: string): string {
+  if (!/^[0-9-]+$/.test(tempo)) return '';
+  const parts = tempo.split('-').length;
+  return parts >= 4
+    ? '  ·  lower · pause(bottom) · lift · pause(top) (seconds)'
+    : '  ·  lower · pause · lift (seconds)';
+}
+
 // Description / cues / tempo tooltip shown from the (i) button on an exercise.
-function ExerciseInfo({ exercise }: { exercise: PlannedExercise }) {
-  const meta = getExerciseMeta(exercise.name);
+function ExerciseInfo({ exercise }: { exercise: LogExercise }) {
   return (
     <View style={{ gap: spacing.sm }}>
-      {meta?.tempo && (
+      {exercise.tempo && (
         <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1 }}>
-          TEMPO {prettyTempo(meta.tempo)}
-          {/^[0-9-]+$/.test(meta.tempo) ? '  ·  lower · pause · lift (seconds)' : ''}
+          TEMPO {prettyTempo(exercise.tempo)}{tempoGloss(exercise.tempo)}
         </VirraText>
       )}
-      {meta?.description && (
+      {exercise.description && (
         <VirraText variant="body" size={14} color={colors.breath} style={{ lineHeight: 20 }}>
-          {meta.description}
+          {exercise.description}
         </VirraText>
       )}
-      {!!meta?.cues?.length && (
+      {!!exercise.cues.length && (
         <View style={{ gap: 4, marginTop: spacing.xs }}>
-          {meta.cues.map((c, i) => (
+          {exercise.cues.map((c, i) => (
             <View key={i} style={{ flexDirection: 'row', gap: spacing.sm }}>
               <VirraText variant="mono" size={12} color={colors.pulse}>·</VirraText>
               <VirraText variant="body" size={13} color="rgba(244,237,224,0.7)">{c}</VirraText>
@@ -120,7 +202,7 @@ function ExerciseInfo({ exercise }: { exercise: PlannedExercise }) {
         </View>
       )}
       <VirraText variant="mono" size={11} color={colors.muted} style={{ marginTop: spacing.xs }}>
-        {exercise.target_sets.length} × {exercise.target_sets[0]?.reps} reps · {exercise.rest_seconds}s rest
+        {exercise.target_sets.length} × {exercise.reps_label} reps · {exercise.rest_label} rest
       </VirraText>
     </View>
   );
@@ -134,8 +216,8 @@ function formatElapsed(totalSeconds: number): string {
 
 function buildStepLines(session: SessionData): string[] {
   if (session.strength_structure) {
-    return session.strength_structure.exercises.map(
-      (e) => `${e.name}  ·  ${e.target_sets.length} × ${e.target_sets[0].reps} reps`,
+    return toLogExercises(session.strength_structure).map(
+      (e) => `${e.name}  ·  ${e.target_sets.length} × ${e.reps_label} reps`,
     );
   }
   if (session.run_structure) {
@@ -162,7 +244,7 @@ export default function WorkoutPreviewScreen() {
 
   // Strength logging state
   const [logged,       setLogged]       = useState<Record<string, LoggedSet[]>>({});
-  const [infoExercise, setInfoExercise] = useState<PlannedExercise | null>(null);
+  const [infoExercise, setInfoExercise] = useState<LogExercise | null>(null);
   const [rpeOpen,      setRpeOpen]      = useState(false);
   const [sessionRpe,   setSessionRpe]   = useState<number | null>(null);
 
@@ -179,21 +261,29 @@ export default function WorkoutPreviewScreen() {
     // stuck on the generic timer with no exercises.
     supabase
       .from('planned_sessions')
-      .select('id, session_label, modality, run_structure, strength_structure')
+      .select('id, session_label, modality, week_number, block_id, run_structure, strength_structure')
       .eq('id', sessionId)
       .single()
-      .then(({ data, error }) => {
+      .then(async ({ data, error }) => {
         if (!error && data) {
           const row: SessionData = {
             ...(data as Omit<SessionData, 'cycle_reason_short' | 'cycle_adjusted_pace_secs'>),
             cycle_reason_short:       null,
             cycle_adjusted_pace_secs: null,
           };
-          // Recover strength sessions saved without a structure (e.g. a plan
-          // whose label never mapped to a library key). Generate on the fly so
-          // the exercise list renders instead of just a bare timer.
+          // Recover strength sessions saved without a structure. Prefer the
+          // authored Get Strong session (join block → template → programme_id);
+          // fall back to on-the-fly generation so a bare timer never shows.
           if (row.modality === 'strength' && !row.strength_structure) {
-            row.strength_structure = generateStrengthStructure({
+            let recovered: AnyStrengthStructure | null = null;
+            if (session) {
+              recovered = await recoverProgrammeStructure(
+                { session_label: row.session_label, week_number: row.week_number ?? 1, block_id: row.block_id },
+                session.user.id,
+                supabase as any,
+              ).catch(() => null);
+            }
+            row.strength_structure = recovered ?? generateStrengthStructure({
               session_type:           normalizeStrengthSessionType(row.session_label),
               phase:                  cycleInfo?.phase ?? null,
               recent_primary_muscles: [],
@@ -202,11 +292,12 @@ export default function WorkoutPreviewScreen() {
           setSessionData(row);
           const structure = row.strength_structure;
           if (structure) {
-            setLogged(seedLoggedSets(structure));
+            const exercises = toLogExercises(structure);
+            setLogged(seedLoggedSets(exercises));
             // Pre-fill each set with last session's weight for that movement.
             if (session) {
-              getLastLoggedWeights(session.user.id, structure.exercises.map((e) => e.name))
-                .then((weights) => setLogged((prev) => applyPrefillWeights(prev, structure, weights)))
+              getLastLoggedWeights(session.user.id, exercises.map((e) => e.name))
+                .then((weights) => setLogged((prev) => applyPrefillWeights(prev, exercises, weights)))
                 .catch(() => {});
             }
           }
@@ -362,7 +453,7 @@ export default function WorkoutPreviewScreen() {
     if (structure && modality === 'strength') {
       const setRows: Record<string, unknown>[] = [];
       const rollup: StrengthExercise[] = [];
-      for (const ex of structure.exercises) {
+      for (const ex of toLogExercises(structure)) {
         const done = (logged[ex.id] ?? [])
           .map((s, i) => ({ s, i }))
           .filter(({ s }) => isSetLogged(s));
@@ -427,6 +518,11 @@ export default function WorkoutPreviewScreen() {
   const modality = sessionData?.modality ?? 'other';
   const steps    = useMemo(() => sessionData ? buildStepLines(sessionData) : [], [sessionData]);
   const strengthStructure = sessionData?.strength_structure ?? null;
+  const logExercises = useMemo(
+    () => strengthStructure ? toLogExercises(strengthStructure) : [],
+    [strengthStructure],
+  );
+  const deloadNote = isStrengthV2(strengthStructure) ? strengthStructure.deload_note ?? null : null;
   const isLogging = (state === 'active' || state === 'paused') && !!strengthStructure;
 
   return (
@@ -467,18 +563,38 @@ export default function WorkoutPreviewScreen() {
             )}
           </VirraCard>
 
+          {deloadNote && (
+            <VirraCard style={{ gap: spacing.xs, marginTop: spacing.md }}>
+              <VirraText variant="mono" size={11} color="#5BA4CF" style={{ letterSpacing: 1.5 }}>DELOAD WEEK</VirraText>
+              <VirraText variant="body" size={13} color="rgba(244,237,224,0.75)" style={{ lineHeight: 20 }}>
+                {deloadNote}
+              </VirraText>
+            </VirraCard>
+          )}
+
           {strengthStructure ? (
             <VirraCard style={{ gap: spacing.sm, marginTop: spacing.md }}>
               <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>WORKOUT</VirraText>
-              {strengthStructure.exercises.map((ex, i) => (
-                <View key={ex.id} style={s.exListRow}>
-                  <VirraText variant="mono" size={12} color="rgba(244,237,224,0.4)" style={s.exListNum}>{i + 1}</VirraText>
-                  <VirraText variant="mono" size={12} color={colors.breath} style={s.exListName} numberOfLines={1}>{ex.name}</VirraText>
-                  <VirraText variant="mono" size={12} color="rgba(244,237,224,0.55)" style={s.exListReps}>
-                    {ex.target_sets.length} × {ex.target_sets[0]?.reps ?? 0} reps
-                  </VirraText>
-                </View>
-              ))}
+              {logExercises.map((ex, i) => {
+                const showHeader = !!ex.section_label &&
+                  (i === 0 || logExercises[i - 1].section !== ex.section);
+                return (
+                  <React.Fragment key={ex.id}>
+                    {showHeader && (
+                      <VirraText variant="mono" size={10} color={colors.dawn} style={{ letterSpacing: 1.5, marginTop: i === 0 ? 0 : spacing.xs }}>
+                        {ex.section_label!.toUpperCase()}
+                      </VirraText>
+                    )}
+                    <View style={s.exListRow}>
+                      <VirraText variant="mono" size={12} color="rgba(244,237,224,0.4)" style={s.exListNum}>{i + 1}</VirraText>
+                      <VirraText variant="mono" size={12} color={colors.breath} style={s.exListName} numberOfLines={1}>{ex.name}</VirraText>
+                      <VirraText variant="mono" size={12} color="rgba(244,237,224,0.55)" style={s.exListReps}>
+                        {ex.target_sets.length} × {ex.reps_label} reps
+                      </VirraText>
+                    </View>
+                  </React.Fragment>
+                );
+              })}
             </VirraCard>
           ) : steps.length > 0 ? (
             <VirraCard style={{ gap: spacing.xs, marginTop: spacing.md }}>
@@ -513,26 +629,42 @@ export default function WorkoutPreviewScreen() {
           </View>
 
           <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-            {strengthStructure.exercises.map((ex) => {
-              const meta = getExerciseMeta(ex.name);
+            {deloadNote && (
+              <VirraCard style={{ gap: spacing.xs, marginBottom: spacing.md }}>
+                <VirraText variant="mono" size={10} color="#5BA4CF" style={{ letterSpacing: 1.5 }}>DELOAD WEEK</VirraText>
+                <VirraText variant="body" size={13} color="rgba(244,237,224,0.75)" style={{ lineHeight: 20 }}>
+                  {deloadNote}
+                </VirraText>
+              </VirraCard>
+            )}
+            {logExercises.map((ex, i) => {
+              const hasInfo = !!ex.description || !!ex.tempo || ex.cues.length > 0;
               const sets = logged[ex.id] ?? [];
+              const showHeader = !!ex.section_label &&
+                (i === 0 || logExercises[i - 1].section !== ex.section);
               return (
-                <VirraCard key={ex.id} style={{ gap: spacing.sm, marginBottom: spacing.md }}>
+                <React.Fragment key={ex.id}>
+                {showHeader && (
+                  <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5, marginBottom: spacing.xs }}>
+                    {ex.section_label!.toUpperCase()}
+                  </VirraText>
+                )}
+                <VirraCard style={{ gap: spacing.sm, marginBottom: spacing.md }}>
                   <View style={s.exHeader}>
                     <View style={{ flex: 1 }}>
                       <VirraText variant="display" size={17} color={colors.breath}>{ex.name}</VirraText>
                       <View style={s.exMetaRow}>
-                        {meta?.tempo && (
+                        {ex.tempo && (
                           <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1 }}>
-                            TEMPO {prettyTempo(meta.tempo)}
+                            TEMPO {prettyTempo(ex.tempo)}
                           </VirraText>
                         )}
                         <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
-                          REST {ex.rest_seconds}S
+                          REST {ex.rest_label}
                         </VirraText>
                       </View>
                     </View>
-                    {meta && (
+                    {hasInfo && (
                       <Pressable onPress={() => setInfoExercise(ex)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${ex.name} description`}>
                         <SymbolView name="info.circle" size={20} tintColor={colors.muted} />
                       </Pressable>
@@ -573,6 +705,7 @@ export default function WorkoutPreviewScreen() {
                     </View>
                   ))}
                 </VirraCard>
+                </React.Fragment>
               );
             })}
           </ScrollView>
