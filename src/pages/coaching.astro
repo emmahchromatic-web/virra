@@ -96,8 +96,16 @@ const faqSchema = coaching?.faq?.length
               </label>
             </div>
             <label class="full">
-              <span>Your goal *</span>
+              <span>What is your main goal? *</span>
               <textarea name="goal" required rows="3" placeholder="e.g. Run my first half marathon in under 2 hours by October"></textarea>
+            </label>
+            <label class="full">
+              <span>What are you struggling with right now?</span>
+              <textarea name="struggling" rows="2" placeholder="e.g. My energy falls off a cliff the week before my period"></textarea>
+            </label>
+            <label class="full">
+              <span>What have you tried before?</span>
+              <textarea name="triedBefore" rows="2" placeholder="e.g. A generic 10K plan from an app, plus a few gym sessions"></textarea>
             </label>
             <div class="field-row">
               <label>
@@ -243,6 +251,8 @@ const faqSchema = coaching?.faq?.length
       helpWith: fd.get('helpWith'),
       level: fd.get('level'),
       goal: fd.get('goal'),
+      struggling: fd.get('struggling'),
+      triedBefore: fd.get('triedBefore'),
       startMonth: fd.get('startMonth'),
       referral: fd.get('referral'),
       newsletter: fd.get('newsletter') === 'on',

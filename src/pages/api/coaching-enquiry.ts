@@ -13,6 +13,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     helpWith: string;
     level: string;
     goal: string;
+    struggling?: string;
+    triedBefore?: string;
     startMonth?: string;
     referral?: string;
     newsletter?: boolean;
@@ -43,6 +45,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     helpWith: body.helpWith,
     level: body.level,
     goal: body.goal.trim(),
+    struggling: (body.struggling ?? '').trim(),
+    triedBefore: (body.triedBefore ?? '').trim(),
     startMonth: body.startMonth ?? '',
     referral: body.referral ?? '',
     newsletter: body.newsletter ?? false,

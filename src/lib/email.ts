@@ -8,6 +8,8 @@ export async function sendCoachingNotification(fields: {
   helpWith: string;
   level: string;
   goal: string;
+  struggling: string;
+  triedBefore: string;
   startMonth: string;
   referral: string;
   newsletter: boolean;
@@ -24,6 +26,8 @@ export async function sendCoachingNotification(fields: {
         <tr><td><b>Looking for</b></td><td>${fields.helpWith}</td></tr>
         <tr><td><b>Level</b></td><td>${fields.level}</td></tr>
         <tr><td><b>Goal</b></td><td>${fields.goal}</td></tr>
+        <tr><td><b>Struggling with</b></td><td>${fields.struggling || '—'}</td></tr>
+        <tr><td><b>Tried before</b></td><td>${fields.triedBefore || '—'}</td></tr>
         <tr><td><b>Start month</b></td><td>${fields.startMonth || '—'}</td></tr>
         <tr><td><b>Referral</b></td><td>${fields.referral || '—'}</td></tr>
         <tr><td><b>Newsletter</b></td><td>${fields.newsletter ? 'Yes' : 'No'}</td></tr>
