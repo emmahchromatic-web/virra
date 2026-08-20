@@ -49,6 +49,8 @@ export async function appendCoachingEnquiry(fields: {
   helpWith: string;
   level: string;
   goal: string;
+  struggling: string;
+  triedBefore: string;
   startMonth: string;
   referral: string;
   newsletter: boolean;
@@ -69,7 +71,7 @@ export async function appendCoachingEnquiry(fields: {
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: sheetId,
-    range: 'Sheet1!A:J',
+    range: 'Sheet1!A:L',
     valueInputOption: 'USER_ENTERED',
     requestBody: {
       values: [[
@@ -78,6 +80,8 @@ export async function appendCoachingEnquiry(fields: {
         fields.helpWith,
         fields.level,
         fields.goal,
+        fields.struggling || '',
+        fields.triedBefore || '',
         fields.startMonth || '',
         fields.referral || '',
         fields.newsletter ? 'Yes' : 'No',
