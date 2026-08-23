@@ -11,9 +11,9 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 
 const SYMPTOMS = [
-  'Cramps', 'Headache', 'Bloating', 'Fatigue',
-  'Nausea', 'Back pain', 'Anxiety', 'Low mood',
-  'Breast tenderness', 'Insomnia',
+  'Cramps', 'Spotting', 'Headache', 'Bloating',
+  'Fatigue', 'Nausea', 'Back pain', 'Anxiety',
+  'Low mood', 'Breast tenderness', 'Insomnia',
 ];
 
 function RatingRow({ label, value, onChange }: {
@@ -146,7 +146,12 @@ export default function CheckInScreen() {
           <ActivityIndicator color={colors.pulse} />
         </View>
       ) : (
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <View style={styles.section}>
           <VirraText variant="bodyMedium" color={colors.breath} style={styles.sectionTitle}>
             How are you feeling?

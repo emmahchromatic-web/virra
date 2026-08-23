@@ -76,7 +76,12 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
 
   return (
     <VirraModal visible={visible} onClose={onClose} title="Add Event">
-      <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        style={{ maxHeight: 520 }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
 
         {/* EVENT NAME */}
         <VirraText variant="mono" size={11} color={colors.muted} style={s.sectionLabel}>

@@ -58,7 +58,12 @@ export default function FitnessScreen() {
   }
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+    >
       <VirraText variant="display" size={28} color={colors.breath} style={styles.title}>
         Let's build your baseline.
       </VirraText>

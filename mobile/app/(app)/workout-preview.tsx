@@ -706,7 +706,11 @@ export default function WorkoutPreviewScreen() {
             />
           )}
 
-          <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={s.scroll}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+          >
             {deloadNote && (
               <VirraCard style={{ gap: spacing.xs, marginBottom: spacing.md }}>
                 <VirraText variant="mono" size={10} color="#5BA4CF" style={{ letterSpacing: 1.5 }}>DELOAD WEEK</VirraText>

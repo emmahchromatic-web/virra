@@ -36,7 +36,12 @@ export default function ProfileOnboardingScreen() {
   const canContinue = firstName.trim().length > 0 && lastName.trim().length > 0;
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
+    >
       <VirraText variant="display" size={28} color={colors.breath} style={styles.title}>
         Who are we coaching?
       </VirraText>
