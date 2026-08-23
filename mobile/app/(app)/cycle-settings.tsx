@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet, ScrollView, Alert, Linking } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -11,6 +11,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { HormonalSubPicker } from '@/components/cycle/HormonalSubPicker';
 import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -120,7 +121,7 @@ export default function CycleSettingsScreen() {
 
       router.back();
     } catch (e) {
-      Alert.alert('Could not save', (e as Error).message);
+      appAlert('Could not save', (e as Error).message);
     } finally {
       setSaving(false);
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, Alert } from 'react-native';
+import { View, ScrollView, StyleSheet, SafeAreaView, Pressable } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useAuthStore } from '@/store/auth';
@@ -18,6 +18,7 @@ import { CycleWeightChart, type WeightReading } from '@/components/ui/CycleWeigh
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const COACHING_CARD_WIDTH = 260;
 const ACTION_HEIGHT       = 52;
@@ -55,7 +56,7 @@ export default function CycleDetailScreen() {
 
   function handleReset() {
     if (!session) return;
-    Alert.alert(
+    appAlert(
       'Reset your cycle?',
       'This logs today as the start of a new period and your day count restarts from 1.',
       [
@@ -68,7 +69,7 @@ export default function CycleDetailScreen() {
             try {
               await resetCycleToToday(session.user.id);
             } catch (e: any) {
-              Alert.alert('Could not reset cycle', e?.message ?? 'Please try again.');
+              appAlert('Could not reset cycle', e?.message ?? 'Please try again.');
             } finally {
               setResetting(false);
             }

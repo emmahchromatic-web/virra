@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Pressable, StyleSheet, ScrollView, Linking, Alert } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView, Linking } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth';
 import { completeOnboarding } from '@/lib/completeOnboarding';
 import { fetchHKCycleData } from '@/lib/healthKitOnboarding';
 import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const MS_PER_DAY    = 24 * 60 * 60 * 1000;
 const DEFAULT_CYCLE = 28;
@@ -98,7 +99,7 @@ export default function CycleScreen() {
     // No session means nothing can be written. Say so instead of leaving the
     // user pressing a button that silently does nothing.
     if (!session) {
-      Alert.alert(
+      appAlert(
         'You are not signed in',
         'We could not save your profile because your session has expired. Sign in again and we will pick up from here.',
         [{ text: 'Sign in', onPress: () => router.replace('/(auth)/sign-in') }],
@@ -110,7 +111,7 @@ export default function CycleScreen() {
     const { error } = await completeOnboarding(session.user.id, merged);
     setSaving(false);
     if (error) {
-      Alert.alert('Something went wrong', error);
+      appAlert('Something went wrong', error);
       return;
     }
     router.replace('/(onboarding)/body-metrics');

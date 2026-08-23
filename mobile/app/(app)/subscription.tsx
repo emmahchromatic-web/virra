@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, SafeAreaView, Pressable, Alert, Linking, ActivityIndicator,
+  View, StyleSheet, ScrollView, SafeAreaView, Pressable, Linking, ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -10,6 +10,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const STATUS_COLOR: Record<string, string> = {
   trial:     colors.dawn,
@@ -47,7 +48,7 @@ export default function SubscriptionScreen() {
     try {
       await Linking.openURL(url);
     } catch {
-      Alert.alert('Could not open link', 'Please visit Settings → Subscriptions to manage your plan.');
+      appAlert('Could not open link', 'Please visit Settings → Subscriptions to manage your plan.');
     }
   }
 
@@ -57,12 +58,12 @@ export default function SubscriptionScreen() {
       const success = await restorePurchases();
       if (success) {
         setStatus('active');
-        Alert.alert('Purchases restored', 'Your subscription has been restored.');
+        appAlert('Purchases restored', 'Your subscription has been restored.');
       } else {
-        Alert.alert('Nothing to restore', 'No previous subscription found for this Apple ID.');
+        appAlert('Nothing to restore', 'No previous subscription found for this Apple ID.');
       }
     } catch (e: any) {
-      Alert.alert('Restore failed', e?.message ?? 'An error occurred.');
+      appAlert('Restore failed', e?.message ?? 'An error occurred.');
     } finally {
       setRestoring(false);
     }

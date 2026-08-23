@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView,
-  Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -14,6 +13,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { inferUnitFromName, unitInputLabel } from '@/lib/foodUnits';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -211,7 +211,7 @@ export default function DescribeMealScreen() {
   async function handleEstimate() {
     const trimmed = description.trim();
     if (trimmed.length < 3) {
-      Alert.alert('Add a description', 'Tell us what you ate so we can estimate.');
+      appAlert('Add a description', 'Tell us what you ate so we can estimate.');
       return;
     }
     setEstimating(true);
@@ -225,11 +225,11 @@ export default function DescribeMealScreen() {
         // supabase-js's error.message is unhelpful ("Failed to send a request to the Edge Function").
         // For HTTP error responses the JSON body is on error.context — pull out our own copy if present.
         const friendly = await extractEdgeError(error);
-        Alert.alert('Couldn\'t estimate this', friendly);
+        appAlert('Couldn\'t estimate this', friendly);
         return;
       }
       if (!data || data.error === 'parse_failed' || data.items.length === 0) {
-        Alert.alert(
+        appAlert(
           'Couldn\'t estimate this',
           data?.notes ?? 'Try describing the meal with a bit more detail, or log it manually.',
         );
@@ -238,7 +238,7 @@ export default function DescribeMealScreen() {
       setItems(data.items);
       setNotes(data.notes);
     } catch {
-      Alert.alert(
+      appAlert(
         'Couldn\'t estimate this',
         'Something went wrong on our side. Try again in a moment, or log this one manually.',
       );
@@ -283,7 +283,7 @@ export default function DescribeMealScreen() {
     }));
     const { error } = await supabase.from('food_entries').insert(rows);
     setSaving(false);
-    if (error) { Alert.alert('Could not save', error.message); return; }
+    if (error) { appAlert('Could not save', error.message); return; }
     if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
       cancelNutritionReminderForMeal(mealType);
     }

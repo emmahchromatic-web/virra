@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, Pressable, Alert, TextInput,
-  NativeModules, ActivityIndicator, AppState,
+  View, ScrollView, StyleSheet, Pressable, TextInput, NativeModules, ActivityIndicator, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -376,7 +375,7 @@ export default function WorkoutPreviewScreen() {
       setElapsedS(Math.floor(elapsed / 1000));
     }
     const finalSeconds = elapsedS;
-    Alert.alert(
+    appAlert(
       'End session?',
       `${formatElapsed(finalSeconds)} recorded.`,
       [
@@ -493,7 +492,7 @@ export default function WorkoutPreviewScreen() {
       .single();
 
     if (actErr) {
-      Alert.alert('Save failed', `${actErr.message}. Tap Finish again to retry.`);
+      appAlert('Save failed', `${actErr.message}. Tap Finish again to retry.`);
       setSaving(false);
       setState('active');
       return;

@@ -1,7 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import {
-  View, Pressable, StyleSheet, SafeAreaView, Alert, ScrollView, NativeModules,
-} from 'react-native';
+import { View, Pressable, StyleSheet, SafeAreaView, ScrollView, NativeModules } from 'react-native';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -14,6 +12,7 @@ import { fetchRunHeartRate, type TimeWindow } from '@/lib/healthKitHeartRate';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 // ---- Geo helpers ----
 
@@ -97,7 +96,7 @@ export default function RunTrackerScreen() {
   async function startTracking() {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Location needed', 'Enable location access to track your run.');
+      appAlert('Location needed', 'Enable location access to track your run.');
       return false;
     }
     locationSub.current = await Location.watchPositionAsync(
@@ -244,7 +243,7 @@ export default function RunTrackerScreen() {
       .single();
 
     if (actErr) {
-      Alert.alert('Save failed', actErr.message);
+      appAlert('Save failed', actErr.message);
       setSaving(false);
       return;
     }
@@ -288,7 +287,7 @@ export default function RunTrackerScreen() {
   }
 
   function handleDiscard() {
-    Alert.alert('Discard run?', 'This run won\'t be saved.', [
+    appAlert('Discard run?', 'This run won\'t be saved.', [
       { text: 'Keep', style: 'cancel' },
       { text: 'Discard', style: 'destructive', onPress: () => router.back() },
     ]);

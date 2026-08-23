@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View, ScrollView, Pressable, StyleSheet, Alert,
-} from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { applyBreak } from '@/lib/scheduleGenerator';
@@ -11,6 +9,7 @@ import { VirraButton } from './VirraButton';
 import { VirraText } from './VirraText';
 import { CalendarPicker, parseISO, toLocalISO } from './CalendarPicker';
 import type { TrainingBlock } from '@/lib/trainingBlocks';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 interface Props {
   visible:      boolean;
@@ -85,8 +84,8 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
   }
 
   async function handleConfirm() {
-    if (activeBlocks.length > 0 && selectedIds.size === 0) { Alert.alert('Select at least one block'); return; }
-    if (breakEnd < breakStart)  { Alert.alert('End date must be on or after start date'); return; }
+    if (activeBlocks.length > 0 && selectedIds.size === 0) { appAlert('Select at least one block'); return; }
+    if (breakEnd < breakStart)  { appAlert('End date must be on or after start date'); return; }
     setSaving(true);
     try {
       await applyBreak(
@@ -98,7 +97,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
       );
       onApplied();
     } catch (e: any) {
-      Alert.alert('Could not apply break', e.message);
+      appAlert('Could not apply break', e.message);
     } finally {
       setSaving(false);
     }

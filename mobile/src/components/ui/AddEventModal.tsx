@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Alert, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { View, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { recomputeSeasonForUser } from '@/lib/seasonEngine';
@@ -9,6 +9,7 @@ import { VirraModal } from './VirraModal';
 import { VirraButton } from './VirraButton';
 import { VirraText } from './VirraText';
 import { CalendarPicker, toLocalISO } from './CalendarPicker';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 type DistanceGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'ultra';
 
@@ -45,7 +46,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
 
   async function handleSave() {
     const trimmed = name.trim();
-    if (!trimmed) { Alert.alert('Event name is required'); return; }
+    if (!trimmed) { appAlert('Event name is required'); return; }
     setSaving(true);
     const { error } = await supabase.from('user_events').insert({
       user_id:       userId,
@@ -54,7 +55,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
       distance_goal: distanceGoal,
     });
     setSaving(false);
-    if (error) { Alert.alert('Could not save event', error.message); return; }
+    if (error) { appAlert('Could not save event', error.message); return; }
     // Fire-and-forget: auto-create season if 2+ future events now exist
     const cycleProfile = useCycleStore.getState().cycleProfile;
     recomputeSeasonForUser(userId, toLocalISO(today), cycleProfile).catch((e) => {

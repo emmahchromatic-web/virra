@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
@@ -7,6 +7,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { colors, fonts, spacing } from '@/constants/theme';
 import { useNotificationsStore, NotificationItem } from '@/store/notifications';
 import { formatRelativeTime } from '@/lib/relativeTime';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 function Row({ item, showUnreadDot }: { item: NotificationItem; showUnreadDot: boolean }) {
   return (
@@ -52,7 +53,7 @@ export default function NotificationsScreen() {
   );
 
   const confirmClear = () => {
-    Alert.alert(
+    appAlert(
       'Clear all notifications?',
       'This removes the inbox history on this device. Notifications already delivered by the OS are unaffected.',
       [

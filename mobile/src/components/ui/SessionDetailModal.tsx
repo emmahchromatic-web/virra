@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
@@ -13,6 +13,7 @@ import type { DayDetail, SessionDetail, RunSessionDetail, StrengthSessionDetail,
 import { isStrengthV2 } from '@/lib/workoutStructure';
 import { useCycleStore } from '@/store/cycle';
 import { useSessionStore } from '@/store/sessionStore';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 interface Props {
   visible:    boolean;
@@ -114,7 +115,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
       await useSessionStore.getState().dropSession(sessionId);
       await reloadDetail();
     } catch (e: unknown) {
-      Alert.alert('Could not drop session', e instanceof Error ? e.message : 'Unknown error');
+      appAlert('Could not drop session', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
     }
@@ -131,7 +132,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
       await useSessionStore.getState().moveSession(sessionId, shiftDate(date, 7));
       await reloadDetail();
     } catch (e: unknown) {
-      Alert.alert('Could not move session', e instanceof Error ? e.message : 'Unknown error');
+      appAlert('Could not move session', e instanceof Error ? e.message : 'Unknown error');
     } finally {
       setBusy(false);
     }
