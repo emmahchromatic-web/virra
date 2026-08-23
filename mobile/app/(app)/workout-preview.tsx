@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View, ScrollView, StyleSheet, Pressable, Alert, TextInput,
-  NativeModules, ActivityIndicator,
+  NativeModules, ActivityIndicator, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -25,6 +25,12 @@ import { getLastLoggedWeights } from '@/lib/strengthHistory';
 import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
 import { parseRestSeconds } from '@/lib/strengthProgramme';
 import { appAlert } from '@/components/ui/VirraAlert';
+import { RestTimerBar } from '@/components/ui/RestTimerBar';
+import { playRestComplete } from '@/lib/restChime';
+import {
+  startRest, restartRest, restRemainingSeconds, restProgress, shouldChime,
+  type RestState,
+} from '@/lib/restTimer';
 import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStructure';
 import { isStrengthV2 } from '@/lib/workoutStructure';
 
@@ -247,6 +253,13 @@ export default function WorkoutPreviewScreen() {
   const [logged,       setLogged]       = useState<Record<string, LoggedSet[]>>({});
   const [infoExercise, setInfoExercise] = useState<LogExercise | null>(null);
   const [rpeOpen,      setRpeOpen]      = useState(false);
+  const [rest,         setRest]         = useState<RestState | null>(null);
+  const [restNow,      setRestNow]      = useState(0);
+
+  // Moment the app last came to the foreground, so a rest that ran out while
+  // the user was in another app can finish silently.
+  const activeSinceRef = useRef(Date.now());
+  const chimedRef      = useRef(false);
   const [sessionRpe,   setSessionRpe]   = useState<number | null>(null);
 
   const startedAt        = useRef<Date | null>(null);
@@ -378,11 +391,11 @@ export default function WorkoutPreviewScreen() {
     });
   }
 
-  function toggleSetDone(exId: string, setIdx: number) {
+  function toggleSetDone(ex: LogExercise, setIdx: number) {
+    const nextDone = !(logged[ex.id]?.[setIdx]?.done ?? false);
     setLogged((prev) => {
-      const sets = prev[exId] ? [...prev[exId]] : [];
+      const sets = prev[ex.id] ? [...prev[ex.id]] : [];
       if (!sets[setIdx]) return prev;
-      const nextDone = !sets[setIdx].done;
       // On completing a set, default empty reps to the target so a quick tap
       // records a "did as prescribed" set. Carry the weight to the next set.
       const actualReps = nextDone && sets[setIdx].actualReps === ''
@@ -392,8 +405,19 @@ export default function WorkoutPreviewScreen() {
       if (nextDone && sets[setIdx + 1] && sets[setIdx + 1].weightKg === '' && sets[setIdx].weightKg !== '') {
         sets[setIdx + 1] = { ...sets[setIdx + 1], weightKg: sets[setIdx].weightKg };
       }
-      return { ...prev, [exId]: sets };
+      return { ...prev, [ex.id]: sets };
     });
+    // Ticking a set off starts that movement's authored rest. Unticking a set
+    // (correcting a mistap) should not.
+    if (nextDone) beginRest(ex);
+  }
+
+  function beginRest(ex: LogExercise) {
+    const next = startRest(ex.id, ex.name, ex.rest_seconds, Date.now());
+    if (!next) return;   // mobility and activation carry no authored rest
+    chimedRef.current = false;
+    setRest(next);
+    setRestNow(Date.now());
   }
 
   // A set is logged once the user checks it off. (We no longer treat a filled
@@ -539,6 +563,33 @@ export default function WorkoutPreviewScreen() {
     [strengthStructure],
   );
   const deloadNote = isStrengthV2(strengthStructure) ? strengthStructure.deload_note ?? null : null;
+  const restRemaining = restRemainingSeconds(rest, restNow);
+  const restDone      = !!rest && restRemaining === 0;
+
+  // Recompute from the clock rather than counting down, so a suspended JS timer
+  // (backgrounded app) cannot make the display drift.
+  useEffect(() => {
+    if (!rest) return;
+    setRestNow(Date.now());
+    const id = setInterval(() => setRestNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [rest]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') activeSinceRef.current = Date.now();
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!rest || !restDone || chimedRef.current) return;
+    chimedRef.current = true;
+    if (shouldChime(rest, activeSinceRef.current)) playRestComplete();
+    const id = setTimeout(() => setRest(null), 3000);
+    return () => clearTimeout(id);
+  }, [rest, restDone]);
+
   const isLogging = (state === 'active' || state === 'paused') && !!strengthStructure;
 
   return (
@@ -644,6 +695,17 @@ export default function WorkoutPreviewScreen() {
             </Pressable>
           </View>
 
+          {rest && (
+            <RestTimerBar
+              exerciseName={rest.exerciseName}
+              remainingSeconds={restRemaining}
+              progress={restProgress(rest, restNow)}
+              done={restDone}
+              onSkip={() => setRest(null)}
+              onRestart={() => { chimedRef.current = false; setRest(restartRest(rest, Date.now())); }}
+            />
+          )}
+
           <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
             {deloadNote && (
               <VirraCard style={{ gap: spacing.xs, marginBottom: spacing.md }}>
@@ -720,7 +782,7 @@ export default function WorkoutPreviewScreen() {
                         keyboardType="decimal-pad"
                         maxLength={6}
                       />
-                      <Pressable style={s.colDone} onPress={() => toggleSetDone(ex.id, i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Complete ${ex.name} set ${i + 1}`}>
+                      <Pressable style={s.colDone} onPress={() => toggleSetDone(ex, i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Complete ${ex.name} set ${i + 1}`}>
                         <SymbolView name={st.done ? 'checkmark.circle.fill' : 'circle'} size={24} tintColor={st.done ? colors.pulse : colors.muted} />
                       </Pressable>
                     </View>
