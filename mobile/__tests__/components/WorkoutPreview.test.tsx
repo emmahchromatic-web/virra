@@ -29,6 +29,8 @@ jest.mock('@/lib/strengthHistory', () => ({
   getLastLoggedWeights: jest.fn().mockResolvedValue({}),
 }));
 
+jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn() }));
+
 // A strength session using real exercise-library names so getExerciseMeta
 // returns tempo/description content.
 const STRENGTH_ROW = {
@@ -133,7 +135,32 @@ describe('WorkoutPreviewScreen — strength logging', () => {
     expect(getAllByPlaceholderText('0').length).toBe(3);                 // weight (kg) fields
     expect(getAllByPlaceholderText('8').length).toBe(2);                 // Goblet Squat target reps
     expect(queryByLabelText('Goblet Squat description')).toBeTruthy();   // (i) button → meta resolved
-    expect(await findByText('FINISH')).toBeTruthy();
+    expect(await findByText('END WORKOUT')).toBeTruthy();
+  });
+
+  it('confirms before discarding a workout in progress, but backs out freely when idle', async () => {
+    const { appAlert }   = require('@/components/ui/VirraAlert');
+    const { router }     = require('expo-router');
+
+    const { findByText, getByLabelText } = render(<WorkoutPreviewScreen />);
+    await findByText(/lower body/i);
+
+    // Idle: the chevron is a plain back.
+    fireEvent.press(getByLabelText('Close'));
+    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(appAlert).not.toHaveBeenCalled();
+
+    // Mid-workout: the chevron must ask first.
+    fireEvent.press(await findByText(/let's go/i));
+    fireEvent.press(getByLabelText('Close'));
+    expect(router.back).toHaveBeenCalledTimes(1);          // still 1 — nothing discarded yet
+    expect(appAlert).toHaveBeenCalledTimes(1);
+
+    const buttons  = (appAlert as jest.Mock).mock.calls[0][2];
+    const discard  = buttons.find((b: any) => b.style === 'destructive');
+    expect(buttons.some((b: any) => b.style === 'cancel')).toBe(true);
+    discard.onPress();
+    expect(router.back).toHaveBeenCalledTimes(2);
   });
 
   it('finishing writes activity, per-set logs, strength details and marks the session done', async () => {
@@ -142,7 +169,7 @@ describe('WorkoutPreviewScreen — strength logging', () => {
 
     // Complete the first set (fills reps to target) then finish.
     fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));
-    fireEvent.press(getByText('FINISH'));
+    fireEvent.press(getByText('END WORKOUT'));
 
     // RPE sheet
     fireEvent.press(await findByText('SAVE SESSION'));

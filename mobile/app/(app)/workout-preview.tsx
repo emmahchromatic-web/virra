@@ -24,6 +24,7 @@ import { getExerciseMeta } from '@/lib/exerciseLibrary';
 import { getLastLoggedWeights } from '@/lib/strengthHistory';
 import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
 import { parseRestSeconds } from '@/lib/strengthProgramme';
+import { appAlert } from '@/components/ui/VirraAlert';
 import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStructure';
 import { isStrengthV2 } from '@/lib/workoutStructure';
 
@@ -104,7 +105,7 @@ function toLogExercises(structure: AnyStrengthStructure): LogExercise[] {
           tempo:         ex.tempo,
           cues:          [],
           rest_seconds:  parseRestSeconds(ex.rest),
-          rest_label:    ex.rest ? ex.rest.toUpperCase() : '—',
+          rest_label:    ex.rest ? ex.rest.toUpperCase() : '',
           reps_label:    ex.reps ?? '—',
           target_sets:   Array.from({ length: setCount }, () => ({ reps })),
           section:       sec.section,
@@ -402,6 +403,21 @@ export default function WorkoutPreviewScreen() {
     return s.done;
   }
 
+  // The back chevron sits within thumb reach of the set inputs, so an accidental
+  // tap used to drop the whole session. Confirm before leaving a live workout;
+  // outside one it stays a plain back.
+  function handleClose() {
+    if (state !== 'active' && state !== 'paused') { router.back(); return; }
+    appAlert(
+      'Leave this workout?',
+      'Your logged sets will not be saved.',
+      [
+        { text: 'Keep going',       style: 'cancel' },
+        { text: 'Discard workout',  style: 'destructive', onPress: () => router.back() },
+      ],
+    );
+  }
+
   function handleFinishStrength() {
     if (timerRef.current) clearInterval(timerRef.current);
     setRpeOpen(true);
@@ -528,7 +544,7 @@ export default function WorkoutPreviewScreen() {
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
-        <Pressable style={s.headerBtn} onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
+        <Pressable style={s.headerBtn} onPress={handleClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <SymbolView name="chevron.left" size={18} tintColor={colors.muted} />
         </Pressable>
         <VirraText variant="display" size={24} color={colors.pulse}>
@@ -624,7 +640,7 @@ export default function WorkoutPreviewScreen() {
               <VirraText variant="mono" size={14} color={colors.breath}>{formatElapsed(elapsedS)}</VirraText>
             </View>
             <Pressable style={s.finishBtn} onPress={handleFinishStrength} disabled={saving} accessibilityRole="button">
-              <VirraText variant="display" size={13} color={colors.mile} style={{ letterSpacing: 1.5 }}>FINISH</VirraText>
+              <VirraText variant="display" size={13} color={colors.mile} style={{ letterSpacing: 1.5 }}>END WORKOUT</VirraText>
             </Pressable>
           </View>
 
@@ -654,14 +670,19 @@ export default function WorkoutPreviewScreen() {
                     <View style={{ flex: 1 }}>
                       <VirraText variant="display" size={17} color={colors.breath}>{ex.name}</VirraText>
                       <View style={s.exMetaRow}>
+                        <VirraText variant="mono" size={10} color={colors.breath} style={{ letterSpacing: 1 }}>
+                          REPS {ex.reps_label}
+                        </VirraText>
                         {ex.tempo && (
                           <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1 }}>
                             TEMPO {prettyTempo(ex.tempo)}
                           </VirraText>
                         )}
-                        <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
-                          REST {ex.rest_label}
-                        </VirraText>
+                        {ex.rest_label && (
+                          <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
+                            REST {ex.rest_label}
+                          </VirraText>
+                        )}
                       </View>
                     </View>
                     {hasInfo && (
@@ -766,17 +787,21 @@ export default function WorkoutPreviewScreen() {
         <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
           Rate the whole session — 1 is easy, 10 is max effort.
         </VirraText>
-        <View style={s.rpeRow}>
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-            <Pressable
-              key={n}
-              onPress={() => setSessionRpe(n)}
-              style={[s.rpeChip, sessionRpe === n && s.rpeChipSel]}
-              accessibilityRole="button"
-              accessibilityLabel={`RPE ${n}`}
-            >
-              <VirraText variant="mono" size={14} color={sessionRpe === n ? colors.mile : colors.breath}>{n}</VirraText>
-            </Pressable>
+        <View style={s.rpeGrid}>
+          {[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]].map((row, ri) => (
+            <View key={ri} style={s.rpeRow}>
+              {row.map((n) => (
+                <Pressable
+                  key={n}
+                  onPress={() => setSessionRpe(n)}
+                  style={[s.rpeChip, sessionRpe === n && s.rpeChipSel]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`RPE ${n}`}
+                >
+                  <VirraText variant="mono" size={14} color={sessionRpe === n ? colors.mile : colors.breath}>{n}</VirraText>
+                </Pressable>
+              ))}
+            </View>
           ))}
         </View>
         <VirraButton
@@ -833,9 +858,10 @@ const s = StyleSheet.create({
     fontFamily: fonts.mono, fontSize: 15,
   },
   setInputDone: { borderColor: colors.pulse },
-  rpeRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginVertical: spacing.md },
+  rpeGrid:    { gap: spacing.xs, marginVertical: spacing.md },
+  rpeRow:     { flexDirection: 'row', gap: spacing.xs },
   rpeChip: {
-    width: 44, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
+    flex: 1, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border,
   },
   rpeChipSel: { backgroundColor: colors.pulse, borderColor: colors.pulse },
