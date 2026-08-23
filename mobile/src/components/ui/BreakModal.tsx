@@ -14,7 +14,7 @@ import { appAlert } from '@/components/ui/VirraAlert';
 interface Props {
   visible:      boolean;
   userId:       string;
-  initialDate?: string; // ISO — pre-fills break_start (from long-press)
+  initialDate?: string; // ISO; pre-fills break_start (from long-press)
   onClose:      () => void;
   onApplied:    () => void;
 }

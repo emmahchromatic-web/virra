@@ -7,7 +7,7 @@ function hk(): any {
   return NativeModules.AppleHealthKit
 }
 
-// Pure helper — filter SDNN samples to overnight hours (9pm–10am) to exclude
+// Pure helper: filter SDNN samples to overnight hours (9pm–10am) to exclude
 // noisy daytime readings. Uses local hours so it matches the user's sleep schedule.
 export function filterToOvernightHours(
   samples: Array<{ value: number; startDate: string }>,

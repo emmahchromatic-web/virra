@@ -6,7 +6,7 @@ export interface VirraFood {
   id:        string;
   name:      string;
   detail?:   string;
-  // Quantity unit. Omit for foods sold by mass — 'g' is the default everywhere.
+  // Quantity unit. Omit for foods sold by mass; 'g' is the default everywhere.
   // Set 'ml' for anything sold by volume (oils, drinks) so the UI stops calling
   // a pint 500 grams. The numbers are unchanged: 1 ml ≈ 1 g for these.
   unit?:     FoodUnit;
@@ -17,7 +17,7 @@ export interface VirraFood {
   fat_g:     number;
   fibre_g:   number;
   // Strong meal-context bias. Omit for universal ingredients (raw veg, oils,
-  // sugars) that don't favour any particular slot. Used for ordering only —
+  // sugars) that don't favour any particular slot. Used for ordering only
   // missing affinity never hides a food, it just won't get the boost.
   meals?:    MealAffinity[];
 }
@@ -227,7 +227,7 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'maple-syrup-as-packed', name: 'Maple syrup', detail: 'as packed', serving_g: 100, calories: 260, carbs_g: 67, protein_g: 0, fat_g: 0.1, fibre_g: 0 },
   { id: 'golden-syrup-as-packed', name: 'Golden syrup', detail: 'as packed', serving_g: 100, calories: 325, carbs_g: 79, protein_g: 0.4, fat_g: 0, fibre_g: 0 },
 
-  // Extras — not in UK CoFID dataset
+  // Extras: not in UK CoFID dataset
   { id: 'bagel', name: 'bagel', detail: 'plain', serving_g: 100, calories: 250, carbs_g: 50, protein_g: 10, fat_g: 1.6, fibre_g: 2.0, meals: ['breakfast', 'lunch'] },
   { id: 'granola', name: 'Granola', serving_g: 60, calories: 450, carbs_g: 65, protein_g: 10, fat_g: 16, fibre_g: 4.0, meals: ['breakfast', 'snack'] },
   { id: 'edamame', name: 'Edamame', detail: 'shelled', serving_g: 150, calories: 121, carbs_g: 9, protein_g: 12, fat_g: 5, fibre_g: 4.8, meals: ['snack', 'lunch'] },
@@ -240,7 +240,7 @@ export const COMMON_FOODS: VirraFood[] = [
 
 // When `mealType` is provided, items whose `meals` includes that meal float
 // to the top while preserving original order within each group. Items with no
-// meals annotation are treated as universal — they keep their natural rank
+// meals annotation are treated as universal; they keep their natural rank
 // among the non-affinity group. Matching is unaffected by mealType; this is a
 // pure reorder, never a filter.
 export function searchCommonFoods(query: string, mealType?: MealAffinity): VirraFood[] {

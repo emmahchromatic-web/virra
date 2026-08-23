@@ -71,7 +71,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         <TabButton key={route.key} route={route} routeIndex={routeIndex} state={state} navigation={navigation} />
       ))}
 
-      {/* Centre FAB — routes by today's planned session modality */}
+      {/* Centre FAB: routes by today's planned session modality */}
       <View style={styles.fabWrap}>
         <Pressable
           onPress={() => {

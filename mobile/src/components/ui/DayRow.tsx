@@ -10,7 +10,7 @@ interface Props {
   highlighted:  boolean;
   children:     React.ReactNode | React.ReactNode[];
   // top/bottom are relative to the ScrollView's content, not the window.
-  // measureInWindow on a ScrollView child is unreliable on iOS — it returns
+  // measureInWindow on a ScrollView child is unreliable on iOS; it returns
   // (0,0,0,0) until the user scrolls. nativeEvent.layout is always populated.
   onMeasure:    (date: string, top: number, bottom: number) => void;
 }

@@ -77,7 +77,7 @@ export function aggregateHeartRate(
 export const HR_QUERY_TIMEOUT_MS = 5000
 
 // Heart rate for a completed run. Returns nulls whenever HealthKit has nothing
-// to give — no paired watch, read access denied, or samples not yet synced —
+// to give: no paired watch, read access denied, or samples not yet synced
 // so the caller can always write the result straight through.
 export async function fetchRunHeartRate(
   startedAt: Date,

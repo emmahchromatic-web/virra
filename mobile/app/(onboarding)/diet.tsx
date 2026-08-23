@@ -132,7 +132,7 @@ export default function DietScreen() {
     if (data.periodStart) {
       setPeriodStart(data.periodStart);
     }
-    // setCycleProfile must be called first — setHormonalSubData guards on s.cycleProfile === 'hormonal'
+    // setCycleProfile must be called first; setHormonalSubData guards on s.cycleProfile === 'hormonal'
     if (data.cycleProfile === 'hormonal' && data.contraceptionType) {
       setHormonalSubData({
         contraceptionType: data.contraceptionType,

@@ -88,7 +88,7 @@ function buildHKPermissions() {
 }
 
 // Establishes the HK JS↔native bridge for the current session. Safe to call on
-// every app launch — when permissions were already granted iOS does not re-prompt.
+// every app launch: when permissions were already granted iOS does not re-prompt.
 export async function initHealthKitForSession(): Promise<void> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -114,7 +114,7 @@ export async function requestPermission(id: PermissionItem['id']): Promise<void>
     case 'location':
       // When-In-Use only. Combined with UIBackgroundModes: ["location"] in
       // app.json, iOS keeps delivering updates while the app is backgrounded
-      // during an active run — no "Always" permission required.
+      // during an active run; no "Always" permission required.
       await Location.requestForegroundPermissionsAsync();
       break;
     case 'notifications':

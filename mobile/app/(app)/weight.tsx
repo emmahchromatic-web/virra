@@ -82,7 +82,7 @@ export default function WeightScreen() {
 
   // Mirror WeightGlanceCard: a cycling user's weight is read against the
   // phase-shaped expected band, not a flat steady line. This screen used to be
-  // steady-only, so cycle users sat on CALIBRATING forever — the steady
+  // steady-only, so cycle users sat on CALIBRATING forever; the steady
   // baseline is not the one their profile computes.
   // Cycle mode needs a logged period start to place readings in the cycle; with
   // no period start we fall back to the steady view rather than showing nothing.

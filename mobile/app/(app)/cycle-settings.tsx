@@ -114,7 +114,7 @@ export default function CycleSettingsScreen() {
           await logPeriodStartToHealth(periodStart.toISOString().split('T')[0]);
         } catch { /* permission not granted */ }
       }
-      // setCycleProfile must run first — setHormonalSubData guards on s.cycleProfile === 'hormonal'
+      // setCycleProfile must run first; setHormonalSubData guards on s.cycleProfile === 'hormonal'
       if (selectedProfile === 'hormonal' && contraceptionType) {
         store.setHormonalSubData({ contraceptionType, hasPlaceboWeek, currentPackStart });
       }

@@ -52,7 +52,7 @@ export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: 
   const [eventMap, setEventMap] = useState<Record<string, UserEvent[]>>({});
   const todayISO = new Date().toLocaleDateString('en-CA');
 
-  // Match the previous query's filter — exclude dropped/moved sessions from calendar dots.
+  // Match the previous query's filter; exclude dropped/moved sessions from calendar dots.
   const sessionMap = useMemo<Record<string, CalendarSession[]>>(() => {
     const sMap: Record<string, CalendarSession[]> = {};
     for (const [date, rows] of Object.entries(byDate)) {

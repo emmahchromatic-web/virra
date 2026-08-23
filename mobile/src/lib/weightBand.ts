@@ -7,7 +7,7 @@ export interface WeightBand {
 
 // Population fallback, used only until a user has enough of their own readings
 // in a phase to learn a personal band (see buildPhaseBands). These are generic
-// averages; real women vary enormously (many have almost no luteal water rise),
+// averages: real women vary enormously (many have almost no luteal water rise),
 // which is why we personalise as soon as the data allows.
 export const EXPECTED_BAND: Record<CyclePhase, WeightBand> = {
   menstrual:  { lower: -0.3, upper: 0.6 },
@@ -21,7 +21,7 @@ export const EXPECTED_BAND: Record<CyclePhase, WeightBand> = {
 export type PhaseBands = Partial<Record<CyclePhase, WeightBand>>;
 
 // Personalisation tuning.
-const MIN_SAMPLES    = 4;   // per phase — below this, keep the population band
+const MIN_SAMPLES    = 4;   // per phase; below this, keep the population band
 const NOISE_PAD      = 0.2; // kg cushion beyond the observed range for daily noise
 const MIN_HALF_WIDTH = 0.5; // band is never tighter than ±0.5 kg around the median
 

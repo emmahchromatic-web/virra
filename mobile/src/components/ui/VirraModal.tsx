@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     alignItems:        'stretch',  // children fill horizontally
     justifyContent:    'center',
     // Pages pad cards by spacing.lg (24pt). Modals sit 2pt further inset on
-    // each side — 4pt narrower than the standard card overall — so the
+    // each side: 4pt narrower than the standard card overall, so the
     // hierarchy reads as distinct without losing meaningful content width.
     paddingHorizontal: spacing.lg + 2,
     position:          'relative',

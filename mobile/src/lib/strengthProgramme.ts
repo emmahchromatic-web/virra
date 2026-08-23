@@ -24,7 +24,7 @@ export function parseRestSeconds(rest: string | null): number {
   return sec ? parseInt(sec[1], 10) : 0;
 }
 
-/** Rough minutes for a session — set volume plus rest, rounded like v1. */
+/** Rough minutes for a session; set volume plus rest, rounded like v1. */
 export function estimateProgrammeMinutes(sections: StrengthV2Section[]): number {
   const total = sections.reduce((acc, sec) => {
     return acc + sec.exercises.reduce((exAcc, ex) => {
@@ -74,7 +74,7 @@ export function buildProgrammeStructure(
 
 /**
  * Deload modulation for users who do NOT track a cycle (weeks 4, 8, 12).
- * Pure — returns a new structure, never mutates the input:
+ * Pure: returns a new structure, never mutates the input:
  *   - strength + power lifts drop to at most 2 sets (~60% load is coaching, not
  *     a structural change, and is carried in the surfaced deload_note),
  *   - the Power & Core section is halved (plyo / power volume cut),
@@ -87,7 +87,7 @@ export function applyDeloadModulation(
 ): StrengthWorkoutStructureV2 {
   const sections: StrengthV2Section[] = structure.sections.map((sec) => {
     if (sec.section === 'power_core') {
-      // Halve the power volume — keep the first half of the movements.
+      // Halve the power volume; keep the first half of the movements.
       const kept = sec.exercises.slice(0, Math.max(1, Math.ceil(sec.exercises.length / 2)));
       return {
         ...sec,

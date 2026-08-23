@@ -70,7 +70,7 @@ export function useFitnessUpdate(userId: string | null) {
     setStatedLevel(profileRes.data?.fitness_level ?? null);
 
     // Step 2: fetch activities (with run_details) for the session ids we just found.
-    // PostgREST returns run_details as an array even for a 1:1 relation — see insightMetrics.ts:239.
+    // PostgREST returns run_details as an array even for a 1:1 relation; see insightMetrics.ts:239.
     const sessionRows = sessRes.data ?? [];
     const sessionIds = sessionRows.map((r: any) => r.id as string).filter(Boolean);
 

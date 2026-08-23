@@ -1,7 +1,7 @@
 /**
  * Foods are logged as a number plus a unit. The number is unchanged by this
- * module — for the drinks people log, 1 ml is close enough to 1 g that the
- * macros work out either way — but showing "500 g" for a pint is wrong, so the
+ * module: for the drinks people log, 1 ml is close enough to 1 g that the
+ * macros work out either way, but showing "500 g" for a pint is wrong, so the
  * unit travels with the food and with the logged entry.
  */
 export type FoodUnit = 'g' | 'ml';
@@ -14,7 +14,7 @@ export const DEFAULT_FOOD_UNIT: FoodUnit = 'g';
  * and are consulted first.
  *
  * Deliberately conservative. A false 'ml' on a solid is more jarring than a
- * false 'g' on a liquid, which is the status quo — so anything ambiguous
+ * false 'g' on a liquid, which is the status quo, so anything ambiguous
  * (soup, yoghurt drinks, ice cream) is left out and stays in grams.
  */
 /**
@@ -73,7 +73,7 @@ export function toFoodUnit(value: unknown): FoodUnit {
 }
 
 /**
- * The unit for a catalogue food. A missing `unit` means grams — the catalogue
+ * The unit for a catalogue food. A missing `unit` means grams; the catalogue
  * is complete, so this must NOT fall through to the name heuristic. "Tuna,
  * canned in oil" is grams and only the catalogue knows that for certain.
  */

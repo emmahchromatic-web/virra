@@ -1,7 +1,7 @@
 import type { Modality } from './dayState';
 
 // Single source of truth for per-label session durations (minutes).
-// volumePlan.ts imports this; the matcher derives duration targets from it.
+// volumePlan.ts imports this: the matcher derives duration targets from it.
 export const SESSION_DURATION_MIN: Record<string, number> = {
   lower:   45,
   upper:   40,

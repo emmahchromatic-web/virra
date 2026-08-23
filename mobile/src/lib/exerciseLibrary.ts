@@ -6,7 +6,7 @@ export interface ExerciseDefinition {
   // Short how-to, 1–2 sentences.
   description:    string;
   // Eccentric-pause-concentric seconds, e.g. "3-1-1"; "explosive" for power
-  // lifts; "hold" for isometrics.
+  // lifts: "hold" for isometrics.
   tempo:          string;
   // 2–3 short form cues.
   cues:           string[];

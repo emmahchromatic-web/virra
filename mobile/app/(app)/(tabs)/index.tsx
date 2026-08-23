@@ -78,7 +78,7 @@ export default function DashboardScreen() {
       setExerciseMins(e);
     });
 
-    // Capture freshly-fetched load into a local const — do NOT read inferredLoad state here
+    // Capture freshly-fetched load into a local const; do NOT read inferredLoad state here
     let resolvedLoad: TrainingLoad = 'easy';
     try {
       const ctx = await getDailyTrainingContext(session.user.id, today, cycleInfo?.phase ?? null);
@@ -160,7 +160,7 @@ export default function DashboardScreen() {
           </VirraText>
         )}
 
-        {/* 2. Phase hero — inline fallback while cycle data loads or isn't set */}
+        {/* 2. Phase hero: inline fallback while cycle data loads or isn't set */}
         {cycleInfo && meta ? (
           <Pressable onPress={() => router.push('/(app)/cycle-detail' as any)} accessibilityRole="button">
             <VirraCard style={styles.phaseCard}>

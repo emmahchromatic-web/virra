@@ -67,7 +67,7 @@ export function getNutritionTargets(phase: CyclePhase | null, load: TrainingLoad
 // floor that protects hormonal health; fibre scales with total intake.
 //
 // The constants are calibrated so the reference athlete (60kg / 165cm / 30yo)
-// reproduces the legacy table's calories and macros closely — see the tests.
+// reproduces the legacy table's calories and macros closely; see the tests.
 
 export interface PersonalMetrics {
   weightKg: number;
@@ -92,7 +92,7 @@ const PHASE_ENERGY: Record<CyclePhase, number> = {
   luteal:     1.05,
 };
 
-// Protein grams per kg bodyweight — repair demand climbs with training load.
+// Protein grams per kg bodyweight; repair demand climbs with training load.
 const LOAD_PROTEIN_PER_KG: Record<TrainingLoad, number> = {
   rest:     1.75,
   easy:     2.00,
@@ -100,7 +100,7 @@ const LOAD_PROTEIN_PER_KG: Record<TrainingLoad, number> = {
   hard:     2.45,
 };
 
-// Carbohydrate grams per kg bodyweight — the primary training fuel.
+// Carbohydrate grams per kg bodyweight; the primary training fuel.
 const LOAD_CARB_PER_KG: Record<TrainingLoad, number> = {
   rest:     3.20,
   easy:     3.75,
@@ -108,8 +108,8 @@ const LOAD_CARB_PER_KG: Record<TrainingLoad, number> = {
   hard:     5.10,
 };
 
-// Carb phase factor — glycogen access is impaired in the luteal phase, so carbs
-// go highest there; follicular/ovulatory sit near baseline.
+// Carb phase factor: glycogen access is impaired in the luteal phase, so carbs
+// go highest there: follicular/ovulatory sit near baseline.
 const PHASE_CARB: Record<CyclePhase, number> = {
   menstrual:  0.97,
   follicular: 1.00,
@@ -117,7 +117,7 @@ const PHASE_CARB: Record<CyclePhase, number> = {
   luteal:     1.10,
 };
 
-// Protein phase factor — luteal protein catabolism rises, so nudge protein up.
+// Protein phase factor: luteal protein catabolism rises, so nudge protein up.
 const PHASE_PROTEIN: Record<CyclePhase, number> = {
   menstrual:  1.00,
   follicular: 1.02,
@@ -125,14 +125,14 @@ const PHASE_PROTEIN: Record<CyclePhase, number> = {
   luteal:     1.05,
 };
 
-// Fat never drops below this (g/kg) — guards against low energy availability,
+// Fat never drops below this (g/kg); guards against low energy availability,
 // which disrupts menstrual and bone health in female athletes.
 const FAT_FLOOR_PER_KG = 0.9;
 
 // Fibre tracks intake at ~14g per 1000 kcal (standard dietary guidance).
 const FIBRE_PER_1000_KCAL = 14;
 
-// Defensive input bounds — clamp so a stray onboarding value can't produce a
+// Defensive input bounds: clamp so a stray onboarding value can't produce a
 // nonsensical target. These are generous physiological limits, not validation.
 const WEIGHT_KG_RANGE = { min: 35, max: 200 } as const;
 const HEIGHT_CM_RANGE = { min: 120, max: 220 } as const;
@@ -206,7 +206,7 @@ export function isPersonalised(metrics: Partial<PersonalMetrics> | null | undefi
 
 /**
  * Build metrics from raw profile fields. Returns null unless weight, height and
- * a birth date are all present — the resolver then falls back to the table.
+ * a birth date are all present; the resolver then falls back to the table.
  * `today` is injectable for deterministic tests.
  */
 export function buildPersonalMetrics(

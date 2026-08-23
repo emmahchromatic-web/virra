@@ -86,7 +86,7 @@ export interface ProgrammeContext {
   /** All days × all blocks, keyed `${dayIndex}:${block}` (loadProgrammeSessions). */
   sessions:        Map<string, AuthoredSectionGroup[]>;
   focusToDayIndex: Record<string, number>;
-  /** True when the user does NOT track a cycle — enables the week 4/8/12 deload. */
+  /** True when the user does NOT track a cycle; enables the week 4/8/12 deload. */
   applyDeload:     boolean;
   deloadNote:      string | null;
 }
@@ -421,7 +421,7 @@ export async function applyBreak(
       if (dropErr) throw new Error(`[scheduleGenerator] applyBreak drop: ${dropErr.message}`);
     }
 
-    // Shift sessions after break window (reschedule mode) — latest-first to avoid unique clashes
+    // Shift sessions after break window (reschedule mode); latest-first to avoid unique clashes
     if (mode === 'reschedule' && shiftDays > 0) {
       const sessionsToShift = (sessions ?? []).filter((s) => toShiftIds.includes(s.id));
       for (const s of sessionsToShift) {
@@ -450,7 +450,7 @@ export async function applyBreak(
     }
   }
 
-  // Always record the break — even with no blocks affected
+  // Always record the break; even with no blocks affected
   const { error: insertErr } = await supabase.from('training_breaks').insert({
     user_id:     userId,
     break_start: breakStart,

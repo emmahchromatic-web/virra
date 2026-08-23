@@ -23,7 +23,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Sign out on THIS device. supabase-js only clears its persisted token when
     // the server revoke request succeeds (or returns 401/403/404); a network
     // error, timeout or 5xx makes it skip the local cleanup and leave the token
-    // in AsyncStorage — so the next launch reads it back and silently signs the
+    // in AsyncStorage: so the next launch reads it back and silently signs the
     // user in again. Attempt the (local-scope) revoke, then sweep any residual
     // Supabase auth token ourselves so sign-out can't be undone by a flaky
     // network.
@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       const authKeys = keys.filter((k) => k.startsWith('sb-') && k.includes('-auth-token'));
       if (authKeys.length) await AsyncStorage.multiRemove(authKeys);
     } catch {
-      // Best effort — the in-memory clear below still logs the user out for
+      // Best effort: the in-memory clear below still logs the user out for
       // this session even if storage can't be touched.
     }
     // Drop this user's cached data so the next account on this device starts

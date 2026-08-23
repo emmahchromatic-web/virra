@@ -11,7 +11,7 @@ import type { WorkoutPreference } from '@/store/profile';
  * programme, day, equipment variant, and 12-week block.
  *
  * The cycle-aware layer (light load/RPE nudging, and cycle-driven deload timing
- * for users who track a cycle) is applied on TOP of this by the caller — this
+ * for users who track a cycle) is applied on TOP of this by the caller; this
  * module just returns the authored prescription verbatim.
  */
 
@@ -88,7 +88,7 @@ type Row = {
   tempo:    string | null;
   rest:     string | null;
   // supabase returns the joined row as an object (or array, depending on the
-  // relationship inference); normalise both.
+  // relationship inference): normalise both.
   exercises: { name: string; description: string | null }
            | { name: string; description: string | null }[]
            | null;
@@ -175,7 +175,7 @@ function dayIndexOf(programmeDayId: string): number | null {
 /**
  * Pre-fetch EVERY authored session for a programme + equipment variant in one
  * query (all days × all three 12-week blocks), keyed `${dayIndex}:${block}`.
- * Called once at enrol time so `generateSchedule` can stay synchronous — it
+ * Called once at enrol time so `generateSchedule` can stay synchronous; it
  * just reads the map instead of awaiting a query per session.
  */
 export async function loadProgrammeSessions(

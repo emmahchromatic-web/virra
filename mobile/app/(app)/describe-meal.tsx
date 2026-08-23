@@ -43,7 +43,7 @@ function confidenceColor(c: number): string {
 
 // supabase-js wraps non-2xx responses in FunctionsHttpError with the raw Response
 // on `error.context`. Our edge function returns `{ error: "<copy>" }` for known
-// failure modes (rate limit, bad request, etc.) — surface that string rather than
+// failure modes (rate limit, bad request, etc.); surface that string rather than
 // the SDK's generic "Failed to send a request to the Edge Function".
 async function extractEdgeError(error: unknown): Promise<string> {
   const ctx = (error as { context?: Response | undefined })?.context;
@@ -76,7 +76,7 @@ function ItemRow({
   onChange: (next: EstimateItem) => void;
   onDelete: () => void;
 }) {
-  // Track each numeric field as a string so the user can clear/edit freely;
+  // Track each numeric field as a string so the user can clear/edit freely
   // on blur we coerce back to numbers.
   const [draft, setDraft] = useState({
     food_name:  item.food_name,
@@ -217,13 +217,13 @@ export default function DescribeMealScreen() {
     setEstimating(true);
     try {
       const { data, error } = await supabase.functions.invoke<EstimateResponse>('estimate-meal', {
-        // Re-estimate path bypasses cache — otherwise an unchanged description would
+        // Re-estimate path bypasses cache, otherwise an unchanged description would
         // return identical numbers, which defeats the "look at this with fresh eyes" intent.
         body: { description: trimmed, force_refresh: isReplaceMode },
       });
       if (error) {
         // supabase-js's error.message is unhelpful ("Failed to send a request to the Edge Function").
-        // For HTTP error responses the JSON body is on error.context — pull out our own copy if present.
+        // For HTTP error responses the JSON body is on error.context; pull out our own copy if present.
         const friendly = await extractEdgeError(error);
         appAlert('Couldn\'t estimate this', friendly);
         return;
@@ -253,8 +253,8 @@ export default function DescribeMealScreen() {
     const haikuInput = description.trim();
 
     // Replace mode: wipe the prior rows from this same description on this log
-    // before inserting the new estimate. A failed delete is non-fatal — we
-    // continue to insert; user can hand-delete duplicates if it matters.
+    // before inserting the new estimate. A failed delete is non-fatal; we
+    // continue to insert: user can hand-delete duplicates if it matters.
     if (isReplaceMode && replaceHaikuInput) {
       const { error: delErr } = await supabase
         .from('food_entries')

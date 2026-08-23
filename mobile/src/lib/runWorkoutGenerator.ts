@@ -249,6 +249,6 @@ export function generateRunStructure(input: GenerateRunInput): RunWorkoutStructu
     };
   }
 
-  // Unreachable — all RunWorkoutType cases handled above.
+  // Unreachable: all RunWorkoutType cases handled above.
   throw new Error(`generateRunStructure: unhandled workout_type ${type}`);
 }

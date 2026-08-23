@@ -16,10 +16,10 @@ function parseFiveKToPaceSecPerKm(fiveKTime: string): number | null {
  * Finalises onboarding: uploads the chosen avatar, writes the profile row
  * (marking onboarding_complete), records the initial fitness assessment and
  * cycle log, and hydrates the cycle store. Previously lived in the dietary
- * step's handleContinue; extracted so it can run from the last data-collection
+ * step's handleContinue: extracted so it can run from the last data-collection
  * step (cycle) now that the dietary step is gone.
  *
- * Pass the fully-merged onboarding data explicitly — do NOT rely on context
+ * Pass the fully-merged onboarding data explicitly; do NOT rely on context
  * state set in the same handler, which hasn't committed yet.
  */
 export async function completeOnboarding(
@@ -49,7 +49,7 @@ export async function completeOnboarding(
     }
   }
 
-  // dietary_prefs is intentionally omitted — the dietary step was removed until
+  // dietary_prefs is intentionally omitted; the dietary step was removed until
   // meal-planning ships. The column keeps its default '{}' so it can be
   // repopulated when that feature returns.
   const { error: profileError } = await supabase.from('user_profiles').upsert({
@@ -95,7 +95,7 @@ export async function completeOnboarding(
   if (data.periodStart) {
     setPeriodStart(data.periodStart);
   }
-  // setCycleProfile must be called first — setHormonalSubData guards on
+  // setCycleProfile must be called first; setHormonalSubData guards on
   // s.cycleProfile === 'hormonal'
   if (data.cycleProfile === 'hormonal' && data.contraceptionType) {
     setHormonalSubData({

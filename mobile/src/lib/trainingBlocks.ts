@@ -14,7 +14,7 @@ const PHASE_MULTIPLIER: Record<string, number> = {
 };
 
 const MAX_TOTAL_LOAD = 1.8; // ceiling for combined block load (relative to one full plan)
-const MIN_RUN_LOAD   = 0.5; // run block never drops below 50% — plan remains meaningful
+const MIN_RUN_LOAD   = 0.5; // run block never drops below 50%; plan remains meaningful
 
 export type BlockModality = 'run' | 'strength' | 'swim' | 'yoga' | 'other';
 
@@ -35,7 +35,7 @@ export interface ComputedBlock extends TrainingBlock {
   effective_load: number;
 }
 
-// Pure function — run blocks scale down when supplement load fills the cycle-phase capacity.
+// Pure function: run blocks scale down when supplement load fills the cycle-phase capacity.
 // Supplement blocks (non-run) are never scaled; they represent fixed commitments.
 export function computeBlockLoad(
   blocks: Array<{ modality: string; load_modifier: number }>,
@@ -79,7 +79,7 @@ export async function getActiveBlocks(userId: string): Promise<TrainingBlock[]> 
 }
 
 // Adding a primary block closes all existing primary blocks (ends_on = today).
-// Supplementary blocks (is_primary=false) are additive — any number can coexist.
+// Supplementary blocks (is_primary=false) are additive; any number can coexist.
 export async function addBlock(
   userId: string,
   opts: {
@@ -191,7 +191,7 @@ export async function removeBlock(blockId: string): Promise<void> {
  * Soft-drop a training block:
  *   1. Sets ends_on to yesterday so getActiveBlocks (filter:
  *      ends_on.is.null OR ends_on.gte.today) excludes it immediately.
- *   2. Drops every future planned session belonging to this block —
+ *   2. Drops every future planned session belonging to this block
  *      status='planned' rows with scheduled_date >= today flip to 'dropped'.
  *      Completed and past sessions are left untouched (history preserved).
  */

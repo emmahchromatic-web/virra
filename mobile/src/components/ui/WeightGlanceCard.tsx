@@ -14,7 +14,7 @@ import type { CyclePhase } from '@/lib/cycleEngine';
 
 interface Props {
   latestKg: number | null;
-  /** Optional tap handler — when provided the whole card becomes pressable
+  /** Optional tap handler, when provided the whole card becomes pressable
    *  (e.g. for dashboard glance-card use). Omit on detail screens. */
   onPress?: () => void;
 }

@@ -47,7 +47,7 @@ export function inferLoadFromLabel(label: string, modality: string): TrainingLoa
   return LABEL_TO_LOAD[key] ?? 'easy';
 }
 
-// Shared gym phase algorithm — used by plan detail UI and nutrition context
+// Shared gym phase algorithm; used by plan detail UI and nutrition context
 export function gymWeekPhase(weekIndex: number, totalWeeks: number): string {
   const w = weekIndex + 1; // 1-indexed
   if (totalWeeks >= 20) {

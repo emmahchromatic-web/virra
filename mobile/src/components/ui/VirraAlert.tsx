@@ -43,7 +43,7 @@ const useAlertStore = create<AlertState>((set) => ({
 
 /**
  * Themed, imperative replacement for React Native's Alert.alert. Same call
- * shape — appAlert(title, message?, buttons?) — so swapping call sites is
+ * shape: appAlert(title, message?, buttons?), so swapping call sites is
  * mechanical, but it renders as an on-brand VirraModal instead of the OS
  * dialog. Callable from anywhere (event handlers, async catch blocks), not
  * just inside render. Falls back to a single OK button when none are given.

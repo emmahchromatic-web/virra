@@ -33,7 +33,7 @@ export function ActivityRing({ value, max, color, size = 56, label, valueText }:
           strokeWidth={stroke}
           fill="none"
         />
-        {/* Progress arc — rotated -90° about the center so 0% sits at 12 o'clock */}
+        {/* Progress arc: rotated -90° about the center so 0% sits at 12 o'clock */}
         <G transform={`rotate(-90, ${center}, ${center})`}>
           <Circle
             cx={center}

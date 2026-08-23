@@ -5,7 +5,7 @@ import { VirraText } from './VirraText';
 
 interface Props {
   children: string;
-  /** primary = pulse (default — card / section headers).
+  /** primary = pulse (default; card / section headers).
    *  muted   = subdued grey (paired with a status pill, or row-level labels). */
   tone?:    'primary' | 'muted';
   /** Override the default color (e.g. phase-tinted section headers on
@@ -23,7 +23,7 @@ interface Props {
 // is *also* the primary body text colour. So whenever a caller threads a
 // phase color into a kicker (e.g. CoachingCard, Insights phase sections,
 // Dashboard guidance), luteal would collapse the kicker into the surrounding
-// paragraph — the whole hierarchy disappears. Fall back to pulse in that
+// paragraph: the whole hierarchy disappears. Fall back to pulse in that
 // case so the kicker always reads as a kicker, regardless of which phase the
 // user happens to be in.
 export function SectionLabel({ children, tone = 'primary', color, style }: Props) {

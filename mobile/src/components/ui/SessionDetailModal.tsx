@@ -143,7 +143,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
     const isRun = s.kind === 'run';
     const r     = s as RunSessionDetail;
 
-    // Cycle modulation helpers — read-only, no recomputation
+    // Cycle modulation helpers: read-only, no recomputation
     const mod            = s.cycle_modulation;
     const hasWhyCard     = !!mod?.reason;
     const adjustedPaceSecs = isRun && hasWhyCard
@@ -363,7 +363,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
         </VirraText>
       )}
 
-      {/* Deficit coaching message — editorial tone */}
+      {/* Deficit coaching message: editorial tone */}
       {!loading && detail?.volume_plan.deficit_message && (
         <VirraText
           variant="serif"

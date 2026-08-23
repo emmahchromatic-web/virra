@@ -31,7 +31,7 @@ export default function SignUpScreen() {
 
   // Attempt to pick up the session created by confirming the email. Silent runs
   // (app returning to the foreground) leave the UI alone when it hasn't happened
-  // yet; explicit runs (button press) always report back.
+  // yet: explicit runs (button press) always report back.
   async function checkConfirmed(silent: boolean) {
     if (!email || !password) return;
     if (!silent) {

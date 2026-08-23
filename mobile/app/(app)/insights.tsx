@@ -28,7 +28,7 @@ const PHASE_COLOR: Record<string, string> = {
 function MetricTile({
   label, value, unit, sub,
 }: { label: string; value: string; unit?: string; sub?: string }) {
-  // Always render the sub slot — empty tiles use a non-breaking space so every
+  // Always render the sub slot; empty tiles use a non-breaking space so every
   // tile in a row has the same baseline height and the row aligns cleanly.
   return (
     <View style={tile.wrap}>
@@ -193,7 +193,7 @@ export default function InsightsScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* THIS WEEK — Haiku narrative */}
+        {/* THIS WEEK: Haiku narrative */}
         <VirraCard style={styles.narrativeCard}>
           <SectionLabel style={styles.sectionLabel}>THIS WEEK</SectionLabel>
           {loadingNarrative && !overallText ? (
@@ -327,7 +327,7 @@ export default function InsightsScreen() {
           </VirraCard>
         )}
 
-        {/* Recovery — symptom trend */}
+        {/* Recovery: symptom trend */}
         {metrics?.symptomTrend && (
           <VirraCard style={{ gap: spacing.sm }}>
             <SectionLabel style={styles.sectionLabel}>RECOVERY</SectionLabel>
@@ -350,7 +350,7 @@ export default function InsightsScreen() {
           </VirraCard>
         )}
 
-        {/* Upcoming — sessions + events */}
+        {/* Upcoming: sessions + events */}
         <VirraCard style={{ gap: spacing.sm }}>
           <View style={styles.upcomingHeader}>
             <SectionLabel style={styles.sectionLabel}>UPCOMING 14 DAYS</SectionLabel>
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
   pacePhaseLabel:  { flex: 1 },
   paceCount:       { minWidth: 44, textAlign: 'right' },
   symptomRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  // Fixed-width label column so every bar starts at the same x — keeps the
+  // Fixed-width label column so every bar starts at the same x; keeps the
   // three bars equal in length. Wide enough for the longest mono label
   // ("ENERGY") at size 11 with letterSpacing 1.
   symptomLabel:    { width: 56, letterSpacing: 1 },

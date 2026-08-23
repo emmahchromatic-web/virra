@@ -24,7 +24,7 @@ export interface HydrateOutput extends HydrateInput {
 }
 
 /**
- * Generate workout structure for rows that are missing it. Pure function —
+ * Generate workout structure for rows that are missing it. Pure function
  * returns new rows with `__hydrated: true` on those that were filled in.
  * Rows that already have structure are passed through unchanged.
  *
@@ -61,7 +61,7 @@ export function hydratePlannedSessionStructures(
 
 /**
  * Recover an authored v2 structure for a programme session that was saved
- * without one (a rare backfill — enrol-time normally populates it). We only
+ * without one (a rare backfill; enrol-time normally populates it). We only
  * have block_id + session_label + week_number, so join
  * block → training_blocks.template_id → plan_templates.programme_id, then read
  * the authored session for that focus + equipment variant + 12-week block.
@@ -118,7 +118,7 @@ export async function recoverProgrammeStructure(
 }
 
 /**
- * Persist hydrated rows back to Supabase. Fire-and-forget — callers should
+ * Persist hydrated rows back to Supabase. Fire-and-forget; callers should
  * not block UI rendering on this. Failures are logged, not thrown.
  */
 export async function persistHydratedRows(

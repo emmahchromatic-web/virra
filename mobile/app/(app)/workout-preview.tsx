@@ -70,7 +70,7 @@ interface LoggedSet {
   done:       boolean;
 }
 
-// Normalised, render-ready view of one exercise — flattens both v1 (generated,
+// Normalised, render-ready view of one exercise; flattens both v1 (generated,
 // tempo/description via getExerciseMeta) and v2 (authored, tempo/description
 // persisted in the structure) into a single shape the logger works on.
 interface LogExercise {
@@ -177,7 +177,7 @@ function prettyTempo(tempo: string): string {
   return /^[0-9-]+$/.test(tempo) ? tempo.replace(/-/g, '·') : tempo.toUpperCase();
 }
 
-// The 4-part authored tempo means lower · pause(bottom) · lift · pause(top);
+// The 4-part authored tempo means lower · pause(bottom) · lift · pause(top)
 // the legacy 3-part library tempo omits the top pause.
 function tempoGloss(tempo: string): string {
   if (!/^[0-9-]+$/.test(tempo)) return '';
@@ -277,7 +277,7 @@ export default function WorkoutPreviewScreen() {
   useEffect(() => {
     if (!sessionId) { setState('idle'); return; }
     // NOTE: cycle_reason_short / cycle_adjusted_pace_secs are computed at
-    // runtime (see todaysSession.ts) and are NOT columns on planned_sessions —
+    // runtime (see todaysSession.ts) and are NOT columns on planned_sessions
     // selecting them made this query error out, leaving every non-run session
     // stuck on the generic timer with no exercises.
     supabase
@@ -293,7 +293,7 @@ export default function WorkoutPreviewScreen() {
             cycle_adjusted_pace_secs: null,
           };
           // Recover strength sessions saved without a structure. Prefer the
-          // authored Get Strong session (join block → template → programme_id);
+          // authored Get Strong session (join block → template → programme_id)
           // fall back to on-the-fly generation so a bare timer never shows.
           if (row.modality === 'strength' && !row.strength_structure) {
             let recovered: AnyStrengthStructure | null = null;
@@ -433,14 +433,14 @@ export default function WorkoutPreviewScreen() {
   }
 
   // A set is logged once the user checks it off. (We no longer treat a filled
-  // field as "logged" because weights are now pre-populated from last session —
+  // field as "logged" because weights are now pre-populated from last session
   // an untouched pre-filled set shouldn't be recorded as done.)
   function isSetLogged(s: LoggedSet): boolean {
     return s.done;
   }
 
   // The back chevron sits within thumb reach of the set inputs, so an accidental
-  // tap used to drop the whole session. Confirm before leaving a live workout;
+  // tap used to drop the whole session. Confirm before leaving a live workout
   // outside one it stays a plain back.
   function handleClose() {
     if (state !== 'active' && state !== 'paused') { router.back(); return; }
@@ -468,7 +468,7 @@ export default function WorkoutPreviewScreen() {
     const endDate   = new Date().toISOString();
     const phaseAtTime = cycleInfo?.phase ?? null;
 
-    // HealthKit — fire and forget
+    // HealthKit: fire and forget
     const HK = NativeModules.AppleHealthKit;
     if (HK?.saveWorkout) {
       HK.saveWorkout(
@@ -499,7 +499,7 @@ export default function WorkoutPreviewScreen() {
     }
 
     // Strength: persist per-set logs (relational) + the strength sidecar
-    // (roll-up blob + session RPE). Best-effort — a logging failure must not
+    // (roll-up blob + session RPE). Best-effort; a logging failure must not
     // block completing the session.
     const structure = sessionData?.strength_structure;
     if (structure && modality === 'strength') {
