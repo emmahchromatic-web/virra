@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, Pressable, Alert, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import {
+  View, StyleSheet, SafeAreaView, Pressable, NativeScrollEvent, NativeSyntheticEvent,
+} from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
@@ -11,6 +13,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { DayRow } from '@/components/ui/DayRow';
 import { DraggableSessionCard, CompletedSessionCard, SessionCardGhost, hapticImpact, type DraggableSession } from '@/components/ui/DraggableSessionCard';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 interface PlannedRow {
   id:                 string;
@@ -158,7 +161,7 @@ export default function WeekMoveScreen() {
     try {
       await fn();
     } catch (e: any) {
-      Alert.alert('Could not move session', e?.message ?? 'Unknown error');
+      appAlert('Could not move session', e?.message ?? 'Unknown error');
     } finally {
       setBusy(false);
     }
@@ -185,7 +188,7 @@ export default function WeekMoveScreen() {
       const heavyDays = Object.keys(groups).filter((d) => groups[d].length > 2);
       const first = fullDayLabel(heavyDays[0]);
       const tail  = heavyDays.length > 1 ? ` and ${heavyDays.length - 1} other day${heavyDays.length > 2 ? 's' : ''}` : '';
-      Alert.alert(
+      appAlert(
         'Heavy day ahead',
         `${first}${tail} has ${groups[heavyDays[0]].length} sessions. Keep this layout?`,
         [

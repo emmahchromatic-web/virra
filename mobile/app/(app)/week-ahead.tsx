@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  View, Pressable, StyleSheet, SafeAreaView, Alert,
-} from 'react-native';
+import { View, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCycleStore } from '@/store/cycle';
@@ -16,6 +14,7 @@ import type { CyclePhase } from '@/lib/cycleEngine';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const MODALITY_ICON: Record<string, React.ComponentProps<typeof SymbolView>['name']> = {
   run:      'figure.run',
@@ -154,7 +153,7 @@ export default function WeekAheadScreen() {
   async function handleDrop(sessionId: string) {
     setBusy(sessionId);
     try { await useSessionStore.getState().dropSession(sessionId); }
-    catch (e: any) { Alert.alert('Could not drop session', e.message); }
+    catch (e: any) { appAlert('Could not drop session', e.message); }
     finally { setBusy(null); }
   }
 
@@ -164,7 +163,7 @@ export default function WeekAheadScreen() {
       const d = new Date(`${currentDate}T00:00:00`);
       d.setDate(d.getDate() + 7);
       await useSessionStore.getState().moveSession(sessionId, d.toLocaleDateString('en-CA'));
-    } catch (e: any) { Alert.alert('Could not defer session', e.message); }
+    } catch (e: any) { appAlert('Could not defer session', e.message); }
     finally { setBusy(null); }
   }
 

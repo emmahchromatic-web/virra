@@ -1,6 +1,6 @@
 // mobile/app/(onboarding)/diet.tsx
 import React, { useState } from 'react';
-import { View, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
 import { colors, spacing, radius } from '@/constants/theme';
@@ -10,6 +10,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { useCycleStore } from '@/store/cycle';
 import { useAuthStore } from '@/store/auth';
 import { supabase } from '@/lib/supabase';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 type DietaryPref = 'vegan' | 'vegetarian' | 'gluten-free' | 'dairy-free' | 'nut-free' | 'halal';
 
@@ -51,7 +52,7 @@ export default function DietScreen() {
     // No session means nothing can be written. Say so instead of leaving the
     // user pressing a button that silently does nothing.
     if (!session) {
-      Alert.alert(
+      appAlert(
         'You are not signed in',
         'We could not save your profile because your session has expired. Sign in again and we will pick up from here.',
         [{ text: 'Sign in', onPress: () => router.replace('/(auth)/sign-in') }],
@@ -101,7 +102,7 @@ export default function DietScreen() {
     });
 
     if (profileError) {
-      Alert.alert('Something went wrong', profileError.message);
+      appAlert('Something went wrong', profileError.message);
       setSaving(false);
       return;
     }

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
-  View, TextInput, Pressable, ScrollView, StyleSheet, SafeAreaView,
-  Alert, KeyboardAvoidingView, Platform,
+  View, TextInput, Pressable, ScrollView, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -16,6 +15,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
 import type { SessionType, StrengthExercise } from '@/lib/strengthTypes';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 
@@ -133,7 +133,7 @@ export default function ManualActivityScreen() {
 
   function addExercise() {
     if (!exName.trim()) {
-      Alert.alert('Enter exercise name');
+      appAlert('Enter exercise name');
       return;
     }
     const validSets = exSets
@@ -143,7 +143,7 @@ export default function ManualActivityScreen() {
         weight_kg: parseFloat(s.weight),
       }));
     if (validSets.length === 0) {
-      Alert.alert('Add at least one complete set (reps + weight)');
+      appAlert('Add at least one complete set (reps + weight)');
       return;
     }
     setExercises((prev) => [...prev, { name: exName.trim(), sets: validSets }]);
@@ -182,7 +182,7 @@ export default function ManualActivityScreen() {
       .single();
 
     if (error) {
-      Alert.alert('Could not save activity', error.message);
+      appAlert('Could not save activity', error.message);
       setSaving(false);
       return;
     }
@@ -203,7 +203,7 @@ export default function ManualActivityScreen() {
         exercises_json: exercises,
       });
       if (detailError) {
-        Alert.alert('Activity saved, but exercises could not be recorded', detailError.message);
+        appAlert('Activity saved, but exercises could not be recorded', detailError.message);
       }
     }
 

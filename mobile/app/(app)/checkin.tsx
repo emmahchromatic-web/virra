@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Pressable, TextInput, StyleSheet, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
+import {
+  View, ScrollView, Pressable, TextInput, StyleSheet, SafeAreaView, ActivityIndicator,
+} from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
@@ -9,6 +11,7 @@ import { useCycleStore } from '@/store/cycle';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const SYMPTOMS = [
   'Cramps', 'Spotting', 'Headache', 'Bloating',
@@ -107,7 +110,7 @@ export default function CheckInScreen() {
 
     setSaving(false);
     if (error) {
-      Alert.alert('Could not save', error.message);
+      appAlert('Could not save', error.message);
     } else {
       setHasExisting(true);
       cancelCheckinReminderToday();

@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView,
-  Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, TextInput, ScrollView, Pressable, StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -15,6 +14,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 interface FavouriteEntry {
   food_name:     string;
@@ -374,7 +374,7 @@ export default function FoodSearchScreen() {
       source,
     });
     setAdding(false);
-    if (error) { Alert.alert('Could not add food', error.message); return; }
+    if (error) { appAlert('Could not add food', error.message); return; }
     if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
       cancelNutritionReminderForMeal(activeMeal);
     }
@@ -398,7 +398,7 @@ export default function FoodSearchScreen() {
       source:    'manual',
     });
     setAdding(false);
-    if (error) { Alert.alert('Could not add food', error.message); return; }
+    if (error) { appAlert('Could not add food', error.message); return; }
     if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
       cancelNutritionReminderForMeal(activeMeal);
     }
@@ -422,7 +422,7 @@ export default function FoodSearchScreen() {
       setSelectedFromBarcode(true);
       setSelected(food);
     } else {
-      Alert.alert(
+      appAlert(
         networkError ? 'No connection' : 'Not found',
         networkError
           ? 'Check your internet connection and try again.'
@@ -457,7 +457,7 @@ export default function FoodSearchScreen() {
       }
       router.back();
     } else {
-      Alert.alert('Could not add meal', error.message);
+      appAlert('Could not add meal', error.message);
     }
   }
 
@@ -465,7 +465,7 @@ export default function FoodSearchScreen() {
     if (!cameraPermission?.granted) {
       const { granted } = await requestCameraPermission();
       if (!granted) {
-        Alert.alert('Camera needed', 'Enable camera access in Settings to scan barcodes.');
+        appAlert('Camera needed', 'Enable camera access in Settings to scan barcodes.');
         return;
       }
     }

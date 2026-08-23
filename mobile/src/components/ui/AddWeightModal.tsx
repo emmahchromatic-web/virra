@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, StyleSheet, Pressable, Alert } from 'react-native';
+import { View, TextInput, StyleSheet, Pressable } from 'react-native';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 import { VirraModal } from './VirraModal';
@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo, type CyclePhase } from '@/lib/cycleEngine';
 import { recomputeBaseline } from '@/lib/weightBaselineDispatcher';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 interface Props {
   visible: boolean;
@@ -57,7 +58,7 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
     setSaving(false);
 
     if (error) {
-      Alert.alert('Could not save', error.message);
+      appAlert('Could not save', error.message);
       return;
     }
 

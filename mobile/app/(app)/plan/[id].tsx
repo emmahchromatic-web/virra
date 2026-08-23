@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, SafeAreaView, Alert, Pressable, TextInput } from 'react-native';
+import { View, ScrollView, StyleSheet, SafeAreaView, Pressable, TextInput } from 'react-native';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -13,6 +13,7 @@ import { getActiveBlocks, addBlock, inferModality, type TrainingBlock } from '@/
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 interface WeekSession {
   week:     number;
@@ -286,7 +287,7 @@ export default function PlanDetailScreen() {
     });
     setSaving(false);
     if (error) {
-      Alert.alert('Could not start plan', error.message);
+      appAlert('Could not start plan', error.message);
       return;
     }
     const blockId = await addBlock(session!.user.id, {

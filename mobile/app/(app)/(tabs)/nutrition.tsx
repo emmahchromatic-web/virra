@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ScrollView, Pressable, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import {
+  View, ScrollView, Pressable, StyleSheet, SafeAreaView,
+} from 'react-native';
 import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,6 +19,7 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { FoodEntryEditModal } from '@/components/ui/FoodEntryEditModal';
 import { toFoodUnit, formatQuantity, type FoodUnit } from '@/lib/foodUnits';
+import { appAlert, appPrompt } from '@/components/ui/VirraAlert';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type MealType = typeof MEAL_TYPES[number];
@@ -132,7 +135,7 @@ function FoodEntryRow({ entry, onEdit, onDelete }: FoodEntryRowProps) {
 
   function handleDelete() {
     swipeRef.current?.close();
-    Alert.alert(
+    appAlert(
       'Delete entry',
       `Delete "${entry.food_name}"?`,
       [
@@ -312,11 +315,10 @@ export default function NutritionScreen() {
   function handleSaveMeal(meal: MealType) {
     const items = byMeal(meal);
     if (items.length < 2 || !session) return;
-    Alert.prompt(
-      'Save as meal',
-      'Give this combination a name',
-      async (name) => {
-        if (!name?.trim()) return;
+    appPrompt('Save as meal', 'Give this combination a name', {
+      placeholder: 'e.g. Post-run porridge',
+      submitText:  'Save',
+      onSubmit: async (name) => {
         const comboItems = items.map((e) => ({
           food_name:  e.food_name,
           quantity_g: e.quantity_g,
@@ -329,15 +331,12 @@ export default function NutritionScreen() {
         }));
         await supabase.from('meal_combos').insert({
           user_id:    session.user.id,
-          name:       name.trim(),
+          name,
           meal_type:  meal,
           items_json: comboItems,
         });
       },
-      'plain-text',
-      '',
-      'default',
-    );
+    });
   }
 
   async function handleDeleteEntry(entry: FoodEntry) {

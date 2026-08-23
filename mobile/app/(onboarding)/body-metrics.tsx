@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Switch, Alert, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Switch, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, radius } from '@/constants/theme';
@@ -8,6 +8,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { useAuthStore } from '@/store/auth';
 import { supabase } from '@/lib/supabase';
+import { appAlert } from '@/components/ui/VirraAlert';
 
 const MIN_HEIGHT = 140;
 const MAX_HEIGHT = 210;
@@ -38,7 +39,7 @@ export default function BodyMetricsScreen() {
     // This previously dropped the user at the paywall and silently discarded
     // whatever they had entered.
     if (!session) {
-      Alert.alert(
+      appAlert(
         'You are not signed in',
         'We could not save your details because your session has expired. Sign in again and we will pick up from here.',
         [{ text: 'Sign in', onPress: () => router.replace('/(auth)/sign-in') }],
@@ -56,7 +57,7 @@ export default function BodyMetricsScreen() {
         })
         .eq('id', session.user.id);
       setSaving(false);
-      if (error) { Alert.alert('Something went wrong', error.message); return; }
+      if (error) { appAlert('Something went wrong', error.message); return; }
     }
     router.replace('/(auth)/paywall');
   }

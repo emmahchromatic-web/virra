@@ -244,7 +244,11 @@ describe('WorkoutPreviewScreen — timer-only (no structure)', () => {
   });
 
   it('saves a duration-only activity on stop + confirm', async () => {
-    jest.spyOn(Alert, 'alert').mockImplementation((_t, _m, buttons: any) => {
+    // The confirm is the themed dialog now, so drive that instead of Alert.
+    // mockImplementationOnce keeps it scoped to this stop, so the tests that
+    // assert on appAlert being called do not start auto-confirming.
+    const { appAlert } = require('@/components/ui/VirraAlert');
+    (appAlert as jest.Mock).mockImplementationOnce((_t: string, _m: string, buttons: any) => {
       buttons?.find((b: any) => b.style !== 'cancel')?.onPress?.();
     });
     const { findByText, getByText } = render(<WorkoutPreviewScreen />);
