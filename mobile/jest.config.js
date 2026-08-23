@@ -9,6 +9,7 @@ module.exports = {
     '^@/(app/.*)$': '<rootDir>/$1',
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@react-native-async-storage/async-storage$': require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+    '\\.(wav|mp3|m4a)$': '<rootDir>/__mocks__/audioAssetMock.js',
   },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

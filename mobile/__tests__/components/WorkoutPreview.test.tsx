@@ -163,6 +163,32 @@ describe('WorkoutPreviewScreen — strength logging', () => {
     expect(router.back).toHaveBeenCalledTimes(2);
   });
 
+  it('starts the authored rest when a set is ticked, and skip dismisses it', async () => {
+    const { findByText, getByLabelText, queryByText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+    expect(queryByText('RESTING')).toBeNull();
+
+    // Goblet Squat carries 90s rest in the fixture.
+    fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));
+    expect(await findByText('RESTING')).toBeTruthy();
+    // Full 90s on the clock, and the bar names the movement you just finished.
+    expect(getByLabelText('Resting, 1:30 remaining')).toBeTruthy();
+
+    fireEvent.press(getByLabelText('Skip rest'));
+    expect(queryByText('RESTING')).toBeNull();
+  });
+
+  it('does not start a rest when a set is un-ticked', async () => {
+    const { findByText, getByLabelText, queryByText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));   // tick
+    fireEvent.press(getByLabelText('Skip rest'));                     // dismiss
+    fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));   // untick
+
+    expect(queryByText('RESTING')).toBeNull();
+  });
+
   it('finishing writes activity, per-set logs, strength details and marks the session done', async () => {
     const { findByText, getByLabelText, getByText } = render(<WorkoutPreviewScreen />);
     fireEvent.press(await findByText(/let's go/i));
