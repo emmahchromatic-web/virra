@@ -56,6 +56,32 @@ const STRENGTH_ROW = {
   cycle_adjusted_pace_secs: null,
 };
 
+// A v2 (authored) session with a timed hold, so the logger offers a timer
+// rather than expecting a number typed into the reps box.
+const HOLD_ROW = {
+  id: 'ps-1',
+  session_label: 'Full Body',
+  modality: 'strength',
+  strength_structure: {
+    version: 2,
+    session_type: 'general',
+    deload_note: null,
+    sections: [
+      {
+        section: 'power_core',
+        label:   'Power & Core',
+        exercises: [
+          { name: 'Hollow Hold', description: null, tempo: null, rest: '1 min', sets: 2, reps: '20-40 sec' },
+        ],
+      },
+    ],
+    estimated_minutes: 20,
+  },
+  run_structure: null,
+  cycle_reason_short: null,
+  cycle_adjusted_pace_secs: null,
+};
+
 const YOGA_ROW = {
   id: 'ps-1',
   session_label: 'Flow',
@@ -259,6 +285,56 @@ describe('WorkoutPreviewScreen — strength logging', () => {
     // The tempo renders as "TEMPO <value>" in one node, so match on a fragment.
     await waitFor(() => expect(queryByText(/TEMPO 2·1·2·1/)).toBeTruthy());
     expect(queryByText(/TEMPO 3·0·1/)).toBeNull();     // the stale authored tempo is gone
+  });
+
+  it('offers a timer on a timed hold, and logs the seconds held', async () => {
+    supabaseMock.__selectSingle.mockResolvedValue({ data: HOLD_ROW, error: null });
+    jest.useFakeTimers();
+    try {
+      const { findByText, getByLabelText, queryByText } = render(<WorkoutPreviewScreen />);
+      fireEvent.press(await findByText(/let's go/i));
+
+      // The prescription is shown on the control rather than typed into a box.
+      expect(queryByText(/TIME THIS HOLD/)).toBeTruthy();
+      expect(queryByText(/20-40 SEC/)).toBeTruthy();
+
+      fireEvent.press(getByLabelText('Time Hollow Hold'));
+      act(() => { jest.advanceTimersByTime(24_000); });
+      // eslint-disable-next-line no-console
+      expect(queryByText(/^0:24\s+·\s+TAP TO STOP$/)).toBeTruthy();
+
+      fireEvent.press(getByLabelText('Stop timing Hollow Hold'));
+
+      // 24 seconds recorded against set 1, and the set ticked off.
+      expect(queryByText(/TAP TO STOP/)).toBeNull();
+      expect(getByLabelText('Complete Hollow Hold set 1')).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+      supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
+    }
+  });
+
+  it('stops a hold by itself at the top of the range', async () => {
+    supabaseMock.__selectSingle.mockResolvedValue({ data: HOLD_ROW, error: null });
+    jest.useFakeTimers();
+    try {
+      const { findByText, getByLabelText, queryByText } = render(<WorkoutPreviewScreen />);
+      fireEvent.press(await findByText(/let's go/i));
+      fireEvent.press(getByLabelText('Time Hollow Hold'));
+
+      // Past the 40s top of the range: it should have stopped on its own.
+      act(() => { jest.advanceTimersByTime(45_000); });
+      expect(queryByText(/TAP TO STOP/)).toBeNull();
+    } finally {
+      jest.useRealTimers();
+      supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
+    }
+  });
+
+  it('leaves rep-counted exercises with a plain numeric box and no timer', async () => {
+    const { findByText, queryByText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+    expect(queryByText(/TIME THIS HOLD/)).toBeNull();
   });
 
   it('finishing writes activity, per-set logs, strength details and marks the session done', async () => {
