@@ -29,6 +29,11 @@ jest.mock('@/lib/strengthHistory', () => ({
   getLastLoggedWeights: jest.fn().mockResolvedValue({}),
 }));
 
+jest.mock('@/lib/exerciseLoadTypes', () => ({
+  getLoadTypes:      jest.fn().mockResolvedValue({}),
+  DEFAULT_LOAD_TYPE: 'weighted',
+}));
+
 jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn() }));
 
 // A strength session using real exercise-library names so getExerciseMeta
@@ -187,6 +192,50 @@ describe('WorkoutPreviewScreen — strength logging', () => {
     fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));   // untick
 
     expect(queryByText('RESTING')).toBeNull();
+  });
+
+  it('hides the weight field on movements that never take a load', async () => {
+    const { getLoadTypes } = require('@/lib/exerciseLoadTypes');
+    getLoadTypes.mockResolvedValueOnce({ 'Goblet Squat': 'none', Deadlift: 'none' });
+
+    const { findByText, queryAllByPlaceholderText, queryByText, queryByLabelText } =
+      render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    await waitFor(() => expect(queryAllByPlaceholderText('0').length).toBe(0));   // no kg fields
+    expect(queryByText('KG')).toBeNull();                                          // no kg column header
+    expect(queryByLabelText('Add weight to Goblet Squat')).toBeNull();             // and nothing to reveal
+    expect(queryAllByPlaceholderText('8').length).toBe(2);                         // reps still there
+  });
+
+  it('offers the weight field on bodyweight movements people load, and reveals it on tap', async () => {
+    const { getLoadTypes } = require('@/lib/exerciseLoadTypes');
+    getLoadTypes.mockResolvedValueOnce({ 'Goblet Squat': 'optional', Deadlift: 'none' });
+
+    const { findByText, queryAllByPlaceholderText, getByLabelText, queryByLabelText } =
+      render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    const addWeight = await waitFor(() => getByLabelText('Add weight to Goblet Squat'));
+    expect(queryAllByPlaceholderText('0').length).toBe(0);   // hidden until asked for
+
+    fireEvent.press(addWeight);
+
+    // Goblet Squat has 2 sets, so revealing gives 2 kg fields. Deadlift is
+    // 'none' and stays without one.
+    expect(queryAllByPlaceholderText('0').length).toBe(2);
+    expect(queryByLabelText('Add weight to Goblet Squat')).toBeNull();
+  });
+
+  it('keeps the weight field on loaded movements, and when the lookup fails', async () => {
+    const { getLoadTypes } = require('@/lib/exerciseLoadTypes');
+    getLoadTypes.mockResolvedValueOnce({});   // as if the query errored
+
+    const { findByText, getAllByPlaceholderText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    // Falls back to showing kg on all three sets, i.e. the old behaviour.
+    expect(getAllByPlaceholderText('0').length).toBe(3);
   });
 
   it('finishing writes activity, per-set logs, strength details and marks the session done', async () => {
