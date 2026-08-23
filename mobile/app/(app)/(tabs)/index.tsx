@@ -3,7 +3,7 @@ import {
   View, ScrollView, StyleSheet, SafeAreaView,
   Pressable, AppState, AppStateStatus,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
@@ -107,8 +107,14 @@ export default function DashboardScreen() {
     } catch { /* no-op */ }
   }, [session, today, cycleInfo?.phase]); // inferredLoad removed from deps
 
+  // The dashboard is a tab, so it stays mounted while a workout is logged on a
+  // pushed screen. Without a refetch on focus, returning from a finished session
+  // showed stale cards until the app was backgrounded and reopened.
+  useFocusEffect(
+    useCallback(() => { loadAll(); }, [loadAll]),
+  );
+
   useEffect(() => {
-    loadAll();
     const sub = AppState.addEventListener('change', (next) => {
       if (appState.current.match(/inactive|background/) && next === 'active') loadAll();
       appState.current = next;
