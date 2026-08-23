@@ -22,6 +22,7 @@ import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
 import type { StrengthExercise } from '@/lib/strengthTypes';
 import { getExerciseMeta } from '@/lib/exerciseLibrary';
 import { getLastLoggedWeights } from '@/lib/strengthHistory';
+import { getLoadTypes, DEFAULT_LOAD_TYPE, type LoadType } from '@/lib/exerciseLoadTypes';
 import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
 import { parseRestSeconds } from '@/lib/strengthProgramme';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -158,9 +159,12 @@ function applyPrefillWeights(
   logged: Record<string, LoggedSet[]>,
   exercises: LogExercise[],
   weights: Record<string, number>,
+  loadTypes: Record<string, LoadType>,
 ): Record<string, LoggedSet[]> {
   const next = { ...logged };
   for (const ex of exercises) {
+    // Never carry a weight into a movement that cannot take one.
+    if (loadTypes[ex.name] === 'none') continue;
     const w = weights[ex.name];
     if (w == null) continue;
     next[ex.id] = (next[ex.id] ?? []).map((s) =>
@@ -255,6 +259,10 @@ export default function WorkoutPreviewScreen() {
   const [rpeOpen,      setRpeOpen]      = useState(false);
   const [rest,         setRest]         = useState<RestState | null>(null);
   const [restNow,      setRestNow]      = useState(0);
+  const [loadTypes,    setLoadTypes]    = useState<Record<string, LoadType>>({});
+  // Exercises where the user has asked to record a load on an otherwise
+  // bodyweight movement (a vest, a held dumbbell).
+  const [weightShown,  setWeightShown]  = useState<Record<string, boolean>>({});
 
   // Moment the app last came to the foreground, so a rest that ran out while
   // the user was in another app can finish silently.
@@ -308,10 +316,15 @@ export default function WorkoutPreviewScreen() {
           if (structure) {
             const exercises = toLogExercises(structure);
             setLogged(seedLoggedSets(exercises));
-            // Pre-fill each set with last session's weight for that movement.
+            // Pre-fill each set with last session's weight, and find out which
+            // movements take a weight at all. Both are keyed by exercise name.
             if (session) {
-              getLastLoggedWeights(session.user.id, exercises.map((e) => e.name))
-                .then((weights) => setLogged((prev) => applyPrefillWeights(prev, exercises, weights)))
+              const names = exercises.map((e) => e.name);
+              Promise.all([getLastLoggedWeights(session.user.id, names), getLoadTypes(names)])
+                .then(([weights, types]) => {
+                  setLoadTypes(types);
+                  setLogged((prev) => applyPrefillWeights(prev, exercises, weights, types));
+                })
                 .catch(() => {});
             }
           }
@@ -718,6 +731,12 @@ export default function WorkoutPreviewScreen() {
             {logExercises.map((ex, i) => {
               const hasInfo = !!ex.description || !!ex.tempo || ex.cues.length > 0;
               const sets = logged[ex.id] ?? [];
+              // A kg field on a stretch or a jump is noise. Loaded movements
+              // always show one; bodyweight movements people sometimes load
+              // offer one on request; the rest have none at all.
+              const loadType     = loadTypes[ex.name] ?? DEFAULT_LOAD_TYPE;
+              const showWeight   = loadType === 'weighted' || (loadType === 'optional' && !!weightShown[ex.id]);
+              const canAddWeight = loadType === 'optional' && !weightShown[ex.id];
               const showHeader = !!ex.section_label &&
                 (i === 0 || logExercises[i - 1].section !== ex.section);
               return (
@@ -757,7 +776,9 @@ export default function WorkoutPreviewScreen() {
                   <View style={s.setHeaderRow}>
                     <VirraText variant="mono" size={10} color={colors.muted} style={s.colSet}>SET</VirraText>
                     <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>REPS</VirraText>
-                    <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>KG</VirraText>
+                    {showWeight && (
+                      <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>KG</VirraText>
+                    )}
                     <View style={s.colDone} />
                   </View>
 
@@ -773,20 +794,38 @@ export default function WorkoutPreviewScreen() {
                         keyboardType="number-pad"
                         maxLength={3}
                       />
-                      <TextInput
-                        style={[s.setInput, s.colInput, st.done && s.setInputDone]}
-                        value={st.weightKg}
-                        onChangeText={(v) => updateLoggedSet(ex.id, i, 'weightKg', v)}
-                        placeholder="0"
-                        placeholderTextColor="rgba(244,237,224,0.3)"
-                        keyboardType="decimal-pad"
-                        maxLength={6}
-                      />
+                      {showWeight && (
+                        <TextInput
+                          style={[s.setInput, s.colInput, st.done && s.setInputDone]}
+                          value={st.weightKg}
+                          onChangeText={(v) => updateLoggedSet(ex.id, i, 'weightKg', v)}
+                          placeholder="0"
+                          placeholderTextColor="rgba(244,237,224,0.3)"
+                          keyboardType="decimal-pad"
+                          maxLength={6}
+                          accessibilityLabel={`${ex.name} set ${i + 1} weight in kilograms`}
+                        />
+                      )}
                       <Pressable style={s.colDone} onPress={() => toggleSetDone(ex, i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Complete ${ex.name} set ${i + 1}`}>
                         <SymbolView name={st.done ? 'checkmark.circle.fill' : 'circle'} size={24} tintColor={st.done ? colors.pulse : colors.muted} />
                       </Pressable>
                     </View>
                   ))}
+
+                  {canAddWeight && (
+                    <Pressable
+                      onPress={() => setWeightShown((prev) => ({ ...prev, [ex.id]: true }))}
+                      hitSlop={8}
+                      style={s.addWeightBtn}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Add weight to ${ex.name}`}
+                    >
+                      <SymbolView name="plus" size={11} tintColor={colors.muted} />
+                      <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
+                        ADD WEIGHT
+                      </VirraText>
+                    </Pressable>
+                  )}
                 </VirraCard>
                 </React.Fragment>
               );
@@ -920,6 +959,7 @@ const s = StyleSheet.create({
     fontFamily: fonts.mono, fontSize: 15,
   },
   setInputDone: { borderColor: colors.pulse },
+  addWeightBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingTop: spacing.xs },
   rpeGrid:    { gap: spacing.xs, marginVertical: spacing.md },
   rpeRow:     { flexDirection: 'row', gap: spacing.xs },
   rpeChip: {
