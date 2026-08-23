@@ -69,7 +69,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Virra uses the camera to scan food barcodes."
+          "cameraPermission": "Virra uses the camera to scan food barcodes.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       "@react-native-community/datetimepicker"
