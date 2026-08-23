@@ -161,7 +161,7 @@ export async function scheduleWeeklyPlanReminder(): Promise<void> {
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Plan your week',
-      body:  "Your training week starts tomorrow — tap to review and adjust your sessions.",
+      body:  "Your training week starts tomorrow. Tap to review and adjust your sessions.",
       sound: true,
       data:  { screen: 'week-ahead' },
     },
@@ -245,7 +245,7 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     await maybeSchedule(
       'nutrition_lunch',
       'Keep the momentum going',
-      'Log your lunch — your body is mid-adaptation right now.',
+      'Log your lunch. Your body is mid-adaptation right now.',
       todayAt(12, 30),
     );
   }

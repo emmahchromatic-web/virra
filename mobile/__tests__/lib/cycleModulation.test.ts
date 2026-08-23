@@ -132,3 +132,37 @@ describe('anchorKeySession', () => {
     expect(result).toBe('2026-05-04');
   });
 });
+
+
+// The session card shows a shortened reason, derived in todaysSession.ts by
+// splitting on the first "." or ":". That split is load-bearing: the reasons
+// used to lead with "<phase> — ..." and now lead with "<phase>: ...", so this
+// guards the phrasing that keeps the short reason readable.
+describe('reason phrasing feeds the short reason on the session card', () => {
+  const shorten = (reason: string) => reason.split(/[.:]/)[0]?.trim() ?? '';
+
+  const CASES = [
+    ['easy',      'menstrual', 'Menstrual phase'],
+    ['tempo',     'luteal',    'Luteal phase'],
+    ['intervals', 'ovulatory', 'Ovulatory phase'],
+    ['strength',  'menstrual', 'Menstrual phase'],
+    ['race',      'menstrual', 'Race day in your menstrual phase'],
+  ] as const;
+
+  it.each(CASES)('%s in the %s phase shortens to "%s"', (type, phase, expected) => {
+    const result = modulateForCycle({ intensity_label: 'Session' }, type, phase, 'natural', null);
+    expect(result.reason).toBeTruthy();
+    expect(shorten(result.reason!)).toBe(expected);
+  });
+
+  it('carries no em-dashes in any reason copy', () => {
+    const types  = ['easy', 'tempo', 'intervals', 'long', 'race', 'strength'] as const;
+    const phases = ['menstrual', 'follicular', 'ovulatory', 'luteal'] as const;
+    for (const t of types) {
+      for (const ph of phases) {
+        const { reason } = modulateForCycle({ intensity_label: 'Session' }, t, ph, 'natural', null);
+        if (reason) expect(reason).not.toMatch(/\u2014/);
+      }
+    }
+  });
+});

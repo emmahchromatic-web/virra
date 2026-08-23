@@ -23,14 +23,14 @@ interface Props {
 // contextualise. This replaces the standalone WHAT TO EXPECT card.
 const PHASE_EXPECTATION: Record<CyclePhase, string> = {
   menstrual:  'Bleed days often show your lowest read of the cycle as water levels reset.',
-  follicular: 'Follicular days are your steadiest baseline — energy rises and weight tends to hold.',
+  follicular: 'Follicular days are your steadiest baseline: energy rises and weight tends to hold.',
   ovulatory:  'A small lift around ovulation is normal. Hormones drive a brief water rise.',
   luteal:     'Expect a 1–2 kg lift before your period. This is water retention, not fat gain.',
 };
 
 const IN_BAND: Record<CyclePhase, string> = {
   menstrual:  'Right where your body wants to be today.',
-  follicular: 'This is your body\'s natural floor — the number to anchor to.',
+  follicular: 'This is your body\'s natural floor, the number to anchor to.',
   ovulatory:  'A small lift around ovulation is normal hormonal water.',
   luteal:     'Right where your body wants to be today. This is water, not fat. It\'ll resolve in 5–7 days.',
 };
@@ -51,7 +51,7 @@ const BELOW_BAND: Record<CyclePhase, string> = {
 
 const STEADY_COPY: Record<BandPosition, string> = {
   in_band: 'Within your usual daily range.',
-  above:   'A touch above your steady line. One day isn\'t a trend — water, salt, or food timing can do this.',
+  above:   'A touch above your steady line. One day isn\'t a trend. Water, salt, or food timing can do this.',
   below:   'A touch below your steady line. If training has been heavy, check fuelling.',
 };
 

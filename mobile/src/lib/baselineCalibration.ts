@@ -192,7 +192,7 @@ export function detectBaselineDrift(params: DetectParams): Verdict | null {
 
   const direction: 'faster' | 'slower' = delta < 0 ? 'faster' : 'slower';
   const evidence =
-    `your recent runs work out to about ${fmtPace(observed)}/km — ` +
+    `your recent runs work out to about ${fmtPace(observed)}/km, ` +
     `${direction === 'faster' ? 'quicker than' : 'easier than'} the ` +
     `${fmtPace(currentBaseline)} your plan assumes`;
 

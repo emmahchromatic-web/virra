@@ -275,7 +275,7 @@ export default function DashboardScreen() {
           <Pressable
             onPress={() => router.push('/(app)/(tabs)/training' as any)}
             accessibilityRole="button"
-            accessibilityLabel="This week's training — open Training tab"
+            accessibilityLabel="This week's training, open Training tab"
           >
             <VirraCard style={{ paddingVertical: spacing.xs }}>
               <SectionLabel style={{ marginBottom: 2 }}>THIS WEEK</SectionLabel>

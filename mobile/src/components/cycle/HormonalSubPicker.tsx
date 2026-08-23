@@ -103,7 +103,7 @@ export function HormonalSubPicker({
             Do you take a pill-free week each cycle?
           </VirraText>
           {[
-            { value: true,  label: 'Yes — I take a break each cycle' },
+            { value: true,  label: 'Yes, I take a break each cycle' },
             { value: false, label: 'No, I take it continuously'       },
           ].map((opt) => {
             const active = hasPlaceboWeek === opt.value;

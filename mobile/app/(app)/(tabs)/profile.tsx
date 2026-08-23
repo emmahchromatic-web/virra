@@ -601,7 +601,7 @@ export default function ProfileScreen() {
         <Pressable
           style={styles.referCard}
           onPress={() => Share.share({
-            message: `I've been training smarter with Virra — the app that adjusts your training and nutrition to your cycle. Try it free: https://virra.app`,
+            message: `I've been training smarter with Virra, the app that adjusts your training and nutrition to your cycle. Try it free: https://virra.app`,
           })}
           accessibilityRole="button"
           accessibilityLabel="Refer a friend"

@@ -44,7 +44,7 @@ describe('NutritionArcCard', () => {
   it('calls onPress when tapped', () => {
     const onPress = jest.fn();
     const { getByLabelText } = render(<NutritionArcCard totals={base} onPress={onPress} />);
-    fireEvent.press(getByLabelText('Fuelling today — open nutrition'));
+    fireEvent.press(getByLabelText('Fuelling today, open nutrition'));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 

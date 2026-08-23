@@ -274,7 +274,7 @@ export async function moveSession(
     // session (same modality + label) already sits on that day.
     if ((insertErr as { code?: string } | null)?.code === '23505') {
       const label = (orig as any).session_label as string;
-      throw new Error(`That day already has a ${(orig as any).modality} session (${label}). Two identical sessions can't share a day — move the existing one first.`);
+      throw new Error(`That day already has a ${(orig as any).modality} session (${label}). Two identical sessions can't share a day. Move the existing one first.`);
     }
     throw new Error(insertErr?.message ?? 'Could not create replacement');
   }

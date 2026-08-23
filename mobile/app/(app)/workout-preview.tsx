@@ -893,7 +893,7 @@ export default function WorkoutPreviewScreen() {
       {/* Session RPE on finish */}
       <VirraModal visible={rpeOpen} onClose={() => { if (!saving) setRpeOpen(false); }} title="How hard was that?">
         <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
-          Rate the whole session — 1 is easy, 10 is max effort.
+          Rate the whole session. 1 is easy, 10 is max effort.
         </VirraText>
         <View style={s.rpeGrid}>
           {[[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]].map((row, ri) => (

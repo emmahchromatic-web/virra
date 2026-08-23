@@ -67,7 +67,7 @@ export function WeightSteadyChart({ baselineKg, readings, today = new Date() }: 
       {calibrating && (
         <View style={styles.ribbon}>
           <VirraText variant="mono" size={9} color={colors.muted}>
-            CALIBRATING — {towardsBaseline}/{MIN_READINGS} READINGS LOGGED
+            CALIBRATING · {towardsBaseline}/{MIN_READINGS} READINGS LOGGED
           </VirraText>
         </View>
       )}

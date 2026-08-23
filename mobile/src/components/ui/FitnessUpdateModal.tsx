@@ -28,7 +28,7 @@ export function FitnessUpdateModal({ visible, verdict, onConfirm, onSnooze }: Pr
   const title   = faster ? "You're getting faster." : "Let's recalibrate.";
   const body    = faster
     ? `Your recent runs are consistently quicker than what your plan assumes. Here's where we'd land.`
-    : `Your last few weeks have been tougher than your plan assumed — no problem. Let's bring your targets to where you are now so every run feels achievable.`;
+    : `Your last few weeks have been tougher than your plan assumed. No problem. Let's bring your targets to where you are now so every run feels achievable.`;
   const cascade = verdict.wouldChangeUpcoming
     ? (faster ? "We'll refresh your upcoming sessions to match." : "We'll ease your upcoming sessions to match.")
     : "We'll use this for your next plan.";

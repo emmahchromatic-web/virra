@@ -172,7 +172,7 @@ export async function enrichTodaysSessions(
       const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile, hasPlaceboWeek);
 
       if (result.reason) {
-        cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
+        cycle_reason_short = result.reason.split(/[.:]/)[0]?.trim() ?? null;
 
         const adjustedPace = result.adjusted_target.pace_seconds_per_km;
         if (adjustedPace && adjustedPace !== baselinePace) {
@@ -187,7 +187,7 @@ export async function enrichTodaysSessions(
       const baseTarget = { intensity_label: r.session_label };
       const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile, hasPlaceboWeek);
       if (result.reason) {
-        cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
+        cycle_reason_short = result.reason.split(/[.:]/)[0]?.trim() ?? null;
       }
     }
 

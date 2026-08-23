@@ -5,7 +5,7 @@ import type { Verdict } from '@/lib/baselineCalibration';
 
 const faster: Verdict = {
   direction: 'faster', observed: 336, proposed: 348, current: 360,
-  evidence: 'your recent runs work out to about 5:36/km — quicker than the 6:00 your plan assumes',
+  evidence: 'your recent runs work out to about 5:36/km, quicker than the 6:00 your plan assumes',
   nRuns: 6, windowDays: 42, wouldChangeUpcoming: true,
 };
 const slower: Verdict = { ...faster, direction: 'slower', observed: 384, proposed: 372, evidence: 'easier copy' };

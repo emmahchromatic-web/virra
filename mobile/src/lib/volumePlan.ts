@@ -136,7 +136,7 @@ const PHASE_GUIDANCE: Record<string, string> = {
   follicular: 'Ramp up. Your body adapts faster now.',
   ovulatory:  'Hardest sessions belong here.',
   luteal:     'Hold the work, honour fatigue.',
-  menstrual:  'Keep effort light — rest is training too.',
+  menstrual:  'Keep effort light. Rest is training too.',
 };
 
 // ---- Cycle modulation helpers ----
@@ -458,7 +458,7 @@ export async function getWeeklyVolumePlan(
       deficit_message    = `Whilst you've missed some sessions, your goal is still within reach. Hit the remaining sessions and aim for a revised pace of ${formatPace(revisedPace)} on race day.`;
     } else {
       deficit_message =
-        "Whilst you've missed some sessions, your goal is still within reach — hit the remaining sessions to give yourself the best chance.";
+        "Whilst you've missed some sessions, your goal is still within reach. Hit the remaining sessions to give yourself the best chance.";
     }
   }
 

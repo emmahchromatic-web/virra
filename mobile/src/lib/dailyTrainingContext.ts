@@ -70,7 +70,7 @@ export function gymWeekPhase(weekIndex: number, totalWeeks: number): string {
 }
 
 const PHASE_GUIDANCE: Record<CyclePhase, string> = {
-  menstrual:  'Keep effort light — rest is training too.',
+  menstrual:  'Keep effort light. Rest is training too.',
   follicular: 'Ramp up. Your body adapts faster now.',
   ovulatory:  'Hardest sessions belong here.',
   luteal:     'Hold the work, honour fatigue.',

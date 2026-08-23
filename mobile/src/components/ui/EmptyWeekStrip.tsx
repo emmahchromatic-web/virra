@@ -24,7 +24,7 @@ export function EmptyWeekStrip({ todayIndex }: EmptyWeekStripProps) {
         ))}
       </View>
       <VirraText variant="body" size={11} color={colors.muted} style={empty.caption}>
-        No active plan — tap to pick one
+        No active plan, tap to pick one
       </VirraText>
     </View>
   );

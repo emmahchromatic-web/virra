@@ -193,7 +193,7 @@ export default function WeightScreen() {
                   <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
                     {isCycleMode ? (
                       <>
-                        <VirraText variant="body" size={13} color={colors.breath}>• Your baseline is the median of your follicular-phase readings — the steadiest point in your cycle.</VirraText>
+                        <VirraText variant="body" size={13} color={colors.breath}>• Your baseline is the median of your follicular-phase readings, the steadiest point in your cycle.</VirraText>
                         <VirraText variant="body" size={13} color={colors.breath}>• The band is learned from your own past cycles: the range your weight actually sits in at each phase, not a generic average. Any luteal lift you see is water, not fat.</VirraText>
                         <VirraText variant="body" size={13} color={colors.breath}>• Outside the band? Look at the last few days, not just one.</VirraText>
                         <VirraText variant="body" size={13} color={colors.breath}>• We don't track streaks, goal weight, or progress towards a target.</VirraText>
