@@ -80,7 +80,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
       .from('activities')
       .select('distance_meters')
       .eq('user_id', userId)
-      .limit(5000), // MVP cap — replace with aggregate when history grows
+      .limit(5000), // MVP cap; replace with aggregate when history grows
 
     supabase
       .from('activities')
@@ -134,7 +134,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
   const monthlyKm = sumKm(monthRes.data ?? []);
   const totalKm   = sumKm(totalRes.data ?? []);
 
-  // Streak is capped at 28 days — the window of this query. Sufficient for motivation display.
+  // Streak is capped at 28 days; the window of this query. Sufficient for motivation display.
   const allDates = [...new Set(
     (window28Res.data ?? []).map((r: any) =>
       new Date(r.started_at).toISOString().split('T')[0]
@@ -177,8 +177,8 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
           return acc;
         }, {});
 
-  // Nutrition compliance — per-day score weighted by how close to target the
-  // day landed, then averaged. On-target = 1.0; at the 10% threshold = 0.0;
+  // Nutrition compliance: per-day score weighted by how close to target the
+  // day landed, then averaged. On-target = 1.0; at the 10% threshold = 0.0
   // beyond = 0.0 (clipped). This rewards days that hit the goal more strongly
   // than days that scrape into the threshold band, and produces a smoother
   // signal than a binary in/out-of-10% count.
@@ -202,7 +202,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     ? Math.round((complianceScoreSum / loggedDays) * 100)
     : null;
 
-  // Fuelling alignment — compares actual intake against inferred_load target (not user-selected)
+  // Fuelling alignment: compares actual intake against inferred_load target (not user-selected)
   const alignedLogs = (nutritionLogs as any[]).filter((l: any) => l.inferred_load);
   let fuellingAlignment: FuellingAlignment | null = null;
   if (alignedLogs.length >= 3) {
@@ -221,7 +221,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     fuellingAlignment = { daysOverTarget: over, daysUnderTarget: under, daysOnTarget: onTarget };
   }
 
-  // Symptom trend — 7-entry average
+  // Symptom trend: 7-entry average
   const symptomRows = symptomLogsRes.data ?? [];
   let symptomTrend: SymptomTrend | null = null;
   if (symptomRows.length > 0) {

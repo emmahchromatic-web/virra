@@ -86,7 +86,7 @@ export default function AppLayout() {
     if (subStatus === 'active') cancelTrialReminders();
   }, [subStatus]);
 
-  // Run HealthKit import on foreground — fires on mount and every app resume
+  // Run HealthKit import on foreground; fires on mount and every app resume
   useEffect(() => {
     if (!session?.user.id) return;
 

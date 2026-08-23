@@ -19,7 +19,7 @@ describe('buildNarrative', () => {
 
   it('handles follicular hard day', () => {
     const result = buildNarrative('follicular' as CyclePhase, 8, [{ session_label: 'Tempo' }], 'hard');
-    expect(result).toBe('Follicular Day 8 · Tempo today · Your adaptation window — make it count.');
+    expect(result).toBe('Follicular Day 8 · Tempo today · Your adaptation window. Make it count.');
   });
 
   it('handles menstrual any load', () => {

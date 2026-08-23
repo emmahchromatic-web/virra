@@ -56,14 +56,14 @@ function setsForPhase(phase: CyclePhase | null): { sets: StrengthSetTarget[]; re
 
 export function generateStrengthStructure(input: GenerateStrengthInput): StrengthWorkoutStructure {
   const id = makeIdFactory();
-  // Defensive: an unmapped session_type must never throw — a thrown error here
+  // Defensive: an unmapped session_type must never throw; a thrown error here
   // propagates through session hydration and can break the whole today's-sessions
-  // fetch. Callers should pass a normalised type (normalizeStrengthSessionType);
+  // fetch. Callers should pass a normalised type (normalizeStrengthSessionType)
   // 'general' is the safe fallback if one slips through.
   const session_type = EXERCISE_LIBRARY[input.session_type] ? input.session_type : 'general';
   const pool = EXERCISE_LIBRARY[session_type];
 
-  // Score each exercise by overlap with recently-worked muscles — lower is better.
+  // Score each exercise by overlap with recently-worked muscles; lower is better.
   const scored = pool.map((ex, i) => {
     const overlap = ex.primaryMuscles.filter((m) => input.recent_primary_muscles.includes(m)).length;
     return { ex, score: overlap, idx: i };

@@ -29,9 +29,9 @@ export function getDailyStats(): Promise<DailyStats> {
   });
 
   // Three resolution paths, in order of preference:
-  //   1. getActivitySummary — Apple's intended ring API; real-device path
-  //   2. getAppleExerciseTime samples — third-party AppleExerciseTime writers
-  //   3. Sum today's workout durations — covers iOS Simulator (no paired Watch
+  //   1. getActivitySummary: Apple's intended ring API; real-device path
+  //   2. getAppleExerciseTime samples; third-party AppleExerciseTime writers
+  //   3. Sum today's workout durations; covers iOS Simulator (no paired Watch
   //      means iOS doesn't auto-compute AppleExerciseTime from workouts) and
   //      any environment where workouts exist but exercise-time samples don't
   const minsPromise = new Promise<number>((resolve) => {
@@ -43,7 +43,7 @@ export function getDailyStats(): Promise<DailyStats> {
           if (err || !results?.data?.length) { resolve(0); return; }
           const todayISO = startOfToday();
           const total = results.data.reduce((sum, w) => {
-            // duration is seconds; convert to minutes
+            // duration is seconds: convert to minutes
             const mins = (w.duration ?? 0) / 60;
             // Defensive: only count workouts whose start lands today (the
             // query is meant to filter this already, but belt + braces)

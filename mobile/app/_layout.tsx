@@ -6,7 +6,7 @@ import type { Session } from '@supabase/supabase-js';
 import { useFonts } from 'expo-font';
 
 // Keep the native splash visible until fonts AND session are loaded.
-// Errors are non-fatal — if the splash was never shown (hot reload) this no-ops.
+// Errors are non-fatal: if the splash was never shown (hot reload) this no-ops.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 import {
   BigShouldersDisplay_700Bold,
@@ -115,7 +115,7 @@ export default function RootLayout() {
         <Stack.Screen name="(app)" />
         <Stack.Screen name="re-permissions" />
       </Stack>
-      {/* Host for appAlert() — themed replacement for Alert.alert. Sits above
+      {/* Host for appAlert(): themed replacement for Alert.alert. Sits above
           the navigator so alerts render over any screen. */}
       <VirraAlertHost />
     </>

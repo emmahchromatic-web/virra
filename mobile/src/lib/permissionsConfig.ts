@@ -21,7 +21,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     label:    'HEALTH + ACTIVITY',
     title:    'Health',
     headline: 'Your health data, working for you.',
-    body:     "Virra reads your workout history to pre-fill your fitness baseline — and pulls cycle data if you've logged it in Apple Health.",
+    body:     "Virra reads your workout history to pre-fill your fitness baseline, and pulls cycle data if you've logged it in Apple Health.",
     why:      'Raw health records stay in Apple Health on your device. Virra only processes aggregated training and cycle signals to generate your plan and insights, and never sells health data.',
     optional: false,
   },
@@ -30,8 +30,8 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     label:    'GPS + LOCATION',
     title:    'GPS',
     headline: 'Track every run, automatically.',
-    body:     'Virra uses GPS to map routes, measure pace in real time, and log splits. The screen can lock during a run — Virra keeps recording in the background until you tap Finish.',
-    why:      "We ask for When in Use only — never Always. Location is only collected during an active run.",
+    body:     'Virra uses GPS to map routes, measure pace in real time, and log splits. The screen can lock during a run; Virra keeps recording in the background until you tap Finish.',
+    why:      "We ask for When in Use only, never Always. Location is only collected during an active run.",
     optional: false,
   },
   {
@@ -48,7 +48,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     label:    'BARCODE SCANNER',
     title:    'Barcode',
     headline: 'Log food in seconds.',
-    body:     'Scan any barcode to log food instantly — no typing, no searching.',
+    body:     'Scan any barcode to log food instantly, with no typing and no searching.',
     why:      'You can always add this later in Settings. It only affects barcode scanning.',
     optional: true,
   },
@@ -88,7 +88,7 @@ function buildHKPermissions() {
 }
 
 // Establishes the HK JS↔native bridge for the current session. Safe to call on
-// every app launch — when permissions were already granted iOS does not re-prompt.
+// every app launch: when permissions were already granted iOS does not re-prompt.
 export async function initHealthKitForSession(): Promise<void> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -114,7 +114,7 @@ export async function requestPermission(id: PermissionItem['id']): Promise<void>
     case 'location':
       // When-In-Use only. Combined with UIBackgroundModes: ["location"] in
       // app.json, iOS keeps delivering updates while the app is backgrounded
-      // during an active run — no "Always" permission required.
+      // during an active run; no "Always" permission required.
       await Location.requestForegroundPermissionsAsync();
       break;
     case 'notifications':

@@ -37,7 +37,7 @@ export default function NotificationsScreen() {
 
   // Freeze a snapshot of which items were unread at mount so the user can still
   // see the dots while viewing the screen. Initialised inline (not in an effect)
-  // so the snapshot is correct on the very first render — no one-frame flash.
+  // so the snapshot is correct on the very first render; no one-frame flash.
   const unreadOnMount = useRef<Set<string>>(
     new Set(items.filter((it) => it.readAt === null).map((it) => it.id)),
   );

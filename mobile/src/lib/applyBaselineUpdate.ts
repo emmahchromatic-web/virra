@@ -47,7 +47,7 @@ export async function applyBaselineUpdate(
   }
 
   // 2. Record the assessment (cooldown anchor). A failed insert is recoverable
-  // (the modal may re-fire) — a stale baseline would be worse — so log, don't throw.
+  // (the modal may re-fire); a stale baseline would be worse, so log, don't throw.
   const { error: assessErr } = await supabase.from('fitness_assessments').insert({
     user_id: userId,
     assessed_on: today,
@@ -81,7 +81,7 @@ export async function applyBaselineUpdate(
       });
       await supabase.from('planned_sessions').update({ run_structure: fresh }).eq('id', row.id);
     } catch {
-      // Unrecognised workout type — skip this session, keep its existing structure.
+      // Unrecognised workout type: skip this session, keep its existing structure.
     }
   }
 }

@@ -56,7 +56,7 @@ export function proposeLinks(activities: ActivityRow[], sessions: SessionRow[]):
 
   const out: ProposedLink[] = [];
   for (const a of activities) {
-    // Match on the activity's LOCAL calendar day — that's the day the user
+    // Match on the activity's LOCAL calendar day; that's the day the user
     // perceives they trained, and scheduled_date is a tz-agnostic calendar
     // label. Do NOT switch this to the UTC date: it would mislink evening
     // workouts in negative-UTC zones to the next day's session.

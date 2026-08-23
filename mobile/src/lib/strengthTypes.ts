@@ -14,7 +14,7 @@ export type SessionType = 'lower' | 'upper' | 'general';
 
 /**
  * Map a session label to a strength library key. Labels come from many sources
- * — the scheduler's own 'lower'/'upper'/'general' keys, but also human-friendly
+ *; the scheduler's own 'lower'/'upper'/'general' keys, but also human-friendly
  * plan labels like "Leg day" or "Upper body" authored in plan templates. The
  * exercise library is keyed only by the three canonical types, so anything that
  * feeds `generateStrengthStructure` must normalise first (an unmapped label

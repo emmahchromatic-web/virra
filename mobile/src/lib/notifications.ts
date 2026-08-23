@@ -116,7 +116,7 @@ async function scheduleOnce(
 }
 
 // Returns a DateTrigger for today at hour:minute, or null if that moment has
-// already passed. We deliberately do NOT bump to tomorrow — daily reminders
+// already passed. We deliberately do NOT bump to tomorrow; daily reminders
 // are re-scheduled by the app on launch / foreground, so tomorrow's reminder
 // will be created freshly tomorrow. Bumping would also cause duplicates:
 // the storage key is per-day, so a "today" key holding a "tomorrow" trigger
@@ -161,7 +161,7 @@ export async function scheduleWeeklyPlanReminder(): Promise<void> {
   const id = await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Plan your week',
-      body:  "Your training week starts tomorrow — tap to review and adjust your sessions.",
+      body:  "Your training week starts tomorrow. Tap to review and adjust your sessions.",
       sound: true,
       data:  { screen: 'week-ahead' },
     },
@@ -175,7 +175,7 @@ export async function scheduleWeeklyPlanReminder(): Promise<void> {
   await saveId(key, id);
 }
 
-/** Call on every app foreground — idempotent, respects per-slot preferences. */
+/** Call on every app foreground; idempotent, respects per-slot preferences. */
 export async function scheduleDailyReminders(userId: string): Promise<void> {
   await sweepStaleReminderKeys();
   const [date, prefs] = [today(), await loadNotificationPreferences()];
@@ -245,7 +245,7 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
     await maybeSchedule(
       'nutrition_lunch',
       'Keep the momentum going',
-      'Log your lunch — your body is mid-adaptation right now.',
+      'Log your lunch. Your body is mid-adaptation right now.',
       todayAt(12, 30),
     );
   }
@@ -322,24 +322,24 @@ async function cancelTodayAndStale(slot: string): Promise<void> {
   } catch { /* best-effort cleanup */ }
 }
 
-/** Cancel today's training reminder — call when any workout is logged. */
+/** Cancel today's training reminder; call when any workout is logged. */
 export async function cancelTrainingReminderToday(): Promise<void> {
   await cancelTodayAndStale('training');
 }
 
-/** Cancel today's meal-slot reminder — call when a food entry is added. */
+/** Cancel today's meal-slot reminder; call when a food entry is added. */
 export async function cancelNutritionReminderForMeal(
   meal: 'breakfast' | 'lunch' | 'dinner',
 ): Promise<void> {
   await cancelTodayAndStale(`nutrition_${meal}`);
 }
 
-/** Cancel today's check-in reminder — call after check-in is submitted. */
+/** Cancel today's check-in reminder; call after check-in is submitted. */
 export async function cancelCheckinReminderToday(): Promise<void> {
   await cancelTodayAndStale('checkin');
 }
 
-/** Cancel both trial reminders — call when subscription becomes active. */
+/** Cancel both trial reminders; call when subscription becomes active. */
 export async function cancelTrialReminders(): Promise<void> {
   await cancelStored(storageKey('trial', '11'));
   await cancelStored(storageKey('trial', '13'));

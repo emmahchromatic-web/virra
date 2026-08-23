@@ -18,7 +18,7 @@ export interface TodaysSession {
   cycle_adjusted_pace_secs: number | null; // null if no modulation OR no pace target
   cycle_reason_short:       string | null; // first sentence of the modulation reason
   cycle_pace_arrow:         '↑' | '↓' | null; // direction of pace adjustment
-  // Phase I — one-line workout structure summary (null when no structure stored yet)
+  // Phase I: one-line workout structure summary (null when no structure stored yet)
   structure_summary: string | null;
 }
 
@@ -53,7 +53,7 @@ interface ActivityRow {
  * Returns the user's planned sessions for today, with linked activity metrics
  * hydrated when the session has been completed. Excludes 'moved' (which leaves
  * a placeholder pointing to a replacement row) and 'dropped' (intentionally
- * abandoned). The caller decides how to render an empty list — e.g. "Rest day"
+ * abandoned). The caller decides how to render an empty list; e.g. "Rest day"
  * or "No session planned".
  */
 export async function getTodaysSessions(userId: string): Promise<TodaysSession[]> {
@@ -138,7 +138,7 @@ export async function enrichTodaysSessions(
     };
   }
 
-  // Also surface any activity logged today that DIDN'T link to a planned session —
+  // Also surface any activity logged today that DIDN'T link to a planned session
   // gives the lenient completion match a chance to recover if the auto-linker missed it.
   // We only fold in matching-modality unmatched activities for sessions still 'planned'.
   const unlinkedByModality: Record<string, ActivityRow> = {};
@@ -147,7 +147,7 @@ export async function enrichTodaysSessions(
     unlinkedByModality[a.activity_type] = a;
   }
 
-  // Read cycle state synchronously from Zustand — free, no DB round trip
+  // Read cycle state synchronously from Zustand; free, no DB round trip
   const cycleState     = useCycleStore.getState();
   const cyclePhase     = cycleState.cycleInfo?.phase ?? null;
   const cycleProfile   = cycleState.cycleProfile;
@@ -172,7 +172,7 @@ export async function enrichTodaysSessions(
       const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile, hasPlaceboWeek);
 
       if (result.reason) {
-        cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
+        cycle_reason_short = result.reason.split(/[.:]/)[0]?.trim() ?? null;
 
         const adjustedPace = result.adjusted_target.pace_seconds_per_km;
         if (adjustedPace && adjustedPace !== baselinePace) {
@@ -187,7 +187,7 @@ export async function enrichTodaysSessions(
       const baseTarget = { intensity_label: r.session_label };
       const result = modulateForCycle(baseTarget, sessionType, cyclePhase, cycleProfile, hasPlaceboWeek);
       if (result.reason) {
-        cycle_reason_short = result.reason.split(/[.—]/)[0]?.trim() ?? null;
+        cycle_reason_short = result.reason.split(/[.:]/)[0]?.trim() ?? null;
       }
     }
 

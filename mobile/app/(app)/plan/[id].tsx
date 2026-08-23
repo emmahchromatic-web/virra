@@ -322,7 +322,7 @@ export default function PlanDetailScreen() {
     3: ['upper', 'lower', 'upper'], // alternated week
   };
 
-  // Chart bars = RPE target per phase (not session count — that's already in the stat pill)
+  // Chart bars = RPE target per phase (not session count; that's already in the stat pill)
   const GYM_PHASE_RPE: Record<string, number> = {
     Foundation: 6.5,
     Build:      7.5,
@@ -513,7 +513,7 @@ export default function PlanDetailScreen() {
           </View>
         )}
 
-        {/* Current week card — active plans only */}
+        {/* Current week card: active plans only */}
         {userPlan && currentWeek && (
           <VirraCard style={styles.currentWeekCard} accent>
             <View style={styles.currentWeekHeader}>

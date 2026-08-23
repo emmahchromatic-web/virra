@@ -91,12 +91,12 @@ interface ImportContext {
  * Forces a full historical backfill from HealthKit. Used when the user first
  * enables weight tracking (or re-enables it) so the chart isn't empty.
  *
- * The persistent anchor (`hk_weight_anchor_v1`) defeats this on re-enable — we
+ * The persistent anchor (`hk_weight_anchor_v1`) defeats this on re-enable; we
  * clear it so the next `importNewWeightSamples` defaults back to the 1-year
  * lookback window.
  */
 export async function enableWeightTracking(ctx: ImportContext): Promise<number> {
-  // Make sure the JS↔native HK bridge is up before we query weight samples —
+  // Make sure the JS↔native HK bridge is up before we query weight samples
   // if the user enables tracking before any other HK-using surface initialised
   // the bridge, `getWeightSamples` would silently return empty.
   await initHealthKitForSession();
@@ -150,7 +150,7 @@ export async function importNewWeightSamples(ctx: ImportContext): Promise<number
 
   // Apple Health can hold many readings per day (smart scale syncs, repeat
   // weigh-ins). Our body_weights table is unique on (user_id, recorded_on,
-  // source) — so we collapse the day's HK readings to a single row before
+  // source): so we collapse the day's HK readings to a single row before
   // upserting. We keep the latest sample of the day; that's typically the
   // most recently entered value if the user re-weighed.
   const latestPerDay = new Map<string, RawWeightSample>();
@@ -188,7 +188,7 @@ export async function importNewWeightSamples(ctx: ImportContext): Promise<number
     console.warn('[healthKitWeight] baseline recompute failed:', e.message);
   });
 
-  // Refresh any open chart screens — they listen on weightDataVersion.
+  // Refresh any open chart screens; they listen on weightDataVersion.
   try { useProfileStore.getState().bumpWeightDataVersion(); } catch { /* store not ready, ignore */ }
 
   await writeDiag({ ranAt, startDate, bridgeReady: true, error: null, samples: samples.length, imported: rows.length });

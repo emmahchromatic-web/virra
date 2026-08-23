@@ -39,7 +39,7 @@ export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) 
   // The stored quantity is unit-agnostic; quantity_unit says what it means.
   const unit = toFoodUnit(entry?.quantity_unit);
 
-  // Derive the "base" quantity — what the stored macros represent.
+  // Derive the "base" quantity; what the stored macros represent.
   const baseGrams = entry
     ? (entry.quantity_g && entry.quantity_g > 0 ? entry.quantity_g : 100)
     : 100;
@@ -113,7 +113,7 @@ export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) 
         {entry.food_name}
       </VirraText>
 
-      {/* Original Haiku description — read-only audit trail */}
+      {/* Original Haiku description: read-only audit trail */}
       {isHaiku && (
         <View style={s.haikuPanel}>
           <VirraText variant="mono" size={9} color={colors.muted} style={s.haikuLabel}>

@@ -7,7 +7,7 @@ import { useSessionStore } from '@/store/sessionStore';
 
 const ANCHOR_KEY        = 'hk_workout_anchor_v1';
 const REIMPORT_FLAG_KEY = 'hk_reimport_subtype_v1';
-// BACKFILL_FLAG_KEY removed in Phase Ja T19 — the one-shot full-year
+// BACKFILL_FLAG_KEY removed in Phase Ja T19; the one-shot full-year
 // backfill it gated is now driven by sessionStore.reconcileFromActivities().
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
@@ -100,7 +100,7 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
   }
 
   // One-shot anchor reset so existing rows imported before the sub_type column
-  // pick it up on next observer fire. Idempotent — only resets once per install.
+  // pick it up on next observer fire. Idempotent; only resets once per install.
   const reimportDone = await AsyncStorage.getItem(REIMPORT_FLAG_KEY);
   if (!reimportDone) {
     await AsyncStorage.removeItem(ANCHOR_KEY);

@@ -92,7 +92,7 @@ export const PHASE_COLOR: Record<string, string> = {
   luteal:     colors.breath,
 };
 
-// Modality palette — mirrors DayCell. Drives the activity icon + iconWrap border
+// Modality palette: mirrors DayCell. Drives the activity icon + iconWrap border
 // (the phase pill stays on the cycle-phase palette above).
 const MODALITY_COLOR: Record<string, string> = {
   run:      colors.pulse,

@@ -149,7 +149,7 @@ export default function WeekMoveScreen() {
     }
 
     // Always stack onto the target day. moveSession relocates the session
-    // (old row → 'moved', new planned row at target) — no copy. If the day
+    // (old row → 'moved', new planned row at target); no copy. If the day
     // already has a session, the user can re-drag either one elsewhere.
     hapticImpact('medium');
     await commit(() => useSessionStore.getState().moveSession(id, target));

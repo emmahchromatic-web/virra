@@ -17,14 +17,14 @@ const COPY: Record<WeightExplainerMode, { editorial: string; body: string }> = {
       'Your weight rises and falls with your cycle. We track the shape of that, so you can see what\'s water, what\'s normal, and when something is actually worth noticing.',
     body:
       'No goal weight. No streaks. No daily prompt.\n' +
-      'Calibrating — we need ~3 cycles of readings before insights are reliable.',
+      'Calibrating. We need ~3 cycles of readings before insights are reliable.',
   },
   steady: {
     editorial:
-      'Your weight bounces day-to-day from water, food timing, and hydration. We track the trend, not the day-to-day — so you can see what\'s noise and what\'s real.',
+      'Your weight bounces day-to-day from water, food timing, and hydration. We track the trend, not the day-to-day, so you can see what\'s noise and what\'s real.',
     body:
       'No goal weight. No streaks. No daily prompt.\n' +
-      'Calibrating — we need ~30 days of readings before the steady line becomes reliable.',
+      'Calibrating. We need ~30 days of readings before the steady line becomes reliable.',
   },
 };
 

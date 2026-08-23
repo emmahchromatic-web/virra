@@ -21,7 +21,7 @@ export async function lookupBarcode(barcode: string): Promise<VirraFood | null> 
 // Search OFF by free-text name. Returns up to `pageSize` results with usable kcal.
 // Throws on network failure or abort.
 //
-// Uses cgi/search.pl rather than /api/v2/search — the v2 endpoint silently ignores
+// Uses cgi/search.pl rather than /api/v2/search; the v2 endpoint silently ignores
 // search_terms and returns the full database in arbitrary order. The cgi endpoint
 // is the canonical free-text route per OFF's wiki and honours sort_by relevance.
 export async function searchByName(
@@ -74,7 +74,7 @@ export function parseOFFSearchResults(data: unknown): VirraFood[] {
     const code = typeof p.code === 'string' && p.code.trim() ? p.code.trim() : undefined;
     if (!code) continue;
     const food = productToVirraFood(p, `off-${code}`);
-    // Skip products with no usable kcal — they're noise.
+    // Skip products with no usable kcal; they're noise.
     if (!food || food.calories <= 0) continue;
     out.push(food);
   }
@@ -83,7 +83,7 @@ export function parseOFFSearchResults(data: unknown): VirraFood[] {
 
 /**
  * Whether an OFF product is sold by volume. OFF records this directly on most
- * products; where it doesn't, the pack size string ("500 ml", "1 L") usually
+ * products: where it doesn't, the pack size string ("500 ml", "1 L") usually
  * gives it away. Falls back to the product name only when neither is present.
  */
 export function unitForOFFProduct(p: Record<string, unknown>, name: string): FoodUnit {

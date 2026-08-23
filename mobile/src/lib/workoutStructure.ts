@@ -76,11 +76,11 @@ export interface StrengthWorkoutStructure {
 // ---- Strength v2 (authored Get Strong programmes) ----
 //
 // v2 carries the exact session Emma authored for a programme day + equipment
-// variant + 12-week block (see getStrongSession.ts). Unlike v1 — where the
+// variant + 12-week block (see getStrongSession.ts). Unlike v1, where the
 // generator picks exercises from a pool and tempo/description come from
-// getExerciseMeta at render time — v2 persists everything the UI needs:
+// getExerciseMeta at render time; v2 persists everything the UI needs:
 // grouped sections, and per-exercise description / tempo / rest. Readers
-// discriminate on `version`; v1 stays untouched.
+// discriminate on `version`: v1 stays untouched.
 
 export interface StrengthV2Exercise {
   name:        string;
@@ -113,7 +113,7 @@ export interface StrengthWorkoutStructureV2 {
   deload_note?:      string | null;
 }
 
-/** Any persisted strength structure — v1 (generated) or v2 (authored programme). */
+/** Any persisted strength structure; v1 (generated) or v2 (authored programme). */
 export type AnyStrengthStructure = StrengthWorkoutStructure | StrengthWorkoutStructureV2;
 
 export function isStrengthV2(s: AnyStrengthStructure | null | undefined): s is StrengthWorkoutStructureV2 {

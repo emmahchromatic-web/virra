@@ -45,7 +45,7 @@ export interface RunSessionDetail {
   actual_pace_secs:   number | null;
   actual_distance_km: number | null;
   cycle_modulation:   ModulationResult | null;
-  // Phase I — workout structure
+  // Phase I: workout structure
   structure:           RunWorkoutStructure | null;
   modulated_structure: RunWorkoutStructure | null;
 }
@@ -57,7 +57,7 @@ export interface StrengthSessionDetail {
   estimated_minutes:  number;
   status:             string;
   cycle_modulation:   ModulationResult | null;
-  // Phase I — workout structure
+  // Phase I: workout structure
   structure:          AnyStrengthStructure | null;
 }
 
@@ -114,7 +114,7 @@ const TYPE_MODIFIER: Record<string, number> = {
   base:        1.20,
 };
 
-// Same values — used in split calibration to normalise actual pace to threshold equivalent
+// Same values: used in split calibration to normalise actual pace to threshold equivalent
 const TYPE_INVERSE_MODIFIER: Record<string, number> = { ...TYPE_MODIFIER };
 
 const PHASE_MODIFIER: Record<string, number> = {
@@ -136,7 +136,7 @@ const PHASE_GUIDANCE: Record<string, string> = {
   follicular: 'Ramp up. Your body adapts faster now.',
   ovulatory:  'Hardest sessions belong here.',
   luteal:     'Hold the work, honour fatigue.',
-  menstrual:  'Keep effort light — rest is training too.',
+  menstrual:  'Keep effort light. Rest is training too.',
 };
 
 // ---- Cycle modulation helpers ----
@@ -173,7 +173,7 @@ export function formatPace(secondsPerKm: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}/km`;
 }
 
-// Pure redistribution — takes remaining km and week metadata, returns adjusted km per week.
+// Pure redistribution: takes remaining km and week metadata, returns adjusted km per week.
 // Past weeks always get 0 (their original_km is already counted in completed_km).
 export function _redistributeKm(remainingKm: number, weeks: WeekInput[]): number[] {
   const remaining = weeks.filter((w) => !w.is_past);
@@ -225,7 +225,7 @@ export function _redistributeKm(remainingKm: number, weeks: WeekInput[]): number
 }
 
 // Distribute a week's km budget across sessions by label weight.
-// long gets 40%; others split the remaining 60% proportionally by TYPE_MODIFIER.
+// long gets 40%: others split the remaining 60% proportionally by TYPE_MODIFIER.
 // Without a long session, all sessions split proportionally by TYPE_MODIFIER.
 export function distributeWeeklyKm(
   sessions: Array<{ id: string; session_label: string }>,
@@ -261,7 +261,7 @@ export function distributeWeeklyKm(
 export async function getGoalPace(
   userId:  string,
   blockId: string,
-  // phase is reserved for future cycle-adjusted goal pacing — not yet applied
+  // phase is reserved for future cycle-adjusted goal pacing, not yet applied
   phase:   CyclePhase | null,
 ): Promise<GoalPace> {
   const DEFAULT_PACE = 360; // 6:00/km fallback
@@ -458,7 +458,7 @@ export async function getWeeklyVolumePlan(
       deficit_message    = `Whilst you've missed some sessions, your goal is still within reach. Hit the remaining sessions and aim for a revised pace of ${formatPace(revisedPace)} on race day.`;
     } else {
       deficit_message =
-        "Whilst you've missed some sessions, your goal is still within reach — hit the remaining sessions to give yourself the best chance.";
+        "Whilst you've missed some sessions, your goal is still within reach. Hit the remaining sessions to give yourself the best chance.";
     }
   }
 
@@ -489,8 +489,8 @@ export async function getDaySessionDetail(
   // (those are forward-looking, "what's my current readiness" concerns).
   const phaseToday = cycleStore.phase;
 
-  // For everything tied to THIS date — the banner, per-session pace modulation,
-  // and the volume-adjustment note — use the phase predicted for the date.
+  // For everything tied to THIS date; the banner, per-session pace modulation,
+  // and the volume-adjustment note; use the phase predicted for the date.
   const dateForPhase = new Date(`${dateISO}T00:00:00`);
   const phaseForDate: CyclePhase | null = cycleStore.periodStart
     ? getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, dateForPhase).phase

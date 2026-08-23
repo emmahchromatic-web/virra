@@ -38,7 +38,7 @@ export interface TodayLogContext {
  * Upsert today's `nutrition_logs` row and return its id.
  *
  * Mirrors the Nutrition tab's own upsert (nutrition.tsx `loadData`) so a log
- * created from anywhere — the home quick-log button, the nutrition tab — carries
+ * created from anywhere: the home quick-log button, the nutrition tab; carries
  * the same phase/load/targets snapshot and resolves to the same row (unique on
  * user_id + recorded_on). Callers that only have a user id (e.g. the home food
  * button) can create the row before navigating into food-search, which requires

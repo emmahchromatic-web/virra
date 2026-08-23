@@ -62,7 +62,7 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
           Rest day.
         </VirraText>
         <VirraText variant="body" size={13} color="rgba(244,237,224,0.55)" style={{ lineHeight: 18 }}>
-          No session planned — recovery is part of the work.
+          No session planned. Recovery is part of the work.
         </VirraText>
       </VirraCard>
     );

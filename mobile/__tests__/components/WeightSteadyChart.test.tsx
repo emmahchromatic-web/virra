@@ -56,7 +56,7 @@ describe('WeightSteadyChart', () => {
     const { getByText } = render(
       <WeightSteadyChart baselineKg={null} readings={readings} today={today} />
     );
-    expect(getByText('CALIBRATING — 3/7 READINGS LOGGED')).toBeTruthy();
+    expect(getByText('CALIBRATING · 3/7 READINGS LOGGED')).toBeTruthy();
   });
 
   it('never shows a count above the minimum it needs', () => {
@@ -64,7 +64,7 @@ describe('WeightSteadyChart', () => {
     const { getByText } = render(
       <WeightSteadyChart baselineKg={null} readings={readings} today={today} />
     );
-    expect(getByText('CALIBRATING — 7/7 READINGS LOGGED')).toBeTruthy();
+    expect(getByText('CALIBRATING · 7/7 READINGS LOGGED')).toBeTruthy();
   });
 
   it('renders without crashing with an empty readings array', () => {

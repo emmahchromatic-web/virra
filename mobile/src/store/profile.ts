@@ -148,7 +148,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
 
   acknowledgeHaikuDisclosure: async (userId) => {
     const now = new Date().toISOString();
-    // Optimistic — the screen reveals immediately; if persistence fails the next
+    // Optimistic: the screen reveals immediately, if persistence fails the next
     // session-load will simply prompt again, which is the right fallback.
     set({ haikuDisclosureAcknowledgedAt: now });
     const { error } = await supabase

@@ -26,7 +26,7 @@ export const useReadinessStore = create<ReadinessState>((set, get) => ({
   isFirstRun: false,
 
   async refresh(phase, checkin) {
-    // Only show shimmer when there is no cached score yet — avoids flash on every foreground
+    // Only show shimmer when there is no cached score yet; avoids flash on every foreground
     if (!get().today) set({ isLoading: true })
 
     try {

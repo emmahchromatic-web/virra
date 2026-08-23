@@ -237,7 +237,7 @@ export default function WeekAheadScreen() {
                   <VirraText variant="mono" size={9} color={colors.muted}>KCAL</VirraText>
                 </View>
 
-                {/* Actions column — stacked */}
+                {/* Actions column: stacked */}
                 <View style={s.actionsCol}>
                   {day.sessions.filter((sess) => sess.status === 'planned').map((sess) => (
                     <View key={sess.id} style={s.btnStack}>

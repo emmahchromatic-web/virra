@@ -24,7 +24,7 @@ function haversineMeters(a: GpsPoint, b: GpsPoint): number {
   const dLon = (b.lon - a.lon) * Math.PI / 180;
   const x    = Math.sin(dLat / 2) ** 2
              + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180)
-             * Math.sin(dLon / 2) ** 2;
+             * Math.sin(dLon / 2) ** 2
   return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
@@ -320,7 +320,7 @@ export default function RunTrackerScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* Primary stat — distance */}
+        {/* Primary stat: distance */}
         <View style={styles.distanceBlock}>
           <VirraText variant="display" size={72} color={colors.breath} style={styles.distanceNum}>
             {runState === 'idle' ? '0.00' : distanceKm}

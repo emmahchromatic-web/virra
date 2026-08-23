@@ -47,7 +47,7 @@ function dayOfCycleFor(date: Date, periodStart: Date, cycleLength: number): { da
   return { day, cycleOffset };
 }
 
-// The store's `periodStart` is the latest logged period — it may be several cycles
+// The store's `periodStart` is the latest logged period; it may be several cycles
 // behind today. The chart needs a periodStart anchored to the cycle that contains
 // today so cycleOffset 0 = current, -1 = prior, -2 = two-prior.
 function anchorToCurrentCycle(periodStart: Date, cycleLength: number, today: Date): Date {

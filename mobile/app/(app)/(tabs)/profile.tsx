@@ -56,7 +56,7 @@ const CYCLE_PROFILE_LABEL: Record<CycleProfile, string> = {
 };
 
 // supabase.functions.invoke only surfaces a generic "non-2xx status code" message.
-// Our Edge Functions return { error } in the response body — read it out so a
+// Our Edge Functions return { error } in the response body; read it out so a
 // failure is diagnosable instead of opaque.
 async function functionErrorMessage(error: unknown): Promise<string> {
   const ctx = (error as { context?: Response }).context;
@@ -65,7 +65,7 @@ async function functionErrorMessage(error: unknown): Promise<string> {
       const body = await ctx.json();
       if (body?.error) return String(body.error);
     } catch {
-      // body wasn't JSON — fall back to the generic message below
+      // body wasn't JSON: fall back to the generic message below
     }
   }
   return (error as Error).message ?? 'Unknown error';
@@ -143,7 +143,7 @@ export default function ProfileScreen() {
   // Surface the most recent HK weight-sync diagnostic so we can tell at a
   // glance whether the bridge ran, what it returned, and whether anything
   // landed in Supabase. This view is intentionally chatty during the
-  // Phase G rollout — once stable we can move it behind a debug flag.
+  // Phase G rollout: once stable we can move it behind a debug flag.
   useEffect(() => {
     if (!trackWeight) { setWeightDiag(null); return; }
     let cancelled = false;
@@ -242,7 +242,7 @@ export default function ProfileScreen() {
     try {
       const uri  = result.assets[0].uri;
       const path = `${session.user.id}/avatar.jpg`;
-      // `fetch(uri).then(r => r.blob())` is broken on React Native — Supabase
+      // `fetch(uri).then(r => r.blob())` is broken on React Native; Supabase
       // ends up uploading an empty/garbled body, the URL resolves but the
       // image never renders. Read the file as raw bytes instead.
       const bytes = await new File(uri).bytes();
@@ -601,7 +601,7 @@ export default function ProfileScreen() {
         <Pressable
           style={styles.referCard}
           onPress={() => Share.share({
-            message: `I've been training smarter with Virra — the app that adjusts your training and nutrition to your cycle. Try it free: https://virra.app`,
+            message: `I've been training smarter with Virra, the app that adjusts your training and nutrition to your cycle. Try it free: https://virra.app`,
           })}
           accessibilityRole="button"
           accessibilityLabel="Refer a friend"
@@ -845,7 +845,7 @@ export default function ProfileScreen() {
         <VirraButton label="SAVE" onPress={handleNameSave} loading={saving} style={{ marginTop: spacing.md }} />
       </VirraModal>
 
-      {/* Delete account — two deliberate steps, because it cannot be undone */}
+      {/* Delete account: two deliberate steps, because it cannot be undone */}
       <VirraModal
         visible={deleteModalVisible}
         onClose={closeDeleteModal}

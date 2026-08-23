@@ -218,7 +218,7 @@ export default function ManualActivityScreen() {
         );
       }
     } catch {
-      // no matching planned session — that's fine
+      // no matching planned session; that's fine
     }
 
     const todayStr = new Date().toISOString().split('T')[0];
@@ -308,7 +308,7 @@ export default function ManualActivityScreen() {
               )}
             </Field>
 
-            {/* Distance — runs and swims only */}
+            {/* Distance: runs and swims only */}
             {showDistance && (
               <>
                 <View style={styles.rowDivider} />

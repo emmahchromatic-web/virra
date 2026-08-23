@@ -63,7 +63,7 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
         if (cancelled) return;
         setTodayLoad(ctx.inferred_load);
       } catch {
-        // Non-critical — load label omitted on error
+        // Non-critical: load label omitted on error
       }
     }
   }, [userId, phase, todayISO]));

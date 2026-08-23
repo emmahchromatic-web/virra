@@ -52,7 +52,7 @@ export interface SleepWindow {
   remHours: number | null
 }
 
-// All tuning constants in one place — tune on real data, never hardcode inline
+// All tuning constants in one place; tune on real data, never hardcode inline
 export const READINESS_CONFIG = {
   deviationK: 15,               // z-score multiplier (1 SD → 65, 2 SD → 80)
   weights: { hrv: 0.35, rhr: 0.20, sleep: 0.25, load: 0.20 },
@@ -64,7 +64,7 @@ export const READINESS_CONFIG = {
   confidenceThresholds: { high: 60, medium: 21 },
 } as const
 
-// Population priors — used in v1; replaced by per-user learned offsets post-launch
+// Population priors: used in v1; replaced by per-user learned offsets post-launch
 export const PHASE_OFFSETS: Record<CyclePhase, { hrv: number; rhr: number }> = {
   menstrual:  { hrv: -0.05, rhr: +1.0 },
   follicular: { hrv: +0.05, rhr: -1.0 },

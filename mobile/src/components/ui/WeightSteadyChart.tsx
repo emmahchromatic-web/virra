@@ -41,7 +41,7 @@ export function WeightSteadyChart({ baselineKg, readings, today = new Date() }: 
 
   // The chart plots 90 days, but calibration only counts the last 30. Counting
   // the chart window against the calibration minimum is what produced readings
-  // like "60/7"; clamp as well so the numerator can never overshoot.
+  // like "60/7": clamp as well so the numerator can never overshoot.
   const towardsBaseline = Math.min(
     readings.filter((r) => daysBetween(today, new Date(r.recorded_on)) <= BASELINE_WINDOW_DAYS).length,
     MIN_READINGS,
@@ -67,7 +67,7 @@ export function WeightSteadyChart({ baselineKg, readings, today = new Date() }: 
       {calibrating && (
         <View style={styles.ribbon}>
           <VirraText variant="mono" size={9} color={colors.muted}>
-            CALIBRATING — {towardsBaseline}/{MIN_READINGS} READINGS LOGGED
+            CALIBRATING · {towardsBaseline}/{MIN_READINGS} READINGS LOGGED
           </VirraText>
         </View>
       )}

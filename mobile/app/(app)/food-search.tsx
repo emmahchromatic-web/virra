@@ -309,7 +309,7 @@ export default function FoodSearchScreen() {
       .then(({ data }) => setCombos((data as MealCombo[]) ?? []));
   }, [activeMeal]);
 
-  // Wrapper used by the list rows — picking from the list resets the barcode-source flag.
+  // Wrapper used by the list rows; picking from the list resets the barcode-source flag.
   const handleListSelect = (food: VirraFood) => {
     setSelectedFromBarcode(false);
     setSelected(food);
@@ -346,7 +346,7 @@ export default function FoodSearchScreen() {
         });
     }, 300);
     return () => { clearTimeout(timer); ctrl.abort(); };
-    // localResults.length is derived from query — query alone is the right dependency
+    // localResults.length is derived from query; query alone is the right dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
@@ -524,7 +524,7 @@ export default function FoodSearchScreen() {
           <View style={{ width: 32 }} />
         </View>
 
-        {/* Meal selector — seeded from the time of day, changeable here */}
+        {/* Meal selector: seeded from the time of day, changeable here */}
         <View style={styles.mealTabs}>
           {MEAL_ORDER.map((m) => {
             const active = m === activeMeal;
@@ -592,7 +592,7 @@ export default function FoodSearchScreen() {
           {/* Results list */}
           {!selected && !manual && (
             <>
-              {/* MY MEALS — saved combos for this meal type */}
+              {/* MY MEALS: saved combos for this meal type */}
               {combos.length > 0 && query.trim().length === 0 && (
                 <>
                   <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
@@ -627,7 +627,7 @@ export default function FoodSearchScreen() {
                 </>
               )}
 
-              {/* YOUR REGULARS — top 5 auto-favourites */}
+              {/* YOUR REGULARS: top 5 auto-favourites */}
               {favourites.length > 0 && query.trim().length === 0 && (
                 <>
                   <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
@@ -657,7 +657,7 @@ export default function FoodSearchScreen() {
                 </>
               )}
 
-              {/* Action row — peer affordances to search */}
+              {/* Action row: peer affordances to search */}
               <View style={styles.actionRow}>
                 <VirraButton
                   label="Describe a meal"

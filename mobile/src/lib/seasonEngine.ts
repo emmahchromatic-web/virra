@@ -119,7 +119,7 @@ function distributePhases(
     // Cap recovery so at least the race day remains.
     const cappedRecovery = Math.min(recovery_in, Math.max(0, totalWks - 1));
     // Race day is a single day captured by clamping the final non-race segment's
-    // ends_on to ends_on - 1. Do NOT subtract a "race day week" from remainingWks —
+    // ends_on to ends_on - 1. Do NOT subtract a "race day week" from remainingWks
     // that would double-count it and cause the taper to be incorrectly dropped on
     // normal-length bridges (e.g. Brighton→Leeds 5-week bridge).
     const remainingWks = totalWks - cappedRecovery;
@@ -244,7 +244,7 @@ export async function applySeasonChain(
     .select('id')
     .single();
   if (seasonErr) {
-    // Another concurrent call won the race — refetch the existing active season
+    // Another concurrent call won the race; refetch the existing active season
     if (seasonErr.code === '23505') {
       const { data: existing } = await supabase
         .from('seasons')
@@ -335,7 +335,7 @@ export async function applySeasonChain(
 
 /**
  * Detects 2+ future events without an active season; if found, builds and applies
- * the chain. Idempotent — returns existing season_id if one is already active.
+ * the chain. Idempotent: returns existing season_id if one is already active.
  */
 export async function recomputeSeasonForUser(
   userId:        string,
@@ -361,7 +361,7 @@ export async function recomputeSeasonForUser(
   const seasonEvents: SeasonEvent[] = events.map((e) => ({
     id:            e.id,
     event_date:    e.event_date,
-    modality:      'run',                       // default — races are runs in MVP
+    modality:      'run',                       // default; races are runs in MVP
     distance_goal: e.distance_goal,
   }));
 

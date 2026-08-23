@@ -13,8 +13,8 @@ const CUES: Record<CyclePhase, Partial<Record<TrainingLoad, string>>> = {
     rest:     'Keep it easy. Your body is working hard.',
   },
   follicular: {
-    hard:     'Your adaptation window — make it count.',
-    moderate: 'Your adaptation window — make it count.',
+    hard:     'Your adaptation window. Make it count.',
+    moderate: 'Your adaptation window. Make it count.',
     easy:     'Energy is rising. Build on it.',
     rest:     'Energy is rising. Build on it.',
   },

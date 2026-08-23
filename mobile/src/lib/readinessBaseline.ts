@@ -95,7 +95,7 @@ export async function updateBaseline(isFirstRun: boolean): Promise<ReadinessBase
   }
 }
 
-// Rolling sleep-debt accumulator. Output for the Haiku insights engine —
+// Rolling sleep-debt accumulator. Output for the Haiku insights engine
 // not fed back into the daily score (which already penalises short sleep via sleepSub).
 export async function updateSleepDebt(
   sleepHours: number,

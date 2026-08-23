@@ -112,7 +112,7 @@ export default function TrainingScreen() {
   const [enrichedToday,     setEnrichedToday]       = useState<TodaysSession[]>([]);
   const [seasonSummary,     setSeasonSummary]       = useState<SeasonChainSummary | null>(null);
 
-  // Today's planned sessions come from the shared session store (auto-updates on mutations);
+  // Today's planned sessions come from the shared session store (auto-updates on mutations)
   // we then run them through `enrichTodaysSessions` to hydrate activity metrics, cycle
   // modulation, and workout-structure summaries for the hero card.
   const todayPlanned = useTodaySessions();

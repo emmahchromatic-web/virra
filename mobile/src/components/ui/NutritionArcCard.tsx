@@ -75,7 +75,7 @@ export function NutritionArcCard({ totals, onPress }: Props) {
 
   if (onPress) {
     return (
-      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Fuelling today — open nutrition">
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Fuelling today, open nutrition">
         {content}
       </Pressable>
     );

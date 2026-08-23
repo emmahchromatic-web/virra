@@ -5,7 +5,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 
-// Soft require — existing dev builds without expo-haptics still load.
+// Soft require: existing dev builds without expo-haptics still load.
 // Haptics start firing once a fresh native build ships.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let Haptics: any = null;
@@ -65,7 +65,7 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
   const sessionId  = session.id;
 
   // Stable refs so the Gesture callbacks always see the latest screen-level
-  // handlers — RNGH doesn't hot-swap callbacks on an active touch.
+  // handlers: RNGH doesn't hot-swap callbacks on an active touch.
   const cbRef = useRef({ onLongPress, onPanUpdate, onPanEnd });
   useEffect(() => {
     cbRef.current = { onLongPress, onPanUpdate, onPanEnd };
@@ -156,7 +156,7 @@ export function SessionCardGhost({ modality, session_label }: GhostProps) {
 }
 
 // Completed sessions are shown for context (so the day looks the same as in
-// the calendar/list views) but can't be dragged — they're already done.
+// the calendar/list views) but can't be dragged; they're already done.
 export function CompletedSessionCard({ modality, session_label }: GhostProps) {
   return (
     <View style={[styles.card, styles.done]} pointerEvents="none">

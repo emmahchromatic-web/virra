@@ -279,7 +279,7 @@ export default function NutritionScreen() {
       setDailyContext(ctx);
       setLoad(ctx.inferred_load);
     } catch {
-      // Network error — fall back to 'easy' default, no label shown
+      // Network error: fall back to 'easy' default, no label shown
     }
 
     const effectiveLoad    = ctx?.inferred_load ?? load;
