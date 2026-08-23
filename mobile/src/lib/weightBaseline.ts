@@ -7,12 +7,19 @@ interface BaselineRow {
   cycle_phase_at_time: 'menstrual' | 'follicular' | 'ovulatory' | 'luteal' | null;
 }
 
+/**
+ * Follicular readings needed before a baseline, and therefore any band, exists.
+ * Exported so the calibrating ribbon can show real progress rather than a
+ * guess at how many cycles it might take.
+ */
+export const MIN_FOLLICULAR_READINGS = 5;
+
 export function medianFollicular(rows: BaselineRow[]): number | null {
   const follicular = rows
     .filter((r) => r.cycle_phase_at_time === 'follicular')
     .map((r) => Number(r.weight_kg))
     .sort((a, b) => a - b);
-  if (follicular.length < 5) return null;
+  if (follicular.length < MIN_FOLLICULAR_READINGS) return null;
   const n   = follicular.length;
   const mid = Math.floor(n / 2);
   return n % 2 === 0
