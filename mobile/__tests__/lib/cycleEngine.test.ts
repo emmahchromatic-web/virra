@@ -1,4 +1,4 @@
-import { getCyclePhase, deriveCycleMode } from '@/lib/cycleEngine';
+import { getCyclePhase, getCycleInfo, deriveCycleMode } from '@/lib/cycleEngine';
 
 const day = (n: number, from: Date) => {
   const d = new Date(from);
@@ -100,5 +100,90 @@ describe('deriveCycleMode', () => {
   });
   test('prefer_not_to_say → steady', () => {
     expect(deriveCycleMode('prefer_not_to_say', null)).toBe('steady');
+  });
+});
+
+// Regression: every reading dated before the most recent period start used to
+// come back "menstrual". JavaScript's remainder keeps the sign of the dividend,
+// so `elapsed % cycleLength` went negative and slipped past the day <= 5 test.
+// In practice this mislabelled 38 of one user's 40 weight readings, leaving the
+// cycle weight band permanently calibrating because the baseline needs five
+// follicular readings and only ever saw two.
+describe('getCycleInfo for dates before the period start', () => {
+  const start = new Date('2025-03-05');
+  const len28 = 28;
+  const before = (n: number) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() - n);
+    return d;
+  };
+
+  it('wraps backwards into the previous cycle instead of going negative', () => {
+    expect(getCycleInfo(start, len28, before(1)).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, len28, before(10)).dayOfCycle).toBe(19);
+    expect(getCycleInfo(start, len28, before(28)).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, len28, before(29)).dayOfCycle).toBe(28);
+  });
+
+  it('never reports a dayOfCycle outside 1..cycleLength, however far back', () => {
+    for (let n = 0; n <= 200; n++) {
+      const { dayOfCycle } = getCycleInfo(start, len28, before(n));
+      expect(dayOfCycle).toBeGreaterThanOrEqual(1);
+      expect(dayOfCycle).toBeLessThanOrEqual(len28);
+    }
+  });
+
+  it('spreads back-dated readings across all four phases rather than calling them all menstrual', () => {
+    const phases = new Set<string>();
+    for (let n = 0; n < 28; n++) phases.add(getCycleInfo(start, len28, before(n)).phase);
+    expect(phases).toEqual(new Set(['menstrual', 'follicular', 'ovulatory', 'luteal']));
+  });
+
+  it('mirrors the equivalent day of a forward cycle', () => {
+    // 10 days before a start is the same point in the cycle as 18 days after
+    // the previous start, i.e. day 19 either way.
+    expect(getCycleInfo(start, len28, before(10)).phase)
+      .toBe(getCycleInfo(new Date('2025-02-05'), len28, new Date('2025-02-23')).phase);
+  });
+
+  it('leaves forward dates exactly as they were', () => {
+    const on = (n: number) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + n);
+      return d;
+    };
+    expect(getCycleInfo(start, len28, on(0)).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, len28, on(5)).dayOfCycle).toBe(6);
+    expect(getCycleInfo(start, len28, on(27)).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, len28, on(28)).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, len28, on(56)).dayOfCycle).toBe(1);
+  });
+});
+
+// Regression: both ends of the elapsed-days calculation are local midnights, so
+// a clock change between them left the difference an hour short of a whole
+// number of days. Flooring that reported the cycle a day behind for everyone
+// for the week after the clocks went forward.
+describe('getCycleInfo across a daylight saving change', () => {
+  it('counts whole days when the clocks go forward mid-cycle', () => {
+    const start = new Date('2025-03-05');        // UK clocks go forward 30 March
+    const on = (n: number) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + n);
+      return d;
+    };
+    expect(getCycleInfo(start, 28, on(27)).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, 28, on(28)).dayOfCycle).toBe(1);
+  });
+
+  it('counts whole days when the clocks go back mid-cycle', () => {
+    const start = new Date('2025-10-15');        // UK clocks go back 26 October
+    const on = (n: number) => {
+      const d = new Date(start);
+      d.setDate(d.getDate() + n);
+      return d;
+    };
+    expect(getCycleInfo(start, 28, on(20)).dayOfCycle).toBe(21);
+    expect(getCycleInfo(start, 28, on(27)).dayOfCycle).toBe(28);
   });
 });

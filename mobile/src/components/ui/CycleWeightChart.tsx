@@ -4,6 +4,8 @@ import Svg, { Line, Text as SvgText, Circle, Path } from 'react-native-svg';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 import { bandFor, type PhaseBands } from '@/lib/weightBand';
+import { MIN_FOLLICULAR_READINGS } from '@/lib/weightBaseline';
+import { getCycleInfo } from '@/lib/cycleEngine';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
 export interface WeightReading {
@@ -78,6 +80,13 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
   const todayInfo   = dayOfCycleFor(today, anchor, cycleLength);
   const calibrating = baselineKg === null;
 
+  // The band is gated on follicular readings, not on elapsed cycles, so show
+  // that count. Telling someone to wait "~3 cycles" sent them looking for a
+  // cycle-logging problem when the real answer was to weigh in more often.
+  const follicularLogged = calibrating
+    ? readings.filter((r) => getCycleInfo(periodStart, cycleLength, new Date(r.recorded_on)).phase === 'follicular').length
+    : 0;
+
   const buckets: Record<number, WeightReading[]> = { 0: [], [-1]: [], [-2]: [] };
   for (const r of readings) {
     const info = dayOfCycleFor(new Date(r.recorded_on), anchor, cycleLength);
@@ -97,7 +106,7 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
       {calibrating && (
         <View style={styles.ribbon}>
           <VirraText variant="mono" size={9} color={colors.muted}>
-            CALIBRATING — KEEP LOGGING{'\n'}BAND APPEARS AFTER ~3 CYCLES
+            CALIBRATING · {Math.min(follicularLogged, MIN_FOLLICULAR_READINGS)}/{MIN_FOLLICULAR_READINGS} FOLLICULAR READINGS{'\n'}WEIGH IN ACROSS YOUR CYCLE TO FINISH THIS
           </VirraText>
         </View>
       )}
