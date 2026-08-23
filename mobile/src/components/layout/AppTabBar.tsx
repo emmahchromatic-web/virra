@@ -14,18 +14,18 @@ const TAB_ICONS: Record<string, SymbolName> = {
   index:     'house',
   training:  'bolt',
   nutrition: 'fork.knife',
-  library:   'books.vertical',
+  recipes:   'book.closed',
 };
 
 const TAB_LABELS: Record<string, string> = {
   index:    'Dashboard',
   training: 'Training',
   nutrition:'Nutrition',
-  library:  'Library',
+  recipes:  'Recipes',
 };
 
 const LEFT_TABS  = ['index', 'training'];
-const RIGHT_TABS = ['nutrition', 'library'];
+const RIGHT_TABS = ['nutrition', 'recipes'];
 
 function TabButton({ route, routeIndex, state, navigation }: {
   route: any; routeIndex: number; state: any; navigation: any;

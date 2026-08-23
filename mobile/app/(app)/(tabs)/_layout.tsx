@@ -15,7 +15,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="index"     />
       <Tabs.Screen name="training"  />
       <Tabs.Screen name="nutrition" />
-      <Tabs.Screen name="library"   />
+      <Tabs.Screen name="recipes"   />
       <Tabs.Screen name="profile"   options={{ href: null }} />
     </Tabs>
   );
