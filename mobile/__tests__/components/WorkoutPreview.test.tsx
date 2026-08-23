@@ -29,8 +29,8 @@ jest.mock('@/lib/strengthHistory', () => ({
   getLastLoggedWeights: jest.fn().mockResolvedValue({}),
 }));
 
-jest.mock('@/lib/exerciseLoadTypes', () => ({
-  getLoadTypes:      jest.fn().mockResolvedValue({}),
+jest.mock('@/lib/exerciseSettings', () => ({
+  getExerciseSettings: jest.fn().mockResolvedValue({}),
   DEFAULT_LOAD_TYPE: 'weighted',
 }));
 
@@ -195,8 +195,11 @@ describe('WorkoutPreviewScreen — strength logging', () => {
   });
 
   it('hides the weight field on movements that never take a load', async () => {
-    const { getLoadTypes } = require('@/lib/exerciseLoadTypes');
-    getLoadTypes.mockResolvedValueOnce({ 'Goblet Squat': 'none', Deadlift: 'none' });
+    const { getExerciseSettings } = require('@/lib/exerciseSettings');
+    getExerciseSettings.mockResolvedValueOnce({
+      'Goblet Squat': { loadType: 'none',     defaultTempo: null },
+      Deadlift:       { loadType: 'none',     defaultTempo: null },
+    });
 
     const { findByText, queryAllByPlaceholderText, queryByText, queryByLabelText } =
       render(<WorkoutPreviewScreen />);
@@ -209,8 +212,11 @@ describe('WorkoutPreviewScreen — strength logging', () => {
   });
 
   it('offers the weight field on bodyweight movements people load, and reveals it on tap', async () => {
-    const { getLoadTypes } = require('@/lib/exerciseLoadTypes');
-    getLoadTypes.mockResolvedValueOnce({ 'Goblet Squat': 'optional', Deadlift: 'none' });
+    const { getExerciseSettings } = require('@/lib/exerciseSettings');
+    getExerciseSettings.mockResolvedValueOnce({
+      'Goblet Squat': { loadType: 'optional', defaultTempo: null },
+      Deadlift:       { loadType: 'none',     defaultTempo: null },
+    });
 
     const { findByText, queryAllByPlaceholderText, getByLabelText, queryByLabelText } =
       render(<WorkoutPreviewScreen />);
@@ -228,14 +234,31 @@ describe('WorkoutPreviewScreen — strength logging', () => {
   });
 
   it('keeps the weight field on loaded movements, and when the lookup fails', async () => {
-    const { getLoadTypes } = require('@/lib/exerciseLoadTypes');
-    getLoadTypes.mockResolvedValueOnce({});   // as if the query errored
+    const { getExerciseSettings } = require('@/lib/exerciseSettings');
+    getExerciseSettings.mockResolvedValueOnce({});   // as if the query errored
 
     const { findByText, getAllByPlaceholderText } = render(<WorkoutPreviewScreen />);
     fireEvent.press(await findByText(/let's go/i));
 
     // Falls back to showing kg on all three sets, i.e. the old behaviour.
     expect(getAllByPlaceholderText('0').length).toBe(3);
+  });
+
+  it('shows the exercise-level tempo when there is one, and the authored tempo otherwise', async () => {
+    const { getExerciseSettings } = require('@/lib/exerciseSettings');
+    // Goblet Squat's library tempo is 3-0-1; a corrected exercise-level tempo
+    // must win, without the session being rescheduled.
+    getExerciseSettings.mockResolvedValueOnce({
+      'Goblet Squat': { loadType: 'weighted', defaultTempo: '2-1-2-1' },
+      Deadlift:       { loadType: 'weighted', defaultTempo: null },
+    });
+
+    const { findByText, queryByText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    // The tempo renders as "TEMPO <value>" in one node, so match on a fragment.
+    await waitFor(() => expect(queryByText(/TEMPO 2·1·2·1/)).toBeTruthy());
+    expect(queryByText(/TEMPO 3·0·1/)).toBeNull();     // the stale authored tempo is gone
   });
 
   it('finishing writes activity, per-set logs, strength details and marks the session done', async () => {

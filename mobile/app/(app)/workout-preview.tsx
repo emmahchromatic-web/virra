@@ -22,7 +22,7 @@ import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
 import type { StrengthExercise } from '@/lib/strengthTypes';
 import { getExerciseMeta } from '@/lib/exerciseLibrary';
 import { getLastLoggedWeights } from '@/lib/strengthHistory';
-import { getLoadTypes, DEFAULT_LOAD_TYPE, type LoadType } from '@/lib/exerciseLoadTypes';
+import { getExerciseSettings, DEFAULT_LOAD_TYPE, type ExerciseSettings } from '@/lib/exerciseSettings';
 import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
 import { parseRestSeconds } from '@/lib/strengthProgramme';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -159,12 +159,12 @@ function applyPrefillWeights(
   logged: Record<string, LoggedSet[]>,
   exercises: LogExercise[],
   weights: Record<string, number>,
-  loadTypes: Record<string, LoadType>,
+  settings: Record<string, ExerciseSettings>,
 ): Record<string, LoggedSet[]> {
   const next = { ...logged };
   for (const ex of exercises) {
     // Never carry a weight into a movement that cannot take one.
-    if (loadTypes[ex.name] === 'none') continue;
+    if (settings[ex.name]?.loadType === 'none') continue;
     const w = weights[ex.name];
     if (w == null) continue;
     next[ex.id] = (next[ex.id] ?? []).map((s) =>
@@ -259,7 +259,7 @@ export default function WorkoutPreviewScreen() {
   const [rpeOpen,      setRpeOpen]      = useState(false);
   const [rest,         setRest]         = useState<RestState | null>(null);
   const [restNow,      setRestNow]      = useState(0);
-  const [loadTypes,    setLoadTypes]    = useState<Record<string, LoadType>>({});
+  const [settings,     setSettings]     = useState<Record<string, ExerciseSettings>>({});
   // Exercises where the user has asked to record a load on an otherwise
   // bodyweight movement (a vest, a held dumbbell).
   const [weightShown,  setWeightShown]  = useState<Record<string, boolean>>({});
@@ -320,10 +320,10 @@ export default function WorkoutPreviewScreen() {
             // movements take a weight at all. Both are keyed by exercise name.
             if (session) {
               const names = exercises.map((e) => e.name);
-              Promise.all([getLastLoggedWeights(session.user.id, names), getLoadTypes(names)])
-                .then(([weights, types]) => {
-                  setLoadTypes(types);
-                  setLogged((prev) => applyPrefillWeights(prev, exercises, weights, types));
+              Promise.all([getLastLoggedWeights(session.user.id, names), getExerciseSettings(names)])
+                .then(([weights, exSettings]) => {
+                  setSettings(exSettings);
+                  setLogged((prev) => applyPrefillWeights(prev, exercises, weights, exSettings));
                 })
                 .catch(() => {});
             }
@@ -734,9 +734,13 @@ export default function WorkoutPreviewScreen() {
               // A kg field on a stretch or a jump is noise. Loaded movements
               // always show one; bodyweight movements people sometimes load
               // offer one on request; the rest have none at all.
-              const loadType     = loadTypes[ex.name] ?? DEFAULT_LOAD_TYPE;
+              const exSettings   = settings[ex.name];
+              const loadType     = exSettings?.loadType ?? DEFAULT_LOAD_TYPE;
               const showWeight   = loadType === 'weighted' || (loadType === 'optional' && !!weightShown[ex.id]);
               const canAddWeight = loadType === 'optional' && !weightShown[ex.id];
+              // The exercise-level tempo is the editable one; the tempo authored
+              // on the session is the fallback for the few that vary by block.
+              const tempo        = exSettings?.defaultTempo ?? ex.tempo;
               const showHeader = !!ex.section_label &&
                 (i === 0 || logExercises[i - 1].section !== ex.section);
               return (
@@ -754,9 +758,9 @@ export default function WorkoutPreviewScreen() {
                         <VirraText variant="mono" size={10} color={colors.breath} style={{ letterSpacing: 1 }}>
                           REPS {ex.reps_label}
                         </VirraText>
-                        {ex.tempo && (
+                        {tempo && (
                           <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1 }}>
-                            TEMPO {prettyTempo(ex.tempo)}
+                            TEMPO {prettyTempo(tempo)}
                           </VirraText>
                         )}
                         {ex.rest_label && (
