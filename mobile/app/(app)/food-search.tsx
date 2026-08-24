@@ -662,7 +662,7 @@ export default function FoodSearchScreen() {
                 <VirraButton
                   label="Describe a meal"
                   variant="primary"
-                  onPress={() => router.push({ pathname: '/(app)/describe-meal', params: { logId: logId ?? '', activeMeal: activeMeal ?? 'snack' } })}
+                  onPress={() => router.push({ pathname: '/(app)/describe-meal', params: { logId: logId ?? '', mealType: activeMeal ?? 'snack' } })}
                   style={{ flex: 1.4 }}
                 />
                 <VirraButton

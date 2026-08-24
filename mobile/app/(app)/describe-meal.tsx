@@ -13,9 +13,10 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { inferUnitFromName, unitInputLabel } from '@/lib/foodUnits';
-import { appAlert } from '@/components/ui/VirraAlert';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+
+const VALID_MEAL_TYPES: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 interface EstimateItem {
   food_name:  string;
@@ -182,6 +183,35 @@ const discFact = StyleSheet.create({
   label: { letterSpacing: 1.5 },
 });
 
+// ---- Error banner ----
+//
+// This screen is pushed inside food-search's own natively-presented modal.
+// Stacking a second native Modal (VirraAlert's appAlert) on top of that
+// context is unreliable on iOS — the dialog can render non-interactive,
+// which leaves it un-dismissable and freezes the rest of the app. An inline,
+// in-tree banner sidesteps that entirely: no second native modal, ever.
+function ErrorBanner({ title, message, onDismiss }: { title: string; message?: string; onDismiss: () => void }) {
+  return (
+    <View style={errBanner.card}>
+      <View style={errBanner.header}>
+        <VirraText variant="mono" size={10} color={colors.heat} style={errBanner.label}>{title.toUpperCase()}</VirraText>
+        <Pressable onPress={onDismiss} hitSlop={8} accessibilityRole="button" accessibilityLabel="Dismiss">
+          <SymbolView name="xmark" size={13} tintColor={colors.muted} />
+        </Pressable>
+      </View>
+      {message ? (
+        <VirraText variant="body" size={13} color={colors.breath}>{message}</VirraText>
+      ) : null}
+    </View>
+  );
+}
+
+const errBanner = StyleSheet.create({
+  card:   { backgroundColor: colors.mist, padding: spacing.md, borderRadius: radius.md, borderLeftWidth: 3, borderLeftColor: colors.heat, gap: spacing.xs },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  label:  { letterSpacing: 1.5 },
+});
+
 // ---- Screen ----
 
 export default function DescribeMealScreen() {
@@ -200,9 +230,15 @@ export default function DescribeMealScreen() {
   const [items, setItems]             = useState<EstimateItem[] | null>(null);
   const [notes, setNotes]             = useState<string | null>(null);
   const [saving, setSaving]           = useState(false);
+  const [error, setError]             = useState<{ title: string; message?: string } | null>(null);
   const inputRef                      = useRef<TextInput | null>(null);
   const showDisclosure                = !disclosureAckAt;
   const isReplaceMode                 = !!replaceHaikuInput;
+  // The route should always send a valid meal type (see food-search.tsx and
+  // FoodEntryEditModal.tsx), but a bad or missing param here must never reach
+  // the insert below — food_entries.meal_type is NOT NULL with a check
+  // constraint, so an unvalidated value fails every single save.
+  const safeMealType: MealType        = VALID_MEAL_TYPES.includes(mealType as MealType) ? (mealType as MealType) : 'snack';
 
   async function handleAcknowledge() {
     if (userId) await acknowledgeHaikuDisclosure(userId);
@@ -211,37 +247,38 @@ export default function DescribeMealScreen() {
   async function handleEstimate() {
     const trimmed = description.trim();
     if (trimmed.length < 3) {
-      appAlert('Add a description', 'Tell us what you ate so we can estimate.');
+      setError({ title: 'Add a description', message: 'Tell us what you ate so we can estimate.' });
       return;
     }
+    setError(null);
     setEstimating(true);
     try {
-      const { data, error } = await supabase.functions.invoke<EstimateResponse>('estimate-meal', {
+      const { data, error: fnError } = await supabase.functions.invoke<EstimateResponse>('estimate-meal', {
         // Re-estimate path bypasses cache, otherwise an unchanged description would
         // return identical numbers, which defeats the "look at this with fresh eyes" intent.
         body: { description: trimmed, force_refresh: isReplaceMode },
       });
-      if (error) {
+      if (fnError) {
         // supabase-js's error.message is unhelpful ("Failed to send a request to the Edge Function").
         // For HTTP error responses the JSON body is on error.context; pull out our own copy if present.
-        const friendly = await extractEdgeError(error);
-        appAlert('Couldn\'t estimate this', friendly);
+        const friendly = await extractEdgeError(fnError);
+        setError({ title: 'Couldn\'t estimate this', message: friendly });
         return;
       }
       if (!data || data.error === 'parse_failed' || data.items.length === 0) {
-        appAlert(
-          'Couldn\'t estimate this',
-          data?.notes ?? 'Try describing the meal with a bit more detail, or log it manually.',
-        );
+        setError({
+          title:   'Couldn\'t estimate this',
+          message: data?.notes ?? 'Try describing the meal with a bit more detail, or log it manually.',
+        });
         return;
       }
       setItems(data.items);
       setNotes(data.notes);
     } catch {
-      appAlert(
-        'Couldn\'t estimate this',
-        'Something went wrong on our side. Try again in a moment, or log this one manually.',
-      );
+      setError({
+        title:   'Couldn\'t estimate this',
+        message: 'Something went wrong on our side. Try again in a moment, or log this one manually.',
+      });
     } finally {
       setEstimating(false);
     }
@@ -249,6 +286,7 @@ export default function DescribeMealScreen() {
 
   async function handleSaveAll() {
     if (!logId || !items || items.length === 0) return;
+    setError(null);
     setSaving(true);
     const haikuInput = description.trim();
 
@@ -266,7 +304,7 @@ export default function DescribeMealScreen() {
 
     const rows = items.map((item) => ({
       log_id:      logId,
-      meal_type:   mealType,
+      meal_type:   safeMealType,
       food_name:   item.food_name,
       quantity_g:  item.quantity_g,
       // The estimator only returns a gram figure, so the name is all we have
@@ -281,11 +319,11 @@ export default function DescribeMealScreen() {
       confidence:  item.confidence,
       haiku_input: haikuInput,
     }));
-    const { error } = await supabase.from('food_entries').insert(rows);
+    const { error: insertError } = await supabase.from('food_entries').insert(rows);
     setSaving(false);
-    if (error) { appAlert('Could not save', error.message); return; }
-    if (mealType === 'breakfast' || mealType === 'lunch' || mealType === 'dinner') {
-      cancelNutritionReminderForMeal(mealType);
+    if (insertError) { setError({ title: 'Could not save', message: insertError.message }); return; }
+    if (safeMealType === 'breakfast' || safeMealType === 'lunch' || safeMealType === 'dinner') {
+      cancelNutritionReminderForMeal(safeMealType);
     }
     router.back();
   }
@@ -293,6 +331,7 @@ export default function DescribeMealScreen() {
   function handleRetry() {
     setItems(null);
     setNotes(null);
+    setError(null);
   }
 
   return (
@@ -307,7 +346,7 @@ export default function DescribeMealScreen() {
             <SymbolView name="xmark" size={18} tintColor={colors.muted} />
           </Pressable>
           <VirraText variant="mono" size={10} color={colors.muted}>
-            {isReplaceMode ? 'RE-ESTIMATE' : 'DESCRIBE MEAL'} · {(mealType ?? 'meal').toUpperCase()}
+            {isReplaceMode ? 'RE-ESTIMATE' : 'DESCRIBE MEAL'} · {safeMealType.toUpperCase()}
           </VirraText>
           <View style={{ width: 32 }} />
         </View>
@@ -317,6 +356,10 @@ export default function DescribeMealScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {error && (
+            <ErrorBanner title={error.title} message={error.message} onDismiss={() => setError(null)} />
+          )}
+
           {showDisclosure ? (
             <>
               <VirraCard style={styles.disclosureCard}>
