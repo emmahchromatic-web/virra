@@ -19,15 +19,41 @@ import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 
-const ACTIVITY_TYPES: { value: ActivityType; label: string; icon: React.ComponentProps<typeof SymbolView>['name'] }[] = [
-  { value: 'run',      label: 'Run',      icon: 'figure.run'           },
-  { value: 'swim',     label: 'Swim',     icon: 'figure.pool.swim'     },
-  { value: 'strength', label: 'Strength', icon: 'dumbbell'             },
-  { value: 'yoga',     label: 'Yoga',     icon: 'figure.mind.and.body' },
-  { value: 'other',    label: 'Other',    icon: 'figure.mixed.cardio'  },
-];
+/**
+ * What you can log by hand. Card 221: the picker offered five options, so a
+ * ride, a hike or a rowing session all had to be filed as "Other" with the
+ * detail lost.
+ *
+ * activity_type stays the same five-value set the database CHECK allows; the
+ * specifics go in sub_type, using exactly the vocabulary healthKitImport
+ * already writes when it maps an Apple Watch workout. That matters: without
+ * it, a hike you logged by hand and a hike imported from Health would be
+ * different kinds of thing to every screen that groups by these.
+ */
+interface ActivityOption {
+  key:      string;
+  label:    string;
+  type:     ActivityType;
+  subType:  string | null;
+  distance: boolean;
+  icon:     React.ComponentProps<typeof SymbolView>['name'];
+}
 
-const DISTANCE_TYPES: ActivityType[] = ['run', 'swim'];
+const ACTIVITY_TYPES: ActivityOption[] = [
+  { key: 'run',        label: 'Run',         type: 'run',      subType: null,              distance: true,  icon: 'figure.run'            },
+  { key: 'trail_run',  label: 'Trail run',   type: 'run',      subType: 'trail_run',       distance: true,  icon: 'figure.hiking'         },
+  { key: 'walk',       label: 'Walk',        type: 'other',    subType: 'walk',            distance: true,  icon: 'figure.walk'           },
+  { key: 'hike',       label: 'Hike',        type: 'other',    subType: 'hike',            distance: true,  icon: 'figure.hiking'         },
+  { key: 'cycle',      label: 'Cycle',       type: 'other',    subType: 'cycle',           distance: true,  icon: 'figure.outdoor.cycle'  },
+  { key: 'row',        label: 'Rowing',      type: 'other',    subType: 'row',             distance: true,  icon: 'figure.rower'          },
+  { key: 'stairs',     label: 'Stairmaster', type: 'other',    subType: 'stairs',          distance: false, icon: 'figure.stairs'         },
+  { key: 'elliptical', label: 'Elliptical',  type: 'other',    subType: 'elliptical',      distance: false, icon: 'figure.elliptical'     },
+  { key: 'swim',       label: 'Swim',        type: 'swim',     subType: null,              distance: true,  icon: 'figure.pool.swim'      },
+  { key: 'open_water', label: 'Open water',  type: 'swim',     subType: 'open_water_swim', distance: true,  icon: 'figure.open.water.swim'},
+  { key: 'strength',   label: 'Strength',    type: 'strength', subType: null,              distance: false, icon: 'dumbbell'              },
+  { key: 'yoga',       label: 'Yoga',        type: 'yoga',     subType: null,              distance: false, icon: 'figure.mind.and.body'  },
+  { key: 'other',      label: 'Other',       type: 'other',    subType: null,              distance: false, icon: 'figure.mixed.cardio'   },
+];
 
 const SESSION_TYPES: { value: SessionType; label: string }[] = [
   { value: 'lower',   label: 'Lower body' },
@@ -88,7 +114,8 @@ export default function ManualActivityScreen() {
   const { session }                       = useAuthStore();
   const { periodStart, cycleLength }      = useCycleStore();
 
-  const [type,     setType]     = useState<ActivityType>('run');
+  const [type,        setType]        = useState<ActivityType>('run');
+  const [activityKey, setActivityKey] = useState<string>('run');
   const [date,     setDate]     = useState(todayISO());
   const [duration, setDuration] = useState('');
   const [distance, setDistance] = useState('');
@@ -101,7 +128,8 @@ export default function ManualActivityScreen() {
   const [exName,      setExName]      = useState('');
   const [exSets,      setExSets]      = useState<{ reps: string; weight: string }[]>([{ reps: '', weight: '' }]);
 
-  const showDistance = DISTANCE_TYPES.includes(type);
+  const selectedOption = ACTIVITY_TYPES.find((o) => o.key === activityKey) ?? ACTIVITY_TYPES[0];
+  const showDistance   = selectedOption.distance;
 
   const durationSec = parseDuration(duration);
   const distanceM   = showDistance && distance.trim()
@@ -110,9 +138,11 @@ export default function ManualActivityScreen() {
 
   const canSave = !!session && !!parseDate(date) && durationSec !== null && durationSec > 0;
 
-  function handleTypeChange(newType: ActivityType) {
-    setType(newType);
-    if (newType !== 'strength') {
+  function handleTypeChange(newKey: string) {
+    setActivityKey(newKey);
+    const opt = ACTIVITY_TYPES.find((o) => o.key === newKey)!;
+    setType(opt.type);
+    if (opt.type !== 'strength') {
       setExercises([]);
       setExName('');
       setExSets([{ reps: '', weight: '' }]);
@@ -171,7 +201,8 @@ export default function ManualActivityScreen() {
       .from('activities')
       .insert({
         user_id:          session.user.id,
-        activity_type:    type,
+        activity_type:    selectedOption.type,
+        sub_type:         selectedOption.subType,
         started_at:       startedAt.toISOString(),
         duration_seconds: durationSec!,
         distance_meters:  distanceM,
@@ -255,12 +286,12 @@ export default function ManualActivityScreen() {
           {/* Activity type */}
           <Field label="ACTIVITY">
             <View style={styles.typeRow}>
-              {ACTIVITY_TYPES.map(({ value, label, icon }) => {
-                const active = type === value;
+              {ACTIVITY_TYPES.map(({ key, label, icon }) => {
+                const active = activityKey === key;
                 return (
                   <Pressable
-                    key={value}
-                    onPress={() => handleTypeChange(value)}
+                    key={key}
+                    onPress={() => handleTypeChange(key)}
                     style={[styles.typeChip, active && styles.typeChipActive]}
                     accessibilityRole="radio"
                     accessibilityState={{ checked: active }}
