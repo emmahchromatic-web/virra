@@ -10,6 +10,8 @@ import { foodUnit, per100Label, unitInputLabel, inferUnitFromName, type FoodUnit
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { lookupBarcode, searchByName } from '@/lib/openFoodFacts';
+import { searchMyFoods } from '@/lib/myFoods';
+import { useAuthStore } from '@/store/auth';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -268,6 +270,8 @@ export default function FoodSearchScreen() {
   const scannedRef = useRef(false);
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [remoteResults, setRemoteResults]     = useState<VirraFood[]>([]);
+  const [myResults,     setMyResults]         = useState<VirraFood[]>([]);
+  const { session } = useAuthStore();
   const [remoteSearching, setRemoteSearching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const [favourites, setFavourites] = useState<FavouriteEntry[]>([]);
@@ -318,6 +322,23 @@ export default function FoodSearchScreen() {
     setSelectedFromBarcode(false);
     setSelected(null);
   };
+
+  // The user's own logged foods, card 220. Searched from two characters, and
+  // shown above everything else: a food you have logged before is far more
+  // likely to be what you are after than anything in the static list or a
+  // remote catalogue. Also the only source that can find a barcode-scanned
+  // product again by name.
+  useEffect(() => {
+    const q = query.trim();
+    if (!session || q.length < 2) { setMyResults([]); return; }
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      searchMyFoods(session.user.id, q)
+        .then((res) => { if (!cancelled) setMyResults(res); })
+        .catch(() => { if (!cancelled) setMyResults([]); });
+    }, 250);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [query, session]);
 
   // OFF remote search: debounced 300ms, triggers when query is meaningfully long
   // AND local matches are sparse. AbortController cancels stale requests.
@@ -673,6 +694,22 @@ export default function FoodSearchScreen() {
                 />
               </View>
 
+              {myResults.length > 0 && (
+                <>
+                  <VirraText variant="mono" size={10} color={colors.muted} style={styles.sectionLabel}>
+                    YOU&apos;VE LOGGED THIS BEFORE
+                  </VirraText>
+                  <VirraCard style={styles.resultsCard}>
+                    {myResults.map((food, i) => (
+                      <View key={food.id}>
+                        {i > 0 && <View style={styles.divider} />}
+                        <FoodRow food={food} onSelect={handleListSelect} />
+                      </View>
+                    ))}
+                  </VirraCard>
+                </>
+              )}
+
               {localResults.length > 0 && (
                 <>
                   {query.trim().length > 0 && (
@@ -712,7 +749,7 @@ export default function FoodSearchScreen() {
                 </>
               )}
 
-              {localResults.length === 0 && remoteResults.length === 0 && !remoteSearching && query.trim().length > 0 && (
+              {myResults.length === 0 && localResults.length === 0 && remoteResults.length === 0 && !remoteSearching && query.trim().length > 0 && (
                 <VirraCard style={styles.resultsCard}>
                   <VirraText variant="body" size={14} color={colors.muted} style={styles.empty}>
                     No results for "{query}"
