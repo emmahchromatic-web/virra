@@ -23,6 +23,7 @@ import {
   queryQuantitySamples,
   queryCategorySamples,
   queryStatisticsForQuantity,
+  queryStatisticsCollectionForQuantity,
   queryWorkoutSamplesWithAnchor,
   saveWorkoutSample,
 } from '@kingstinct/react-native-healthkit';
@@ -183,6 +184,39 @@ export async function hkSaveWorkout(opts: {
   } catch (e) {
     console.warn('[healthKitBridge] saveWorkout failed:', e);
     return false;
+  }
+}
+
+/**
+ * Per-day sums for a quantity across a window.
+ *
+ * This is what replaces getActivitySummary's per-day activeEnergyBurned. The
+ * new library has no activity-summary query at all, but a daily statistics
+ * collection is a more direct answer to the question anyway: it sums the
+ * underlying samples rather than reading Apple's ring aggregate, so it works
+ * without a paired Watch.
+ */
+export async function hkDailySums(
+  identifier: string,
+  opts: { start: Date; end?: Date; unit?: string },
+): Promise<number[]> {
+  try {
+    const res = await queryStatisticsCollectionForQuantity(
+      identifier as never,
+      ['cumulativeSum'] as never,
+      opts.start,
+      { day: 1 } as never,
+      {
+        filter: { date: { startDate: opts.start, endDate: opts.end } },
+        ...(opts.unit ? { unit: opts.unit } : {}),
+      } as never,
+    );
+    return (res ?? [])
+      .map((r) => (r as { sumQuantity?: { quantity?: number } })?.sumQuantity?.quantity ?? 0)
+      .filter((v) => Number.isFinite(v) && v > 0);
+  } catch (e) {
+    console.warn(`[healthKitBridge] daily statistics failed for ${identifier}:`, e);
+    return [];
   }
 }
 
