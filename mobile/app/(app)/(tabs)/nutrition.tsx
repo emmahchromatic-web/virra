@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   loadRow:      { gap: spacing.sm },
   loadLabel:    { letterSpacing: 1.5 },
   loadChips:    { flexDirection: 'row', gap: spacing.sm },
-  loadChip:     { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  loadChip:     { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist },
   loadActive:   { backgroundColor: colors.pulse, borderColor: colors.pulse },
   targetsCard:        { gap: spacing.md },
   caloriesTrack:      { height: 10, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden', flexDirection: 'row' },

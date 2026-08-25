@@ -223,7 +223,7 @@ const s = StyleSheet.create({
     backgroundColor:  colors.mist,
     borderRadius:     radius.md,
     borderWidth:      1,
-    borderColor:      colors.border,
+    borderColor:      colors.control,
     overflow:         'hidden',
   },
   optionRow: {

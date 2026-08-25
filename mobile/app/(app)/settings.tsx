@@ -142,7 +142,7 @@ const s = StyleSheet.create({
   segmentRow:    { flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs },
   segment: {
     flex: 1, alignItems: 'center', paddingVertical: spacing.sm,
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.control,
     backgroundColor: colors.mist,
   },
   segmentActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },

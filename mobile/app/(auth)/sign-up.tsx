@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: colors.mist,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.control,
     borderRadius: radius.md,
     padding: spacing.md,
     fontFamily: fonts.body,

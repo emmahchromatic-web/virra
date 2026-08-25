@@ -16,7 +16,7 @@ interface VirraButtonProps {
 
 const variantStyle: Record<Variant, ViewStyle> = {
   primary:   { backgroundColor: colors.pulse },
-  secondary: { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border },
+  secondary: { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control },
   ghost:     { backgroundColor: 'transparent' },
 };
 

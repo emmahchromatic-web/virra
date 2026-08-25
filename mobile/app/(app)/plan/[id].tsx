@@ -130,7 +130,7 @@ const picker = StyleSheet.create({
   dayBtn:      {
     width: 28, height: 28, borderRadius: 14,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1, borderColor: colors.control,
   },
   dayBtnActive:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
   dayBtnTaken:   { borderColor: 'transparent' },

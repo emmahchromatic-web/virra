@@ -105,7 +105,7 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
 }
 
 const styles = StyleSheet.create({
-  inputRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: spacing.sm },
+  inputRow: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.control, paddingBottom: spacing.sm },
   input:    { flex: 1, color: colors.breath, fontFamily: 'BigShouldersDisplay_900Black', fontSize: 36 },
   actionRow:{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm, height: 52 },
   cancel:   { flex: 1, backgroundColor: colors.mile, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },

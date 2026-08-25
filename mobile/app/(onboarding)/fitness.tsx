@@ -173,9 +173,9 @@ const styles = StyleSheet.create({
   cardGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   halfCard:      { width: '47%' },
   fullCard:      { width: '100%' },
-  segmented:     { flexDirection: 'row', borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border },
+  segmented:     { flexDirection: 'row', borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.control },
   segment:       { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', backgroundColor: colors.mist },
   segmentActive: { backgroundColor: colors.pulse },
-  timeInput:     { backgroundColor: colors.mist, borderRadius: radius.md, padding: spacing.md, color: colors.breath, fontFamily: 'SpaceMono_400Regular', fontSize: 18, borderWidth: 1, borderColor: colors.border },
+  timeInput:     { backgroundColor: colors.mist, borderRadius: radius.md, padding: spacing.md, color: colors.breath, fontFamily: 'SpaceMono_400Regular', fontSize: 18, borderWidth: 1, borderColor: colors.control },
   cta:           { marginTop: spacing.sm },
 });

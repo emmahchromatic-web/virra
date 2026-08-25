@@ -536,7 +536,7 @@ function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void })
 const confirm = StyleSheet.create({
   actions:   { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   btn:       { flex: 1, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md },
-  cancelBtn: { borderWidth: 1, borderColor: colors.border, backgroundColor: 'transparent' },
+  cancelBtn: { borderWidth: 1, borderColor: colors.control, backgroundColor: 'transparent' },
   dropBtn:   { backgroundColor: colors.heat },
   btnLabel:  { letterSpacing: 1.5 },
 });

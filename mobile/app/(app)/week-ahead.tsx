@@ -298,6 +298,6 @@ const s = StyleSheet.create({
   actionBtn:    {
     flexDirection: 'row', alignItems: 'center', gap: 2,
     paddingVertical: 3, paddingHorizontal: 5,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control,
   },
 });

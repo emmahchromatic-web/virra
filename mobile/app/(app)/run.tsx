@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   cue:          { textAlign: 'center', lineHeight: 24, paddingHorizontal: spacing.xl, fontStyle: 'italic' },
   startBtn:     { width: 88, height: 88, borderRadius: 44, backgroundColor: colors.pulse, alignItems: 'center', justifyContent: 'center', marginTop: spacing.lg },
   controls:     { flexDirection: 'row', gap: spacing.lg, marginTop: spacing.lg },
-  controlBtn:   { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  controlBtn:   { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control, alignItems: 'center', justifyContent: 'center' },
   stopBtn:      { backgroundColor: colors.heat, borderColor: colors.heat },
   resumeBtn:    { backgroundColor: colors.pulse, borderColor: colors.pulse },
   splitsBlock:  { width: '100%', gap: spacing.xs },

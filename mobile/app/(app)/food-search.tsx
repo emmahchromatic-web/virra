@@ -243,10 +243,10 @@ const panel = StyleSheet.create({
   container:   { gap: spacing.md },
   row:         { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowLabel:    { width: 68, letterSpacing: 1.5 },
-  inputWrap:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  inputWrap:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control, overflow: 'hidden' },
   stepBtn:     { paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   input:       { flex: 1, textAlign: 'center', color: colors.breath, fontFamily: fonts.mono, fontSize: 16, paddingVertical: spacing.sm },
-  manualInput: { textAlign: 'left', paddingHorizontal: spacing.md, flex: 1, backgroundColor: colors.mist, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
+  manualInput: { textAlign: 'left', paddingHorizontal: spacing.md, flex: 1, backgroundColor: colors.mist, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control },
   macros:      { flexDirection: 'row', justifyContent: 'space-between' },
   macroItem:   { alignItems: 'center', gap: 2 },
   btns:        { flexDirection: 'row', gap: spacing.sm },
@@ -782,7 +782,7 @@ const scan = StyleSheet.create({
 
 const qk = StyleSheet.create({
   pillRow:    { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xs },
-  pill:       { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, alignItems: 'center', gap: 2, maxWidth: 160 },
+  pill:       { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control, borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, alignItems: 'center', gap: 2, maxWidth: 160 },
   comboRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm },
   comboRight: { alignItems: 'flex-end', gap: 1 },
 });
@@ -792,7 +792,7 @@ const styles = StyleSheet.create({
   header:      { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   closeBtn:    { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   mealTabs:    { flexDirection: 'row', gap: spacing.xs, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
-  mealTab:     { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  mealTab:     { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.full, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist },
   mealTabActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   searchRow:   { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
   inputWrap:   { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: colors.mist, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border },

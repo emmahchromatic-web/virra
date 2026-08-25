@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.mist,
     borderRadius:    radius.md,
     borderWidth:     1,
-    borderColor:     colors.border,
+    borderColor:     colors.control,
     padding:         spacing.md,
     minHeight:       140,
     color:           colors.breath,

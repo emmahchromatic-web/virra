@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     gap:             spacing.xs,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: colors.control,
   },
   dayHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 });

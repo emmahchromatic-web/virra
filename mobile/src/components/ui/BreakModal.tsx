@@ -243,7 +243,7 @@ const brk = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
     backgroundColor: colors.mist, borderRadius: radius.md,
-    borderWidth: 1, borderColor: colors.border,
+    borderWidth: 1, borderColor: colors.control,
   },
   dateRowActive: { borderColor: colors.pulse },
   dateRight:     { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
@@ -254,7 +254,7 @@ const brk = StyleSheet.create({
   modeRow:      { flexDirection: 'row', gap: spacing.sm },
   modePill: {
     flex: 1, paddingVertical: spacing.sm, alignItems: 'center',
-    borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.md, borderWidth: 1, borderColor: colors.control,
     backgroundColor: colors.mist,
   },
   modePillActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },

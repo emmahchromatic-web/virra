@@ -165,7 +165,7 @@ const itemRow = StyleSheet.create({
   grid:         { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   cell:         { width: '30%', gap: 2 },
   cellLabel:    { letterSpacing: 1.2 },
-  macroInput:   { color: colors.breath, fontFamily: fonts.mono, fontSize: 14, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, textAlign: 'center' },
+  macroInput:   { color: colors.breath, fontFamily: fonts.mono, fontSize: 14, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, textAlign: 'center' },
 });
 
 // ---- Disclosure fact row ----
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   scroll:         { padding: spacing.lg, paddingTop: 0, paddingBottom: spacing.xxl, gap: spacing.md },
   inputCard:      { gap: spacing.sm },
   inputLabel:     { letterSpacing: 1.5 },
-  bigInput:       { minHeight: 96, color: colors.breath, fontFamily: fonts.serif, fontSize: 16, lineHeight: 22, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, textAlignVertical: 'top' },
+  bigInput:       { minHeight: 96, color: colors.breath, fontFamily: fonts.serif, fontSize: 16, lineHeight: 22, backgroundColor: colors.mile, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, textAlignVertical: 'top' },
   inputFooter:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   micBtn:         { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
   micLabel:       { letterSpacing: 1.5 },

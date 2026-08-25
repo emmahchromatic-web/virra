@@ -1044,7 +1044,7 @@ const s = StyleSheet.create({
   colInput:   { flex: 1, textAlign: 'center' },
   colDone:    { width: 32, alignItems: 'center', justifyContent: 'center' },
   setInput: {
-    backgroundColor: colors.mile, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.mile, borderWidth: 1, borderColor: colors.control,
     borderRadius: radius.sm, paddingVertical: spacing.sm, color: colors.breath,
     fontFamily: fonts.mono, fontSize: 15,
   },
@@ -1060,7 +1060,7 @@ const s = StyleSheet.create({
   rpeRow:     { flexDirection: 'row', gap: spacing.xs },
   rpeChip: {
     flex: 1, height: 44, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control,
   },
   rpeChipSel: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   timerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg, gap: spacing.lg },
@@ -1068,7 +1068,7 @@ const s = StyleSheet.create({
   timerSteps:     { maxHeight: 120, width: '100%' },
   controls:       { flexDirection: 'row', gap: spacing.md, width: '100%' },
   controlBtn:     { flex: 1, borderRadius: radius.sm, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center' },
-  pauseBtn:       { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border },
+  pauseBtn:       { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control },
   resumeBtn:      { backgroundColor: colors.pulse },
   stopBtn:        { backgroundColor: 'rgba(255,46,126,0.18)', borderWidth: 1, borderColor: colors.heat },
 });

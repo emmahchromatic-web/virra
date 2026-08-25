@@ -402,7 +402,7 @@ const modal = StyleSheet.create({
   actionBtn:   {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingVertical: 6, paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
+    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control,
   },
   statusRow:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
   deficitMsg:   { marginTop: spacing.md, lineHeight: 22, fontStyle: 'italic' },

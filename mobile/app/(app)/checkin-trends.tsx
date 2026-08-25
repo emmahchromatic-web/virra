@@ -222,13 +222,13 @@ const s = StyleSheet.create({
   content:   { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.md },
 
   tabRow:      { flexDirection: 'row', gap: spacing.sm },
-  tab:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  tab:         { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist },
   tabActive:   { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.08)' },
   tabLabel:    { letterSpacing: 1 },
 
   periodRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   periodToggle: { flexDirection: 'row', gap: spacing.xs },
-  periodBtn:    { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
+  periodBtn:    { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control },
   periodBtnActive: { borderColor: colors.pulse },
   cardLabel:    { letterSpacing: 1.5 },
 

@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   title:      { lineHeight: 34 },
   sub:        { lineHeight: 22, marginTop: -spacing.md },
   chipGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip:       { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  chip:       { paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.full, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist },
   chipActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   cta:        { marginTop: spacing.sm },
 });

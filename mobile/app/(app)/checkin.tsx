@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
   sectionTitle: { marginBottom: -spacing.xs },
   ratings:      { gap: spacing.md },
   chips:        { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  chip:         { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  chip:         { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist },
   chipActive:   { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  notes:        { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, fontFamily: fonts.body, fontSize: 14, color: colors.breath, minHeight: 100, textAlignVertical: 'top' },
+  notes:        { backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control, borderRadius: radius.md, padding: spacing.md, fontFamily: fonts.body, fontSize: 14, color: colors.breath, minHeight: 100, textAlignVertical: 'top' },
   cta:          { marginTop: spacing.sm },
 });
