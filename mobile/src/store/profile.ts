@@ -15,6 +15,7 @@ export interface ProfilePatch {
   heightCm?:                        number | null;
   dateOfBirth?:                     string | null;
   sex?:                             Sex | null;
+  injuryHistory?:                   string | null;
   weightBaselineKg?:                number | null;
   weightPhaseBands?:                PhaseBands | null;
   weightExplainerDismissedAt?:      string | null;
@@ -33,6 +34,7 @@ interface ProfileState {
   heightCm:                        number | null;
   dateOfBirth:                     string | null;
   sex:                             Sex | null;
+  injuryHistory:                   string | null;
   weightBaselineKg:                number | null;
   weightPhaseBands:                PhaseBands | null;
   weightExplainerDismissedAt:      string | null;
@@ -59,6 +61,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   heightCm:                       null,
   dateOfBirth:                    null,
   sex:                            null,
+  injuryHistory:                  null,
   weightBaselineKg:               null,
   weightPhaseBands:               null,
   weightExplainerDismissedAt:     null,
@@ -70,7 +73,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   load: async (userId) => {
     const { data } = await supabase
       .from('user_profiles')
-      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, height_cm, date_of_birth, sex, weight_baseline_kg, weight_phase_bands, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
+      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, height_cm, date_of_birth, sex, injury_history, weight_baseline_kg, weight_phase_bands, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
       .eq('id', userId)
       .maybeSingle();
     if (data) {
@@ -85,6 +88,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         heightCm:                       data.height_cm ?? null,
         dateOfBirth:                    data.date_of_birth ?? null,
         sex:                            (data.sex as Sex | null) ?? null,
+        injuryHistory:                  data.injury_history ?? null,
         weightBaselineKg:               data.weight_baseline_kg ?? null,
         weightPhaseBands:               (data.weight_phase_bands as PhaseBands | null) ?? null,
         weightExplainerDismissedAt:     data.weight_explainer_dismissed_at ?? null,
@@ -108,6 +112,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
     if (patch.heightCm                   !== undefined) update.height_cm                     = patch.heightCm;
     if (patch.dateOfBirth                !== undefined) update.date_of_birth                 = patch.dateOfBirth;
     if (patch.sex                        !== undefined) update.sex                           = patch.sex;
+    if (patch.injuryHistory              !== undefined) update.injury_history                = patch.injuryHistory;
     if (patch.weightBaselineKg               !== undefined) update.weight_baseline_kg                = patch.weightBaselineKg;
     if (patch.weightExplainerDismissedAt     !== undefined) update.weight_explainer_dismissed_at     = patch.weightExplainerDismissedAt;
     if (patch.weightSteadyBaselineKg         !== undefined) update.weight_steady_baseline_kg         = patch.weightSteadyBaselineKg;
@@ -130,6 +135,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       heightCm:                       patch.heightCm                       !== undefined ? patch.heightCm                       : s.heightCm,
       dateOfBirth:                    patch.dateOfBirth                    !== undefined ? patch.dateOfBirth                    : s.dateOfBirth,
       sex:                            patch.sex                            !== undefined ? patch.sex                            : s.sex,
+      injuryHistory:                  patch.injuryHistory                  !== undefined ? patch.injuryHistory                  : s.injuryHistory,
       weightBaselineKg:               patch.weightBaselineKg               !== undefined ? patch.weightBaselineKg               : s.weightBaselineKg,
       weightExplainerDismissedAt:     patch.weightExplainerDismissedAt     !== undefined ? patch.weightExplainerDismissedAt     : s.weightExplainerDismissedAt,
       weightSteadyBaselineKg:         patch.weightSteadyBaselineKg         !== undefined ? patch.weightSteadyBaselineKg         : s.weightSteadyBaselineKg,

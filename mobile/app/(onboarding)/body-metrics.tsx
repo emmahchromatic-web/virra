@@ -62,7 +62,7 @@ export default function BodyMetricsScreen() {
       setSaving(false);
       if (error) { appAlert('Something went wrong', error.message); return; }
     }
-    router.replace('/(auth)/paywall');
+    router.replace('/(onboarding)/injuries');
   }
 
   const dobLabel = dob
