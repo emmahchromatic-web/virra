@@ -1,10 +1,6 @@
 // mobile/src/lib/healthKitHeartRate.ts
 
-import { NativeModules } from 'react-native'
-
-function hk(): any {
-  return NativeModules.AppleHealthKit
-}
+import { hkQuantitySamples } from './healthKitBridge'
 
 export interface HeartRateSample { value: number; startDate: string }
 
@@ -84,39 +80,34 @@ export async function fetchRunHeartRate(
   endedAt: Date,
   pauses: TimeWindow[] = [],
 ): Promise<RunHeartRate> {
-  const HK = hk()
-  if (!HK?.getHeartRateSamples) return { hrAvg: null, hrMax: null }
-
   const windows = activeWindows(startedAt.getTime(), endedAt.getTime(), pauses)
   if (windows.length === 0) return { hrAvg: null, hrMax: null }
 
-  return new Promise(resolve => {
-    let settled = false
-    const finish = (result: RunHeartRate) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      resolve(result)
-    }
+  // The bridge resolves rather than throws, but the timeout stays: a native
+  // query that never settles would strand the user on the saving spinner with
+  // an unsaved run, and no heart rate is a far better outcome than no run.
+  const nothing: RunHeartRate = { hrAvg: null, hrMax: null }
 
-    const timer = setTimeout(() => {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<RunHeartRate>(resolve => {
+    timer = setTimeout(() => {
       console.warn('[healthKitHeartRate] query timed out, saving run without heart rate')
-      finish({ hrAvg: null, hrMax: null })
+      resolve(nothing)
     }, HR_QUERY_TIMEOUT_MS)
-
-    try {
-      HK.getHeartRateSamples(
-        { startDate: startedAt.toISOString(), endDate: endedAt.toISOString(), ascending: true },
-        (err: unknown, results: HeartRateSample[]) => {
-          if (err || !Array.isArray(results)) {
-            finish({ hrAvg: null, hrMax: null })
-            return
-          }
-          finish(aggregateHeartRate(results, windows))
-        },
-      )
-    } catch {
-      finish({ hrAvg: null, hrMax: null })
-    }
   })
+
+  const query = hkQuantitySamples('HKQuantityTypeIdentifierHeartRate', {
+    start:     startedAt,
+    end:       endedAt,
+    unit:      'count/min',
+    ascending: true,
+  })
+    .then(samples => aggregateHeartRate(samples, windows))
+    // The bridge catches its own failures, but this sits in the run-save path
+    // and a rejection here would lose the user's run. Belt and braces.
+    .catch(() => nothing)
+
+  // Clear the timer whichever side wins, so a finished query does not leave it
+  // holding the event loop open for the rest of the timeout.
+  return Promise.race([query, timeout]).finally(() => clearTimeout(timer))
 }
