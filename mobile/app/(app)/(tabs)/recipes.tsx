@@ -10,6 +10,11 @@ import { VirraCard } from '@/components/ui/VirraCard';
  * Holding page. The education library was descoped and this tab becomes a
  * recipe book instead; the shelves screen it replaced is in git history at
  * app/(app)/(tabs)/library.tsx if any of it is worth reviving.
+ *
+ * The article reader (app/(app)/library/[slug].tsx) went the same way in card
+ * 213: nothing linked to it after the descope, so it was reachable only by
+ * deep link and was the sole consumer of the articles table. The table and its
+ * rows are untouched, so the content is still there if the library returns.
  */
 export default function RecipesScreen() {
   return (

@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, ActionSheetIOS, type StyleProp, type ViewStyle } from 'react-native';
+import { View, StyleSheet, Pressable, type StyleProp, type ViewStyle } from 'react-native';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 import { VirraCard } from './VirraCard';
+import { appAlert } from '@/components/ui/VirraAlert';
 import {
   type TodaysSession,
   formatDistance,
@@ -82,15 +83,18 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
       onStartPress(planned[0]);
       return;
     }
-    const options = [
-      ...planned.map(s => `${labelCase(s.session_label)} · ${s.modality.toUpperCase()}`),
-      'Cancel',
-    ];
-    ActionSheetIOS.showActionSheetWithOptions(
-      { options, cancelButtonIndex: options.length - 1 },
-      (index) => {
-        if (index < planned.length) onStartPress(planned[index]);
-      },
+    // Branded chooser rather than ActionSheetIOS: the sheet was the last piece
+    // of stock Apple UI left in the app after the alert sweep. Card 206.
+    appAlert(
+      'Which session?',
+      'You have more than one planned today.',
+      [
+        ...planned.map((s) => ({
+          text:    `${labelCase(s.session_label)} · ${s.modality.toUpperCase()}`,
+          onPress: () => onStartPress(s),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
     );
   }
 

@@ -7,10 +7,10 @@ import { applyRaceToSchedule } from '@/lib/raceSchedule';
 import { useCycleStore } from '@/store/cycle';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraModal } from './VirraModal';
+import { InlineError } from '@/components/ui/InlineError';
 import { VirraButton } from './VirraButton';
 import { VirraText } from './VirraText';
 import { CalendarPicker, toLocalISO } from './CalendarPicker';
-import { appAlert } from '@/components/ui/VirraAlert';
 
 type DistanceGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'ultra';
 
@@ -44,10 +44,14 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
   const [showDistance,   setShowDistance]   = useState(false);
   const [showDate,       setShowDate]       = useState(false);
   const [saving,         setSaving]         = useState(false);
+  // Errors render in-tree, not via appAlert: this component lives in a
+  // VirraModal, and a second native modal on top of it is the freeze Paul's
+  // audit found (card 215).
+  const [error, setError] = useState<{ title: string; message?: string } | null>(null);
 
   async function handleSave() {
     const trimmed = name.trim();
-    if (!trimmed) { appAlert('Event name is required'); return; }
+    if (!trimmed) { setError({ title: 'Event name is required' }); return; }
     setSaving(true);
     const { error } = await supabase.from('user_events').insert({
       user_id:       userId,
@@ -56,7 +60,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
       distance_goal: distanceGoal,
     });
     setSaving(false);
-    if (error) { appAlert('Could not save event', error.message); return; }
+    if (error) { setError({ title: 'Could not save event', message: error.message }); return; }
 
     // Make the plan agree with the calendar: the run already scheduled on this
     // date becomes the race. Without this the event was a pure annotation and
@@ -87,6 +91,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
 
   return (
     <VirraModal visible={visible} onClose={onClose} title="Add Event">
+      {error && <InlineError title={error.title} message={error.message} onDismiss={() => setError(null)} />}
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={{ maxHeight: 520 }}

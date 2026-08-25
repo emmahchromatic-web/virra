@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
+import { InlineError } from '@/components/ui/InlineError';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { inferUnitFromName, unitInputLabel } from '@/lib/foodUnits';
@@ -190,28 +191,6 @@ const discFact = StyleSheet.create({
 // context is unreliable on iOS — the dialog can render non-interactive,
 // which leaves it un-dismissable and freezes the rest of the app. An inline,
 // in-tree banner sidesteps that entirely: no second native modal, ever.
-function ErrorBanner({ title, message, onDismiss }: { title: string; message?: string; onDismiss: () => void }) {
-  return (
-    <View style={errBanner.card}>
-      <View style={errBanner.header}>
-        <VirraText variant="mono" size={10} color={colors.heat} style={errBanner.label}>{title.toUpperCase()}</VirraText>
-        <Pressable onPress={onDismiss} hitSlop={8} accessibilityRole="button" accessibilityLabel="Dismiss">
-          <SymbolView name="xmark" size={13} tintColor={colors.muted} />
-        </Pressable>
-      </View>
-      {message ? (
-        <VirraText variant="body" size={13} color={colors.breath}>{message}</VirraText>
-      ) : null}
-    </View>
-  );
-}
-
-const errBanner = StyleSheet.create({
-  card:   { backgroundColor: colors.mist, padding: spacing.md, borderRadius: radius.md, borderLeftWidth: 3, borderLeftColor: colors.heat, gap: spacing.xs },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  label:  { letterSpacing: 1.5 },
-});
-
 // ---- Screen ----
 
 export default function DescribeMealScreen() {
@@ -357,7 +336,7 @@ export default function DescribeMealScreen() {
           showsVerticalScrollIndicator={false}
         >
           {error && (
-            <ErrorBanner title={error.title} message={error.message} onDismiss={() => setError(null)} />
+            <InlineError title={error.title} message={error.message} onDismiss={() => setError(null)} />
           )}
 
           {showDisclosure ? (

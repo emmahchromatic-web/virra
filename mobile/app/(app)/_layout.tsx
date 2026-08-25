@@ -165,7 +165,6 @@ export default function AppLayout() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="checkin"         options={{ presentation: 'modal' }} />
-      <Stack.Screen name="library/[slug]"  options={{ presentation: 'card'  }} />
       <Stack.Screen name="plan/[id]"       options={{ presentation: 'card'  }} />
       <Stack.Screen name="plans/browse"    options={{ presentation: 'card'  }} />
       <Stack.Screen name="run"             options={{ presentation: 'modal' }} />
