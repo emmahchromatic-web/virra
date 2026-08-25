@@ -122,7 +122,7 @@ jest.mock('@/lib/supabase', () => {
 });
 
 // Write-back goes through the bridge now, not NativeModules. Card 216.
-const mockSaveWorkout = jest.fn(async () => true);
+const mockSaveWorkout = jest.fn((..._args: any[]) => Promise.resolve(true));
 jest.mock('@/lib/healthKitBridge', () => ({
   hkSaveWorkout: (...args: any[]) => mockSaveWorkout(...args),
   HKWorkoutActivityType: {

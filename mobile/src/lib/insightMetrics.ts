@@ -46,7 +46,8 @@ export interface InsightMetrics {
   streakDays:              number;
   weeklyKm:                number;
   monthlyKm:               number;
-  totalKm:                 number;
+  /** Running km so far this calendar year. */
+  yearKm:                  number;
   consistencyPct:          number;
   phasePaces:              PhasePace[];
   activitiesThisWeek:      number;
@@ -80,6 +81,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
   weekStart.setHours(0, 0, 0, 0);
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const yearStart  = new Date(now.getFullYear(), 0, 1);
   const window28   = new Date(now.getTime() - 28 * 86400000);
   const window7    = new Date(now.getTime() - 7 * 86400000);
   const window7ISO  = window7.toISOString().split('T')[0];
@@ -88,23 +90,33 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
 
   const [weekRes, monthRes, totalRes, window28Res, paceRes,
          sessionsWindowRes, nutritionLogsRes, symptomLogsRes] = await Promise.all([
+    // Running distance only. Without the activity_type filter these tiles
+    // summed every activity that carries a distance, so imported walks, hikes
+    // and rides landed in the user's weekly mileage. Card 216: 83km of 'other'
+    // against 14km of actual running in the same month.
     supabase
       .from('activities')
       .select('distance_meters')
       .eq('user_id', userId)
+      .eq('activity_type', 'run')
       .gte('started_at', weekStart.toISOString()),
 
     supabase
       .from('activities')
       .select('distance_meters')
       .eq('user_id', userId)
+      .eq('activity_type', 'run')
       .gte('started_at', monthStart.toISOString()),
 
+    // Calendar year rather than all time, per card 216: an unbounded lifetime
+    // total is neither motivating nor comparable, and it grew a 5000-row cap
+    // that would have silently truncated later anyway.
     supabase
       .from('activities')
       .select('distance_meters')
       .eq('user_id', userId)
-      .limit(5000), // MVP cap; replace with aggregate when history grows
+      .eq('activity_type', 'run')
+      .gte('started_at', yearStart.toISOString()),
 
     supabase
       .from('activities')
@@ -156,7 +168,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
 
   const weeklyKm  = sumKm(weekRes.data ?? []);
   const monthlyKm = sumKm(monthRes.data ?? []);
-  const totalKm   = sumKm(totalRes.data ?? []);
+  const yearKm    = sumKm(totalRes.data ?? []);
 
   // Streak is capped at 28 days; the window of this query. Sufficient for motivation display.
   const allDates = [...new Set(
@@ -282,7 +294,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     streakDays,
     weeklyKm:              Math.round(weeklyKm * 10) / 10,
     monthlyKm:             Math.round(monthlyKm * 10) / 10,
-    totalKm:               Math.round(totalKm * 10) / 10,
+    yearKm:                Math.round(yearKm * 10) / 10,
     consistencyPct,
     phasePaces,
     activitiesThisWeek:    weekRes.data?.length ?? 0,
