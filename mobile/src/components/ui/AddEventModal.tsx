@@ -3,6 +3,7 @@ import { View, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { recomputeSeasonForUser } from '@/lib/seasonEngine';
+import { applyRaceToSchedule } from '@/lib/raceSchedule';
 import { useCycleStore } from '@/store/cycle';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraModal } from './VirraModal';
@@ -56,6 +57,15 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
     });
     setSaving(false);
     if (error) { appAlert('Could not save event', error.message); return; }
+
+    // Make the plan agree with the calendar: the run already scheduled on this
+    // date becomes the race. Without this the event was a pure annotation and
+    // the day kept showing whatever the template generated.
+    await applyRaceToSchedule(userId, {
+      event_date:    toLocalISO(dateObj),
+      distance_goal: distanceGoal,
+    }).catch((e) => { console.warn('[raceSchedule] apply failed', e); });
+
     // Fire-and-forget: auto-create season if 2+ future events now exist
     const cycleProfile = useCycleStore.getState().cycleProfile;
     recomputeSeasonForUser(userId, toLocalISO(today), cycleProfile).catch((e) => {

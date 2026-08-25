@@ -119,23 +119,25 @@ export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: 
             const sessions = sessionMap[iso] ?? [];
             const isToday  = iso === todayISO;
             const isPast   = iso < todayISO;
+            // A race day is the anchor of a training block, so it gets the
+            // whole cell rather than a 10px flag squeezed under the dots.
+            const events   = eventMap[iso] ?? [];
+            const isRace   = events.length > 0;
             return (
               <Pressable
                 key={di}
-                style={[cal.cell, isToday && cal.cellToday]}
+                style={[cal.cell, isRace && cal.cellRace, isToday && cal.cellToday]}
                 onPress={() => {
-                  const hasSessions = sessions.length > 0;
-                  const hasEvents   = (eventMap[iso] ?? []).length > 0;
-                  if (hasSessions || hasEvents) onDayPress?.(iso, sessions, eventMap[iso] ?? []);
+                  if (sessions.length > 0 || isRace) onDayPress?.(iso, sessions, events);
                 }}
                 onLongPress={() => onLongPress?.(iso)}
                 delayLongPress={400}
-                accessibilityRole={(sessions.length > 0 || (eventMap[iso] ?? []).length > 0) ? 'button' : 'none'}
+                accessibilityRole={(sessions.length > 0 || isRace) ? 'button' : 'none'}
               >
                 <VirraText
                   variant="mono"
                   size={11}
-                  color={isToday ? colors.pulse : isPast ? colors.muted : colors.breath}
+                  color={isRace ? colors.heat : isToday ? colors.pulse : isPast ? colors.muted : colors.breath}
                 >
                   {dayNum}
                 </VirraText>
@@ -155,11 +157,11 @@ export function MonthCalendar({ userId, year, month, onDayPress, onLongPress }: 
                     ))}
                   </View>
                 )}
-                {(eventMap[iso] ?? []).length > 0 && (
+                {isRace && (
                   <SymbolView
-                    name="flag.fill"
-                    size={10}
-                    tintColor={(eventMap[iso][0].priority === 1 ? colors.heat : colors.dawn) as any}
+                    name="flag.checkered"
+                    size={13}
+                    tintColor={(events[0].priority === 1 ? colors.heat : colors.dawn) as any}
                   />
                 )}
               </Pressable>
@@ -180,6 +182,7 @@ const cal = StyleSheet.create({
   cell:       { flex: 1, height: CELL, alignItems: 'center', justifyContent: 'center',
                 gap: 2, borderRadius: radius.sm, borderWidth: 1, borderColor: 'transparent' },
   cellToday:  { borderColor: colors.pulse },
+  cellRace:   { borderColor: colors.heat, backgroundColor: `${colors.heat}1A` },
   dotRow:     { flexDirection: 'row', gap: 2 },
   dot:        { width: 4, height: 4, borderRadius: 2 },
 });
