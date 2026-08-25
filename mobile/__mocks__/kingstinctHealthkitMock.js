@@ -18,4 +18,7 @@ module.exports = {
   queryWorkoutSamplesWithAnchor: async () => ({ samples: [], deletedSamples: [], newAnchor: '' }),
   saveWorkoutSample:             async () => ({}),
   saveQuantitySample:            async () => true,
+  // Reverse-mappable like the real numeric enum, so the bridge's name lookup
+  // behaves the same under test as it does on device.
+  WorkoutActivityType: { 37: 'running', 24: 'hiking', 46: 'swimming', 52: 'walking', 50: 'traditionalStrengthTraining', running: 37, hiking: 24, swimming: 46, walking: 52, traditionalStrengthTraining: 50 },
 };

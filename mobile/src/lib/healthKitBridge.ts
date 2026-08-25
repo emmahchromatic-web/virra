@@ -26,6 +26,7 @@ import {
   queryStatisticsCollectionForQuantity,
   queryWorkoutSamplesWithAnchor,
   saveWorkoutSample,
+  WorkoutActivityType,
 } from '@kingstinct/react-native-healthkit';
 
 /** Old-library sample shape: value plus ISO strings. */
@@ -43,11 +44,48 @@ export interface HKCategorySample {
 }
 
 export interface HKWorkout {
+  /**
+   * HealthKit's own sample UUID, stored as activities.hk_uuid.
+   *
+   * Safe to change format across this migration: the import upserts on
+   * (user_id, started_at), not on hk_uuid, so a workout that was already
+   * imported under the old identity updates in place rather than duplicating.
+   */
+  uuid:         string | null;
+  sourceId:     string | null;
   /** Seconds, matching the old library. */
   duration:     number;
   start:        string;
   end:          string;
-  activityType: string;
+  /**
+   * PascalCase name matching what react-native-health used to return, e.g.
+   * 'Running', 'Hiking', 'TraditionalStrengthTraining'. The new library gives a
+   * camelCase enum member instead, so it is capitalised here rather than in the
+   * import mapping, which keeps that mapping and its tests untouched.
+   *
+   * Two names the old library produced have no enum member and can no longer be
+   * detected from the activity type alone: 'TrailRunning' and
+   * 'OpenWaterSwimming'. They are not HKWorkoutActivityType values. Open water
+   * is recovered from swimming metadata below; a trail run now imports as a
+   * plain run, which is a real if minor loss. Card 216.
+   */
+  activityName: string;
+  /**
+   * METRES. Zero when the workout carries no distance.
+   *
+   * Deliberately not the old library's unit, which was miles: every consumer
+   * immediately multiplied by 1609.344 or 1.60934 to get somewhere useful, the
+   * database column is distance_meters, and HealthKit's own base unit is
+   * metres. Normalised here so nothing downstream has to guess.
+   */
+  distance:     number;
+  energyBurned: number;
+  metadata:     Record<string, unknown>;
+}
+
+/** Capitalise a camelCase enum member into the old library's PascalCase name. */
+function pascal(name: string): string {
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : '';
 }
 
 const iso = (d: Date | string | undefined): string =>
@@ -145,15 +183,50 @@ export async function hkWorkouts(
     const workouts = ((res as { samples?: unknown[] })?.samples ?? []).map((w) => {
       const s = w as {
         duration?: { quantity?: number };
+        totalDistance?: { quantity?: number; unit?: string };
+        totalEnergyBurned?: { quantity?: number };
         startDate: Date;
         endDate: Date;
         workoutActivityType?: unknown;
+        metadata?: Record<string, unknown>;
       };
+
+      const raw = s.workoutActivityType;
+      // The enum is numeric at runtime, so reverse-map it back to its name.
+      const memberName =
+        typeof raw === 'number'
+          ? (WorkoutActivityType as unknown as Record<number, string>)[raw] ?? ''
+          : String(raw ?? '');
+
+      let activityName = pascal(memberName);
+
+      // Open-water swims are plain 'swimming' plus a metadata marker. Recover
+      // the distinction the old library reported as 'OpenWaterSwimming'.
+      const meta = (s.metadata ?? {}) as Record<string, unknown>;
+      if (activityName === 'Swimming' && String(meta.HKSwimmingLocationType ?? '') === '2') {
+        activityName = 'OpenWaterSwimming';
+      }
+
+      const src = (s as { sourceRevision?: { source?: { bundleIdentifier?: string } } }).sourceRevision;
+
+      // Normalise whatever unit HealthKit hands back to metres.
+      const distRaw  = s.totalDistance?.quantity ?? 0;
+      const distUnit = (s.totalDistance as { unit?: string } | undefined)?.unit ?? 'm';
+      const distance =
+        distUnit === 'km' ? distRaw * 1000
+        : distUnit === 'mi' ? distRaw * 1609.344
+        : distRaw;
+
       return {
+        uuid:         (s as { uuid?: string }).uuid ?? null,
+        sourceId:     src?.source?.bundleIdentifier ?? null,
         duration:     s.duration?.quantity ?? 0,
         start:        iso(s.startDate),
         end:          iso(s.endDate),
-        activityType: String(s.workoutActivityType ?? ''),
+        activityName,
+        distance,
+        energyBurned: s.totalEnergyBurned?.quantity ?? 0,
+        metadata:     meta,
       };
     });
 
@@ -164,17 +237,34 @@ export async function hkWorkouts(
   }
 }
 
-/** Write a workout back to Health. Returns whether it landed. */
+/**
+ * Write a workout back to Health. Returns whether it landed.
+ *
+ * Never throws, and every caller invokes it fire-and-forget: the activity is
+ * already in our own database by this point, and a HealthKit refusal must not
+ * cost the user their run.
+ */
 export async function hkSaveWorkout(opts: {
-  activityType: number;
-  start:        Date;
-  end:          Date;
-  metadata?:    Record<string, string | number | boolean>;
+  activityType:    number;
+  start:           Date;
+  end:             Date;
+  distanceMeters?: number;
+  metadata?:       Record<string, string | number | boolean>;
 }): Promise<boolean> {
   try {
+    const quantities = opts.distanceMeters && opts.distanceMeters > 0
+      ? [{
+          quantityType: 'HKQuantityTypeIdentifierDistanceWalkingRunning',
+          unit:         'm',
+          quantity:     opts.distanceMeters,
+          startDate:    opts.start,
+          endDate:      opts.end,
+        }]
+      : [];
+
     await saveWorkoutSample(
       opts.activityType as never,
-      [] as never,
+      quantities as never,
       opts.start,
       opts.end as never,
       undefined,
@@ -186,6 +276,9 @@ export async function hkSaveWorkout(opts: {
     return false;
   }
 }
+
+/** Re-exported so call sites name activity types without importing the library. */
+export { WorkoutActivityType as HKWorkoutActivityType };
 
 /**
  * Per-day sums for a quantity across a window.

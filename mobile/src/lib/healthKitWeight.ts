@@ -1,5 +1,5 @@
-import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hkQuantitySamples, hkAvailable } from './healthKitBridge';
 import { supabase } from '@/lib/supabase';
 import { getCycleInfo } from '@/lib/cycleEngine';
 import { recomputeBaseline } from '@/lib/weightBaselineDispatcher';
@@ -106,40 +106,26 @@ export async function enableWeightTracking(ctx: ImportContext): Promise<number> 
 
 export async function importNewWeightSamples(ctx: ImportContext): Promise<number> {
   const ranAt = new Date().toISOString();
-  const HK = NativeModules.AppleHealthKit;
-  const bridgeReady = !!HK?.getWeightSamples;
+  const bridgeReady = hkAvailable();
   if (!bridgeReady) {
     await writeDiag({ ranAt, startDate: '', bridgeReady: false, error: 'bridge unavailable', samples: 0, imported: 0 });
-    return 0;
-  }
-
-  let Constants: any;
-  try {
-    Constants = require('react-native-health').Constants;
-  } catch {
-    await writeDiag({ ranAt, startDate: '', bridgeReady: true, error: 'react-native-health not loadable', samples: 0, imported: 0 });
     return 0;
   }
 
   const anchorISO = await AsyncStorage.getItem(ANCHOR_KEY);
   const startDate = anchorISO ?? new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
 
-  const { error: hkErr, samples } = await new Promise<{ error: string | null; samples: RawWeightSample[] }>((resolve) => {
-    HK.getWeightSamples(
-      { unit: Constants.Units.gram, startDate, ascending: true },
-      (err: string, results: RawWeightSample[]) => {
-        if (err) {
-          console.warn('[healthKitWeight] getWeightSamples error:', err);
-          return resolve({ error: String(err), samples: [] });
-        }
-        if (!Array.isArray(results)) {
-          console.warn('[healthKitWeight] getWeightSamples returned non-array');
-          return resolve({ error: 'non-array result', samples: [] });
-        }
-        resolve({ error: null, samples: results });
-      },
-    );
+  // Grams, matching the previous Constants.Units.gram: the conversion below
+  // divides by 1000, and changing the unit here would silently scale every
+  // reading by a thousand.
+  const samples: RawWeightSample[] = await hkQuantitySamples('HKQuantityTypeIdentifierBodyMass', {
+    start:     new Date(startDate),
+    unit:      'g',
+    ascending: true,
   });
+  // The bridge reports its own failures and returns empty, so there is no
+  // separate error string to record any more.
+  const hkErr: string | null = null;
 
   if (!samples.length) {
     console.log('[healthKitWeight] no samples returned from HK since', startDate);
