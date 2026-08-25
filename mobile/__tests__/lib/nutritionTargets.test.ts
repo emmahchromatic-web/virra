@@ -49,7 +49,7 @@ describe('getNutritionTargets', () => {
 
 // The engine is calibrated against this reference athlete — the same body the
 // legacy lookup table assumed (~60kg recreational female runner).
-const REFERENCE: PersonalMetrics = { weightKg: 60, heightCm: 165, age: 30 };
+const REFERENCE: PersonalMetrics = { weightKg: 60, heightCm: 165, age: 30, sex: 'female' };
 const LOADS: TrainingLoad[] = ['rest', 'easy', 'moderate', 'hard'];
 const PHASES: CyclePhase[] = ['menstrual', 'follicular', 'ovulatory', 'luteal'];
 
@@ -105,12 +105,12 @@ describe('computePersonalisedTargets — structural guarantees', () => {
 
   it('enforces the fat floor at very low intake', () => {
     // A tiny body on a rest day drives the remainder below the 0.9 g/kg floor.
-    const tiny = computePersonalisedTargets({ weightKg: 40, heightCm: 150, age: 55 }, null, 'rest');
+    const tiny = computePersonalisedTargets({ weightKg: 40, heightCm: 150, age: 55, sex: 'female' }, null, 'rest');
     expect(tiny.fat_g).toBeGreaterThanOrEqual(Math.round(40 * 0.9) - 1);
   });
 
   it('clamps absurd inputs instead of producing garbage', () => {
-    const t = computePersonalisedTargets({ weightKg: 5000, heightCm: 5, age: 900 }, null, 'moderate');
+    const t = computePersonalisedTargets({ weightKg: 5000, heightCm: 5, age: 900, sex: 'female' }, null, 'moderate');
     expect(Number.isFinite(t.calories)).toBe(true);
     expect(t.calories).toBeGreaterThan(0);
   });
@@ -170,10 +170,27 @@ describe('buildPersonalMetrics + ageFromDob', () => {
   it('builds metrics only when weight, height and DOB are all present', () => {
     expect(
       buildPersonalMetrics({ weightKg: 62, heightCm: 168, dateOfBirth: '1996-01-01' }, TODAY),
-    ).toEqual({ weightKg: 62, heightCm: 168, age: 30 });
+    ).toEqual({ weightKg: 62, heightCm: 168, age: 30, sex: 'female' });
 
     expect(buildPersonalMetrics({ weightKg: null, heightCm: 168, dateOfBirth: '1996-01-01' }, TODAY)).toBeNull();
     expect(buildPersonalMetrics({ weightKg: 62, heightCm: null, dateOfBirth: '1996-01-01' }, TODAY)).toBeNull();
     expect(buildPersonalMetrics({ weightKg: 62, heightCm: 168, dateOfBirth: null }, TODAY)).toBeNull();
+  });
+});
+
+// Sex only ever changes the resting metabolic rate constant, but that constant
+// is worth a few hundred kcal a day once the activity factor multiplies it.
+describe('sex', () => {
+  it('fuels a male body above an identical female one', () => {
+    const female = computePersonalisedTargets({ ...REFERENCE, sex: 'female' }, null, 'moderate');
+    const male   = computePersonalisedTargets({ ...REFERENCE, sex: 'male'   }, null, 'moderate');
+    expect(male.calories).toBeGreaterThan(female.calories);
+    // 166 kcal of RMR, multiplied by the moderate activity factor.
+    expect(male.calories - female.calories).toBeGreaterThan(250);
+  });
+
+  it('treats an unanswered sex as female, so existing accounts do not move', () => {
+    const unanswered = buildPersonalMetrics({ weightKg: 60, heightCm: 165, dateOfBirth: '1996-01-01', sex: null }, new Date('2026-01-01'));
+    expect(unanswered?.sex).toBe('female');
   });
 });

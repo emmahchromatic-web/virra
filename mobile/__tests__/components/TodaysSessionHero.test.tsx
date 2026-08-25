@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { ActionSheetIOS } from 'react-native';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
 import type { TodaysSession } from '@/lib/todaysSession';
 
@@ -18,6 +17,22 @@ const strengthSession: TodaysSession = { ...base, id: 's1', modality: 'strength'
 
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
 
+// The chooser is the branded dialog now, not ActionSheetIOS (card 206), so the
+// assertion is on what appAlert was handed rather than on a native sheet.
+const mockAppAlert = jest.fn();
+jest.mock('@/components/ui/VirraAlert', () => ({
+  appAlert: (...args: any[]) => mockAppAlert(...args),
+  VirraAlertHost: () => null,
+}));
+
+beforeEach(() => mockAppAlert.mockClear());
+
+/** Press the nth non-cancel option of the last branded dialog shown. */
+function chooseOption(index: number) {
+  const buttons = mockAppAlert.mock.calls[0][2];
+  buttons[index].onPress();
+}
+
 describe('TodaysSessionHero', () => {
   it('calls onStartPress immediately when exactly one planned session', () => {
     const handler = jest.fn();
@@ -29,38 +44,43 @@ describe('TodaysSessionHero', () => {
     expect(handler).toHaveBeenCalledWith(runSession);
   });
 
-  it('shows ActionSheet when multiple planned sessions exist', () => {
-    const showSheet = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-      .mockImplementation((opts, cb) => cb(0));
+  it('offers a branded chooser when multiple planned sessions exist', () => {
     const handler = jest.fn();
     const { getByRole } = render(
       <TodaysSessionHero sessions={[runSession, strengthSession]} onStartPress={handler} />,
     );
     fireEvent.press(getByRole('button', { name: /start/i }));
-    expect(showSheet).toHaveBeenCalledTimes(1);
-    // Assert cancel is the last option and cancelButtonIndex is set correctly
-    const callOpts = showSheet.mock.calls[0][0];
-    expect(callOpts.cancelButtonIndex).toBe(callOpts.options.length - 1);
-    expect(callOpts.options[callOpts.options.length - 1]).toBe('Cancel');
-    // cb(0) selects first option → runSession
+
+    expect(mockAppAlert).toHaveBeenCalledTimes(1);
+    const buttons = mockAppAlert.mock.calls[0][2];
+    // One button per session, plus Cancel last.
+    expect(buttons).toHaveLength(3);
+    expect(buttons[buttons.length - 1].text).toBe('Cancel');
+    expect(buttons[buttons.length - 1].style).toBe('cancel');
+
+    chooseOption(0);
     expect(handler).toHaveBeenCalledWith(runSession);
-    showSheet.mockRestore();
   });
 
-  it('does not call handler when ActionSheet cancel is chosen', () => {
-    const showSheet = jest
-      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
-      .mockImplementation((opts, cb) => {
-        cb(opts.options.length - 1);
-      });
+  it('starts the session the user actually picked, not the first one', () => {
     const handler = jest.fn();
     const { getByRole } = render(
       <TodaysSessionHero sessions={[runSession, strengthSession]} onStartPress={handler} />,
     );
     fireEvent.press(getByRole('button', { name: /start/i }));
+    chooseOption(1);
+    expect(handler).toHaveBeenCalledWith(strengthSession);
+  });
+
+  it('does nothing when cancel is chosen', () => {
+    const handler = jest.fn();
+    const { getByRole } = render(
+      <TodaysSessionHero sessions={[runSession, strengthSession]} onStartPress={handler} />,
+    );
+    fireEvent.press(getByRole('button', { name: /start/i }));
+    const buttons = mockAppAlert.mock.calls[0][2];
+    expect(buttons[buttons.length - 1].onPress).toBeUndefined();
     expect(handler).not.toHaveBeenCalled();
-    showSheet.mockRestore();
   });
 
   it('labels button START RUN for a single planned run', () => {

@@ -5,6 +5,7 @@ import { SymbolView } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraCard } from './VirraCard';
 import { VirraModal } from './VirraModal';
+import { InlineError } from '@/components/ui/InlineError';
 import { VirraText } from './VirraText';
 import { VirraButton } from './VirraButton';
 import { getDaySessionDetail, formatPace } from '@/lib/volumePlan';
@@ -13,7 +14,6 @@ import type { DayDetail, SessionDetail, RunSessionDetail, StrengthSessionDetail,
 import { isStrengthV2 } from '@/lib/workoutStructure';
 import { useCycleStore } from '@/store/cycle';
 import { useSessionStore } from '@/store/sessionStore';
-import { appAlert } from '@/components/ui/VirraAlert';
 
 interface Props {
   visible:    boolean;
@@ -80,6 +80,10 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
   const [detail, setDetail]       = useState<DayDetail | null>(null);
   const [loading, setLoading]     = useState(false);
   const [busy, setBusy]           = useState(false);
+  // Errors render in-tree, not via appAlert: this component lives in a
+  // VirraModal, and a second native modal on top of it is the freeze Paul's
+  // audit found (card 215).
+  const [error, setError] = useState<{ title: string; message?: string } | null>(null);
   const cycleProfile   = useCycleStore((s) => s.cycleProfile);
   const hasPlaceboWeek = useCycleStore((s) => s.hasPlaceboWeek);
 
@@ -115,7 +119,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
       await useSessionStore.getState().dropSession(sessionId);
       await reloadDetail();
     } catch (e: unknown) {
-      appAlert('Could not drop session', e instanceof Error ? e.message : 'Unknown error');
+      setError({ title: 'Could not drop session', message: e instanceof Error ? e.message : 'Unknown error' });
     } finally {
       setBusy(false);
     }
@@ -132,7 +136,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
       await useSessionStore.getState().moveSession(sessionId, shiftDate(date, 7));
       await reloadDetail();
     } catch (e: unknown) {
-      appAlert('Could not move session', e instanceof Error ? e.message : 'Unknown error');
+      setError({ title: 'Could not move session', message: e instanceof Error ? e.message : 'Unknown error' });
     } finally {
       setBusy(false);
     }
@@ -317,6 +321,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
 
   return (
     <VirraModal visible={visible} onClose={onClose} title={title}>
+      {error && <InlineError title={error.title} message={error.message} onDismiss={() => setError(null)} />}
       {/* Phase banner */}
       {detail?.phase && (
         <View style={modal.phaseBanner}>

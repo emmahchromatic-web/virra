@@ -3,11 +3,11 @@ import { View, TextInput, StyleSheet, Pressable } from 'react-native';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 import { VirraModal } from './VirraModal';
+import { InlineError } from '@/components/ui/InlineError';
 import { supabase } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo, type CyclePhase } from '@/lib/cycleEngine';
 import { recomputeBaseline } from '@/lib/weightBaselineDispatcher';
-import { appAlert } from '@/components/ui/VirraAlert';
 
 interface Props {
   visible: boolean;
@@ -18,6 +18,10 @@ interface Props {
 export function AddWeightModal({ visible, userId, onClose }: Props) {
   const [value,  setValue]  = useState('');
   const [saving, setSaving] = useState(false);
+  // Errors render in-tree, not via appAlert: this component lives in a
+  // VirraModal, and a second native modal on top of it is the freeze Paul's
+  // audit found (card 215).
+  const [error, setError] = useState<{ title: string; message?: string } | null>(null);
 
   function isValid(): boolean {
     const n = parseFloat(value);
@@ -58,7 +62,7 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
     setSaving(false);
 
     if (error) {
-      appAlert('Could not save', error.message);
+      setError({ title: 'Could not save', message: error.message });
       return;
     }
 
@@ -69,6 +73,7 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
 
   return (
     <VirraModal visible={visible} onClose={handleClose} title="Add Weight">
+      {error && <InlineError title={error.title} message={error.message} onDismiss={() => setError(null)} />}
       <View style={styles.inputRow}>
         <TextInput
           style={styles.input}

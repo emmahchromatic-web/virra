@@ -23,7 +23,7 @@ function OnboardingLayout() {
           )}
         </Pressable>
         <View style={styles.progressWrapper}>
-          <OnboardingProgressBar currentStep={currentStep} totalSteps={7} />
+          <OnboardingProgressBar currentStep={currentStep} totalSteps={8} />
         </View>
         <View style={styles.backBtn} />
       </View>

@@ -11,7 +11,7 @@ import { useCycleStore } from '@/store/cycle';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { appAlert } from '@/components/ui/VirraAlert';
+import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 
 const SYMPTOMS = [
   'Cramps', 'Spotting', 'Headache', 'Bloating',
@@ -211,6 +211,9 @@ export default function CheckInScreen() {
         />
       </ScrollView>
       )}
+      {/* This screen is presented as a native modal, so it needs its own
+          alert host: the root one cannot draw over a modal screen. */}
+      <VirraAlertHost />
     </SafeAreaView>
   );
 }

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Pressable, StyleSheet, ActionSheetIOS } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { appAlert } from '@/components/ui/VirraAlert';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { useTodayStore } from '@/store/today';
@@ -81,15 +82,17 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
             } else if (planned.length === 1) {
               routeToSession(planned[0]);
             } else {
-              const options = [
-                ...planned.map(s =>
-                  `${s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1).toLowerCase()} · ${s.modality.toUpperCase()}`
-                ),
-                'Cancel',
-              ];
-              ActionSheetIOS.showActionSheetWithOptions(
-                { options, cancelButtonIndex: options.length - 1 },
-                (index) => { if (index < planned.length) routeToSession(planned[index]); },
+              // Branded chooser rather than ActionSheetIOS. Card 206.
+              appAlert(
+                'Which session?',
+                'You have more than one planned today.',
+                [
+                  ...planned.map((s) => ({
+                    text: `${s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1).toLowerCase()} · ${s.modality.toUpperCase()}`,
+                    onPress: () => routeToSession(s),
+                  })),
+                  { text: 'Cancel', style: 'cancel' as const },
+                ],
               );
             }
           }}

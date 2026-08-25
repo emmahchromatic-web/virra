@@ -5,11 +5,11 @@ import { supabase } from '@/lib/supabase';
 import { applyBreak } from '@/lib/scheduleGenerator';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraModal } from './VirraModal';
+import { InlineError } from '@/components/ui/InlineError';
 import { VirraButton } from './VirraButton';
 import { VirraText } from './VirraText';
 import { CalendarPicker, parseISO, toLocalISO } from './CalendarPicker';
 import type { TrainingBlock } from '@/lib/trainingBlocks';
-import { appAlert } from '@/components/ui/VirraAlert';
 
 interface Props {
   visible:      boolean;
@@ -46,6 +46,10 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
   const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set());
   const [mode,            setMode]            = useState<'reschedule' | 'skip'>('reschedule');
   const [saving,          setSaving]          = useState(false);
+  // Errors render in-tree, not via appAlert: this component lives in a
+  // VirraModal, and a second native modal on top of it is the freeze Paul's
+  // audit found (card 215).
+  const [error, setError] = useState<{ title: string; message?: string } | null>(null);
 
   // Load blocks and reset state each time the modal opens
   React.useEffect(() => {
@@ -84,8 +88,8 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
   }
 
   async function handleConfirm() {
-    if (activeBlocks.length > 0 && selectedIds.size === 0) { appAlert('Select at least one block'); return; }
-    if (breakEnd < breakStart)  { appAlert('End date must be on or after start date'); return; }
+    if (activeBlocks.length > 0 && selectedIds.size === 0) { setError({ title: 'Select at least one block' }); return; }
+    if (breakEnd < breakStart)  { setError({ title: 'End date must be on or after start date' }); return; }
     setSaving(true);
     try {
       await applyBreak(
@@ -97,7 +101,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
       );
       onApplied();
     } catch (e: any) {
-      appAlert('Could not apply break', e.message);
+      setError({ title: 'Could not apply break', message: e.message });
     } finally {
       setSaving(false);
     }
@@ -110,6 +114,7 @@ export function BreakModal({ visible, userId, initialDate, onClose, onApplied }:
 
   return (
     <VirraModal visible={visible} onClose={onClose} title="Schedule a Break">
+      {error && <InlineError title={error.title} message={error.message} onDismiss={() => setError(null)} />}
       <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 560 }}>
 
         {/* DATE RANGE */}

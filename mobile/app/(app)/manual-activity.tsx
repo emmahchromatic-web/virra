@@ -15,7 +15,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
 import type { SessionType, StrengthExercise } from '@/lib/strengthTypes';
-import { appAlert } from '@/components/ui/VirraAlert';
+import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 
 type ActivityType = 'run' | 'swim' | 'strength' | 'yoga' | 'other';
 
@@ -475,6 +475,9 @@ export default function ManualActivityScreen() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
+      {/* This screen is presented as a native modal, so it needs its own
+          alert host: the root one cannot draw over a modal screen. */}
+      <VirraAlertHost />
     </SafeAreaView>
   );
 }

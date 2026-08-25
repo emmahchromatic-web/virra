@@ -25,6 +25,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BreakModal } from '@/components/ui/BreakModal';
 import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
+import type { Sex } from '@/lib/nutritionTargets';
 import { enableWeightTracking, readWeightSyncDiagnostic, type WeightSyncDiagnostic } from '@/lib/healthKitWeight';
 
 function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
@@ -75,7 +76,7 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
-  const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, heightCm, dateOfBirth, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
+  const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, heightCm, dateOfBirth, sex, injuryHistory, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
   const [weightSyncing, setWeightSyncing] = useState(false);
   const [weightSyncNote, setWeightSyncNote] = useState<string | null>(null);
   const [weightDiag, setWeightDiag] = useState<WeightSyncDiagnostic | null>(null);
@@ -106,6 +107,9 @@ export default function ProfileScreen() {
   const [deleteStage,        setDeleteStage]        = useState<'explain' | 'confirm'>('explain');
   const [deleteConfirm,      setDeleteConfirm]      = useState('');
   const [deleting,           setDeleting]           = useState(false);
+  const [sexModalVisible,    setSexModalVisible]    = useState(false);
+  const [injuryModalVisible, setInjuryModalVisible] = useState(false);
+  const [injuryInput,        setInjuryInput]        = useState('');
   const [medicalModalVisible, setMedicalModalVisible] = useState(false);
   const [creditsModalVisible, setCreditsModalVisible] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
@@ -214,6 +218,23 @@ export default function ProfileScreen() {
     try { await saveProfile(session.user.id, { firstName: first, lastName: last }); }
     catch (e) { appAlert('Could not update', (e as Error).message); }
     finally { setSaving(false); }
+  }
+
+  async function handleSexSave(next: Sex) {
+    if (!session) return;
+    setSaving(true);
+    await saveProfile(session.user.id, { sex: next });
+    setSaving(false);
+    setSexModalVisible(false);
+  }
+
+  async function handleInjurySave() {
+    if (!session) return;
+    setSaving(true);
+    const trimmed = injuryInput.trim();
+    await saveProfile(session.user.id, { injuryHistory: trimmed.length > 0 ? trimmed : null });
+    setSaving(false);
+    setInjuryModalVisible(false);
   }
 
   function openDeleteModal() {
@@ -420,6 +441,20 @@ export default function ProfileScreen() {
           </View>
         </VirraCard>
 
+        <Pressable
+          style={styles.referCard}
+          onPress={() => router.push('/(app)/achievements' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Achievements"
+        >
+          <SymbolView name="rosette" size={20} tintColor={colors.pulse} />
+          <View style={{ flex: 1 }}>
+            <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1 }}>ACHIEVEMENTS</VirraText>
+            <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: 2 }}>Coming soon</VirraText>
+          </View>
+          <SymbolView name="chevron.right" size={16} tintColor={colors.pulse} />
+        </Pressable>
+
         <VirraCard style={styles.card}>
           <SectionLabel style={styles.cardLabel}>ACCOUNT</SectionLabel>
           <Row label="EMAIL" value={session?.user.email ?? '—'} />
@@ -436,6 +471,15 @@ export default function ProfileScreen() {
 
         <VirraCard style={styles.card}>
           <SectionLabel style={styles.cardLabel}>BODY METRICS</SectionLabel>
+          {/* Outside the track-weight gate on purpose: sex picks the resting
+              metabolic rate equation whether or not weight is synced, and a
+              mis-tap during onboarding has to be fixable without turning
+              weight tracking on to reach it. */}
+          <Row
+            label="SEX"
+            value={sex === 'male' ? 'Male' : sex === 'female' ? 'Female' : 'Not set'}
+            onPress={() => setSexModalVisible(true)}
+          />
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.sm }}>
             <View style={{ flex: 1, paddingRight: spacing.md }}>
               <VirraText variant="body" size={15} color={colors.breath}>Track weight</VirraText>
@@ -508,6 +552,10 @@ export default function ProfileScreen() {
           )}
         </VirraCard>
 
+        {/* Nothing here applies when sex is male, and the phase-null path is
+            already a first-class case (it is what non-tracking users get), so
+            hiding the card changes presentation only. */}
+        {sex !== 'male' && (
         <VirraCard style={styles.card}>
           <SectionLabel style={styles.cardLabel}>CYCLE</SectionLabel>
           <Row
@@ -531,6 +579,25 @@ export default function ProfileScreen() {
                 onPress={() => { setCycleLengthInput(String(cycleLength)); setCycleLengthModalVisible(true); }}
               />
             </>
+          )}
+        </VirraCard>
+        )}
+
+        <VirraCard style={styles.card}>
+          <SectionLabel style={styles.cardLabel}>INJURY HISTORY</SectionLabel>
+          <Row
+            label="NOTES"
+            value={injuryHistory ? 'Added' : 'Not set'}
+            onPress={() => { setInjuryInput(injuryHistory ?? ''); setInjuryModalVisible(true); }}
+          />
+          {injuryHistory ? (
+            <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: spacing.xs, lineHeight: 20 }}>
+              {injuryHistory}
+            </VirraText>
+          ) : (
+            <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: spacing.xs }}>
+              Old injuries or anything you work around. Context only: it does not change your plan.
+            </VirraText>
           )}
         </VirraCard>
 
@@ -612,6 +679,20 @@ export default function ProfileScreen() {
             <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: 2 }}>Share Virra with someone who runs</VirraText>
           </View>
           <SymbolView name="square.and.arrow.up" size={16} tintColor={colors.pulse} />
+        </Pressable>
+
+        {/* Only the accounts that actually exist. Instagram is the one linked
+            from the website footer; inventing handles for the others would put
+            dead links in the app. */}
+        <Pressable
+          style={styles.socialRow}
+          onPress={() => openExternal('https://instagram.com/virrarun')}
+          accessibilityRole="link"
+          accessibilityLabel="Virra on Instagram"
+        >
+          <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+            FOLLOW @VIRRARUN
+          </VirraText>
         </Pressable>
 
         <VirraButton
@@ -757,6 +838,59 @@ export default function ProfileScreen() {
           </VirraText>
         ) : null}
         <VirraButton label="SAVE" onPress={handleStepsTargetSave} loading={saving} />
+      </VirraModal>
+
+      <VirraModal
+        visible={sexModalVisible}
+        onClose={() => setSexModalVisible(false)}
+        title="Sex"
+      >
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
+          Used to pick the equation behind your calorie targets, alongside your
+          age, height and weight.
+        </VirraText>
+        {(['female', 'male'] as Sex[]).map((option) => (
+          <Pressable
+            key={option}
+            onPress={() => handleSexSave(option)}
+            style={[styles.sexOption, sex === option && styles.sexOptionActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: sex === option }}
+          >
+            <VirraText variant="mono" size={13} color={sex === option ? colors.mile : colors.breath}>
+              {option.toUpperCase()}
+            </VirraText>
+          </Pressable>
+        ))}
+        {sex === 'male' && (
+          <VirraText variant="body" size={12} color={colors.muted} style={{ lineHeight: 18 }}>
+            Virra&apos;s training plans are designed around female physiology. The
+            progressions and principles are universal, so they still work, and
+            your fuelling targets are calculated for you either way.
+          </VirraText>
+        )}
+      </VirraModal>
+
+      <VirraModal
+        visible={injuryModalVisible}
+        onClose={() => setInjuryModalVisible(false)}
+        title="Injury history"
+      >
+        <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
+          Old injuries, niggles, or anything you work around. Context only: this
+          does not change your plan.
+        </VirraText>
+        <TextInput
+          value={injuryInput}
+          onChangeText={(t) => setInjuryInput(t.slice(0, 500))}
+          style={[styles.modalInput, { minHeight: 120, textAlign: 'left', paddingTop: spacing.sm }]}
+          multiline
+          textAlignVertical="top"
+          placeholder="e.g. Left achilles, on and off since March"
+          placeholderTextColor="rgba(244,237,224,0.3)"
+          accessibilityLabel="Injury history"
+        />
+        <VirraButton label="SAVE" onPress={handleInjurySave} loading={saving} />
       </VirraModal>
 
       <VirraModal
@@ -923,6 +1057,9 @@ const styles = StyleSheet.create({
   card:              { gap: spacing.xs },
   cardLabel:         { letterSpacing: 1.5, marginBottom: spacing.xs },
   divider:           { height: 1, backgroundColor: colors.border, marginVertical: 2 },
+  sexOption:       { paddingVertical: spacing.md, alignItems: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.mist },
+  sexOptionActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  socialRow:    { alignItems: 'center', paddingVertical: spacing.md },
   signout:           { marginTop: spacing.md },
   referCard:         { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.pulse}44`, backgroundColor: 'rgba(212,255,38,0.05)', marginTop: spacing.sm },
   prefRow:           { paddingTop: spacing.xs },

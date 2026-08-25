@@ -12,7 +12,7 @@ import { fetchRunHeartRate, type TimeWindow } from '@/lib/healthKitHeartRate';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { appAlert } from '@/components/ui/VirraAlert';
+import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 
 // ---- Geo helpers ----
 
@@ -421,6 +421,9 @@ export default function RunTrackerScreen() {
           </>
         )}
       </ScrollView>
+      {/* This screen is presented as a native modal, so it needs its own
+          alert host: the root one cannot draw over a modal screen. */}
+      <VirraAlertHost />
     </SafeAreaView>
   );
 }

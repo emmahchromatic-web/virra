@@ -14,7 +14,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { appAlert } from '@/components/ui/VirraAlert';
+import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 
 interface FavouriteEntry {
   food_name:     string;
@@ -727,6 +727,9 @@ export default function FoodSearchScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      {/* This screen is presented as a native modal, so it needs its own
+          alert host: the root one cannot draw over a modal screen. */}
+      <VirraAlertHost />
     </SafeAreaView>
   );
 }

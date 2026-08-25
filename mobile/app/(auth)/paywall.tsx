@@ -14,12 +14,16 @@ import { appAlert } from '@/components/ui/VirraAlert';
 const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://virra.app/privacy';
 
+// Sells only what ships. The education library was descoped and its tab became
+// Recipes, which has no content model yet, so neither belongs here: promising
+// either one at the point of payment is the kind of thing that gets an app
+// rejected, never mind what it does to trust. Card 211.
 const FEATURES = [
   'Cycle-adjusted training plans (5K → marathon)',
   'Nutrition targets that shift with your phase',
   'HealthKit sync: workouts import automatically',
   'Daily dashboard built for your cycle',
-  'Education library by a qualified PT',
+  'Strength programmes that follow your cycle',
 ];
 
 export default function PaywallScreen() {
