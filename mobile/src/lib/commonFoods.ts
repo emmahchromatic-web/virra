@@ -227,6 +227,39 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'maple-syrup-as-packed', name: 'Maple syrup', detail: 'as packed', serving_g: 100, calories: 260, carbs_g: 67, protein_g: 0, fat_g: 0.1, fibre_g: 0 },
   { id: 'golden-syrup-as-packed', name: 'Golden syrup', detail: 'as packed', serving_g: 100, calories: 325, carbs_g: 79, protein_g: 0.4, fat_g: 0, fibre_g: 0 },
 
+
+  // Drinks. Card 40: the list had 193 items, no coffee and no juice, so the
+  // things people consume every single day forced a barcode scan or a manual
+  // entry.
+  //
+  // Macros are per 100 ml, matching the rest of this file, and serving_g is the
+  // default portion, so one tap logs a realistic amount: a mug rather than
+  // 100 ml, a pint rather than a splash, a 175 ml glass of wine.
+  //
+  // Everything here is `unit: 'ml'`. These are sold and drunk by volume, and
+  // without it the UI calls a pint 568 grams.
+  //
+  // PROVENANCE: values follow UK CoFID where the dataset covers the drink, and
+  // the milk-based ones are derived from the milk entries already above so they
+  // stay internally consistent. The prepared drinks (latte, squash, G&T) are
+  // not single CoFID entries and are marked as extras below. Emma should check
+  // these against her own reference before this card closes: the card asks for
+  // numbers she is happy to stand behind, and mine are matched to CoFID rather
+  // than read out of it.
+  { id: 'tea-black-infusion', name: 'Tea, black', detail: 'no milk', unit: 'ml', serving_g: 250, calories: 1, carbs_g: 0.1, protein_g: 0.1, fat_g: 0, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'tea-herbal-infusion', name: 'Herbal tea', detail: 'infusion', unit: 'ml', serving_g: 250, calories: 1, carbs_g: 0.2, protein_g: 0, fat_g: 0, fibre_g: 0, meals: ['snack'] },
+  { id: 'coffee-black-brewed', name: 'Coffee, black', detail: 'brewed, no milk', unit: 'ml', serving_g: 250, calories: 2, carbs_g: 0.3, protein_g: 0.2, fat_g: 0, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'coffee-espresso', name: 'Espresso', detail: 'single, 30 ml', unit: 'ml', serving_g: 30, calories: 9, carbs_g: 1.7, protein_g: 0.1, fat_g: 0.2, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'orange-juice-unsweetened', name: 'Orange juice', detail: 'unsweetened', unit: 'ml', serving_g: 200, calories: 42, carbs_g: 8.8, protein_g: 0.5, fat_g: 0.1, fibre_g: 0.1, meals: ['breakfast'] },
+  { id: 'apple-juice-unsweetened', name: 'Apple juice', detail: 'unsweetened', unit: 'ml', serving_g: 200, calories: 42, carbs_g: 9.9, protein_g: 0.1, fat_g: 0.1, fibre_g: 0, meals: ['breakfast'] },
+  { id: 'soya-milk-unsweetened', name: 'Soya milk', detail: 'unsweetened', unit: 'ml', serving_g: 200, calories: 33, carbs_g: 0.6, protein_g: 3.3, fat_g: 1.8, fibre_g: 0.5, meals: ['breakfast'] },
+  { id: 'lager-4-percent', name: 'Lager', detail: '4% ABV', unit: 'ml', serving_g: 568, calories: 43, carbs_g: 2.4, protein_g: 0.3, fat_g: 0, fibre_g: 0 },
+  { id: 'bitter-ale', name: 'Bitter / ale', detail: 'draught', unit: 'ml', serving_g: 568, calories: 32, carbs_g: 2.3, protein_g: 0.3, fat_g: 0, fibre_g: 0 },
+  { id: 'wine-red', name: 'Wine, red', detail: '175 ml glass', unit: 'ml', serving_g: 175, calories: 68, carbs_g: 0.2, protein_g: 0.1, fat_g: 0, fibre_g: 0 },
+  { id: 'wine-white-dry', name: 'Wine, white dry', detail: '175 ml glass', unit: 'ml', serving_g: 175, calories: 66, carbs_g: 0.6, protein_g: 0.1, fat_g: 0, fibre_g: 0 },
+  { id: 'wine-sparkling', name: 'Sparkling wine', detail: '125 ml flute', unit: 'ml', serving_g: 125, calories: 76, carbs_g: 1.4, protein_g: 0.3, fat_g: 0, fibre_g: 0 },
+  { id: 'spirit-40-percent', name: 'Spirit', detail: 'gin, vodka or whisky, 25 ml measure', unit: 'ml', serving_g: 25, calories: 222, carbs_g: 0, protein_g: 0, fat_g: 0, fibre_g: 0 },
+
   // Extras: not in UK CoFID dataset
   { id: 'bagel', name: 'bagel', detail: 'plain', serving_g: 100, calories: 250, carbs_g: 50, protein_g: 10, fat_g: 1.6, fibre_g: 2.0, meals: ['breakfast', 'lunch'] },
   { id: 'granola', name: 'Granola', serving_g: 60, calories: 450, carbs_g: 65, protein_g: 10, fat_g: 16, fibre_g: 4.0, meals: ['breakfast', 'snack'] },
@@ -236,6 +269,20 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'dark-chocolate', name: 'Dark chocolate', detail: '70%+', serving_g: 30, calories: 600, carbs_g: 46, protein_g: 7.8, fat_g: 43, fibre_g: 11.0, meals: ['snack'] },
   { id: 'coconut-water', name: 'Coconut water', unit: 'ml', serving_g: 330, calories: 19, carbs_g: 4.7, protein_g: 0.2, fat_g: 0.2, fibre_g: 0.0, meals: ['snack'] },
   { id: 'energy-gel', name: 'Energy gel', detail: 'generic, 1 sachet ~40g', serving_g: 40, calories: 100, carbs_g: 25, protein_g: 0, fat_g: 0, fibre_g: 0.0, meals: ['snack'] },
+
+  // Drinks not covered by a single CoFID entry. Derived from the milk entries
+  // above plus a standard preparation, so they stay consistent with the rest of
+  // the list rather than importing a second source's assumptions.
+  { id: 'tea-with-semi-skimmed', name: 'Tea, with milk', detail: 'semi-skimmed, splash', unit: 'ml', serving_g: 250, calories: 7, carbs_g: 0.6, protein_g: 0.4, fat_g: 0.2, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'coffee-white-semi-skimmed', name: 'Coffee, white', detail: 'semi-skimmed, splash', unit: 'ml', serving_g: 250, calories: 8, carbs_g: 0.7, protein_g: 0.5, fat_g: 0.2, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'latte-semi-skimmed', name: 'Latte', detail: 'semi-skimmed, medium', unit: 'ml', serving_g: 350, calories: 45, carbs_g: 4.3, protein_g: 3.2, fat_g: 1.5, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'cappuccino-semi-skimmed', name: 'Cappuccino', detail: 'semi-skimmed, medium', unit: 'ml', serving_g: 250, calories: 35, carbs_g: 3.3, protein_g: 2.5, fat_g: 1.2, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'oat-milk', name: 'Oat milk', detail: 'barista, as packed', unit: 'ml', serving_g: 200, calories: 45, carbs_g: 6.7, protein_g: 1, fat_g: 1.5, fibre_g: 0.8, meals: ['breakfast'] },
+  { id: 'almond-milk-unsweetened', name: 'Almond milk', detail: 'unsweetened', unit: 'ml', serving_g: 200, calories: 13, carbs_g: 0.1, protein_g: 0.4, fat_g: 1.1, fibre_g: 0.4, meals: ['breakfast'] },
+  { id: 'squash-no-added-sugar', name: 'Squash', detail: 'no added sugar, diluted', unit: 'ml', serving_g: 250, calories: 2, carbs_g: 0.2, protein_g: 0, fat_g: 0, fibre_g: 0 },
+  { id: 'squash-regular', name: 'Squash', detail: 'regular, diluted', unit: 'ml', serving_g: 250, calories: 20, carbs_g: 4.8, protein_g: 0, fat_g: 0, fibre_g: 0 },
+  { id: 'smoothie-fruit', name: 'Smoothie', detail: 'fruit, shop-bought', unit: 'ml', serving_g: 250, calories: 55, carbs_g: 12.5, protein_g: 0.7, fat_g: 0.2, fibre_g: 1.2, meals: ['breakfast', 'snack'] },
+  { id: 'gin-and-slimline-tonic', name: 'Gin & slimline tonic', detail: '25 ml gin, 150 ml tonic', unit: 'ml', serving_g: 175, calories: 32, carbs_g: 0.1, protein_g: 0, fat_g: 0, fibre_g: 0 },
 ];
 
 // When `mealType` is provided, items whose `meals` includes that meal float
