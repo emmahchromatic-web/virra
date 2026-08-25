@@ -10,6 +10,11 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 
+const mockCancelAll = jest.fn(async () => {});
+jest.mock('@/lib/notifications', () => ({
+  cancelAllNotifications: () => mockCancelAll(),
+}));
+
 describe('useAuthStore', () => {
   beforeEach(async () => {
     useAuthStore.setState({ session: null, user: null, isLoading: true });
@@ -103,5 +108,27 @@ describe('useAuthStore', () => {
     expect(keys).not.toContain('notif_training_2026-08-12');
     expect(keys).toContain('virra:unit_system');
     expect(keys).toContain('permissions_granted_v1');
+  });
+
+  // Card 225: a new account saw the previous account's reminders waiting for
+  // it. Clearing the notif_* keys only removes this app's RECORD of what it
+  // scheduled; iOS keeps the notifications themselves and delivers them to
+  // whoever signs in next.
+  it('cancels the device notifications on sign out, not just their markers', async () => {
+    mockCancelAll.mockClear();
+    const { result } = renderHook(() => useAuthStore());
+    await act(async () => { await result.current.signOut(); });
+    expect(mockCancelAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('still signs out even if cancelling notifications fails', async () => {
+    mockCancelAll.mockRejectedValueOnce(new Error('notifications unavailable'));
+    const { result } = renderHook(() => useAuthStore());
+    // Start signed IN, or the assertion below proves nothing.
+    act(() => { result.current.setSession({ user: { id: 'u1' } } as any); });
+    expect(result.current.session).not.toBeNull();
+
+    await act(async () => { await result.current.signOut(); });
+    expect(result.current.session).toBeNull();
   });
 });

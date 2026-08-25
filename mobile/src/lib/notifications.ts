@@ -346,6 +346,37 @@ export async function cancelTrialReminders(): Promise<void> {
 }
 
 /** Compute the mode hour from the user's last 30 activities. Falls back to 9. */
+/**
+ * Clear every notification this device is holding, scheduled or already
+ * delivered.
+ *
+ * Card 225: a newly created account saw notifications waiting for it on first
+ * login. Sign-out wiped the `notif_*` AsyncStorage keys, which are only this
+ * app's RECORD of what it scheduled, and never touched the notifications
+ * themselves. iOS went on holding the previous account's reminders and
+ * delivered them to whoever signed in next. Wiping the markers actually made
+ * it worse: with no record, the app could not recognise or dedupe the
+ * leftovers, so it scheduled its own on top of them.
+ *
+ * Delivered notifications are dismissed too. A reminder sitting in Notification
+ * Centre from the previous account is just as wrong as a pending one.
+ *
+ * Best effort, and never throws: this runs inside sign-out, which must
+ * complete regardless.
+ */
+export async function cancelAllNotifications(): Promise<void> {
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch {
+    // Nothing scheduled, or the module is unavailable in this environment.
+  }
+  try {
+    await Notifications.dismissAllNotificationsAsync();
+  } catch {
+    // Same: never let notification cleanup block signing out.
+  }
+}
+
 export async function inferTrainingHour(userId: string): Promise<number> {
   try {
     const { data } = await supabase

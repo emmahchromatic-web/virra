@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { clearUserScopedCaches } from '@/lib/localCaches';
+import { cancelAllNotifications } from '@/lib/notifications';
 
 interface AuthState {
   session:    Session | null;
@@ -40,6 +41,20 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Best effort: the in-memory clear below still logs the user out for
       // this session even if storage can't be touched.
     }
+    // Cancel the notifications themselves BEFORE dropping the markers that
+    // record them. clearUserScopedCaches wipes the notif_* keys, which are only
+    // this app's record of what it scheduled: iOS keeps the actual reminders,
+    // and would deliver the previous account's to whoever signs in next. Card
+    // 225. Order matters, since once the markers are gone nothing can identify
+    // the leftovers.
+    try {
+      await cancelAllNotifications();
+    } catch {
+      // Notification cleanup must never block sign-out. Leaving a stale
+      // reminder behind is a bug; leaving someone signed in when they asked
+      // not to be is a much worse one.
+    }
+
     // Drop this user's cached data so the next account on this device starts
     // clean rather than briefly seeing the previous user's schedule/readiness.
     await clearUserScopedCaches();
