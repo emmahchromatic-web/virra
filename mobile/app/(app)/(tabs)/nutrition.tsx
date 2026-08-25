@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore, personalMetricsFields } from '@/store/profile';
+import { CopyMealFromDayModal } from '@/components/ui/CopyMealFromDayModal';
 import { resolveNutritionTargets, buildPersonalMetrics, LOAD_LABELS, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext, type DailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { colors, spacing, radius } from '@/constants/theme';
@@ -235,6 +236,7 @@ export default function NutritionScreen() {
   const [loading, setLoading] = useState(true);
   const [dailyContext, setDailyContext] = useState<DailyTrainingContext | null>(null);
   const [editing, setEditing] = useState<FoodEntry | null>(null);
+  const [copyingInto, setCopyingInto] = useState<MealType | null>(null);
 
   const today   = new Date().toISOString().split('T')[0];
   const targets = resolveNutritionTargets(metrics, cycleInfo?.phase ?? null, load);
@@ -491,6 +493,15 @@ export default function NutritionScreen() {
                   </Pressable>
                 )}
                 <Pressable
+                  onPress={() => setCopyingInto(meal)}
+                  hitSlop={8}
+                  disabled={!logId}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Copy ${meal} from another day`}
+                >
+                  <SymbolView name="calendar.badge.plus" size={16} tintColor={colors.muted} />
+                </Pressable>
+                <Pressable
                   onPress={() => logId && router.push(`/(app)/food-search?logId=${logId}&mealType=${meal}` as any)}
                   hitSlop={8}
                   disabled={!logId}
@@ -531,6 +542,17 @@ export default function NutritionScreen() {
         onClose={() => setEditing(null)}
         onSaved={reloadEntries}
       />
+
+      {session && (
+        <CopyMealFromDayModal
+          visible={copyingInto !== null}
+          userId={session.user.id}
+          mealType={copyingInto ?? 'breakfast'}
+          targetLogId={logId}
+          onClose={() => setCopyingInto(null)}
+          onCopied={reloadEntries}
+        />
+      )}
     </SafeAreaView>
     </GestureHandlerRootView>
   );

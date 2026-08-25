@@ -2,6 +2,13 @@ import type { CyclePhase } from '@/store/cycle';
 
 export type TrainingLoad = 'rest' | 'easy' | 'moderate' | 'hard';
 
+/**
+ * Used only to pick the resting metabolic rate equation. VIRRA is female-first
+ * and every account predating the onboarding question has no value stored, so
+ * null is read as female throughout and nobody's targets move.
+ */
+export type Sex = 'female' | 'male';
+
 export interface NutritionTargets {
   calories:  number;
   carbs_g:   number;
@@ -73,6 +80,7 @@ export interface PersonalMetrics {
   weightKg: number;
   heightCm: number;
   age:      number;
+  sex:      Sex;
 }
 
 // Whole-day activity factors (PAL) applied to RMR, indexed by the day's load.
@@ -140,9 +148,15 @@ const AGE_RANGE       = { min: 12,  max: 90  } as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** Mifflin-St Jeor resting metabolic rate for females (kcal/day). */
-function femaleRMR(weightKg: number, heightCm: number, age: number): number {
-  return 10 * weightKg + 6.25 * heightCm - 5 * age - 161;
+/**
+ * Mifflin-St Jeor resting metabolic rate (kcal/day). The equation is shared;
+ * only the final constant differs by sex, and that difference is 166 kcal at
+ * rest, so getting it wrong is worth ~230-320 kcal once the activity factor
+ * is applied.
+ */
+function restingMetabolicRate(weightKg: number, heightCm: number, age: number, sex: Sex): number {
+  const base = 10 * weightKg + 6.25 * heightCm - 5 * age;
+  return sex === 'male' ? base + 5 : base - 161;
 }
 
 export function computePersonalisedTargets(
@@ -158,7 +172,7 @@ export function computePersonalisedTargets(
   const phaseCarb    = phase ? PHASE_CARB[phase]    : 1;
   const phaseProtein = phase ? PHASE_PROTEIN[phase] : 1;
 
-  const calories  = femaleRMR(weightKg, heightCm, age) * LOAD_PAL[load] * phaseEnergy;
+  const calories  = restingMetabolicRate(weightKg, heightCm, age, metrics.sex) * LOAD_PAL[load] * phaseEnergy;
   const protein_g = weightKg * LOAD_PROTEIN_PER_KG[load] * phaseProtein;
   const carbs_g   = weightKg * LOAD_CARB_PER_KG[load]    * phaseCarb;
 
@@ -178,6 +192,8 @@ export function computePersonalisedTargets(
 }
 
 function hasCompleteMetrics(m: Partial<PersonalMetrics> | null | undefined): m is PersonalMetrics {
+  // Sex is deliberately not required: it defaults to female, so an account
+  // that never saw the onboarding question still personalises.
   return (
     !!m &&
     typeof m.weightKg === 'number' && m.weightKg > 0 &&
@@ -195,7 +211,9 @@ export function resolveNutritionTargets(
   phase:   CyclePhase | null,
   load:    TrainingLoad,
 ): NutritionTargets {
-  if (hasCompleteMetrics(metrics)) return computePersonalisedTargets(metrics, phase, load);
+  if (hasCompleteMetrics(metrics)) {
+    return computePersonalisedTargets({ ...metrics, sex: metrics.sex ?? 'female' }, phase, load);
+  }
   return getNutritionTargets(phase, load);
 }
 
@@ -210,16 +228,16 @@ export function isPersonalised(metrics: Partial<PersonalMetrics> | null | undefi
  * `today` is injectable for deterministic tests.
  */
 export function buildPersonalMetrics(
-  fields: { weightKg: number | null; heightCm: number | null; dateOfBirth: string | null },
+  fields: { weightKg: number | null; heightCm: number | null; dateOfBirth: string | null; sex?: Sex | null },
   today: Date = new Date(),
 ): PersonalMetrics | null {
-  const { weightKg, heightCm, dateOfBirth } = fields;
+  const { weightKg, heightCm, dateOfBirth, sex } = fields;
   if (weightKg == null || heightCm == null || !dateOfBirth) return null;
 
   const age = ageFromDob(dateOfBirth, today);
   if (age == null) return null;
 
-  return { weightKg, heightCm, age };
+  return { weightKg, heightCm, age, sex: sex ?? 'female' };
 }
 
 /** Whole years from an ISO 'YYYY-MM-DD' birth date. Null if unparseable. */

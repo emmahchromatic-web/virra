@@ -9,6 +9,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { useAuthStore } from '@/store/auth';
 import { supabase } from '@/lib/supabase';
 import { appAlert } from '@/components/ui/VirraAlert';
+import type { Sex } from '@/lib/nutritionTargets';
 
 const MIN_HEIGHT = 140;
 const MAX_HEIGHT = 210;
@@ -22,6 +23,7 @@ export default function BodyMetricsScreen() {
   const [dob, setDob]                 = useState<Date | null>(null);
   const [showPicker, setShowPicker]   = useState(false);
   const [heightCm, setHeightCm]       = useState(165);
+  const [sex, setSex]                 = useState<Sex>('female');
   const [trackWeight, setTrackWeight] = useState(false);
   const [saving, setSaving]           = useState(false);
 
@@ -53,6 +55,7 @@ export default function BodyMetricsScreen() {
         .update({
           date_of_birth: dob ? dob.toISOString().split('T')[0] : null,
           height_cm:     heightCm,
+          sex,
           track_weight:  trackWeight,
         })
         .eq('id', session.user.id);
@@ -96,6 +99,35 @@ export default function BodyMetricsScreen() {
             style={styles.picker}
           />
         )}
+      </View>
+
+      {/* Sex. Only used to pick the resting-metabolic-rate equation, which is
+          why it sits with the other numbers that feed the calorie maths. */}
+      <View style={styles.section}>
+        <VirraText variant="mono" size={10} color={colors.pulse} style={styles.fieldLabel}>
+          SEX
+        </VirraText>
+        <View style={styles.segmented}>
+          {(['female', 'male'] as Sex[]).map((option) => (
+            <Pressable
+              key={option}
+              onPress={() => setSex(option)}
+              style={[styles.segment, sex === option && styles.segmentActive]}
+              accessibilityRole="button"
+              accessibilityLabel={option === 'female' ? 'Female' : 'Male'}
+              accessibilityState={{ selected: sex === option }}
+            >
+              <VirraText variant="mono" size={12} color={sex === option ? colors.mile : colors.breath}>
+                {option.toUpperCase()}
+              </VirraText>
+            </Pressable>
+          ))}
+        </View>
+        <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)">
+          {sex === 'male'
+            ? 'VIRRA\u2019s training plans are designed around female physiology. The progressions and principles are universal, so they still work, and your fuelling targets are calculated for you either way.'
+            : 'Along with your age, height and weight, this sets how many calories your body burns at rest.'}
+        </VirraText>
       </View>
 
       {/* Height */}
@@ -156,6 +188,9 @@ const styles = StyleSheet.create({
   sub:        { lineHeight: 22, marginTop: -spacing.md },
   section:    { gap: spacing.sm },
   fieldLabel: { letterSpacing: 2 },
+  segmented:  { flexDirection: 'row', gap: spacing.sm },
+  segment:    { flex: 1, alignItems: 'center', paddingVertical: spacing.md, backgroundColor: colors.mist, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  segmentActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   field:      { backgroundColor: colors.mist, borderRadius: radius.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
   picker:     { alignSelf: 'center' },
   stepper:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
