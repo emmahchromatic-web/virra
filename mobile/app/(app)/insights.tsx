@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useDateRangeSessions } from '@/hooks/useDateRangeSessions';
-import { computeInsightMetrics, formatPaceMmSs, type InsightMetrics } from '@/lib/insightMetrics';
+import { computeInsightMetrics, formatPaceMmSs, describeFuelling, type InsightMetrics } from '@/lib/insightMetrics';
 import { summariseRunStructure, summariseStrengthStructure } from '@/lib/workoutStructure';
 import { modulateRunStructure } from '@/lib/cycleModulation';
 import { getCycleInfo } from '@/lib/cycleEngine';
@@ -283,17 +283,8 @@ export default function InsightsScreen() {
 
         {/* Fuelling alignment */}
         {metrics?.fuellingAlignment && (() => {
-          const { daysOverTarget, daysUnderTarget, daysOnTarget } = metrics.fuellingAlignment!;
-          const total = daysOverTarget + daysUnderTarget + daysOnTarget;
-          if (total === 0) return null;
-          let text: string;
-          if (daysUnderTarget >= 3 && daysUnderTarget >= daysOverTarget) {
-            text = `You've fuelled below your planned sessions ${daysUnderTarget} day${daysUnderTarget !== 1 ? 's' : ''} this week.`;
-          } else if (daysOverTarget >= 3) {
-            text = `You've eaten above your rest-day targets ${daysOverTarget} day${daysOverTarget !== 1 ? 's' : ''} this week.`;
-          } else {
-            text = 'Fuelling well-aligned with your training this week.';
-          }
+          const text = describeFuelling(metrics.fuellingAlignment);
+          if (!text) return null;
           return (
             <VirraCard style={{ gap: spacing.xs }}>
               <SectionLabel color={phaseColor} style={styles.sectionLabel}>FUELLING</SectionLabel>
@@ -304,7 +295,19 @@ export default function InsightsScreen() {
           );
         })()}
 
-        {/* Phase-pace breakdown */}
+        {/* Phase-pace breakdown. Silently rendering nothing when there is no
+            phase-stamped run data reads as "this feature is missing" rather
+            than "there is nothing to show yet", which is what sent Emma
+            hunting for it in build 11 UAT. */}
+        {metrics && metrics.phasePaces.length === 0 && (
+          <VirraCard style={styles.paceCard}>
+            <SectionLabel style={styles.sectionLabel}>PACE BY PHASE</SectionLabel>
+            <VirraText variant="body" size={13} color={colors.muted} style={{ lineHeight: 20 }}>
+              No runs with a cycle phase recorded yet. Once you have logged runs
+              across a cycle, your average pace in each phase appears here.
+            </VirraText>
+          </VirraCard>
+        )}
         {metrics && metrics.phasePaces.length > 0 && (
           <VirraCard style={styles.paceCard}>
             <SectionLabel style={styles.sectionLabel}>PACE BY PHASE</SectionLabel>
