@@ -213,26 +213,26 @@ export default function InsightsScreen() {
         <VirraCard style={styles.metricsCard}>
           <SectionLabel style={styles.sectionLabel}>YOUR NUMBERS</SectionLabel>
           <View style={styles.metricsGrid}>
-            <MetricTile label="DAY STREAK"  value={loadingMetrics ? '—' : String(metrics?.streakDays ?? 0)} />
+            <MetricTile label="DAY STREAK"  value={loadingMetrics ? '·' : String(metrics?.streakDays ?? 0)} />
             <View style={styles.metricDividerV} />
-            <MetricTile label="THIS WEEK"   value={loadingMetrics ? '—' : String(metrics?.weeklyKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
+            <MetricTile label="RUN · WEEK"  value={loadingMetrics ? '·' : String(metrics?.weeklyKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
             <View style={styles.metricDividerV} />
-            <MetricTile label="THIS MONTH"  value={loadingMetrics ? '—' : String(metrics?.monthlyKm ?? 0)} unit={loadingMetrics ? undefined : 'km'} />
+            <MetricTile label="RUN · MONTH" value={loadingMetrics ? '·' : String(metrics?.monthlyKm ?? 0)} unit={loadingMetrics ? undefined : 'km'} />
           </View>
           <View style={styles.metricDividerH} />
           <View style={styles.metricsGrid}>
             <MetricTile
               label="ADHERENCE"
-              value={loadingMetrics ? '—' : metrics?.trainingAdherencePct != null ? String(metrics.trainingAdherencePct) : '—'}
+              value={loadingMetrics ? '·' : metrics?.trainingAdherencePct != null ? String(metrics.trainingAdherencePct) : '·'}
               unit={!loadingMetrics && metrics?.trainingAdherencePct != null ? '%' : undefined}
               sub="LAST 28 DAYS"
             />
             <View style={styles.metricDividerV} />
-            <MetricTile label="ALL TIME"    value={loadingMetrics ? '—' : String(metrics?.totalKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
+            <MetricTile label="RUN · YEAR"  value={loadingMetrics ? '·' : String(metrics?.yearKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
             <View style={styles.metricDividerV} />
             <MetricTile
               label="NUTRITION"
-              value={loadingMetrics ? '—' : metrics?.nutritionCompliancePct != null ? String(metrics.nutritionCompliancePct) : '—'}
+              value={loadingMetrics ? '·' : metrics?.nutritionCompliancePct != null ? String(metrics.nutritionCompliancePct) : '·'}
               unit={!loadingMetrics && metrics?.nutritionCompliancePct != null ? '%' : undefined}
               sub="COMPLIANCE"
             />
