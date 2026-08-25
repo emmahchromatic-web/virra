@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Pressable, StyleSheet, TextInput } from 'react-native';
 import { create } from 'zustand';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
@@ -30,16 +30,26 @@ interface AlertConfig {
 }
 
 interface AlertState {
-  current: AlertConfig | null;
-  show:    (config: AlertConfig) => void;
-  dismiss: () => void;
+  current:  AlertConfig | null;
+  /** Mounted hosts, in mount order. The last one is the one that renders. */
+  hostIds:  number[];
+  show:     (config: AlertConfig) => void;
+  dismiss:  () => void;
+  addHost:  (id: number) => void;
+  dropHost: (id: number) => void;
 }
 
 const useAlertStore = create<AlertState>((set) => ({
-  current: null,
-  show:    (config) => set({ current: config }),
-  dismiss: () => set({ current: null }),
+  current:  null,
+  hostIds:  [],
+  show:     (config) => set({ current: config }),
+  dismiss:  () => set({ current: null }),
+  addHost:  (id) => set((s) => ({ hostIds: [...s.hostIds, id] })),
+  dropHost: (id) => set((s) => ({ hostIds: s.hostIds.filter((h) => h !== id) })),
 }));
+
+// Monotonic ids so a remount never collides with a host that is still up.
+let nextHostId = 1;
 
 /**
  * Themed, imperative replacement for React Native's Alert.alert. Same call
@@ -71,16 +81,39 @@ function labelColor(style?: AlertButtonStyle): string {
   return colors.mile; // 'default' sits on the pulse fill
 }
 
-/** Mount once near the app root so appAlert() has somewhere to render. */
+/**
+ * Somewhere for appAlert() to render. One host is mounted at the app root; a
+ * screen presented with `presentation: 'modal'` must mount its own.
+ *
+ * Why: the host draws in a native RN Modal, and iOS will not present a second
+ * modal from a view controller that already has one on screen. A host living
+ * only at the root therefore renders nothing at all while a modal screen is
+ * up, which silently swallowed every error on food-search, manual-activity,
+ * checkin and run. Whichever host mounted last is the one deepest in the
+ * presentation stack, so that is the only one allowed to render.
+ */
 export function VirraAlertHost() {
-  const current = useAlertStore((s) => s.current);
-  const dismiss = useAlertStore((s) => s.dismiss);
+  const current  = useAlertStore((s) => s.current);
+  const dismiss  = useAlertStore((s) => s.dismiss);
+  const hostIds  = useAlertStore((s) => s.hostIds);
+  const addHost  = useAlertStore((s) => s.addHost);
+  const dropHost = useAlertStore((s) => s.dropHost);
+  const idRef    = useRef<number>(0);
+  if (idRef.current === 0) idRef.current = nextHostId++;
   const [value, setValue] = useState('');
+
+  useEffect(() => {
+    const id = idRef.current;
+    addHost(id);
+    return () => dropHost(id);
+  }, [addHost, dropHost]);
 
   // Reset between prompts so a previous answer never pre-fills the next one.
   useEffect(() => { setValue(current?.input?.defaultValue ?? ''); }, [current]);
 
-  if (!current) return null;
+  const isTopmost = hostIds.length > 0 && hostIds[hostIds.length - 1] === idRef.current;
+
+  if (!current || !isTopmost) return null;
 
   function press(button: AlertButton) {
     dismiss();

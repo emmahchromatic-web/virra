@@ -277,12 +277,29 @@ export default function NutritionScreen() {
         cycleInfo?.phase ?? null,
       );
       setDailyContext(ctx);
-      setLoad(ctx.inferred_load);
     } catch {
       // Network error: fall back to 'easy' default, no label shown
     }
 
-    const effectiveLoad    = ctx?.inferred_load ?? load;
+    // A load the user picked by hand outlives the inference. We can tell the
+    // two apart because the row records both: when the stored training_load
+    // has drifted from the inferred_load stored beside it, she moved it.
+    const { data: existing } = await supabase
+      .from('nutrition_logs')
+      .select('training_load, inferred_load')
+      .eq('user_id', session.user.id)
+      .eq('recorded_on', today)
+      .maybeSingle();
+
+    const overridden =
+      !!existing?.training_load &&
+      existing.training_load !== existing.inferred_load;
+
+    const effectiveLoad: TrainingLoad = overridden
+      ? (existing!.training_load as TrainingLoad)
+      : (ctx?.inferred_load ?? load);
+    setLoad(effectiveLoad);
+
     const effectiveMetrics = buildPersonalMetrics(personalMetricsFields(useProfileStore.getState()));
     const effectiveTargets = resolveNutritionTargets(effectiveMetrics, cycleInfo?.phase ?? null, effectiveLoad);
 
@@ -310,7 +327,45 @@ export default function NutritionScreen() {
     setLoading(false);
   }
 
+  // Moving the chip has to reach the row, not just local state: the stored
+  // targets_json is what the dashboard and insights read, and without this the
+  // override was lost the moment the tab remounted.
+  async function handlePickLoad(next: TrainingLoad) {
+    setLoad(next);
+    if (!session) return;
+    const nextTargets = resolveNutritionTargets(
+      buildPersonalMetrics(personalMetricsFields(useProfileStore.getState())),
+      cycleInfo?.phase ?? null,
+      next,
+    );
+    const { error } = await supabase
+      .from('nutrition_logs')
+      .upsert({
+        user_id:       session.user.id,
+        recorded_on:   today,
+        phase_at_time: cycleInfo?.phase ?? null,
+        training_load: next,
+        inferred_load: dailyContext?.inferred_load ?? null,
+        targets_json:  nextTargets,
+      }, { onConflict: 'user_id,recorded_on' });
+    if (error) appAlert('Could not change load', error.message);
+  }
+
   const byMeal = (meal: MealType) => entries.filter((e) => e.meal_type === meal);
+
+  // Per-meal macro split. Emma's ask in build 11 UAT: seeing the day's total
+  // is no help when the question is "did this meal hit 30g of protein?".
+  const mealTotals = (meal: MealType) =>
+    byMeal(meal).reduce(
+      (acc, e) => ({
+        calories:  acc.calories  + (e.calories  ?? 0),
+        carbs_g:   acc.carbs_g   + (e.carbs_g   ?? 0),
+        protein_g: acc.protein_g + (e.protein_g ?? 0),
+        fat_g:     acc.fat_g     + (e.fat_g     ?? 0),
+      }),
+      { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 },
+    );
+
 
   function handleSaveMeal(meal: MealType) {
     const items = byMeal(meal);
@@ -369,7 +424,7 @@ export default function NutritionScreen() {
             {(Object.keys(LOAD_LABELS) as TrainingLoad[]).map((l) => (
               <Pressable
                 key={l}
-                onPress={() => setLoad(l)}
+                onPress={() => handlePickLoad(l)}
                 style={[styles.loadChip, load === l && styles.loadActive]}
               >
                 <VirraText variant="mono" size={10} color={load === l ? colors.mile : 'rgba(244,237,224,0.6)'}>
@@ -444,6 +499,14 @@ export default function NutritionScreen() {
                 </Pressable>
               </View>
             </View>
+            {byMeal(meal).length > 0 && (() => {
+              const m = mealTotals(meal);
+              return (
+                <VirraText variant="mono" size={10} color={colors.muted} style={styles.mealMacros}>
+                  {`${Math.round(m.calories)} KCAL  ·  P ${Math.round(m.protein_g)}g  ·  C ${Math.round(m.carbs_g)}g  ·  F ${Math.round(m.fat_g)}g`}
+                </VirraText>
+              );
+            })()}
             {byMeal(meal).length === 0 ? (
               <VirraText variant="body" size={13} color={colors.muted} style={{ paddingVertical: spacing.xs }}>
                 Nothing logged yet
@@ -490,5 +553,6 @@ const styles = StyleSheet.create({
   mealHeader:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   mealActions:  { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   mealLabel:    { letterSpacing: 1.5 },
+  mealMacros:   { letterSpacing: 1, marginTop: -spacing.xs },
   entryRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing.xs },
 });

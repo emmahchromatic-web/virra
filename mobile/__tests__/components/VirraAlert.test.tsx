@@ -83,4 +83,29 @@ describe('VirraAlertHost', () => {
       expect(second).not.toHaveBeenCalled();
     });
   });
+  // Screens presented with `presentation: 'modal'` mount their own host,
+  // because the root host draws in a native RN Modal and iOS refuses to
+  // present a second modal from a view controller that already has one up.
+  // Two hosts must never both draw the same alert, and the deeper one wins.
+  describe('stacking', () => {
+    it('renders in the host that mounted last, not the root one', async () => {
+      const root = render(<VirraAlertHost />);
+      const modalScreen = render(<VirraAlertHost />);
+
+      appAlert('Could not add food');
+
+      expect(await modalScreen.findByText('COULD NOT ADD FOOD')).toBeTruthy();
+      expect(root.queryByText('COULD NOT ADD FOOD')).toBeNull();
+    });
+
+    it('hands rendering back to the root host once the modal screen unmounts', async () => {
+      const root = render(<VirraAlertHost />);
+      const modalScreen = render(<VirraAlertHost />);
+      modalScreen.unmount();
+
+      appAlert('Could not add food');
+
+      expect(await root.findByText('COULD NOT ADD FOOD')).toBeTruthy();
+    });
+  });
 });

@@ -17,7 +17,7 @@ jest.mock('@/lib/commonFoods', () => ({
 }));
 jest.mock('@/lib/openFoodFacts', () => ({ lookupBarcode: jest.fn(), searchByName: jest.fn() }));
 jest.mock('@/lib/notifications', () => ({ cancelNutritionReminderForMeal: jest.fn() }));
-jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn() }));
+jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn(), appPrompt: jest.fn(), VirraAlertHost: () => null }));
 
 function mockThenableChain() {
   return { then: (cb: any) => cb({ data: [] }) };

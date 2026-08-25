@@ -34,7 +34,7 @@ jest.mock('@/lib/exerciseSettings', () => ({
   DEFAULT_LOAD_TYPE: 'weighted',
 }));
 
-jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn() }));
+jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn(), appPrompt: jest.fn(), VirraAlertHost: () => null }));
 
 // A strength session using real exercise-library names so getExerciseMeta
 // returns tempo/description content.
