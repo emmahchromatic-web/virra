@@ -25,11 +25,20 @@ function parseFiveKToPaceSecPerKm(fiveKTime: string): number | null {
 export async function completeOnboarding(
   userId: string,
   data: OnboardingData,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; avatarFailed?: boolean }> {
   const today = new Date().toISOString().split('T')[0];
 
-  // Upload avatar if one was chosen during onboarding
+  // Upload avatar if one was chosen during onboarding.
+  //
+  // Card 224: a photo picked during onboarding did not appear on the profile
+  // afterwards, and nothing told the user. Both failure paths here were silent:
+  // an upload error only skipped setting the URL, and a thrown error only
+  // reached the console. Now reported back so the caller can say so.
+  //
+  // It must never fail the onboarding itself. Losing a profile picture is
+  // annoying; losing the whole sign-up because of one is much worse.
   let avatarUrl: string | undefined;
+  let avatarFailed = false;
   if (data.localAvatarUri) {
     try {
       const path   = `${userId}/avatar.jpg`;
@@ -40,12 +49,16 @@ export async function completeOnboarding(
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(path, bytes.buffer, { contentType: 'image/jpeg', upsert: true });
-      if (!uploadError) {
+      if (uploadError) {
+        console.error('[onboarding] avatar upload rejected:', uploadError.message);
+        avatarFailed = true;
+      } else {
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
         avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
       }
     } catch (e) {
       console.error('[onboarding] avatar upload failed:', e);
+      avatarFailed = true;
     }
   }
 
@@ -105,5 +118,5 @@ export async function completeOnboarding(
     });
   }
 
-  return {};
+  return { avatarFailed };
 }

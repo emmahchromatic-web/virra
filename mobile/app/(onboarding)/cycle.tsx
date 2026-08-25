@@ -108,11 +108,20 @@ export default function CycleScreen() {
     }
 
     setSaving(true);
-    const { error } = await completeOnboarding(session.user.id, merged);
+    const { error, avatarFailed } = await completeOnboarding(session.user.id, merged);
     setSaving(false);
     if (error) {
       appAlert('Something went wrong', error);
       return;
+    }
+    // The photo is optional, so a failed upload must not block onboarding, but
+    // it should not vanish silently either: the user picked it and would
+    // otherwise find it missing later with no idea why. Card 224.
+    if (avatarFailed) {
+      appAlert(
+        'Profile photo not saved',
+        'Everything else is set up. You can add your photo again from Profile.',
+      );
     }
     router.replace('/(onboarding)/body-metrics');
   }
