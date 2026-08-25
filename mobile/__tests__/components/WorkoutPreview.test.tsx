@@ -121,7 +121,17 @@ jest.mock('@/lib/supabase', () => {
   };
 });
 
-NativeModules.AppleHealthKit = { saveWorkout: jest.fn((_opts: any, _cb: any) => {}) };
+// Write-back goes through the bridge now, not NativeModules. Card 216.
+const mockSaveWorkout = jest.fn((..._args: any[]) => Promise.resolve(true));
+jest.mock('@/lib/healthKitBridge', () => ({
+  hkSaveWorkout: (...args: any[]) => mockSaveWorkout(...args),
+  HKWorkoutActivityType: {
+    traditionalStrengthTraining: 50,
+    functionalStrengthTraining:  20,
+    yoga:                        57,
+    swimming:                    46,
+  },
+}));
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const supabaseMock = require('@/lib/supabase');
@@ -405,9 +415,9 @@ describe('WorkoutPreviewScreen — timer-only (no structure)', () => {
     fireEvent.press(getByText('STOP'));
 
     await waitFor(() => {
-      expect(NativeModules.AppleHealthKit.saveWorkout).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'Yoga' }),
-        expect.any(Function),
+      expect(mockSaveWorkout).toHaveBeenCalledWith(
+        // 57 is HKWorkoutActivityType.yoga
+        expect.objectContaining({ activityType: 57 }),
       );
       expect(supabaseMock.__inserts.activities?.length).toBe(1);
       expect(supabaseMock.__inserts.strength_set_logs).toBeUndefined(); // no set logs for yoga

@@ -8,7 +8,7 @@
     "platforms": [
       "ios"
     ],
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.pauldickenson.virra.app",

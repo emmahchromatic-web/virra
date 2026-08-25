@@ -1,3 +1,5 @@
+import { hkWorkouts, hkAvailable } from './healthKitBridge';
+
 // 'returning' is self-reported only (comeback runners: postpartum, injury, time
 // off). deriveFitnessLevel never infers it from HealthKit pace.
 export type FitnessLevel = 'beginner' | 'recreational' | 'intermediate' | 'advanced' | 'returning';
@@ -58,40 +60,35 @@ export interface HKCycleData {
 export async function fetchHKFitnessData(): Promise<HKFitnessData> {
   const empty: HKFitnessData = { avgPaceSeconds: null, weeklyKm: null, best5kSeconds: null };
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { NativeModules } = require('react-native');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { Constants } = require('react-native-health');
-    const HK = NativeModules.AppleHealthKit;
-    if (!HK?.getAnchoredWorkouts) return empty;
+    if (!hkAvailable()) return empty;
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    return new Promise((resolve) => {
-      HK.getAnchoredWorkouts(
-        { startDate: ninetyDaysAgo.toISOString(), ascending: false },
-        (err: any, results: { anchor: string; data: any[] }) => {
-          if (err || !results?.data?.length) return resolve(empty);
-          const runs = results.data.filter(
-            (r) => r.activityName === Constants.Activities.Running && r.distance > 0 && r.duration > 0
+    {
+      {
+        {
+          const { workouts } = await hkWorkouts({ start: ninetyDaysAgo });
+          const runs = workouts.filter(
+            (r) => r.activityName === 'Running' && r.distance > 0 && r.duration > 0
           );
-          if (!runs.length) return resolve(empty);
-          // Pace: duration (seconds) / distance (miles → km)
-          const avgPace = runs.reduce((s, r) => s + r.duration / (r.distance * 1.60934), 0) / runs.length;
+          if (!runs.length) return empty;
+          // Distances are metres from the bridge (card 216), not miles.
+          // Pace: duration (seconds) / distance (km)
+          const avgPace = runs.reduce((s, r) => s + r.duration / (r.distance / 1000), 0) / runs.length;
           // Weekly km over last 8 weeks
           const eightWeeksAgo = Date.now() - 56 * 24 * 60 * 60 * 1000;
           const recentRuns = runs.filter((r) => new Date(r.start).getTime() > eightWeeksAgo);
-          const totalKm = recentRuns.reduce((s, r) => s + r.distance * 1.60934, 0);
+          const totalKm = recentRuns.reduce((s, r) => s + r.distance / 1000, 0);
           const weeklyKm = recentRuns.length ? totalKm / 8 : null;
-          // Best 5K: runs within 5K distance range (2.9–3.3 miles)
-          const nearFiveK = runs.filter((r) => r.distance >= 2.9 && r.distance <= 3.3);
+          // Best 5K: runs within 5K distance range (4.7-5.3 km)
+          const nearFiveK = runs.filter((r) => r.distance >= 4700 && r.distance <= 5300);
           const best5k = nearFiveK.length ? Math.min(...nearFiveK.map((r) => r.duration)) : null;
-          resolve({
+          return ({
             avgPaceSeconds: Math.round(avgPace),
             weeklyKm:       weeklyKm ? Math.round(weeklyKm * 10) / 10 : null,
             best5kSeconds:  best5k ? Math.round(best5k) : null,
           });
         }
-      );
-    });
+      }
+    }
   } catch {
     return empty;
   }
@@ -102,34 +99,29 @@ export async function fetchHKGoalData(): Promise<HKGoalData> {
     best5kSeconds: null, best10kSeconds: null, bestHalfSeconds: null, bestMarathonSeconds: null,
   };
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { NativeModules } = require('react-native');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { Constants } = require('react-native-health');
-    const HK = NativeModules.AppleHealthKit;
-    if (!HK?.getAnchoredWorkouts) return empty;
-    return new Promise((resolve) => {
-      HK.getAnchoredWorkouts(
-        { startDate: new Date(0).toISOString(), ascending: false },
-        (err: any, results: { anchor: string; data: any[] }) => {
-          if (err || !results?.data?.length) return resolve(empty);
-          const runs = results.data.filter(
-            (r) => r.activityName === Constants.Activities.Running && r.distance > 0
+    if (!hkAvailable()) return empty;
+    {
+      {
+        {
+          const { workouts } = await hkWorkouts({ start: new Date(0) });
+          const runs = workouts.filter(
+            (r) => r.activityName === 'Running' && r.distance > 0
           );
-          // Distance ranges in miles (with generous GPS tolerance)
-          const best = (minMi: number, maxMi: number) => {
-            const m = runs.filter((r) => r.distance >= minMi && r.distance <= maxMi);
+          // Distance ranges in METRES, converted from the previous mile bounds
+          // with the same generous GPS tolerance. Card 216.
+          const best = (minM: number, maxM: number) => {
+            const m = runs.filter((r) => r.distance >= minM && r.distance <= maxM);
             return m.length ? Math.min(...m.map((r) => r.duration)) : null;
           };
-          resolve({
-            best5kSeconds:       best(2.9, 3.3),
-            best10kSeconds:      best(5.8, 6.6),
-            bestHalfSeconds:     best(12.5, 13.7),
-            bestMarathonSeconds: best(25.0, 27.5),
+          return ({
+            best5kSeconds:       best(4700,  5300),
+            best10kSeconds:      best(9300,  10650),
+            bestHalfSeconds:     best(20100, 22050),
+            bestMarathonSeconds: best(40250, 44250),
           });
         }
-      );
-    });
+      }
+    }
   } catch {
     return empty;
   }

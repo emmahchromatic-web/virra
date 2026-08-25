@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { View, Pressable, StyleSheet, SafeAreaView, ScrollView, NativeModules } from 'react-native';
+import { View, Pressable, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -13,6 +13,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
+import { hkSaveWorkout, HKWorkoutActivityType } from '@/lib/healthKitBridge';
 
 // ---- Geo helpers ----
 
@@ -265,21 +266,14 @@ export default function RunTrackerScreen() {
       if (sessionErr) console.error('[run] failed to mark session completed', sessionErr);
     }
 
-    // Write to HealthKit
-    const HK = NativeModules.AppleHealthKit;
-    if (HK?.saveWorkout) {
-      HK.saveWorkout(
-        {
-          type:         'Running',
-          startDate:    startedAt.current.toISOString(),
-          endDate:      finishedAt.toISOString(),
-          duration:     elapsedS,
-          distance:     Math.round(distanceM),
-          distanceUnit: 'meter',
-        },
-        () => {},
-      );
-    }
+    // Write to HealthKit. Fire and forget: the run is already saved to our own
+    // database above, and a HealthKit failure must not cost the user the run.
+    void hkSaveWorkout({
+      activityType: HKWorkoutActivityType.running,
+      start:        startedAt.current,
+      end:          finishedAt,
+      distanceMeters: Math.round(distanceM),
+    });
 
     cancelTrainingReminderToday();
     setSaving(false);

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, Pressable, TextInput, NativeModules, ActivityIndicator, AppState,
+  View, ScrollView, StyleSheet, Pressable, TextInput, ActivityIndicator, AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -22,6 +22,7 @@ import type { StrengthExercise } from '@/lib/strengthTypes';
 import { getExerciseMeta } from '@/lib/exerciseLibrary';
 import { getLastLoggedWeights } from '@/lib/strengthHistory';
 import { getExerciseSettings, DEFAULT_LOAD_TYPE, type ExerciseSettings } from '@/lib/exerciseSettings';
+import { hkSaveWorkout, HKWorkoutActivityType } from '@/lib/healthKitBridge';
 import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
 import { parseRestSeconds } from '@/lib/strengthProgramme';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -37,11 +38,13 @@ import { isStrengthV2 } from '@/lib/workoutStructure';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
-const HK_TYPE: Record<string, string> = {
-  strength: 'TraditionalStrengthTraining',
-  yoga:     'Yoga',
-  swim:     'Swimming',
-  other:    'FunctionalStrengthTraining',
+// HealthKit activity types by modality. Numeric enum members now rather than
+// react-native-health's string names. Card 216.
+const HK_TYPE: Record<string, number> = {
+  strength: HKWorkoutActivityType.traditionalStrengthTraining,
+  yoga:     HKWorkoutActivityType.yoga,
+  swim:     HKWorkoutActivityType.swimming,
+  other:    HKWorkoutActivityType.functionalStrengthTraining,
 };
 
 const MODALITY_ICON: Record<string, string> = {
@@ -504,13 +507,11 @@ export default function WorkoutPreviewScreen() {
     const phaseAtTime = cycleInfo?.phase ?? null;
 
     // HealthKit: fire and forget
-    const HK = NativeModules.AppleHealthKit;
-    if (HK?.saveWorkout) {
-      HK.saveWorkout(
-        { type: HK_TYPE[modality] ?? HK_TYPE.other, startDate, endDate, duration: durationSeconds },
-        () => {},
-      );
-    }
+    void hkSaveWorkout({
+      activityType: HK_TYPE[modality] ?? HK_TYPE.other,
+      start:        new Date(startDate),
+      end:          new Date(endDate),
+    });
 
     // Insert activity
     const { data: act, error: actErr } = await supabase

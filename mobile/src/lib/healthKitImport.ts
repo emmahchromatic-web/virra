@@ -1,5 +1,5 @@
-import { NativeModules } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hkWorkouts, hkAvailable } from './healthKitBridge';
 import { supabase } from './supabase';
 import { getCycleInfo } from './cycleEngine';
 import { cancelTrainingReminderToday } from './notifications';
@@ -89,15 +89,7 @@ async function runReconcile(_userId: string): Promise<void> {
 }
 
 export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
-  const HK = NativeModules.AppleHealthKit;
-  if (!HK?.getAnchoredWorkouts) return 0;
-
-  let Constants: any;
-  try {
-    Constants = require('react-native-health').Constants;
-  } catch {
-    return 0;
-  }
+  if (!hkAvailable()) return 0;
 
   // One-shot anchor reset so existing rows imported before the sub_type column
   // pick it up on next observer fire. Idempotent; only resets once per install.
@@ -112,13 +104,15 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
     ? new Date(0).toISOString()           // anchor handles the window
     : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString(); // first run: 1 year back
 
-  return new Promise((resolve) => {
-    HK.getAnchoredWorkouts(
-      { startDate, anchor: anchor ?? undefined, ascending: true },
-      async (err: any, result: { anchor: string; data: any[] }) => {
-        if (err) return resolve(0);
+  {
+    {
+      {
+        const result = await hkWorkouts({
+          start:  new Date(startDate),
+          anchor: anchor ?? undefined,
+        });
 
-        const workouts = (result?.data ?? []).filter(
+        const workouts = result.workouts.filter(
           (w) => w.duration > 0 && (w.distance >= 0)
         );
 
@@ -136,16 +130,16 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
             || subType === 'walk'
             || subType === 'cycle'
             || subType === 'handcycle';
-          const distanceM = carriesDistance
-            ? Math.round((w.distance ?? 0) * 1609.344) // miles → metres
-            : null;
+          // The bridge already returns metres (card 216), so there is no
+          // conversion here any more.
+          const distanceM = carriesDistance ? Math.round(w.distance ?? 0) : null;
 
           // Determine cycle phase at the time of the workout
           const phaseAtTime = ctx.periodStart
             ? getCycleInfo(ctx.periodStart, ctx.cycleLength, startedAt).phase
             : null;
 
-          const hkUuid = w.id ?? (w.sourceId ? `${w.sourceId}::${w.start}` : null);
+          const hkUuid = w.uuid ?? (w.sourceId ? `${w.sourceId}::${w.start}` : null);
 
           const { data: activityRow, error: actErr } = await supabase
             .from('activities')
@@ -195,17 +189,17 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
         }
 
         // Advance anchor so next call only fetches new workouts
-        if (result?.anchor) {
+        if (result.anchor) {
           await AsyncStorage.setItem(ANCHOR_KEY, result.anchor);
         }
 
         // Link imported (and any still-unlinked) activities to planned sessions.
         await runReconcile(ctx.userId);
 
-        resolve(imported);
+        return imported;
       }
-    );
-  });
+    }
+  }
 }
 
 export async function resetImportAnchor(): Promise<void> {

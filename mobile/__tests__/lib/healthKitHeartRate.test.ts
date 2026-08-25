@@ -1,12 +1,18 @@
 // mobile/__tests__/lib/healthKitHeartRate.test.ts
 
-import { NativeModules } from 'react-native'
 import {
   activeWindows,
   aggregateHeartRate,
   fetchRunHeartRate,
   HR_QUERY_TIMEOUT_MS,
 } from '@/lib/healthKitHeartRate'
+
+// The module talks to HealthKit only through the bridge now (card 216), so the
+// tests mock the bridge rather than NativeModules.AppleHealthKit.
+const mockQuantitySamples = jest.fn()
+jest.mock('@/lib/healthKitBridge', () => ({
+  hkQuantitySamples: (...args: any[]) => mockQuantitySamples(...args),
+}))
 
 // Fixed run window so sample timestamps read clearly: 10:00–10:30.
 const RUN_START = new Date('2026-09-01T10:00:00Z').getTime()
@@ -171,77 +177,62 @@ describe('fetchRunHeartRate', () => {
   const started = new Date(RUN_START)
   const ended   = new Date(RUN_END)
 
-  afterEach(() => {
-    delete (NativeModules as any).AppleHealthKit
-    jest.useRealTimers()
+  beforeEach(() => {
+    mockQuantitySamples.mockReset()
+    // Default: HealthKit has nothing, which is what the bridge returns on any
+    // failure, denial or missing-permission path.
+    mockQuantitySamples.mockResolvedValue([])
   })
 
-  function mockHK(impl: (options: any, cb: (err: unknown, results: unknown) => void) => void) {
-    const getHeartRateSamples = jest.fn(impl)
-    ;(NativeModules as any).AppleHealthKit = { getHeartRateSamples }
-    return getHeartRateSamples
-  }
+  afterEach(() => { jest.useRealTimers() })
 
   it('queries the run window and aggregates what comes back', async () => {
-    const query = mockHK((_options, cb) => cb(null, [
+    mockQuantitySamples.mockResolvedValue([
       { value: 140, startDate: at(5) },
       { value: 160, startDate: at(10) },
-    ]))
+    ])
 
     await expect(fetchRunHeartRate(started, ended)).resolves.toEqual({ hrAvg: 150, hrMax: 160 })
-    expect(query).toHaveBeenCalledWith(
-      expect.objectContaining({
-        startDate: started.toISOString(),
-        endDate:   ended.toISOString(),
-      }),
-      expect.any(Function),
+    expect(mockQuantitySamples).toHaveBeenCalledWith(
+      'HKQuantityTypeIdentifierHeartRate',
+      expect.objectContaining({ start: started, end: ended }),
     )
   })
 
   it('excludes paused stretches passed through to the aggregation', async () => {
-    mockHK((_options, cb) => cb(null, [
+    mockQuantitySamples.mockResolvedValue([
       { value: 160, startDate: at(5) },
       { value:  80, startDate: at(12) },   // during the pause
-    ]))
+    ])
 
     const pauses = [{ start: RUN_START + 10 * 60_000, end: RUN_START + 15 * 60_000 }]
     await expect(fetchRunHeartRate(started, ended, pauses))
       .resolves.toEqual({ hrAvg: 160, hrMax: 160 })
   })
 
-  it('returns nulls when HealthKit is unavailable', async () => {
+  // The bridge swallows errors and returns [], so "unavailable", "denied" and
+  // "errored" are the same path from here: no samples, no heart rate, run saves.
+  it('returns nulls when HealthKit gives nothing back', async () => {
     await expect(fetchRunHeartRate(started, ended)).resolves.toEqual({ hrAvg: null, hrMax: null })
   })
 
-  it('returns nulls when the query errors', async () => {
-    mockHK((_options, cb) => cb('permission denied', null))
-    await expect(fetchRunHeartRate(started, ended)).resolves.toEqual({ hrAvg: null, hrMax: null })
-  })
-
-  it('returns nulls when the query returns no samples', async () => {
-    mockHK((_options, cb) => cb(null, []))
-    await expect(fetchRunHeartRate(started, ended)).resolves.toEqual({ hrAvg: null, hrMax: null })
-  })
-
-  it('returns nulls when the native call throws', async () => {
-    ;(NativeModules as any).AppleHealthKit = {
-      getHeartRateSamples: jest.fn(() => { throw new Error('bridge exploded') }),
-    }
+  it('returns nulls rather than rejecting if the bridge ever throws', async () => {
+    mockQuantitySamples.mockRejectedValue(new Error('bridge exploded'))
     await expect(fetchRunHeartRate(started, ended)).resolves.toEqual({ hrAvg: null, hrMax: null })
   })
 
   it('does not query at all when the run was paused end to end', async () => {
-    const query = mockHK((_options, cb) => cb(null, [{ value: 150, startDate: at(5) }]))
     const pauses = [{ start: RUN_START, end: RUN_END }]
-
     await expect(fetchRunHeartRate(started, ended, pauses))
       .resolves.toEqual({ hrAvg: null, hrMax: null })
-    expect(query).not.toHaveBeenCalled()
+    expect(mockQuantitySamples).not.toHaveBeenCalled()
   })
 
-  it('gives up with nulls if the callback never fires', async () => {
+  // A query that never settles must not strand the user on the saving spinner
+  // with an unsaved run.
+  it('gives up with nulls if the query never settles', async () => {
     jest.useFakeTimers()
-    mockHK(() => { /* never calls back */ })
+    mockQuantitySamples.mockReturnValue(new Promise(() => { /* never settles */ }))
 
     const pending = fetchRunHeartRate(started, ended)
     jest.advanceTimersByTime(HR_QUERY_TIMEOUT_MS)
@@ -249,16 +240,17 @@ describe('fetchRunHeartRate', () => {
     await expect(pending).resolves.toEqual({ hrAvg: null, hrMax: null })
   })
 
-  it('ignores a callback that arrives after the timeout', async () => {
+  it('ignores samples that arrive after the timeout has already won', async () => {
     jest.useFakeTimers()
-    let late: ((err: unknown, results: unknown) => void) | null = null
-    mockHK((_options, cb) => { late = cb })
+    let settle: ((v: unknown) => void) | null = null
+    mockQuantitySamples.mockReturnValue(new Promise(res => { settle = res }))
 
     const pending = fetchRunHeartRate(started, ended)
     jest.advanceTimersByTime(HR_QUERY_TIMEOUT_MS)
     await expect(pending).resolves.toEqual({ hrAvg: null, hrMax: null })
 
-    // The straggler must not throw or re-resolve.
-    expect(() => late!(null, [{ value: 150, startDate: at(5) }])).not.toThrow()
+    // The straggler must not throw or change the already-resolved result.
+    expect(() => settle!([{ value: 150, startDate: at(5) }])).not.toThrow()
+    await expect(pending).resolves.toEqual({ hrAvg: null, hrMax: null })
   })
 })

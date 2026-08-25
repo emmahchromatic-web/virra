@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { Camera } from 'expo-camera';
+import { hkAvailable, hkRequestAuthorization } from './healthKitBridge';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PERMISSIONS_GRANTED_KEY = 'permissions_granted_v1';
@@ -55,50 +56,42 @@ export const PERMISSIONS: readonly PermissionItem[] = [
 ] as const;
 
 // Single source of truth for the HK permission set so onboarding, re-permissions,
-// and app-launch init all establish the same bridge.
-function buildHKPermissions() {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { Constants } = require('react-native-health');
-  return {
-    permissions: {
-      read: [
-        Constants.Permissions.HeartRate,
-        Constants.Permissions.RestingHeartRate,
-        Constants.Permissions.HeartRateVariability,
-        Constants.Permissions.ActiveEnergyBurned,
-        Constants.Permissions.AppleExerciseTime,
-        Constants.Permissions.ActivitySummary,
-        Constants.Permissions.DistanceWalkingRunning,
-        Constants.Permissions.Steps,
-        Constants.Permissions.Vo2Max,
-        Constants.Permissions.SleepAnalysis,
-        Constants.Permissions.Weight,
-        Constants.Permissions.Workout,
-      ],
-      write: [
-        Constants.Permissions.Workout,
-        Constants.Permissions.EnergyConsumed,
-        Constants.Permissions.Carbohydrates,
-        Constants.Permissions.Protein,
-        Constants.Permissions.FatTotal,
-        Constants.Permissions.Fiber,
-      ],
-    },
-  };
-}
+// and app-launch init all establish the same access.
+//
+// These are raw HealthKit type identifiers now rather than react-native-health's
+// Constants.Permissions aliases. Card 216.
+const HK_READ = [
+  'HKQuantityTypeIdentifierHeartRate',
+  'HKQuantityTypeIdentifierRestingHeartRate',
+  'HKQuantityTypeIdentifierHeartRateVariabilitySDNN',
+  'HKQuantityTypeIdentifierActiveEnergyBurned',
+  'HKQuantityTypeIdentifierAppleExerciseTime',
+  'HKQuantityTypeIdentifierDistanceWalkingRunning',
+  'HKQuantityTypeIdentifierStepCount',
+  'HKQuantityTypeIdentifierVO2Max',
+  'HKQuantityTypeIdentifierBodyMass',
+  'HKCategoryTypeIdentifierSleepAnalysis',
+  'HKWorkoutTypeIdentifier',
+  // Still requested even though nothing queries it directly any more: it is
+  // free to ask for alongside the rest, and losing the grant would make it a
+  // second permission prompt if the rings are ever read again.
+  'HKActivitySummaryTypeIdentifier',
+] as const;
 
-// Establishes the HK JS↔native bridge for the current session. Safe to call on
-// every app launch: when permissions were already granted iOS does not re-prompt.
+const HK_WRITE = [
+  'HKWorkoutTypeIdentifier',
+  'HKQuantityTypeIdentifierDietaryEnergyConsumed',
+  'HKQuantityTypeIdentifierDietaryCarbohydrates',
+  'HKQuantityTypeIdentifierDietaryProtein',
+  'HKQuantityTypeIdentifierDietaryFatTotal',
+  'HKQuantityTypeIdentifierDietaryFiber',
+] as const;
+
+// Establishes HealthKit access for the current session. Safe to call on every
+// app launch: when permissions were already granted iOS does not re-prompt.
 export async function initHealthKitForSession(): Promise<void> {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { NativeModules } = require('react-native');
-    const HK = NativeModules.AppleHealthKit;
-    if (!HK?.initHealthKit) return;
-    await new Promise<void>((resolve) => {
-      HK.initHealthKit(buildHKPermissions(), () => resolve());
-    });
-  } catch { /* HK unavailable (simulator etc.) */ }
+  if (!hkAvailable()) return;
+  await hkRequestAuthorization(HK_READ, HK_WRITE);
 }
 
 export async function requestPermission(id: PermissionItem['id']): Promise<void> {

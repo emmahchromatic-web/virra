@@ -10,6 +10,9 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@react-native-async-storage/async-storage$': require.resolve('@react-native-async-storage/async-storage/jest/async-storage-mock'),
     '\\.(wav|mp3|m4a)$': '<rootDir>/__mocks__/audioAssetMock.js',
+    // Nitro module: resolves its native side at import time, so without this
+    // the whole suite fails to load under Jest rather than skipping HealthKit.
+    '^@kingstinct/react-native-healthkit$': '<rootDir>/__mocks__/kingstinctHealthkitMock.js',
   },
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
