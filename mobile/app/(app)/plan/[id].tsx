@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
   statsRow:    { flexDirection: 'row', gap: spacing.sm },
   statPill:    { flex: 1, backgroundColor: colors.mist, borderRadius: radius.md, padding: spacing.md, gap: 2, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   adjRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  adjBtn:      { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 5 },
+  adjBtn:      { width: 22, height: 22, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.control, borderRadius: 5 },
 
   sectionLabel:{ letterSpacing: 1.5, marginBottom: spacing.xs },
   chartCard:   { gap: 0 },
@@ -827,7 +827,7 @@ const styles = StyleSheet.create({
   input:       {
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.control,
     borderRadius: radius.sm,
     padding: spacing.md,
     fontFamily: fonts.body,
@@ -837,7 +837,9 @@ const styles = StyleSheet.create({
   datePicker:  {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     backgroundColor: 'rgba(255,255,255,0.05)',
-    borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
+    // colors.control, not colors.border: this is a tappable control and its
+    // edge has to read as one. Card 218.
+    borderWidth: 1, borderColor: colors.control, borderRadius: radius.sm,
     padding: spacing.md,
   },
   startHint:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
