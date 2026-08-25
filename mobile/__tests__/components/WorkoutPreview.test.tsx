@@ -21,8 +21,14 @@ jest.mock('@/store/cycle', () => ({
   useCycleStore: () => ({ cycleInfo: null }),
 }));
 
+const mockScheduleRest = jest.fn(() => Promise.resolve());
+const mockCancelRest   = jest.fn(() => Promise.resolve());
 jest.mock('@/lib/notifications', () => ({
   cancelTrainingReminderToday: jest.fn(),
+  // Card 197: the rest timer schedules a local notification, because iOS
+  // suspends the JS runtime and the in-app chime cannot reach a backgrounded user.
+  scheduleRestComplete: (...args: any[]) => mockScheduleRest(...args),
+  cancelRestComplete:   (...args: any[]) => mockCancelRest(...args),
 }));
 
 jest.mock('@/lib/strengthHistory', () => ({

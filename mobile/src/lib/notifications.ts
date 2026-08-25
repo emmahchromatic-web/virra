@@ -347,6 +347,62 @@ export async function cancelTrialReminders(): Promise<void> {
 
 /** Compute the mode hour from the user's last 30 activities. Falls back to 9. */
 /**
+ * Rest-period alerts.
+ *
+ * Card 197: a user backgrounded the app mid-rest, heard nothing, and rested
+ * longer than they meant to. The timer itself is correct, and the silence rule
+ * in restTimer.shouldChime is deliberate, but neither is really the issue: iOS
+ * suspends the JS runtime while the app is backgrounded, so the app CANNOT
+ * play a tone at the moment a rest ends. A scheduled local notification is the
+ * only mechanism that reaches someone who has switched away.
+ *
+ * Held outside the AsyncStorage marker scheme the other reminders use. Those
+ * are one-per-day and survive restarts on purpose; a rest is seconds long, only
+ * ever one at a time, and is meaningless once the set is done, so the id lives
+ * in memory and is replaced or cancelled directly.
+ */
+let restNotificationId: string | null = null;
+
+/** Alert at `endsAt` if the user is elsewhere. Replaces any rest already pending. */
+export async function scheduleRestComplete(exerciseName: string, endsAt: number): Promise<void> {
+  await cancelRestComplete();
+  const secondsAway = (endsAt - Date.now()) / 1000;
+  // Under a couple of seconds there is no point: the user is plainly watching
+  // the timer, and the in-app chime has it covered.
+  if (secondsAway < 2) return;
+  try {
+    restNotificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title: 'Rest complete',
+        body:  `Time for your next set of ${exerciseName}.`,
+        sound: true,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: secondsAway,
+        repeats: false,
+      },
+    });
+  } catch {
+    // Permission denied, or notifications unavailable. The in-app chime still
+    // works, which is exactly today's behaviour, so this degrades quietly.
+    restNotificationId = null;
+  }
+}
+
+/** Drop a pending rest alert: the set was skipped, restarted or finished early. */
+export async function cancelRestComplete(): Promise<void> {
+  if (!restNotificationId) return;
+  const id = restNotificationId;
+  restNotificationId = null;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(id);
+  } catch {
+    // Already fired or already gone.
+  }
+}
+
+/**
  * Clear every notification this device is holding, scheduled or already
  * delivered.
  *

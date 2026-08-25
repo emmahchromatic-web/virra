@@ -9,7 +9,7 @@ import type { SFSymbol } from 'sf-symbols-typescript';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
-import { cancelTrainingReminderToday } from '@/lib/notifications';
+import { cancelTrainingReminderToday, scheduleRestComplete, cancelRestComplete } from '@/lib/notifications';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -465,6 +465,9 @@ export default function WorkoutPreviewScreen() {
     chimedRef.current = false;
     setRest(next);
     setRestNow(Date.now());
+    // iOS suspends the JS runtime in the background, so the in-app chime cannot
+    // reach someone who has switched away. A scheduled notification can. Card 197.
+    void scheduleRestComplete(ex.name, next.endsAt);
   }
 
   // A set is logged once the user checks it off. (We no longer treat a filled
@@ -648,10 +651,20 @@ export default function WorkoutPreviewScreen() {
     return () => sub.remove();
   }, []);
 
+  // Leaving the screen mid-rest must not leave an alert queued: finishing the
+  // workout and then being told to start your next set is worse than no alert
+  // at all. Card 197.
+  useEffect(() => () => { void cancelRestComplete(); }, []);
+
   useEffect(() => {
     if (!rest || !restDone || chimedRef.current) return;
     chimedRef.current = true;
+    // shouldChime stays: a rest that ran out while the user was away must not
+    // chime on return, or they get an alert for something that ended twenty
+    // minutes ago. The notification is what covers that case instead.
     if (shouldChime(rest, activeSinceRef.current)) playRestComplete();
+    // It has fired, or it is about to and would be redundant now they are here.
+    void cancelRestComplete();
     const id = setTimeout(() => setRest(null), 3000);
     return () => clearTimeout(id);
   }, [rest, restDone]);
@@ -767,8 +780,13 @@ export default function WorkoutPreviewScreen() {
               remainingSeconds={restRemaining}
               progress={restProgress(rest, restNow)}
               done={restDone}
-              onSkip={() => setRest(null)}
-              onRestart={() => { chimedRef.current = false; setRest(restartRest(rest, Date.now())); }}
+              onSkip={() => { void cancelRestComplete(); setRest(null); }}
+              onRestart={() => {
+                chimedRef.current = false;
+                const restarted = restartRest(rest, Date.now());
+                setRest(restarted);
+                void scheduleRestComplete(restarted.exerciseName, restarted.endsAt);
+              }}
             />
           )}
 
