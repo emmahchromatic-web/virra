@@ -173,7 +173,13 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
         ))}
       </Svg>
       <View style={styles.legend}>
-        <Legend swatch={<View style={[styles.swatchSquare, { backgroundColor: 'rgba(212,255,38,0.4)', borderColor: 'rgba(212,255,38,0.6)' }]} />} label="EXPECTED BAND" />
+        {/* Only key the band while it is actually drawn. The band itself has
+            always been gated on having a baseline, but the legend was not, so a
+            brand-new account saw "EXPECTED BAND" announced against a chart that
+            had none. Card 223. */}
+        {!calibrating && (
+          <Legend swatch={<View style={[styles.swatchSquare, { backgroundColor: 'rgba(212,255,38,0.4)', borderColor: 'rgba(212,255,38,0.6)' }]} />} label="EXPECTED BAND" />
+        )}
         <Legend swatch={<View style={[styles.swatchDot, { backgroundColor: colors.pulse }]} />} label="CURRENT CYCLE" />
         <Legend swatch={<View style={[styles.swatchDot, { backgroundColor: 'rgba(244,237,224,0.5)' }]} />} label="PRIOR CYCLES" />
       </View>
