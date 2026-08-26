@@ -16,18 +16,15 @@ export function inferWorkoutType(sessionLabel: string): RunWorkoutType {
   return 'easy';
 }
 
-const PACE_MULT: Record<PaceBand, number> = {
-  recovery:  1.25,
-  easy:      1.15,
-  steady:    1.05,
-  tempo:     0.95,
-  threshold: 0.90,
-  vo2:       0.83,
-};
-
-export function paceForBand(baselineSecsPerKm: number, band: PaceBand): number {
-  return Math.round(baselineSecsPerKm * PACE_MULT[band]);
-}
+// Bands come from the pace model, which expresses them as ratios of THRESHOLD
+// pace. The multipliers that used to live here were applied to the runner's 5K
+// pace, which made every prescribed pace too fast and the fast end worst of all
+// — see card 228 and the header of paceModel.ts.
+//
+// `baseline_pace_secs` below is therefore threshold pace once the re-anchor
+// migration has run. `user_profiles.baseline_anchor` records which it holds.
+export { paceForBand } from '@/lib/runProgramme/paceModel';
+import { paceForBand } from '@/lib/runProgramme/paceModel';
 
 function makeIdFactory(): () => string {
   let i = 0;

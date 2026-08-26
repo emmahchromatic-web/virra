@@ -1,9 +1,10 @@
 import {
   parseFiveKToPaceSecPerKm,
   seedBaselinePace,
-  DERIVED_BASELINE_BY_LEVEL,
+  DERIVED_FIVE_K_PACE_BY_LEVEL,
   WEEKLY_KM_BY_BRACKET,
 } from '@/lib/completeOnboarding';
+import { thresholdPaceFromFiveKPace } from '@/lib/runProgramme/paceModel';
 
 describe('parseFiveKToPaceSecPerKm', () => {
   it('converts a 25:00 5K to 300 s/km', () => {
@@ -25,18 +26,27 @@ describe('parseFiveKToPaceSecPerKm', () => {
 });
 
 describe('seedBaselinePace', () => {
+  // What gets persisted is THRESHOLD pace, not the 5K pace the runner typed —
+  // that is what every band is a ratio of. A 22:00 5K is 264 s/km, whose
+  // threshold equivalent is 279 s/km. See card 228 and paceModel.ts.
   it('prefers a stated 5K time over the runner\'s level', () => {
-    expect(seedBaselinePace('22:00', 'beginner')).toEqual({ secs: 264, source: 'stated' });
+    expect(seedBaselinePace('22:00', 'beginner')).toEqual({ secs: 279, source: 'stated' });
+  });
+
+  it('converts the stated time to threshold rather than storing it raw', () => {
+    const stated = seedBaselinePace('22:00', null)!;
+    expect(stated.secs).toBe(thresholdPaceFromFiveKPace(264));
+    expect(stated.secs).toBeGreaterThan(264);
   });
 
   it('falls back to the level when the 5K is left blank', () => {
     // The whole point of card 227: this case used to persist nothing, so the
     // runner silently trained at the 360 s/km default instead.
-    expect(seedBaselinePace('', 'recreational')).toEqual({ secs: 346, source: 'derived' });
+    expect(seedBaselinePace('', 'recreational')).toEqual({ secs: 361, source: 'derived' });
   });
 
   it('falls back when the 5K is unparseable rather than trusting it', () => {
-    expect(seedBaselinePace('abc', 'intermediate')).toEqual({ secs: 275, source: 'derived' });
+    expect(seedBaselinePace('abc', 'intermediate')).toEqual({ secs: 290, source: 'derived' });
   });
 
   it('returns null only when there is neither a time nor a level', () => {
@@ -47,14 +57,14 @@ describe('seedBaselinePace', () => {
     const levels = ['beginner', 'recreational', 'intermediate', 'advanced', 'returning'] as const;
     for (const level of levels) {
       expect(seedBaselinePace('', level)).toEqual({
-        secs:   DERIVED_BASELINE_BY_LEVEL[level],
+        secs:   thresholdPaceFromFiveKPace(DERIVED_FIVE_K_PACE_BY_LEVEL[level]),
         source: 'derived',
       });
     }
   });
 
   it('orders the derived paces so a stronger level is never slower', () => {
-    const { advanced, intermediate, recreational, returning, beginner } = DERIVED_BASELINE_BY_LEVEL;
+    const { advanced, intermediate, recreational, returning, beginner } = DERIVED_FIVE_K_PACE_BY_LEVEL;
     expect(advanced).toBeLessThan(intermediate);
     expect(intermediate).toBeLessThan(recreational);
     expect(recreational).toBeLessThan(returning);
@@ -63,7 +73,7 @@ describe('seedBaselinePace', () => {
 
   it('keeps every derived pace inside a plausible human range', () => {
     // 3:00/km would be world class, 9:00/km is slower than most people walk-run.
-    for (const secs of Object.values(DERIVED_BASELINE_BY_LEVEL)) {
+    for (const secs of Object.values(DERIVED_FIVE_K_PACE_BY_LEVEL)) {
       expect(secs).toBeGreaterThan(180);
       expect(secs).toBeLessThan(540);
     }
