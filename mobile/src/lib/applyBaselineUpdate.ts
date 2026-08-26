@@ -40,7 +40,12 @@ export async function applyBaselineUpdate(
 
   const { error: profileErr } = await supabase
     .from('user_profiles')
-    .update({ baseline_pace_seconds_per_km: verdict.proposed, assessment_history: history })
+    .update({
+      baseline_pace_seconds_per_km: verdict.proposed,
+      // Measured from completed runs, so it is no longer the onboarding guess.
+      baseline_source:              'calibrated',
+      assessment_history:           history,
+    })
     .eq('id', userId);
   if (profileErr) {
     throw new Error(`[applyBaselineUpdate] profile write failed: ${profileErr.message}`);
