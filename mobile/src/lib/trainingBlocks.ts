@@ -79,32 +79,96 @@ export async function getActiveBlocks(userId: string): Promise<TrainingBlock[]> 
 }
 
 /**
- * How a newly started plan enters the stack.
+ * Plan slots. A runner holds at most one plan in each: one run plan, one
+ * strength plan, and one mobility/misc plan. Starting a plan in an occupied
+ * slot replaces whatever is in it. Emma's rule, 26 Aug.
  *
- * Two cases, and the only thing that separates them is whether the runner
- * already has a primary block of this modality:
- *
- *   no  — this is their main plan for that modality. Primary, full load.
- *   yes — they are adding a second plan alongside one they already run.
- *         Not primary, half load, and the existing primary stays open.
- *
- * The load half of this was inverted between a4b582a and now: 0.5 came from
- * the old "ADD SUPPLEMENTARY BLOCK" button, and when that button was folded
- * into this CTA the ternary kept the supplementary value on the wrong branch.
- * The effect was that a runner's FIRST and only plan was written at
- * load_modifier 0.5 and the Training tab told them it was running at "50%
- * load", while a genuinely supplementary second plan got 1.0. Verified
- * against prod: a brand-new account's sole primary strength block was stored
- * at 0.5.
+ * swim, yoga and 'other' share the support slot deliberately — they are the
+ * "and some mobility work" of a week, not three separate commitments.
  */
-export function blockEntry(hasSameModalityPrimary: boolean): { isPrimary: boolean; loadModifier: number } {
-  return hasSameModalityPrimary
-    ? { isPrimary: false, loadModifier: 0.5 }
-    : { isPrimary: true,  loadModifier: 1.0 };
+export type PlanSlot = 'run' | 'strength' | 'support';
+
+export function planSlot(modality: BlockModality): PlanSlot {
+  if (modality === 'run')      return 'run';
+  if (modality === 'strength') return 'strength';
+  return 'support';
 }
 
-// Adding a primary block closes all existing primary blocks (ends_on = today).
-// Supplementary blocks (is_primary=false) are additive; any number can coexist.
+export const SLOT_LABEL: Record<PlanSlot, string> = {
+  run:      'RUN',
+  strength: 'STRENGTH',
+  support:  'MOBILITY',
+};
+
+/**
+ * What a slot costs against MAX_TOTAL_LOAD.
+ *
+ * Previously this was a primary/supplementary flag, which produced the wrong
+ * answer twice over: a runner's first and only plan was written at 0.5 and the
+ * Training tab told them it was at "50% load", while a genuinely supplementary
+ * plan got 1.0 and counted for as much as the plan it supplemented.
+ *
+ * Under the one-per-slot rule the question is no longer "is this the main one"
+ * — every plan owns its slot — but "what does this kind of training cost".
+ * These numbers are chosen so the full allowed setup fits: 1.0 + 0.5 + 0.25 =
+ * 1.75, just inside the 1.8 ceiling, so someone running the maximum permitted
+ * three plans is at capacity but not over it, and the run block is not scaled
+ * down for doing exactly what the rules allow.
+ *
+ * They are a starting point, not a finding. Worth Emma's eye.
+ */
+export const SLOT_LOAD: Record<PlanSlot, number> = {
+  run:      1.0,
+  strength: 0.5,
+  support:  0.25,
+};
+
+/**
+ * Close whatever currently occupies a slot, in BOTH tables.
+ *
+ * user_plans and training_blocks are two records of the same fact, and before
+ * this they were maintained by two different pieces of code with two different
+ * rules: starting a plan deactivated EVERY user_plans row (a replace) while
+ * only closing a training_block when the new one was primary (an add). So the
+ * plan screen could show one plan while the stack still counted two blocks.
+ * One function, one rule, both tables.
+ *
+ * Returns the template ids that were displaced, so the caller can say what it
+ * did rather than silently dropping someone's half-finished plan.
+ */
+export async function clearSlot(userId: string, slot: PlanSlot): Promise<string[]> {
+  const today      = new Date().toISOString().split('T')[0];
+  const modalities = (['run', 'strength', 'swim', 'yoga', 'other'] as BlockModality[])
+    .filter((m) => planSlot(m) === slot);
+
+  const { data: open } = await supabase
+    .from('training_blocks')
+    .select('id, template_id')
+    .eq('user_id', userId)
+    .in('modality', modalities)
+    .or(`ends_on.is.null,ends_on.gte.${today}`);
+
+  const displaced = (open ?? []) as { id: string; template_id: string | null }[];
+  if (displaced.length === 0) return [];
+
+  await supabase
+    .from('training_blocks')
+    .update({ ends_on: today })
+    .in('id', displaced.map((b) => b.id));
+
+  const templateIds = displaced.map((b) => b.template_id).filter(Boolean) as string[];
+  if (templateIds.length > 0) {
+    await supabase
+      .from('user_plans')
+      .update({ is_active: false })
+      .eq('user_id', userId)
+      .in('template_id', templateIds);
+  }
+  return templateIds;
+}
+
+// Inserts a block. Slot clearing is the caller's job via clearSlot() — kept
+// separate so the two writes can be ordered and reported on.
 export async function addBlock(
   userId: string,
   opts: {
@@ -118,16 +182,6 @@ export async function addBlock(
     maxWeeks?:        number;
   },
 ): Promise<string | null> {
-  if (opts.isPrimary) {
-    const today = new Date().toISOString().split('T')[0];
-    await supabase
-      .from('training_blocks')
-      .update({ ends_on: today })
-      .eq('user_id', userId)
-      .eq('is_primary', true)
-      .is('ends_on', null);
-  }
-
   const { data, error } = await supabase
     .from('training_blocks')
     .insert({

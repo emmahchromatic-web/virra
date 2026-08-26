@@ -13,7 +13,8 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
-import { getActiveBlocks, computeBlockLoad, endTrainingBlock, type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
+import { getActiveBlocks, computeBlockLoad, endTrainingBlock, planSlot, SLOT_LABEL,
+         type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
@@ -494,7 +495,12 @@ function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void })
             <View style={stack.blockBody}>
               <View style={stack.titleRow}>
                 <VirraText variant="bodyMedium" size={14} color={colors.breath} style={{ flex: 1 }}>{label}</VirraText>
-                {b.is_primary && (<VirraText variant="mono" size={10} color={colors.pulse} style={stack.primaryTag}>PRIMARY</VirraText>)}
+                {/* Was "PRIMARY", which every block now is — one plan per slot
+                    means owning your slot is the rule, not a distinction. The
+                    slot itself is the useful thing to show. */}
+                <VirraText variant="mono" size={10} color={colors.muted} style={stack.primaryTag}>
+                  {SLOT_LABEL[planSlot(b.modality)]}
+                </VirraText>
               </View>
               <View style={stack.loadTrack}>
                 <View style={[stack.loadFill, { width: `${Math.round(b.effective_load * 100)}%` as any, backgroundColor: MODALITY_COLOR[b.modality] ?? colors.pulse }]} />
