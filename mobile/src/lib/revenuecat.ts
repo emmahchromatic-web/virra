@@ -27,14 +27,23 @@ export async function getOfferings(): Promise<PurchasesPackage[]> {
   }
 }
 
-export async function purchasePackage(pkg: PurchasesPackage): Promise<{ success: boolean; error?: string }> {
+export async function purchasePackage(
+  pkg: PurchasesPackage,
+): Promise<{ success: boolean; cancelled?: boolean; error?: string }> {
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return { success: !!customerInfo.entitlements.active[ENTITLEMENT_ID] };
   } catch (e: any) {
-    const msg = e?.userInfo?.readableErrorCode ?? e?.message ?? String(e);
+    // Backing out of the Apple sheet is a decision, not a failure. RevenueCat
+    // reports it as an error like everything else, so it is separated here —
+    // telling someone their purchase "failed" because they chose not to buy
+    // reads as a bug and makes the paywall feel broken.
+    if (e?.userCancelled) return { success: false, cancelled: true };
+
     console.error('[revenuecat] purchasePackage failed:', e);
-    return { success: false, error: msg };
+    // readableErrorCode is a machine token (PURCHASE_NOT_ALLOWED_ERROR); it
+    // belongs in the log, not on screen. The caller supplies human copy.
+    return { success: false, error: e?.userInfo?.readableErrorCode ?? e?.message ?? String(e) };
   }
 }
 

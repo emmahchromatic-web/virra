@@ -9,7 +9,7 @@ import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
-import { appAlert } from '@/components/ui/VirraAlert';
+import { InlineError } from '@/components/ui/InlineError';
 
 const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://virra.app/privacy';
@@ -31,6 +31,14 @@ export default function PaywallScreen() {
   const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
   const [selected, setSelected]   = useState<PurchasesPackage | null>(null);
   const [loading,  setLoading]    = useState(false);
+  // Not appAlert. StoreKit puts its own view controller on screen for the
+  // purchase sheet, and iOS will not present a modal from a controller that
+  // already has one — so an alert fired the instant a purchase fails lands
+  // while the system sheet is still being torn down and is silently dropped.
+  // Observed 26 Aug: cancelling the Apple sign-in cleared the spinner and
+  // showed the user nothing at all. On the one screen that takes money, a
+  // dead button is the worst possible failure. Card 215's InlineError instead.
+  const [failure,  setFailure]    = useState<{ title: string; message?: string } | null>(null);
 
   useEffect(() => {
     getOfferings().then((pkgs) => {
@@ -48,25 +56,35 @@ export default function PaywallScreen() {
   async function handlePurchase() {
     if (!selected) return;
     setLoading(true);
-    const { success, error } = await purchasePackage(selected);
+    setFailure(null);
+    const { success, cancelled, error } = await purchasePackage(selected);
     setLoading(false);
     if (success) {
       setStatus('active');
       await routePostPaywall();
-    } else {
-      appAlert('Purchase failed', error ?? 'Please try again or restore purchases below.');
+    } else if (!cancelled) {
+      setFailure({
+        title:   'Purchase failed',
+        message: 'We could not complete that with the App Store. Try again, or '
+               + 'restore purchases below if you have subscribed before.',
+      });
+      if (error) console.error('[paywall] purchase failed:', error);
     }
   }
 
   async function handleRestore() {
     setLoading(true);
+    setFailure(null);
     const success = await restorePurchases();
     setLoading(false);
     if (success) {
       setStatus('active');
       await routePostPaywall();
     } else {
-      appAlert('No active subscription found');
+      setFailure({
+        title:   'No active subscription found',
+        message: 'Nothing to restore on this Apple Account. Start a trial above.',
+      });
     }
   }
 
@@ -107,6 +125,14 @@ export default function PaywallScreen() {
               </Pressable>
             ))}
           </View>
+        )}
+
+        {failure && (
+          <InlineError
+            title={failure.title}
+            message={failure.message}
+            onDismiss={() => setFailure(null)}
+          />
         )}
 
         <VirraButton
