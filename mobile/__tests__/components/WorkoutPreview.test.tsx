@@ -21,8 +21,8 @@ jest.mock('@/store/cycle', () => ({
   useCycleStore: () => ({ cycleInfo: null }),
 }));
 
-const mockScheduleRest = jest.fn(() => Promise.resolve());
-const mockCancelRest   = jest.fn(() => Promise.resolve());
+const mockScheduleRest = jest.fn((..._a: any[]) => Promise.resolve());
+const mockCancelRest   = jest.fn((..._a: any[]) => Promise.resolve());
 jest.mock('@/lib/notifications', () => ({
   cancelTrainingReminderToday: jest.fn(),
   // Card 197: the rest timer schedules a local notification, because iOS

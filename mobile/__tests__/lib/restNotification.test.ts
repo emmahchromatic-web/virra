@@ -1,5 +1,5 @@
-const mockSchedule = jest.fn(async () => 'notif-1');
-const mockCancel   = jest.fn(async () => {});
+const mockSchedule = jest.fn(async (..._a: any[]) => 'notif-1');
+const mockCancel   = jest.fn(async (..._a: any[]) => {});
 
 jest.mock('expo-notifications', () => ({
   scheduleNotificationAsync:        (...a: any[]) => mockSchedule(...a),

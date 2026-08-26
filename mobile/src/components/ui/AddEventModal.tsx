@@ -27,6 +27,42 @@ const SHORT_RACE_PLACEHOLDER: Partial<Record<DistanceGoal, string>> = {
   '10k': 'Quick 10K',
 };
 
+/**
+ * Normalise a typed goal time to the HH:MM:SS that user_events.target_finish_time
+ * holds and volumePlan parses. Accepts what people actually type: "3:45" for a
+ * marathon means 3h45, "22:30" for a 5K means 22min30. Ambiguous on its own, so
+ * the distance decides which reading is sensible.
+ *
+ * Returns null when it cannot be read as a time, so the caller can say so
+ * rather than silently storing something wrong: this value sets the pace target
+ * on every run in the plan.
+ */
+export function parseTargetTime(input: string, distance: DistanceGoal): string | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  if (!/^\d{1,2}(:\d{1,2}){1,2}$/.test(raw)) return null;
+
+  const parts = raw.split(':').map((n) => parseInt(n, 10));
+  if (parts.some((n) => Number.isNaN(n))) return null;
+
+  let h = 0, m = 0, sec = 0;
+  if (parts.length === 3) {
+    [h, m, sec] = parts;
+  } else {
+    // Two parts. For the short distances nobody means hours, and for the long
+    // ones nobody means minutes.
+    const shortRace = distance === '5k' || distance === '10k';
+    if (shortRace) [m, sec] = parts;
+    else           [h, m]   = parts;
+  }
+
+  if (m > 59 || sec > 59) return null;
+  if (h === 0 && m === 0 && sec === 0) return null;
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
 interface Props {
   visible: boolean;
   userId:  string;
@@ -43,6 +79,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
   const [dateObj,        setDateObj]        = useState<Date>(today);
   const [showDistance,   setShowDistance]   = useState(false);
   const [showDate,       setShowDate]       = useState(false);
+  const [targetTime,     setTargetTime]     = useState('');
   const [saving,         setSaving]         = useState(false);
   // Errors render in-tree, not via appAlert: this component lives in a
   // VirraModal, and a second native modal on top of it is the freeze Paul's
@@ -53,11 +90,28 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
     const trimmed = name.trim();
     if (!trimmed) { setError({ title: 'Event name is required' }); return; }
     setSaving(true);
+    // Optional, but if something was typed it has to be readable: this value
+    // becomes the highest-priority pace source in volumePlan, so a misread goal
+    // would set the pace target on every run in the plan.
+    let finishTime: string | null = null;
+    if (targetTime.trim()) {
+      finishTime = parseTargetTime(targetTime, distanceGoal);
+      if (!finishTime) {
+        setSaving(false);
+        setError({
+          title:   'Target time not recognised',
+          message: 'Use hours:minutes or minutes:seconds, for example 3:45 for a marathon or 22:30 for a 5K.',
+        });
+        return;
+      }
+    }
+
     const { error } = await supabase.from('user_events').insert({
-      user_id:       userId,
-      name:          trimmed,
-      event_date:    toLocalISO(dateObj),
-      distance_goal: distanceGoal,
+      user_id:            userId,
+      name:               trimmed,
+      event_date:         toLocalISO(dateObj),
+      distance_goal:      distanceGoal,
+      target_finish_time: finishTime,
     });
     setSaving(false);
     if (error) { setError({ title: 'Could not save event', message: error.message }); return; }
@@ -76,6 +130,7 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
       console.warn('[seasonEngine] recompute failed', e);
     });
     setName('');
+    setTargetTime('');
     setDistanceGoal('marathon');
     setDateObj(today);
     setShowDistance(false);
@@ -84,6 +139,12 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
   }
 
   const namePlaceholder = SHORT_RACE_PLACEHOLDER[distanceGoal] ?? 'Race, holiday, event…';
+  // Shows the shape expected for THIS distance, which is also how the parser
+  // reads a two-part entry.
+  const targetPlaceholder = distanceGoal === '5k'  ? 'e.g. 22:30'
+                          : distanceGoal === '10k' ? 'e.g. 48:00'
+                          : distanceGoal === 'half_marathon' ? 'e.g. 1:45'
+                          : 'e.g. 3:45';
   const selectedDistance = DISTANCE_OPTIONS.find((o) => o.value === distanceGoal)!;
 
   const fmtDate = (d: Date) =>
@@ -178,6 +239,24 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
             onSelect={(d) => { setDateObj(d); setShowDate(false); }}
           />
         )}
+
+        {/* TARGET TIME */}
+        <VirraText variant="mono" size={11} color={colors.muted} style={[s.sectionLabel, { marginTop: spacing.md }]}>
+          TARGET TIME · OPTIONAL
+        </VirraText>
+        <TextInput
+          style={s.input}
+          value={targetTime}
+          onChangeText={setTargetTime}
+          placeholder={targetPlaceholder}
+          placeholderTextColor={colors.muted}
+          keyboardType="numbers-and-punctuation"
+          returnKeyType="done"
+          accessibilityLabel="Target finish time"
+        />
+        <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: spacing.xs, lineHeight: 18 }}>
+          If you give us a goal, every run in the plan is paced towards it instead of your recent average.
+        </VirraText>
 
         <View style={{ height: spacing.md }} />
       </ScrollView>
