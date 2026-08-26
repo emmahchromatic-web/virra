@@ -14,11 +14,7 @@
       "bundleIdentifier": "com.pauldickenson.virra.app",
       "buildNumber": "12",
       "supportsTablet": false,
-      "icon": {
-        "light": "./assets/icon.png",
-        "dark": "./assets/icon-dark.png",
-        "tinted": "./assets/icon-tint.png"
-      },
+      "icon": "./assets/ViRRA.icon",
       "infoPlist": {
         "NSHealthShareUsageDescription": "Virra reads your workouts, heart rate, and menstrual cycle data from Apple Health to personalise your training plan and nutrition targets to your cycle phase.",
         "NSHealthUpdateUsageDescription": "Virra writes completed workouts to Apple Health.",
