@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
 import { useCycleStore, type CycleProfile } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
+import { INJURY_LEVELS, INJURY_LABEL, type InjuryLevel } from '@/lib/injuryLevels';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -76,7 +77,7 @@ export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
   const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
-  const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, heightCm, dateOfBirth, sex, injuryHistory, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
+  const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, heightCm, dateOfBirth, sex, injuryLevel, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
   const [weightSyncing, setWeightSyncing] = useState(false);
   const [weightSyncNote, setWeightSyncNote] = useState<string | null>(null);
   const [weightDiag, setWeightDiag] = useState<WeightSyncDiagnostic | null>(null);
@@ -109,7 +110,6 @@ export default function ProfileScreen() {
   const [deleting,           setDeleting]           = useState(false);
   const [sexModalVisible,    setSexModalVisible]    = useState(false);
   const [injuryModalVisible, setInjuryModalVisible] = useState(false);
-  const [injuryInput,        setInjuryInput]        = useState('');
   const [medicalModalVisible, setMedicalModalVisible] = useState(false);
   const [creditsModalVisible, setCreditsModalVisible] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
@@ -228,11 +228,10 @@ export default function ProfileScreen() {
     setSexModalVisible(false);
   }
 
-  async function handleInjurySave() {
+  async function handleInjurySave(next: InjuryLevel) {
     if (!session) return;
     setSaving(true);
-    const trimmed = injuryInput.trim();
-    await saveProfile(session.user.id, { injuryHistory: trimmed.length > 0 ? trimmed : null });
+    await saveProfile(session.user.id, { injuryLevel: next });
     setSaving(false);
     setInjuryModalVisible(false);
   }
@@ -586,19 +585,10 @@ export default function ProfileScreen() {
         <VirraCard style={styles.card}>
           <SectionLabel style={styles.cardLabel}>INJURY HISTORY</SectionLabel>
           <Row
-            label="NOTES"
-            value={injuryHistory ? 'Added' : 'Not set'}
-            onPress={() => { setInjuryInput(injuryHistory ?? ''); setInjuryModalVisible(true); }}
+            label="HOW YOUR BODY HANDLES IT"
+            value={injuryLevel ? INJURY_LABEL[injuryLevel] : 'Not set'}
+            onPress={() => setInjuryModalVisible(true)}
           />
-          {injuryHistory ? (
-            <VirraText variant="body" size={13} color={colors.breath} style={{ marginTop: spacing.xs, lineHeight: 20 }}>
-              {injuryHistory}
-            </VirraText>
-          ) : (
-            <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: spacing.xs }}>
-              Old injuries or anything you work around. Context only: it does not change your plan.
-            </VirraText>
-          )}
         </VirraCard>
 
         <VirraCard style={styles.card}>
@@ -877,20 +867,22 @@ export default function ProfileScreen() {
         title="Injury history"
       >
         <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
-          Old injuries, niggles, or anything you work around. Context only: this
-          does not change your plan.
+          This shapes how quickly we build your training. It is not medical
+          advice, and if something hurts, see someone qualified rather than us.
         </VirraText>
-        <TextInput
-          value={injuryInput}
-          onChangeText={(t) => setInjuryInput(t.slice(0, 500))}
-          style={[styles.modalInput, { minHeight: 120, textAlign: 'left', paddingTop: spacing.sm }]}
-          multiline
-          textAlignVertical="top"
-          placeholder="e.g. Left achilles, on and off since March"
-          placeholderTextColor="rgba(244,237,224,0.3)"
-          accessibilityLabel="Injury history"
-        />
-        <VirraButton label="SAVE" onPress={handleInjurySave} loading={saving} />
+        {INJURY_LEVELS.map((opt) => (
+          <Pressable
+            key={opt.value}
+            onPress={() => handleInjurySave(opt.value)}
+            style={[styles.sexOption, injuryLevel === opt.value && styles.sexOptionActive]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: injuryLevel === opt.value }}
+          >
+            <VirraText variant="mono" size={13} color={injuryLevel === opt.value ? colors.mile : colors.breath}>
+              {opt.label.toUpperCase()}
+            </VirraText>
+          </Pressable>
+        ))}
       </VirraModal>
 
       <VirraModal
