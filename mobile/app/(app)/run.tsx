@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Pressable, StyleSheet, SafeAreaView, ScrollView, NativeModules } from 'react-native';
-import * as Location from 'expo-location';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
@@ -9,24 +8,14 @@ import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo } from '@/lib/cycleEngine';
 import { cancelTrainingReminderToday } from '@/lib/notifications';
 import { fetchRunHeartRate, type TimeWindow } from '@/lib/healthKitHeartRate';
+import { createRunTrackState, addGpsPoint, type RunTrackState, type GpsPoint } from '@/lib/runTracking';
+import {
+  startBackgroundLocationTracking, stopBackgroundLocationTracking, subscribeToBackgroundLocations,
+} from '@/lib/backgroundLocationTask';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
-
-// ---- Geo helpers ----
-
-interface GpsPoint { lat: number; lon: number; ts: number; alt?: number }
-
-function haversineMeters(a: GpsPoint, b: GpsPoint): number {
-  const R    = 6371000;
-  const dLat = (b.lat - a.lat) * Math.PI / 180;
-  const dLon = (b.lon - a.lon) * Math.PI / 180;
-  const x    = Math.sin(dLat / 2) ** 2
-             + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180)
-             * Math.sin(dLon / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-}
 
 function formatDuration(s: number): string {
   const h  = Math.floor(s / 3600);
@@ -66,16 +55,14 @@ export default function RunTrackerScreen() {
   const [splits,       setSplits]       = useState<number[]>([]);   // sec/km per completed km
   const [saving,       setSaving]       = useState(false);
 
-  const startedAt     = useRef<Date | null>(null);
-  const endedAt       = useRef<Date | null>(null);    // when Stop was tapped, not when Save was
-  const pausedAt      = useRef<number>(0);            // total paused seconds
-  const pauseStart    = useRef<number | null>(null);
-  const pauseWindows  = useRef<TimeWindow[]>([]);     // excluded from the heart-rate window
-  const gpsTrace      = useRef<GpsPoint[]>([]);
-  const locationSub   = useRef<Location.LocationSubscription | null>(null);
-  const timerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastKmAt      = useRef<number>(0);            // distance in m at last km split
-  const lastSplitTime = useRef<number>(0);            // elapsed seconds at last km split
+  const startedAt      = useRef<Date | null>(null);
+  const endedAt        = useRef<Date | null>(null);    // when Stop was tapped, not when Save was
+  const pausedAt       = useRef<number>(0);            // total paused seconds
+  const pauseStart     = useRef<number | null>(null);
+  const pauseWindows   = useRef<TimeWindow[]>([]);      // excluded from the heart-rate window
+  const trackState     = useRef<RunTrackState>(createRunTrackState());
+  const unsubscribeGps = useRef<(() => void) | null>(null);
+  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ---- Timer ----
   function startTimer() {
@@ -93,64 +80,33 @@ export default function RunTrackerScreen() {
   }
 
   // ---- Location ----
+  // Delivered via the background TaskManager task (backgroundLocationTask.ts)
+  // rather than a plain watchPositionAsync subscription, so tracking survives
+  // the app being backgrounded — screen lock, app switch, an incoming call —
+  // under the NSLocationAlwaysAndWhenInUseUsageDescription entitlement.
+  function handleGpsPoint(point: GpsPoint) {
+    if (!startedAt.current) return;
+    const next = addGpsPoint(trackState.current, point, startedAt.current.getTime(), pausedAt.current * 1000);
+    trackState.current = next;
+    setDistanceM(next.distanceM);
+    setSplits(next.splits);
+    setCurrentPace(next.currentPaceSecPerKm);
+  }
+
   async function startTracking() {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
+    const mode = await startBackgroundLocationTracking();
+    if (!mode) {
       appAlert('Location needed', 'Enable location access to track your run.');
       return false;
     }
-    locationSub.current = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 1000, distanceInterval: 5 },
-      (loc) => {
-        const point: GpsPoint = {
-          lat: loc.coords.latitude,
-          lon: loc.coords.longitude,
-          ts:  loc.timestamp,
-          alt: loc.coords.altitude ?? undefined,
-        };
-        gpsTrace.current.push(point);
-
-        const trace = gpsTrace.current;
-        if (trace.length < 2) return;
-
-        // Accumulate distance
-        const delta = haversineMeters(trace[trace.length - 2], trace[trace.length - 1]);
-        setDistanceM((prev) => {
-          const next = prev + delta;
-
-          // Km split
-          const kmNow   = Math.floor(next / 1000);
-          const kmPrev  = Math.floor(prev / 1000);
-          if (kmNow > kmPrev) {
-            setElapsedS((elapsed) => {
-              const splitSec = elapsed - lastSplitTime.current;
-              setSplits((s) => [...s, splitSec]);
-              lastSplitTime.current = elapsed;
-              return elapsed;
-            });
-            lastKmAt.current = next;
-          }
-
-          return next;
-        });
-
-        // Current pace: distance + time in last ~30 s of GPS points
-        const cutoff   = loc.timestamp - 30000;
-        const recent   = trace.filter((p) => p.ts >= cutoff);
-        if (recent.length >= 2) {
-          let d = 0;
-          for (let i = 1; i < recent.length; i++) d += haversineMeters(recent[i - 1], recent[i]);
-          const t = (recent[recent.length - 1].ts - recent[0].ts) / 1000;
-          setCurrentPace(d > 10 && t > 0 ? Math.round(t / (d / 1000)) : null);
-        }
-      }
-    );
+    unsubscribeGps.current = subscribeToBackgroundLocations(handleGpsPoint);
     return true;
   }
 
-  function stopTracking() {
-    locationSub.current?.remove();
-    locationSub.current = null;
+  async function stopTracking() {
+    unsubscribeGps.current?.();
+    unsubscribeGps.current = null;
+    await stopBackgroundLocationTracking();
   }
 
   // ---- Controls ----
@@ -160,12 +116,11 @@ export default function RunTrackerScreen() {
     pausedAt.current       = 0;
     pauseStart.current     = null;
     pauseWindows.current   = [];
-    gpsTrace.current       = [];
-    lastKmAt.current       = 0;
-    lastSplitTime.current  = 0;
+    trackState.current     = createRunTrackState();
     setSplits([]);
     setDistanceM(0);
     setElapsedS(0);
+    setCurrentPace(null);
 
     const ok = await startTracking();
     if (!ok) return;
@@ -173,9 +128,9 @@ export default function RunTrackerScreen() {
     setRunState('active');
   }
 
-  function handlePause() {
+  async function handlePause() {
     stopTimer();
-    stopTracking();
+    await stopTracking();
     pauseStart.current = Date.now();
     setRunState('paused');
   }
@@ -192,9 +147,9 @@ export default function RunTrackerScreen() {
     setRunState('active');
   }
 
-  function handleStop() {
+  async function handleStop() {
     stopTimer();
-    stopTracking();
+    await stopTracking();
     const stoppedAt = Date.now();
     if (pauseStart.current) {
       pausedAt.current += Math.floor((stoppedAt - pauseStart.current) / 1000);
@@ -254,7 +209,7 @@ export default function RunTrackerScreen() {
       splits_json:             splits.map((s, i) => ({ km: i + 1, sec: s })),
       hr_avg:                  hrAvg,
       hr_max:                  hrMax,
-      gps_trace:               gpsTrace.current,
+      gps_trace:               trackState.current.trace,
     });
 
     if (sessionId) {

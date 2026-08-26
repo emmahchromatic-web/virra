@@ -4,10 +4,18 @@ import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import type { Session } from '@supabase/supabase-js';
 import { useFonts } from 'expo-font';
+import { initSentry } from '@/lib/sentry';
+// Registers the background location TaskManager task — must be imported
+// unconditionally at module scope so iOS can redeliver locations to it even
+// before the run screen has mounted.
+import '@/lib/backgroundLocationTask';
 
 // Keep the native splash visible until fonts AND session are loaded.
 // Errors are non-fatal: if the splash was never shown (hot reload) this no-ops.
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// As early as possible so startup crashes are captured too.
+initSentry();
 import {
   BigShouldersDisplay_700Bold,
   BigShouldersDisplay_900Black,

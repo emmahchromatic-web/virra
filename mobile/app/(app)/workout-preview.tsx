@@ -34,6 +34,7 @@ import {
 } from '@/lib/restTimer';
 import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStructure';
 import { isStrengthV2 } from '@/lib/workoutStructure';
+import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/workoutDrafts';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -281,6 +282,22 @@ export default function WorkoutPreviewScreen() {
   const pausedDurationMs = useRef(0);
   const timerRef         = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Persists logged-set progress so an interrupted session (crash, OS kill,
+  // backgrounding) resurfaces where it left off instead of losing everything —
+  // see the workout-drafts Trello card. Fire-and-forget: a failed draft save
+  // must never block the live workout.
+  function persistDraft(loggedSnapshot: Record<string, LoggedSet[]>, rpe: number | null) {
+    if (!session || !sessionId || !startedAt.current) return;
+    saveWorkoutDraft(
+      session.user.id,
+      sessionId,
+      sessionData?.modality ?? 'other',
+      startedAt.current.toISOString(),
+      Math.round(pausedDurationMs.current / 1000),
+      { logged: loggedSnapshot, sessionRpe: rpe },
+    ).catch(() => {});
+  }
+
   useEffect(() => {
     if (!sessionId) { setState('idle'); return; }
     // NOTE: cycle_reason_short / cycle_adjusted_pace_secs are computed at
@@ -319,7 +336,29 @@ export default function WorkoutPreviewScreen() {
           }
           setSessionData(row);
           const structure = row.strength_structure;
-          if (structure) {
+
+          // If a draft exists for this exact session, the user is reopening
+          // an interrupted workout — resume from it instead of starting fresh.
+          let resumed = false;
+          if (session) {
+            const draft = await loadWorkoutDraft(session.user.id);
+            if (draft && draft.plannedSessionId === sessionId) {
+              const payload = draft.draft as { logged?: Record<string, LoggedSet[]>; sessionRpe?: number | null };
+              if (payload.logged) setLogged(payload.logged);
+              setSessionRpe(payload.sessionRpe ?? null);
+              startedAt.current        = new Date(draft.startedAt);
+              pausedDurationMs.current = draft.pausedSeconds * 1000;
+              resumed = true;
+              setState('active');
+              // Real elapsed time immediately, not just from the next tick —
+              // if the app was closed for 20 minutes the timer shouldn't
+              // flash 00:00 before jumping.
+              setElapsedS(Math.floor((Date.now() - startedAt.current.getTime() - pausedDurationMs.current) / 1000));
+              startTicker();
+            }
+          }
+
+          if (structure && !resumed) {
             const exercises = toLogExercises(structure);
             setLogged(seedLoggedSets(exercises));
             // Pre-fill each set with last session's weight, and find out which
@@ -334,6 +373,8 @@ export default function WorkoutPreviewScreen() {
                 .catch(() => {});
             }
           }
+          if (!resumed) setState('idle');
+          return;
         }
         setState('idle');
       });
@@ -354,12 +395,14 @@ export default function WorkoutPreviewScreen() {
     pausedDurationMs.current = 0;
     setState('active');
     startTicker();
+    persistDraft(logged, sessionRpe);
   }
 
   function handlePause() {
     if (timerRef.current) clearInterval(timerRef.current);
     pausedAt.current = Date.now();
     setState('paused');
+    persistDraft(logged, sessionRpe);
   }
 
   function handleResume() {
@@ -412,20 +455,22 @@ export default function WorkoutPreviewScreen() {
 
   function toggleSetDone(ex: LogExercise, setIdx: number) {
     const nextDone = !(logged[ex.id]?.[setIdx]?.done ?? false);
-    setLogged((prev) => {
-      const sets = prev[ex.id] ? [...prev[ex.id]] : [];
-      if (!sets[setIdx]) return prev;
-      // On completing a set, default empty reps to the target so a quick tap
-      // records a "did as prescribed" set. Carry the weight to the next set.
-      const actualReps = nextDone && sets[setIdx].actualReps === ''
-        ? String(sets[setIdx].targetReps)
-        : sets[setIdx].actualReps;
-      sets[setIdx] = { ...sets[setIdx], done: nextDone, actualReps };
-      if (nextDone && sets[setIdx + 1] && sets[setIdx + 1].weightKg === '' && sets[setIdx].weightKg !== '') {
-        sets[setIdx + 1] = { ...sets[setIdx + 1], weightKg: sets[setIdx].weightKg };
-      }
-      return { ...prev, [ex.id]: sets };
-    });
+    const sets = logged[ex.id] ? [...logged[ex.id]] : [];
+    if (!sets[setIdx]) return;
+    // On completing a set, default empty reps to the target so a quick tap
+    // records a "did as prescribed" set. Carry the weight to the next set.
+    const actualReps = nextDone && sets[setIdx].actualReps === ''
+      ? String(sets[setIdx].targetReps)
+      : sets[setIdx].actualReps;
+    sets[setIdx] = { ...sets[setIdx], done: nextDone, actualReps };
+    if (nextDone && sets[setIdx + 1] && sets[setIdx + 1].weightKg === '' && sets[setIdx].weightKg !== '') {
+      sets[setIdx + 1] = { ...sets[setIdx + 1], weightKg: sets[setIdx].weightKg };
+    }
+    const next = { ...logged, [ex.id]: sets };
+    setLogged(next);
+    // A logged set is exactly the moment worth persisting — losing everything
+    // since the last tick is a much smaller gap than losing the whole session.
+    persistDraft(next, sessionRpe);
     // Ticking a set off starts that movement's authored rest. Unticking a set
     // (correcting a mistap) should not.
     if (nextDone) beginRest(ex);
@@ -451,12 +496,12 @@ export default function WorkoutPreviewScreen() {
     const held = heldSeconds(current.startedAt, Date.now(), current.target);
     setHold(null);
     if (held <= 0) return;
-    setLogged((prev) => {
-      const sets = prev[current.exId] ? [...prev[current.exId]] : [];
-      if (!sets[current.setIdx]) return prev;
-      sets[current.setIdx] = { ...sets[current.setIdx], actualReps: String(held), done: true };
-      return { ...prev, [current.exId]: sets };
-    });
+    const sets = logged[current.exId] ? [...logged[current.exId]] : [];
+    if (!sets[current.setIdx]) return;
+    sets[current.setIdx] = { ...sets[current.setIdx], actualReps: String(held), done: true };
+    const next = { ...logged, [current.exId]: sets };
+    setLogged(next);
+    persistDraft(next, sessionRpe);
   }
 
   function beginRest(ex: LogExercise) {
@@ -487,7 +532,12 @@ export default function WorkoutPreviewScreen() {
       'Your logged sets will not be saved.',
       [
         { text: 'Keep going',       style: 'cancel' },
-        { text: 'Discard workout',  style: 'destructive', onPress: () => router.back() },
+        {
+          text: 'Discard workout', style: 'destructive', onPress: () => {
+            if (session) deleteWorkoutDraft(session.user.id).catch(() => {});
+            router.back();
+          },
+        },
       ],
     );
   }
@@ -599,6 +649,7 @@ export default function WorkoutPreviewScreen() {
       if (sessionErr) console.error('[workout-preview] failed to mark session completed', sessionErr);
     }
 
+    deleteWorkoutDraft(session.user.id).catch(() => {});
     cancelTrainingReminderToday();
     setSaving(false);
     router.back();

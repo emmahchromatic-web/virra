@@ -23,6 +23,7 @@
         "NSHealthShareUsageDescription": "Virra reads your workouts, heart rate, and menstrual cycle data from Apple Health to personalise your training plan and nutrition targets to your cycle phase.",
         "NSHealthUpdateUsageDescription": "Virra writes completed workouts to Apple Health.",
         "NSLocationWhenInUseUsageDescription": "Virra uses your location to track your runs. GPS keeps running while your screen is locked during an active run so your route and pace stay accurate.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Virra uses your location to track your runs, including while the app is in the background — so switching apps or locking your phone mid-run doesn't cut your route or pace short.",
         "NSCameraUsageDescription": "Virra uses the camera to scan food barcodes for your nutrition log.",
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -80,6 +81,13 @@
         {
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "paul-dickenson",
+          "project": "virra"
         }
       ]
     ],

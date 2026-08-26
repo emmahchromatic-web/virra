@@ -100,9 +100,13 @@ const YOGA_ROW = {
 
 jest.mock('@/lib/supabase', () => {
   const mockSelectSingle = jest.fn();
+  // workout_drafts lookups (loadWorkoutDraft) — no draft by default.
+  const mockMaybeSingle  = jest.fn().mockResolvedValue({ data: null, error: null });
   const mockUpdateEq     = jest.fn().mockResolvedValue({ data: null, error: null });
+  const mockUpsert       = jest.fn().mockResolvedValue({ data: null, error: null });
+  const mockDeleteEq     = jest.fn().mockResolvedValue({ data: null, error: null });
   const mockSelect = jest.fn(() => ({
-    eq: jest.fn(() => ({ single: mockSelectSingle })),
+    eq: jest.fn(() => ({ single: mockSelectSingle, maybeSingle: mockMaybeSingle })),
   }));
   const inserts: Record<string, unknown[]> = {};
   const from = jest.fn((table: string) => ({
@@ -117,11 +121,16 @@ jest.mock('@/lib/supabase', () => {
       };
     }),
     update: jest.fn(() => ({ eq: mockUpdateEq })),
+    upsert: mockUpsert,
+    delete: jest.fn(() => ({ eq: mockDeleteEq })),
   }));
   return {
     supabase:       { from },
     __selectSingle: mockSelectSingle,
+    __maybeSingle:  mockMaybeSingle,
     __updateEq:     mockUpdateEq,
+    __upsert:       mockUpsert,
+    __deleteEq:     mockDeleteEq,
     __select:       mockSelect,
     __inserts:      inserts,
   };
@@ -418,5 +427,100 @@ describe('WorkoutPreviewScreen — timer-only (no structure)', () => {
       expect(supabaseMock.__inserts.activities?.length).toBe(1);
       expect(supabaseMock.__inserts.strength_set_logs).toBeUndefined(); // no set logs for yoga
     });
+  });
+});
+
+describe('WorkoutPreviewScreen — draft persistence', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    clearInserts();
+    supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
+    supabaseMock.__updateEq.mockResolvedValue({ data: null, error: null });
+    supabaseMock.__upsert.mockResolvedValue({ data: null, error: null });
+    supabaseMock.__deleteEq.mockResolvedValue({ data: null, error: null });
+    supabaseMock.__maybeSingle.mockResolvedValue({ data: null, error: null }); // no draft by default
+  });
+
+  it('creates a draft the moment the workout starts', async () => {
+    const { findByText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    await waitFor(() => expect(supabaseMock.__upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ user_id: 'user-1', planned_session_id: 'ps-1', modality: 'strength' }),
+      { onConflict: 'user_id' },
+    ));
+  });
+
+  it('persists the draft again when a set is logged', async () => {
+    const { findByText, getByLabelText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+    supabaseMock.__upsert.mockClear();
+
+    fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));
+
+    await waitFor(() => expect(supabaseMock.__upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        draft_json: expect.objectContaining({
+          logged: expect.objectContaining({
+            e1: expect.arrayContaining([expect.objectContaining({ done: true })]),
+          }),
+        }),
+      }),
+      { onConflict: 'user_id' },
+    ));
+  });
+
+  it('deletes the draft once the session is saved', async () => {
+    const { findByText, getByLabelText, getByText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+    fireEvent.press(getByLabelText('Complete Goblet Squat set 1'));
+    fireEvent.press(getByText('END WORKOUT'));
+    fireEvent.press(await findByText('SAVE SESSION'));
+
+    await waitFor(() => expect(supabaseMock.__deleteEq).toHaveBeenCalledWith('user_id', 'user-1'));
+  });
+
+  it('deletes the draft when the user discards mid-workout', async () => {
+    const { findByText, getByLabelText } = render(<WorkoutPreviewScreen />);
+    fireEvent.press(await findByText(/let's go/i));
+
+    fireEvent.press(getByLabelText('Close'));
+    const { appAlert } = require('@/components/ui/VirraAlert');
+    const buttons = (appAlert as jest.Mock).mock.calls[0][2];
+    buttons.find((b: any) => b.style === 'destructive').onPress();
+
+    await waitFor(() => expect(supabaseMock.__deleteEq).toHaveBeenCalledWith('user_id', 'user-1'));
+  });
+
+  it('resumes directly into the active state when a draft exists for this session', async () => {
+    supabaseMock.__maybeSingle.mockResolvedValue({
+      data: {
+        id:                 'draft-1',
+        planned_session_id: 'ps-1',
+        modality:           'strength',
+        started_at:         new Date().toISOString(),
+        paused_seconds:      0,
+        draft_json: {
+          logged: {
+            e1: [
+              { targetReps: 8, actualReps: '8', weightKg: '20', done: true },
+              { targetReps: 8, actualReps: '',  weightKg: '',   done: false },
+            ],
+            e2: [{ targetReps: 6, actualReps: '', weightKg: '', done: false }],
+          },
+          sessionRpe: null,
+        },
+      },
+      error: null,
+    });
+
+    const { findByText, queryByText, getByDisplayValue } = render(<WorkoutPreviewScreen />);
+
+    // Straight into the logging view — no "Let's go" tap needed.
+    expect(await findByText('END WORKOUT')).toBeTruthy();
+    expect(queryByText(/let's go/i)).toBeNull();
+    // The hydrated set data (reps + weight) is reflected in the UI.
+    expect(getByDisplayValue('8')).toBeTruthy();
+    expect(getByDisplayValue('20')).toBeTruthy();
   });
 });
