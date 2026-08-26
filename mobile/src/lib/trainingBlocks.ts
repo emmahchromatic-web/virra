@@ -78,6 +78,31 @@ export async function getActiveBlocks(userId: string): Promise<TrainingBlock[]> 
   return (data ?? []) as unknown as TrainingBlock[];
 }
 
+/**
+ * How a newly started plan enters the stack.
+ *
+ * Two cases, and the only thing that separates them is whether the runner
+ * already has a primary block of this modality:
+ *
+ *   no  — this is their main plan for that modality. Primary, full load.
+ *   yes — they are adding a second plan alongside one they already run.
+ *         Not primary, half load, and the existing primary stays open.
+ *
+ * The load half of this was inverted between a4b582a and now: 0.5 came from
+ * the old "ADD SUPPLEMENTARY BLOCK" button, and when that button was folded
+ * into this CTA the ternary kept the supplementary value on the wrong branch.
+ * The effect was that a runner's FIRST and only plan was written at
+ * load_modifier 0.5 and the Training tab told them it was running at "50%
+ * load", while a genuinely supplementary second plan got 1.0. Verified
+ * against prod: a brand-new account's sole primary strength block was stored
+ * at 0.5.
+ */
+export function blockEntry(hasSameModalityPrimary: boolean): { isPrimary: boolean; loadModifier: number } {
+  return hasSameModalityPrimary
+    ? { isPrimary: false, loadModifier: 0.5 }
+    : { isPrimary: true,  loadModifier: 1.0 };
+}
+
 // Adding a primary block closes all existing primary blocks (ends_on = today).
 // Supplementary blocks (is_primary=false) are additive; any number can coexist.
 export async function addBlock(

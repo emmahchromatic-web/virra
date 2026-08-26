@@ -1,4 +1,4 @@
-import { computeBlockLoad } from '@/lib/trainingBlocks';
+import { computeBlockLoad , blockEntry } from '@/lib/trainingBlocks';
 
 type BlockInput = { modality: string; load_modifier: number };
 
@@ -58,5 +58,26 @@ describe('computeBlockLoad', () => {
 
   it('handles an empty block array', () => {
     expect(computeBlockLoad([], 'follicular')).toEqual([]);
+  });
+});
+
+describe('blockEntry', () => {
+  it('makes a first plan primary at full load', () => {
+    // The bug: this was written at 0.5, so a runner's only plan showed
+    // "50% load" in the Training tab from the moment they started it.
+    expect(blockEntry(false)).toEqual({ isPrimary: true, loadModifier: 1.0 });
+  });
+
+  it('adds a second plan of the same modality alongside, at half load', () => {
+    expect(blockEntry(true)).toEqual({ isPrimary: false, loadModifier: 0.5 });
+  });
+
+  it('never marks a block both non-primary and full load', () => {
+    // The inverted pair produced exactly this combination, which is what let
+    // a supplementary plan contribute as much load as the plan it supplements.
+    [true, false].forEach((has) => {
+      const e = blockEntry(has);
+      expect(e.isPrimary || e.loadModifier < 1.0).toBe(true);
+    });
   });
 });

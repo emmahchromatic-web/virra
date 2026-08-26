@@ -9,7 +9,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { getActiveBlocks, addBlock, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
+import { getActiveBlocks, addBlock, blockEntry, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
@@ -295,8 +295,7 @@ export default function PlanDetailScreen() {
       modality:       inferModality(plan.sport_type),
       startsOn:       planStart,
       endsOn:         goalDate,
-      loadModifier:   sameModalityPrimary ? 1.0 : 0.5,
-      isPrimary:      !sameModalityPrimary,
+      ...blockEntry(sameModalityPrimary),
       slotAssignments: dayAssignment.length > 0 ? dayAssignment : undefined,
       maxWeeks:        effectiveDuration,
     });
