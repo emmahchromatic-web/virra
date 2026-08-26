@@ -1,4 +1,4 @@
-import { computeBlockLoad, planSlot, SLOT_LOAD, SLOT_LABEL } from '@/lib/trainingBlocks';
+import { computeBlockLoad, planSlot, blockCloseDate, SLOT_LOAD, SLOT_LABEL } from '@/lib/trainingBlocks';
 
 type BlockInput = { modality: string; load_modifier: number };
 
@@ -107,5 +107,25 @@ describe('slot loads', () => {
     // 0.5 and the Training tab reported "50% load" from day one.
     const run = computeBlockLoad([{ modality: 'run', load_modifier: SLOT_LOAD.run }], 'follicular');
     expect(run[0].effective_load).toBe(1.0);
+  });
+});
+
+describe('blockCloseDate', () => {
+  const isoDay = (d: Date) => d.toISOString().split('T')[0];
+
+  it('closes a block strictly before today', () => {
+    // The whole bug in one assertion. getActiveBlocks keeps anything with
+    // ends_on >= today, so closing with today's date leaves the block in the
+    // stack until tomorrow and the replaced plan keeps counting all day.
+    // Found in prod: the backfill's "closed" duplicate was still open.
+    expect(blockCloseDate() < isoDay(new Date())).toBe(true);
+  });
+
+  it('is the day before the date it is given', () => {
+    expect(blockCloseDate(new Date('2026-08-26T09:00:00Z'))).toBe('2026-08-25');
+  });
+
+  it('steps back across a month boundary', () => {
+    expect(blockCloseDate(new Date('2026-09-01T00:30:00Z'))).toBe('2026-08-31');
   });
 });

@@ -88,6 +88,21 @@ export async function getActiveBlocks(userId: string): Promise<TrainingBlock[]> 
  */
 export type PlanSlot = 'run' | 'strength' | 'support';
 
+/**
+ * The date to stamp on a block you are closing.
+ *
+ * Yesterday, never today. getActiveBlocks keeps anything with
+ * `ends_on >= today`, so a block closed with today's date stays in the stack
+ * until tomorrow and the plan it was meant to replace goes on counting for the
+ * rest of the day. endTrainingBlock got this right; addBlock did not, and
+ * clearSlot inherited the mistake from addBlock. Caught by verifying the
+ * backfill against prod — the duplicate block it was supposed to close was
+ * still open afterwards. One helper so there is nowhere left to get it wrong.
+ */
+export function blockCloseDate(now: Date = new Date()): string {
+  return new Date(now.getTime() - 86400000).toISOString().split('T')[0];
+}
+
 export function planSlot(modality: BlockModality): PlanSlot {
   if (modality === 'run')      return 'run';
   if (modality === 'strength') return 'strength';
@@ -138,6 +153,7 @@ export const SLOT_LOAD: Record<PlanSlot, number> = {
  */
 export async function clearSlot(userId: string, slot: PlanSlot): Promise<string[]> {
   const today      = new Date().toISOString().split('T')[0];
+  const closedOn   = blockCloseDate();
   const modalities = (['run', 'strength', 'swim', 'yoga', 'other'] as BlockModality[])
     .filter((m) => planSlot(m) === slot);
 
@@ -153,7 +169,7 @@ export async function clearSlot(userId: string, slot: PlanSlot): Promise<string[
 
   await supabase
     .from('training_blocks')
-    .update({ ends_on: today })
+    .update({ ends_on: closedOn })
     .in('id', displaced.map((b) => b.id));
 
   const templateIds = displaced.map((b) => b.template_id).filter(Boolean) as string[];
@@ -276,7 +292,7 @@ export async function removeBlock(blockId: string): Promise<void> {
  */
 export async function endTrainingBlock(blockId: string): Promise<void> {
   const today     = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const yesterday = blockCloseDate();
 
   const { error: sessErr } = await supabase
     .from('planned_sessions')
