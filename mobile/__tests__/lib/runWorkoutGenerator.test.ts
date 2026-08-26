@@ -88,7 +88,10 @@ describe('generateRunStructure — tempo and threshold', () => {
     expect(s.steps.map((st) => st.kind)).toEqual(['warmup', 'work', 'cooldown']);
     const work = s.steps.find((st) => st.kind === 'work');
     expect(work?.target.pace_band).toBe('tempo');
-    expect(work?.target.pace_secs_per_km).toBeLessThan(360);
+    // The baseline IS threshold pace now, and tempo sits a shade easier than
+    // threshold (ratio 1.02) rather than far faster than it (card 228).
+    expect(work?.target.pace_secs_per_km).toBeGreaterThan(360);
+    expect(work?.target.pace_secs_per_km).toBeLessThan(paceForBand(360, 'easy'));
   });
 
   test('threshold 8km uses threshold pace band', () => {
@@ -198,21 +201,24 @@ describe('generateRunStructure — run_walk', () => {
     expect(repeat!.sub_steps![1].target.duration_s).toBeGreaterThan(0);
   });
 
-  test('run_walk 5km total_distance_m is derived from time × pace × reps (5217)', () => {
-    // easyPace=round(360×1.15)=414, runMperRep=(240/414)×1000≈579.71,
-    // reps=max(3,round(5000/579.71))=9, total=round(579.71×9)=5217
+  test('run_walk 5km total_distance_m is derived from time × pace × reps (5000)', () => {
+    // easyPace=round(360×1.20)=432, runMperRep=(240/432)×1000≈555.56,
+    // reps=max(3,round(5000/555.56))=9, total=round(555.56×9)=5000
     const s = generateRunStructure({
       session_label: 'run_walk', baseline_pace_secs: 360, distance_km: 5,
     });
-    expect(s.total_distance_m).toBe(5217);
+    expect(s.total_distance_m).toBe(5000);
   });
 });
 
 describe('paceForBand', () => {
-  test('multiplies baseline by easy band multiplier', () => {
-    expect(paceForBand(360, 'easy')).toBe(414); // 360 * 1.15 = 414
+  // Re-exported from the pace model, which anchors on threshold rather than 5K
+  // pace. Full coverage lives in __tests__/lib/runProgramme/paceModel.test.ts;
+  // these two guard the wiring from this module.
+  test('easy is slower than the baseline, because the baseline is threshold', () => {
+    expect(paceForBand(360, 'easy')).toBe(432); // 360 * 1.20 = 432
   });
-  test('threshold is faster than baseline', () => {
-    expect(paceForBand(360, 'threshold')).toBe(324); // 360 * 0.90 = 324
+  test('threshold IS the baseline', () => {
+    expect(paceForBand(360, 'threshold')).toBe(360); // 360 * 1.00
   });
 });

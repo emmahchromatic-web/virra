@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import type { OnboardingData } from '@/context/OnboardingContext';
 import type { FitnessLevel, WeeklyMileageBracket } from '@/lib/healthKitOnboarding';
+import { thresholdPaceFromFiveKPace } from '@/lib/runProgramme/paceModel';
 
 export function parseFiveKToPaceSecPerKm(fiveKTime: string): number | null {
   const parts = fiveKTime.split(':');
@@ -14,22 +15,25 @@ export function parseFiveKToPaceSecPerKm(fiveKTime: string): number | null {
 }
 
 /**
- * Fallback 5K-equivalent pace (s/km) for a runner who left the 5K time blank.
- * The field is optional ("Leave blank if you haven't raced") and only fitness
- * level and mileage gate Continue, so without this the profile keeps a null
- * baseline and every consumer falls back to its own `?? 360` — i.e. the runner
- * trains at 6:00/km whatever they told us.
+ * The 5K performance we assume for a runner who left the 5K time blank. The
+ * field is optional ("Leave blank if you haven't raced") and only fitness level
+ * and mileage gate Continue, so without this the profile keeps a null baseline
+ * and every consumer falls back to its own `?? 360` — i.e. the runner trains at
+ * 6:00/km whatever they told us.
  *
  * Derived by inverting `deriveFitnessLevel`'s own average-training-pace bands:
- * take the band's midpoint as average easy pace, divide by 1.18 for threshold,
- * then by 0.94 back to a 5K-equivalent, which is what this column means today.
- * `returning` is held one step more conservative than `recreational`.
+ * take the band's midpoint as average easy pace and divide by 1.18 to get
+ * threshold, then convert back to a 5K equivalent. `returning` is held one step
+ * more conservative than `recreational`.
  *
  * These are deliberately unambitious. A derived baseline is a starting point
- * the Fitness Update corrects from, and starting a shade slow is recoverable
- * in a way that starting fast is not.
+ * the Fitness Update corrects from, and starting a shade slow is recoverable in
+ * a way that starting fast is not.
+ *
+ * Stored as 5K paces rather than thresholds so there is one conversion, in
+ * `seedBaselinePace`, shared with the stated-time path.
  */
-export const DERIVED_BASELINE_BY_LEVEL: Record<FitnessLevel, number> = {
+export const DERIVED_FIVE_K_PACE_BY_LEVEL: Record<FitnessLevel, number> = {
   advanced:     240, // 4:00/km — a 20:00 5K
   intermediate: 275, // 4:35/km — a 22:55 5K
   recreational: 346, // 5:46/km — a 28:50 5K
@@ -41,8 +45,12 @@ export type BaselineSource = 'stated' | 'derived';
 
 /**
  * The baseline to persist at onboarding, and where it came from. A stated 5K
- * time always wins; the level-derived value is the fallback. Returns null only
- * when we have neither, which the Continue gate should make impossible.
+ * time always wins; the level-derived performance is the fallback. Returns null
+ * only when we have neither, which the Continue gate should make impossible.
+ *
+ * The value returned is **threshold pace**, not 5K pace: that is what
+ * `baseline_pace_seconds_per_km` holds, and what every band is a ratio of. See
+ * card 228 and paceModel.ts.
  *
  * `source` is stored so calibration can treat a derived baseline as
  * low-confidence and converge on the truth faster than it would on a time the
@@ -53,8 +61,14 @@ export function seedBaselinePace(
   fitnessLevel: FitnessLevel | null,
 ): { secs: number; source: BaselineSource } | null {
   const stated = parseFiveKToPaceSecPerKm(fiveKTime);
-  if (stated != null && stated > 0) return { secs: stated, source: 'stated' };
-  if (fitnessLevel) return { secs: DERIVED_BASELINE_BY_LEVEL[fitnessLevel], source: 'derived' };
+  if (stated != null && stated > 0) {
+    const threshold = thresholdPaceFromFiveKPace(stated);
+    if (threshold != null) return { secs: threshold, source: 'stated' };
+  }
+  if (fitnessLevel) {
+    const threshold = thresholdPaceFromFiveKPace(DERIVED_FIVE_K_PACE_BY_LEVEL[fitnessLevel]);
+    if (threshold != null) return { secs: threshold, source: 'derived' };
+  }
   return null;
 }
 
@@ -140,6 +154,9 @@ export async function completeOnboarding(
     ...(baseline != null && {
       baseline_pace_seconds_per_km: baseline.secs,
       baseline_source:              baseline.source,
+      // Written by the app, so it is threshold from the start and the re-anchor
+      // migration must not touch it.
+      baseline_anchor:              'threshold',
     }),
     ...(weeklyKm != null && { weekly_mileage_km: weeklyKm }),
     cycle_profile:       data.cycleProfile,
