@@ -9,7 +9,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { getActiveBlocks, addBlock, blockEntry, inferModality, type TrainingBlock } from '@/lib/trainingBlocks';
+import { getActiveBlocks, addBlock, clearSlot, planSlot, inferModality, SLOT_LOAD, type TrainingBlock } from '@/lib/trainingBlocks';
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
@@ -277,7 +277,9 @@ export default function PlanDetailScreen() {
       planStart = (startDate && !startInPast) ? startDate.toISOString().split('T')[0] : today;
     }
 
-    await supabase.from('user_plans').update({ is_active: false }).eq('user_id', session.user.id);
+    // Clears both tables for this slot, so the plan screen and the training
+    // stack cannot end up describing different weeks.
+    await clearSlot(session.user.id, targetSlot);
     const { error } = await supabase.from('user_plans').insert({
       user_id:     session.user.id,
       template_id: plan.id,
@@ -295,7 +297,8 @@ export default function PlanDetailScreen() {
       modality:       inferModality(plan.sport_type),
       startsOn:       planStart,
       endsOn:         goalDate,
-      ...blockEntry(sameModalityPrimary),
+      loadModifier:   SLOT_LOAD[targetSlot],
+      isPrimary:      true,   // one plan per slot: it owns its slot by definition
       slotAssignments: dayAssignment.length > 0 ? dayAssignment : undefined,
       maxWeeks:        effectiveDuration,
     });
@@ -381,12 +384,16 @@ export default function PlanDetailScreen() {
   }
 
   const hasExistingBlocks = existingBlocks.length > 0;
-  const sameModalityPrimary = existingBlocks.some(
-    (b) => b.modality === inferModality(plan?.sport_type ?? '') && b.is_primary,
-  );
+  // One plan per slot. Anything already in this plan's slot is what gets
+  // replaced — and it is named on the button, because dropping someone's
+  // half-finished plan without saying so is not a thing to do quietly.
+  const targetSlot = planSlot(inferModality(plan?.sport_type ?? ''));
+  const occupant   = existingBlocks.find((b) => planSlot(b.modality) === targetSlot) ?? null;
+  const occupantName = occupant?.template?.name ?? null;
+
   const ctaLabel = raceOpen && raceName.trim()
-    ? (hasExistingBlocks ? `Add training for ${raceName.trim()}` : `Start training for ${raceName.trim()}`)
-    : hasExistingBlocks ? 'Add this plan' : 'Start this plan';
+    ? (occupantName ? `Replace ${occupantName}` : `Start training for ${raceName.trim()}`)
+    : occupantName ? `Replace ${occupantName}` : 'Start this plan';
 
   // Active plan context
   const planStartDate  = userPlan ? new Date(userPlan.start_date) : null;
@@ -666,7 +673,7 @@ export default function PlanDetailScreen() {
           <VirraButton
             label="Switch plan"
             variant="ghost"
-            onPress={() => router.back()}
+            onPress={() => router.push('/(app)/plans/browse' as any)}
             style={styles.cta}
           />
         ) : (

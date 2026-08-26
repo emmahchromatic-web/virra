@@ -1,4 +1,4 @@
-import { computeBlockLoad , blockEntry } from '@/lib/trainingBlocks';
+import { computeBlockLoad, planSlot, blockCloseDate, SLOT_LOAD, SLOT_LABEL } from '@/lib/trainingBlocks';
 
 type BlockInput = { modality: string; load_modifier: number };
 
@@ -61,23 +61,71 @@ describe('computeBlockLoad', () => {
   });
 });
 
-describe('blockEntry', () => {
-  it('makes a first plan primary at full load', () => {
-    // The bug: this was written at 0.5, so a runner's only plan showed
-    // "50% load" in the Training tab from the moment they started it.
-    expect(blockEntry(false)).toEqual({ isPrimary: true, loadModifier: 1.0 });
+describe('plan slots', () => {
+  it('gives run and strength their own slot', () => {
+    expect(planSlot('run')).toBe('run');
+    expect(planSlot('strength')).toBe('strength');
   });
 
-  it('adds a second plan of the same modality alongside, at half load', () => {
-    expect(blockEntry(true)).toEqual({ isPrimary: false, loadModifier: 0.5 });
+  it('collapses swim, yoga and other into one mobility slot', () => {
+    // Emma's rule is one run, one strength, one mobility/misc — not one of
+    // each of five modalities. If this ever splits, someone can hold three
+    // support plans at once and the load ceiling stops meaning anything.
+    expect((['swim', 'yoga', 'other'] as const).map(planSlot)).toEqual(['support', 'support', 'support']);
   });
 
-  it('never marks a block both non-primary and full load', () => {
-    // The inverted pair produced exactly this combination, which is what let
-    // a supplementary plan contribute as much load as the plan it supplements.
-    [true, false].forEach((has) => {
-      const e = blockEntry(has);
-      expect(e.isPrimary || e.loadModifier < 1.0).toBe(true);
+  it('labels every slot', () => {
+    (['run', 'strength', 'support'] as const).forEach((s) => {
+      expect(SLOT_LABEL[s]).toBeTruthy();
     });
+  });
+});
+
+describe('slot loads', () => {
+  const MAX_TOTAL_LOAD = 1.8; // mirrors the constant in trainingBlocks.ts
+
+  it('fits the full permitted setup inside the ceiling', () => {
+    // The whole point of the numbers: someone running the maximum the rules
+    // allow — one of each — should be at capacity, not over it. If this fails,
+    // a legal setup silently scales the run block down.
+    const total = SLOT_LOAD.run + SLOT_LOAD.strength + SLOT_LOAD.support;
+    expect(total).toBeLessThanOrEqual(MAX_TOTAL_LOAD);
+  });
+
+  it('leaves the run block unscaled for a legal three-plan setup', () => {
+    const computed = computeBlockLoad([
+      { modality: 'run',      load_modifier: SLOT_LOAD.run },
+      { modality: 'strength', load_modifier: SLOT_LOAD.strength },
+      { modality: 'yoga',     load_modifier: SLOT_LOAD.support },
+    ], 'follicular');
+    const run = computed.find((b) => b.modality === 'run')!;
+    expect(run.effective_load).toBe(SLOT_LOAD.run);
+  });
+
+  it('never starts a sole plan below full load for its slot', () => {
+    // The bug this replaced: a runner's first and only plan was written at
+    // 0.5 and the Training tab reported "50% load" from day one.
+    const run = computeBlockLoad([{ modality: 'run', load_modifier: SLOT_LOAD.run }], 'follicular');
+    expect(run[0].effective_load).toBe(1.0);
+  });
+});
+
+describe('blockCloseDate', () => {
+  const isoDay = (d: Date) => d.toISOString().split('T')[0];
+
+  it('closes a block strictly before today', () => {
+    // The whole bug in one assertion. getActiveBlocks keeps anything with
+    // ends_on >= today, so closing with today's date leaves the block in the
+    // stack until tomorrow and the replaced plan keeps counting all day.
+    // Found in prod: the backfill's "closed" duplicate was still open.
+    expect(blockCloseDate() < isoDay(new Date())).toBe(true);
+  });
+
+  it('is the day before the date it is given', () => {
+    expect(blockCloseDate(new Date('2026-08-26T09:00:00Z'))).toBe('2026-08-25');
+  });
+
+  it('steps back across a month boundary', () => {
+    expect(blockCloseDate(new Date('2026-09-01T00:30:00Z'))).toBe('2026-08-31');
   });
 });
