@@ -30,16 +30,26 @@ export interface TierLimits {
 }
 
 export const TIER_LIMITS: Record<AbilityTier, TierLimits> = {
-  beginner:     { floorKm:  8, ceilingKm:  35, absStepKm: 2, longStepKm: 1, maxLongRunKm: 12 },
-  recreational: { floorKm: 15, ceilingKm:  50, absStepKm: 3, longStepKm: 2, maxLongRunKm: 18 },
-  intermediate: { floorKm: 25, ceilingKm:  80, absStepKm: 5, longStepKm: 2, maxLongRunKm: 26 },
-  advanced:     { floorKm: 40, ceilingKm: 120, absStepKm: 6, longStepKm: 3, maxLongRunKm: 34 },
+  beginner:     { floorKm:  8, ceilingKm:  35, absStepKm: 2, longStepKm: 1, maxLongRunKm: 16 },
+  recreational: { floorKm: 15, ceilingKm:  50, absStepKm: 3, longStepKm: 2, maxLongRunKm: 24 },
+  intermediate: { floorKm: 25, ceilingKm:  80, absStepKm: 5, longStepKm: 2, maxLongRunKm: 32 },
+  advanced:     { floorKm: 40, ceilingKm: 120, absStepKm: 6, longStepKm: 3, maxLongRunKm: 36 },
 };
 
+/**
+ * `rate` governs week to week; `maxMultiple` is the ceiling on total growth,
+ * relative to where the runner started.
+ *
+ * The multiples were raised on review (1.3/1.5/1.8 → 1.4/1.7/2.0): the old
+ * values capped a 40km/week runner at a 60km peak for a marathon, which is
+ * below what published plans build to, and the tier's long-run ceiling then
+ * held their longest run to 26km. Both now allow a full marathon build without
+ * loosening the week-to-week constraint, which is the one that protects people.
+ */
 export const VOLUME_PRESETS: Record<VolumePreset, { rate: number; maxMultiple: number }> = {
-  gradual:     { rate: 0.05, maxMultiple: 1.3 },
-  steady:      { rate: 0.08, maxMultiple: 1.5 },
-  progressive: { rate: 0.10, maxMultiple: 1.8 },
+  gradual:     { rate: 0.05, maxMultiple: 1.4 },
+  steady:      { rate: 0.08, maxMultiple: 1.7 },
+  progressive: { rate: 0.10, maxMultiple: 2.0 },
 };
 
 /** Weekly volume a plan for this goal builds towards, before tier and preset cut it down. */
@@ -99,7 +109,7 @@ export const DOWN_WEEK_FRACTION = 0.72;
  * the alternative is arriving at the start line never having run far. Low-volume
  * marathon plans in the wild routinely put 45-50% of the week in the long run.
  *
- * REVIEW: these are the constants most worth a coach's eye before this ships.
+ * REVIEW: still worth a coach's eye, alongside VOLUME_PRESETS and TIER_LIMITS.
  */
 export const LONG_RUN_SHARE_BY_GOAL: Record<RaceDistance, number> = {
   '5k':          0.30,
@@ -232,10 +242,15 @@ export function buildVolumeCurve(input: CurveInput): CurveWeek[] {
 
   // ---- build ----
   let progression = startKm;
-  let longRun = Math.min(
+  // Like weekly volume, the long run carries an underlying progression that a
+  // down week displays below but does not undo. Without the separation, every
+  // down week costs the runner ground they then have to re-climb at the tier's
+  // step rate, and a marathon build never reaches its long run at all.
+  let longProgression = Math.min(
     input.currentLongestRunKm > 0 ? input.currentLongestRunKm : startKm * 0.30,
     longAllowance(startKm),
   );
+  let longRun = longProgression;
 
   for (let w = 1; w <= buildWeeks; w++) {
     const isDown = downWeeks.has(w);
@@ -252,10 +267,13 @@ export function buildVolumeCurve(input: CurveInput): CurveWeek[] {
     const km = isDown ? progression * DOWN_WEEK_FRACTION : progression;
 
     if (isDown) {
-      // Held, not grown — but not left at an absurd share of a smaller week.
-      longRun = Math.min(longRun, km * DOWN_WEEK_LONG_SHARE);
-    } else if (w > 1) {
-      longRun = Math.min(longRun + tier.longStepKm, longAllowance(km));
+      // Shown shorter for the week, but the progression holds its ground.
+      longRun = Math.min(longProgression, km * DOWN_WEEK_LONG_SHARE);
+    } else {
+      if (w > 1) {
+        longProgression = Math.min(longProgression + tier.longStepKm, longAllowance(km));
+      }
+      longRun = longProgression;
     }
 
     out.push({ week: w, km: round1(km), longRunKm: round1(longRun), kind: isDown ? 'down' : 'build' });
@@ -268,7 +286,8 @@ export function buildVolumeCurve(input: CurveInput): CurveWeek[] {
     const isRace = i === taperWeeks.length - 1;
     let   km     = peakKm * fraction;
 
-    longRun = Math.min(longRun, km * TAPER_LONG_SHARE);
+    longProgression = Math.min(longProgression, km * TAPER_LONG_SHARE);
+    longRun = longProgression;
 
     // A race week has to contain its own race. For a runner whose peak volume is
     // modest — a beginner on a 10K plan, say — the taper fraction alone can put

@@ -138,6 +138,23 @@ describe('buildVolumeCurve — down weeks', () => {
     const curve = build();
     expect(curve[3].longRunKm).toBeLessThanOrEqual(curve[2].longRunKm);
   });
+
+  it('does not cost the runner their long-run progress either', () => {
+    // The same separation weekly volume gets. Without it, every down week
+    // knocked the long run back and it had to re-climb at the tier's step rate,
+    // so a marathon build never reached its long run at all.
+    const curve = build();
+    expect(curve[4].longRunKm).toBeGreaterThan(curve[2].longRunKm);
+  });
+
+  it('reaches a marathon-worthy long run over a full build', () => {
+    const curve = buildVolumeCurve({
+      weeks: 16, tier: 'intermediate', preset: 'steady', goal: 'marathon',
+      currentWeeklyKm: 40, currentLongestRunKm: 16, hasRace: true,
+    });
+    const longest = Math.max(...curve.filter((w) => w.kind !== 'race').map((w) => w.longRunKm));
+    expect(longest).toBeGreaterThanOrEqual(30);
+  });
 });
 
 describe('buildVolumeCurve — the long run track', () => {
@@ -315,13 +332,13 @@ describe('buildVolumeCurve — golden fixture', () => {
       [2,  21.6, 9,    'build'],
       [3,  23.3, 11,   'build'],
       [4,  16.8, 7.6,  'down'],
-      [5,  25.2, 9.6,  'build'],
-      [6,  27.2, 11.6, 'build'],
-      [7,  29.4, 13.6, 'build'],
+      [5,  25.2, 12.6, 'build'],
+      [6,  27.2, 13.6, 'build'],
+      [7,  29.4, 14.7, 'build'],
       [8,  21.2, 9.5,  'down'],
-      [9,  30,   11.5, 'build'],
-      [10, 30,   13.5, 'build'],
-      [11, 24,   9.6,  'taper'],
+      [9,  31.7, 15.9, 'build'],
+      [10, 34,   17,   'build'],
+      [11, 27.2, 10.9, 'taper'],
       [12, 21.1, 21.1, 'race'],
     ]);
   });
