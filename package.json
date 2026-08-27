@@ -16,12 +16,12 @@
     "sanity:deploy": "sanity deploy"
   },
   "dependencies": {
-    "@astrojs/sitemap": "^3.7.2",
-    "@astrojs/vercel": "^10.0.6",
+    "@astrojs/sitemap": "^3.7.3",
+    "@astrojs/vercel": "^11.0.8",
     "@sanity/client": "^8.3.0",
     "@sanity/image-url": "^2.1.1",
     "@vercel/analytics": "^2.0.1",
-    "astro": "^6.2.1",
+    "astro": "^7.2.7",
     "astro-portabletext": "^1.0.0",
     "googleapis": "^171.4.0",
     "react": "^19.2.6",
