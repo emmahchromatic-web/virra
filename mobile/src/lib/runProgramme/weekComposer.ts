@@ -61,10 +61,18 @@ function goalBucket(goal: RaceDistance): 'short' | 'long' {
   return goal === '5k' || goal === '10k' ? 'short' : 'long';
 }
 
+/**
+ * The hard sessions a week actually gets.
+ *
+ * Never more than the menu holds. Cycling the menu to fill a count produced
+ * weeks with two identical sessions in them — a taper week with two tempo runs,
+ * which is not a taper week with two sessions in it, it is a mistake. Where the
+ * phase only has one kind of hard work worth doing, the week does one.
+ */
 export function hardTypesFor(phase: WeekPhase, goal: RaceDistance, count: number): RunWorkoutType[] {
   const menu = HARD_MENU[phase][goalBucket(goal)];
   if (menu.length === 0 || count <= 0) return [];
-  return Array.from({ length: count }, (_, i) => menu[i % menu.length]);
+  return menu.slice(0, count);
 }
 
 export interface ComposedSession {

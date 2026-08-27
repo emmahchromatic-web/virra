@@ -1,12 +1,15 @@
 import { supabase } from './supabase';
 import type { BlockPhase, PhaseSegment } from './seasonEngine';
-import { generateRunStructure } from './runWorkoutGenerator';
+import { inferWorkoutType } from './runWorkoutGenerator';
 import { generateStrengthStructure } from './strengthWorkoutGenerator';
 import type { RunWorkoutStructure, AnyStrengthStructure } from './workoutStructure';
 import { normalizeStrengthSessionType } from './strengthTypes';
 import { blockForWeek, type AuthoredSectionGroup, type ProgrammeVariant } from './getStrongSession';
 import { buildProgrammeStructure, applyDeloadModulation } from './strengthProgramme';
 import { sessionTarget, matchActivityToSession, type MatchSession } from './sessionMatcher';
+import { buildRunSession } from './runProgramme/sessionShapes';
+import type { RaceDistance } from './runProgramme/volumeCurve';
+import type { Difficulty, WeekPhase } from './runProgramme/weekComposer';
 
 export const DAY_TEMPLATES: Record<number, number[]> = {
   1: [0],
@@ -91,9 +94,24 @@ export interface ProgrammeContext {
   deloadNote:      string | null;
 }
 
+/**
+ * What the run generator knows that the template did not: what the runner is
+ * training for, how hard the plan is meant to be, which phase each week is in,
+ * and — the important one — how long the long run actually is, rather than a
+ * flat 35% guess off the weekly total.
+ */
+export interface RunPlanContext {
+  goal:      RaceDistance;
+  intensity: Difficulty;
+  /** Indexed by week. */
+  phases:    WeekPhase[];
+  longRunKm: number[];
+}
+
 export interface GenerateContext {
   baseline_pace_secs: number;
   programme?:         ProgrammeContext;
+  runPlan?:           RunPlanContext;
 }
 
 export function generateSchedule(
@@ -105,14 +123,22 @@ export function generateSchedule(
   slotAssignments?: SessionSlot[],
   maxWeeks?:        number,
   context?:         GenerateContext,
+  /**
+   * Day placement per week, from the run generator. A base week and a peak week
+   * do not hold the same sessions, so a single week-shaped assignment cannot
+   * describe a generated plan. Indexed by week, falling back to the flat
+   * assignment when absent.
+   */
+  weekSlots?:       SessionSlot[][],
 ): PlannedSessionInsert[] {
   const origin  = mondayOf(startsOn);
   const rows: PlannedSessionInsert[] = [];
   const limited = maxWeeks != null ? sessionsJson.slice(0, maxWeeks) : sessionsJson;
 
   limited.forEach((week, weekIndex) => {
-    // Use provided slot assignments; fall back to default template ordering
-    const slots: SessionSlot[] = slotAssignments ?? (() => {
+    // Per-week placement wins where the generator supplied it; then the flat
+    // assignment from the day picker; then the template's own ordering.
+    const slots: SessionSlot[] = weekSlots?.[weekIndex] ?? slotAssignments ?? (() => {
       const anchors  = week.sessions.filter((s) => ANCHOR_LAST.has(s));
       const regulars = week.sessions.filter((s) => !ANCHOR_LAST.has(s));
       const ordered  = [...regulars, ...anchors];
@@ -136,23 +162,31 @@ export function generateSchedule(
 
       if (context) {
         if (modality === 'run') {
-          // Estimate this session's distance from the week's total.
-          // Long runs take ~35% of weekly volume; the rest split evenly.
           const sessions = week.sessions;
-          const hasLong  = sessions.includes('long');
+          const hasLong  = sessions.includes('long') || sessions.includes('race');
           const runSessionCount = sessions.filter(
             (s) => !['lower', 'upper', 'general'].includes(s),
           ).length || 1;
-          const longShare = hasLong ? week.km * 0.35 : 0;
+
+          // With a generated plan the long run is a real number off the curve,
+          // not a share of the week — the curve progresses it deliberately and
+          // separately, and a 35% guess would throw that away.
+          const plan      = context.runPlan;
+          const longKm    = plan?.longRunKm[weekIndex] ?? week.km * 0.35;
+          const longShare = hasLong ? longKm : 0;
           const otherCount = hasLong ? runSessionCount - 1 : runSessionCount;
-          const distance_km =
-            slot.label === 'long'
-              ? Math.max(3, Math.round(longShare * 10) / 10)
-              : Math.max(3, Math.round(((week.km - longShare) / Math.max(1, otherCount)) * 10) / 10);
-          row.run_structure = generateRunStructure({
-            session_label:      slot.label,
-            baseline_pace_secs: context.baseline_pace_secs,
-            distance_km,
+          const isLong = slot.label === 'long' || slot.label === 'race';
+          const distance_km = isLong
+            ? Math.max(3, Math.round(longShare * 10) / 10)
+            : Math.max(3, Math.round((Math.max(0, week.km - longShare) / Math.max(1, otherCount)) * 10) / 10);
+
+          row.run_structure = buildRunSession({
+            type:          inferWorkoutType(slot.label),
+            distanceKm:    distance_km,
+            thresholdSecs: context.baseline_pace_secs,
+            goal:          plan?.goal,
+            phase:         plan?.phases[weekIndex],
+            intensity:     plan?.intensity,
           });
         } else if (modality === 'strength') {
           const prog = context.programme;
@@ -213,9 +247,10 @@ export async function generateAndSaveSchedule(
   maxWeeks?:        number,
   phaseSegments?:   PhaseSegment[],
   context?:         GenerateContext,
+  weekSlots?:       SessionSlot[][],
 ): Promise<void> {
   if (!sessionsJson.length) return;
-  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, slotAssignments, maxWeeks, context);
+  const rows = generateSchedule(userId, blockId, modality, startsOn, sessionsJson, slotAssignments, maxWeeks, context, weekSlots);
   if (!rows.length) return;
 
   const rowsWithPhase = rows.map((row) => ({

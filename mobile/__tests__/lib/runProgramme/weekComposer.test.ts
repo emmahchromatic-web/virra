@@ -49,6 +49,8 @@ describe('hardSessionCount', () => {
   });
 
   it('keeps the count through the taper — volume drops, sharpness does not', () => {
+    // The count is unchanged; what the week can actually fill it with is
+    // bounded by the taper menu, which is deliberately one sharpener.
     expect(hardSessionCount(5, 'balanced', 'taper'))
       .toBe(hardSessionCount(5, 'balanced', 'build'));
   });
@@ -65,9 +67,20 @@ describe('hardTypesFor', () => {
     expect(hardTypesFor('build', 'marathon', 1)).toEqual(['threshold']);
   });
 
-  it('returns as many types as asked for', () => {
+  it('returns as many types as asked for, up to what the phase offers', () => {
     expect(hardTypesFor('build', '5k', 2)).toHaveLength(2);
-    expect(hardTypesFor('build', '5k', 3)).toHaveLength(3);
+    // Asking for three when the phase has two kinds of hard work gets two, not
+    // the same session twice.
+    expect(hardTypesFor('build', '5k', 3)).toHaveLength(2);
+  });
+
+  it('never repeats a session type within a week', () => {
+    for (const phase of ['base', 'build', 'peak', 'taper'] as const) {
+      for (const goal of ['5k', '10k', 'half_marathon', 'marathon'] as const) {
+        const types = hardTypesFor(phase, goal, 3);
+        expect(new Set(types).size).toBe(types.length);
+      }
+    }
   });
 
   it('returns nothing for race week', () => {
