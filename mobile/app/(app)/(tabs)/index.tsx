@@ -23,8 +23,10 @@ import { QuickLogRow } from '@/components/ui/QuickLogRow';
 import { TipsCarousel } from '@/components/ui/TipsCarousel';
 import { FitnessUpdateCard } from '@/components/ui/FitnessUpdateCard';
 import { FitnessUpdateModal } from '@/components/ui/FitnessUpdateModal';
+import { RealignmentModal } from '@/components/ui/RealignmentModal';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { useFitnessUpdate } from '@/hooks/useFitnessUpdate';
+import { useRealignment } from '@/hooks/useRealignment';
 import { SymbolView } from 'expo-symbols';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { getDailyStats } from '@/lib/healthKitDaily';
@@ -52,6 +54,7 @@ export default function DashboardScreen() {
   const trackWeight                 = useProfileStore((s) => s.trackWeight);
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
+  const realignment = useRealignment(session?.user.id ?? null);
   const refreshReadiness = useReadinessStore((s) => s.refresh);
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
@@ -355,6 +358,34 @@ export default function DashboardScreen() {
         verdict={verdict}
         onConfirm={async () => { await confirm(); setShowFitnessModal(false); }}
         onSnooze={async () => { await snooze(); setShowFitnessModal(false); }}
+      />
+
+      {/*
+        One prompt at a time. A Fitness Update and a realignment are both about
+        the plan being out of step with the runner, and showing them together
+        would read as the app piling on.
+      */}
+      <RealignmentModal
+        visible={!showFitnessModal && realignment.prompt != null}
+        prompt={realignment.prompt}
+        busy={realignment.busy}
+        onDismiss={realignment.dismiss}
+        onChoose={async (option) => {
+          try {
+            const result = await realignment.choose(option);
+            if (!result) return;
+            if (result.needsRebuild) {
+              router.push('/(app)/plans/browse' as any);
+              return;
+            }
+            appAlert('Plan updated', result.summary);
+          } catch (e) {
+            appAlert(
+              'Could not update your plan',
+              'Nothing has been changed. Check your connection and try again.',
+            );
+          }
+        }}
       />
 
       {session && (
