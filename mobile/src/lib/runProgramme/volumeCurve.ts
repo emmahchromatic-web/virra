@@ -155,6 +155,19 @@ const DOWN_WEEK_LONG_SHARE = 0.45;
 /** Taper weeks shrink the long run rather than holding it. */
 const TAPER_LONG_SHARE = 0.40;
 
+/**
+ * Where a descending recovery plan starts and ends, as fractions of the
+ * runner's normal training volume.
+ *
+ * It starts BELOW their normal week, not at it. The week after a marathon is
+ * not a slightly easier training week, and a recovery plan that opens at full
+ * volume has misunderstood what it is for.
+ *
+ * REVIEW: worth the physio's eye alongside the walk-run ladder.
+ */
+const DESCEND_START = 0.6;
+const DESCEND_FLOOR = 0.3;
+
 export interface CurveInput {
   weeks:               number;
   tier:                AbilityTier;
@@ -170,6 +183,15 @@ export interface CurveInput {
    * runner's own physiology already wants one.
    */
   downWeeks?:          number[];
+  /**
+   * `build` grows the weeks. `flat` holds them, for plans whose progression is
+   * somewhere other than volume — an intensity-led block sharpens the work
+   * inside the sessions, and growing the weeks underneath it as well would be
+   * two things rising at once. `descend` shrinks them, for the plans whose job
+   * is to bring someone down rather than up — the fortnight after a marathon,
+   * most obviously. A recovery plan that quietly progressed would be a trap.
+   */
+  mode?:               'build' | 'flat' | 'descend';
 }
 
 export interface CurveWeek {
@@ -204,7 +226,10 @@ export function defaultDownWeeks(
 export function buildVolumeCurve(input: CurveInput): CurveWeek[] {
   const weeks = Math.max(1, Math.floor(input.weeks));
   const tier  = TIER_LIMITS[input.tier];
-  const { rate, maxMultiple } = VOLUME_PRESETS[input.preset];
+  const isFlat = input.mode === 'flat';
+  const { rate, maxMultiple } = isFlat
+    ? { rate: 0, maxMultiple: 1 }
+    : VOLUME_PRESETS[input.preset];
 
   const startKm = Math.min(
     Math.max(input.currentWeeklyKm > 0 ? input.currentWeeklyKm : tier.floorKm, tier.floorKm),
@@ -239,6 +264,26 @@ export function buildVolumeCurve(input: CurveInput): CurveWeek[] {
   );
 
   const out: CurveWeek[] = [];
+
+  // ---- descend ----
+  //
+  // Recovery runs the curve backwards: start where the runner is, come down to
+  // roughly half of it, and shorten the long run with the week. No back-off
+  // weeks, because the whole plan is one.
+  if (input.mode === 'descend') {
+    const step = weeks > 1 ? (DESCEND_START - DESCEND_FLOOR) / (weeks - 1) : 0;
+    let longRun = Math.min(
+      input.currentLongestRunKm > 0 ? input.currentLongestRunKm : startKm * 0.30,
+      startKm * LONG_RUN_SHARE_BY_GOAL[input.goal],
+    );
+    for (let w = 1; w <= weeks; w++) {
+      const factor = DESCEND_START - step * (w - 1);
+      const km = startKm * factor;
+      longRun = Math.min(longRun, km * LONG_RUN_SHARE_BY_GOAL[input.goal]);
+      out.push({ week: w, km: round1(km), longRunKm: round1(longRun), kind: 'down' });
+    }
+    return out;
+  }
 
   // ---- build ----
   let progression = startKm;
