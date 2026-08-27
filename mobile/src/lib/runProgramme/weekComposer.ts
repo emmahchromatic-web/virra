@@ -147,14 +147,18 @@ export function composeWeek(input: ComposeInput): ComposedSession[] {
     );
     if (legal.length === 0) break; // the week cannot hold another one; better none than a bad one
 
-    // Furthest from everything already placed, then the caller's ranking, then
-    // earliest day so the result is deterministic.
+    // `legal` has already enforced the recovery rules — minimum spacing, never
+    // the day after the long run — so every candidate here is a safe choice.
+    // Among safe choices the caller's ranking leads, which is what lets the
+    // cycle actually place hard work rather than merely break ties that the
+    // spacing rule almost never leaves open. Then furthest from everything
+    // already placed, then earliest day so the result is deterministic.
     const scored = legal.map((d) => ({
       day:     d,
       spacing: Math.min(circularGap(d, longDay), ...chosen.map((c) => circularGap(d, c)), 7),
       rank:    input.rankHardDay ? input.rankHardDay(d) : 0,
     }));
-    scored.sort((a, b) => b.spacing - a.spacing || a.rank - b.rank || a.day - b.day);
+    scored.sort((a, b) => a.rank - b.rank || b.spacing - a.spacing || a.day - b.day);
     chosen.push(scored[0].day);
   }
 
