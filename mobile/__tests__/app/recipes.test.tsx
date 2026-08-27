@@ -2,8 +2,9 @@ import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
 
 const mockPush = jest.fn();
+const mockBack = jest.fn();
 jest.mock('expo-router', () => ({
-  router: { push: (...a: any[]) => mockPush(...a), back: jest.fn() },
+  router: { push: (...a: any[]) => mockPush(...a), back: (...a: any[]) => mockBack(...a) },
   useLocalSearchParams: () => ({ slug: 'r1' }),
 }));
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
@@ -45,6 +46,9 @@ const mockSlotTotals   = jest.fn();
 const mockFetchPrefs   = jest.fn();
 const mockSavePrefs    = jest.fn();
 const mockFetchDetail  = jest.fn();
+const mockLogRecipe    = jest.fn();
+const mockFetchFavs    = jest.fn();
+const mockToggleFav    = jest.fn();
 jest.mock('@/lib/recipes', () => {
   const actual = jest.requireActual('@/lib/recipes');
   return {
@@ -54,8 +58,25 @@ jest.mock('@/lib/recipes', () => {
     fetchDietaryPrefs: (...a: any[]) => mockFetchPrefs(...a),
     saveDietaryPrefs:  (...a: any[]) => mockSavePrefs(...a),
     fetchRecipeDetail: (...a: any[]) => mockFetchDetail(...a),
+    logRecipe:         (...a: any[]) => mockLogRecipe(...a),
+    fetchFavouriteIds: (...a: any[]) => mockFetchFavs(...a),
+    toggleFavourite:   (...a: any[]) => mockToggleFav(...a),
   };
 });
+
+const mockGetLogId = jest.fn();
+jest.mock('@/lib/nutritionLog', () => ({
+  ...jest.requireActual('@/lib/nutritionLog'),
+  getOrCreateTodayLogId: (...a: any[]) => mockGetLogId(...a),
+}));
+
+const mockCancelReminder = jest.fn();
+jest.mock('@/lib/notifications', () => ({
+  cancelNutritionReminderForMeal: (...a: any[]) => mockCancelReminder(...a),
+}));
+
+const mockAppAlert = jest.fn();
+jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: (...a: any[]) => mockAppAlert(...a) }));
 jest.mock('@/lib/supabase', () => ({ supabase: { from: jest.fn() } }));
 
 import RecipesScreen from '@/app/(app)/(tabs)/recipes';
@@ -80,6 +101,10 @@ beforeEach(() => {
   mockSlotTotals.mockResolvedValue({ calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 });
   mockFetchPrefs.mockResolvedValue([]);
   mockSavePrefs.mockResolvedValue(true);
+  mockFetchFavs.mockResolvedValue([]);
+  mockToggleFav.mockImplementation((_u, _r, next) => Promise.resolve(next));
+  mockLogRecipe.mockResolvedValue(null);
+  mockGetLogId.mockResolvedValue('log-1');
 });
 
 const flush = async () => { await act(async () => { await Promise.resolve(); }); };
@@ -234,6 +259,111 @@ describe('the recipe detail screen', () => {
     mockFetchDetail.mockResolvedValue(null);
     const { findByText } = render(<RecipeDetailScreen />);
     expect(await findByText('That recipe is not in the book.')).toBeTruthy();
+  });
+});
+
+describe('logging a recipe', () => {
+  const detail = {
+    ...recipe(),
+    ingredients: [],
+    steps: [],
+  };
+
+  beforeEach(() => { mockFetchDetail.mockResolvedValue(detail); });
+
+  it('writes one entry carrying exactly the macros on screen', async () => {
+    const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText('Log as lunch'));
+    fireEvent.press(getByLabelText(/^Log this/));
+    await waitFor(() => expect(mockLogRecipe).toHaveBeenCalledWith({
+      logId: 'log-1', mealType: 'lunch', recipe: detail, servings: 1,
+    }));
+  });
+
+  // The button quotes a calorie figure. Logging a different number than the
+  // one on the button would be the worst possible bug in this screen.
+  it('logs the scaled servings, not the recipe as written', async () => {
+    const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText('More servings'));   // 1 -> 1.5
+    fireEvent.press(getByLabelText(/^Log this/));
+    await waitFor(() =>
+      expect(mockLogRecipe).toHaveBeenCalledWith(expect.objectContaining({ servings: 1.5 })));
+  });
+
+  it('goes back once the entry is written, and raises nothing', async () => {
+    const { findByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText(/^Log this/));
+    await waitFor(() => expect(mockBack).toHaveBeenCalled());
+    expect(mockAppAlert).not.toHaveBeenCalled();
+  });
+
+  it('clears the meal reminder for a real meal but not for a snack', async () => {
+    const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText('Log as dinner'));
+    fireEvent.press(getByLabelText(/^Log this/));
+    await waitFor(() => expect(mockCancelReminder).toHaveBeenCalledWith('dinner'));
+
+    mockCancelReminder.mockClear();
+    fireEvent.press(getByLabelText('Log as snack'));
+    fireEvent.press(getByLabelText(/^Log this/));
+    await waitFor(() => expect(mockLogRecipe).toHaveBeenCalledTimes(2));
+    expect(mockCancelReminder).not.toHaveBeenCalled();
+  });
+
+  it('says so and stays put when the write fails', async () => {
+    mockLogRecipe.mockResolvedValue('network is down');
+    const { findByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText(/^Log this/));
+    await waitFor(() => expect(mockAppAlert).toHaveBeenCalledWith('Could not log that', 'network is down'));
+    expect(mockBack).not.toHaveBeenCalled();
+  });
+
+  it('does not write an entry when today\'s log cannot be opened', async () => {
+    mockGetLogId.mockResolvedValue(null);
+    const { findByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText(/^Log this/));
+    await waitFor(() => expect(mockAppAlert).toHaveBeenCalled());
+    expect(mockLogRecipe).not.toHaveBeenCalled();
+  });
+});
+
+describe('favourites', () => {
+  const detail = { ...recipe(), ingredients: [], steps: [] };
+  beforeEach(() => { mockFetchDetail.mockResolvedValue(detail); });
+
+  it('saves a recipe and shows it as saved', async () => {
+    const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText('Save to favourites'));
+    await waitFor(() => expect(mockToggleFav).toHaveBeenCalledWith('u1', 'r1', true));
+    expect(getByLabelText('Remove from favourites')).toBeTruthy();
+  });
+
+  it('opens already saved when it is a favourite', async () => {
+    mockFetchFavs.mockResolvedValue(['r1']);
+    const { findByLabelText } = render(<RecipeDetailScreen />);
+    expect(await findByLabelText('Remove from favourites')).toBeTruthy();
+  });
+
+  // Optimistic, so a failure has to put the heart back or the screen would
+  // claim something the database does not hold.
+  it('rolls the heart back when the write fails', async () => {
+    mockToggleFav.mockResolvedValue(null);
+    const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText('Save to favourites'));
+    await waitFor(() => expect(mockAppAlert).toHaveBeenCalled());
+    expect(getByLabelText('Save to favourites')).toBeTruthy();
+  });
+
+  it('gives saved recipes their own rail on the tab', async () => {
+    mockFetchFavs.mockResolvedValue(['r1']);
+    const { findByText } = render(<RecipesScreen />);
+    expect(await findByText('SAVED')).toBeTruthy();
+  });
+
+  it('has no saved rail when nothing is saved', async () => {
+    const { queryByText, findAllByText } = render(<RecipesScreen />);
+    await findAllByText('Mini Frittata Bites');
+    expect(queryByText('SAVED')).toBeNull();
   });
 });
 

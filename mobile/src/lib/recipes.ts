@@ -322,3 +322,115 @@ export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
     r.name.toLowerCase().includes(q) ||
     r.collectionLabel.toLowerCase().includes(q));
 }
+
+// ---------------------------------------------------------------------------
+// Logging a recipe
+// ---------------------------------------------------------------------------
+
+/**
+ * Write ONE food_entries row for a recipe, not one per ingredient.
+ *
+ * The day view stays readable and the whole meal deletes in one tap. It also
+ * works whatever macro granularity the content came with, which is why this is
+ * the only shape available: a source that gives per-serving totals only has no
+ * per-ingredient rows to write.
+ *
+ * `quantity_g` is deliberately left null. Nobody weighed the finished dish, and
+ * a gram figure invented here would be a fiction the rest of the food log does
+ * not tell. The serving count travels in `food_name` instead.
+ *
+ * Returns null on success, or a message to show the user.
+ */
+export async function logRecipe(args: {
+  logId:    string;
+  mealType: MealType;
+  recipe:   Pick<Recipe, 'id' | 'name' | 'calories' | 'carbs_g' | 'protein_g' | 'fat_g' | 'fibre_g'>;
+  servings: number;
+}): Promise<string | null> {
+  const scaled = scaleServings(args.recipe, args.servings);
+
+  const { error } = await supabase.from('food_entries').insert({
+    log_id:        args.logId,
+    meal_type:     args.mealType,
+    food_name:     recipeEntryName(args.recipe.name, args.servings),
+    quantity_g:    null,
+    quantity_unit: 'g',
+    calories:      scaled.calories,
+    carbs_g:       scaled.carbs_g,
+    protein_g:     scaled.protein_g,
+    fat_g:         scaled.fat_g,
+    // fibre_g is NOT NULL on food_entries, so an unknown has to land as 0
+    // here. The recipe row keeps the null, which is where the truth lives.
+    fibre_g:       scaled.fibre_g ?? 0,
+    source:        'recipe',
+    recipe_id:     args.recipe.id,
+  });
+
+  if (error) {
+    console.warn('[recipes] logRecipe failed:', error.message);
+    return error.message;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Favourites
+// ---------------------------------------------------------------------------
+
+export async function fetchFavouriteIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('recipe_favourites')
+    .select('recipe_id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('[recipes] fetchFavouriteIds failed:', error.message);
+    return [];
+  }
+  return (data ?? []).map((r: { recipe_id: string }) => r.recipe_id);
+}
+
+/**
+ * Toggle a favourite. Returns the resulting state, or null if it failed, so a
+ * caller that optimistically flipped the heart knows to put it back.
+ */
+export async function toggleFavourite(
+  userId:   string,
+  recipeId: string,
+  next:     boolean,
+): Promise<boolean | null> {
+  const { error } = next
+    ? await supabase.from('recipe_favourites').upsert(
+        { user_id: userId, recipe_id: recipeId },
+        { onConflict: 'user_id,recipe_id' },
+      )
+    : await supabase.from('recipe_favourites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('recipe_id', recipeId);
+
+  if (error) {
+    console.warn('[recipes] toggleFavourite failed:', error.message);
+    return null;
+  }
+  return next;
+}
+
+// ---------------------------------------------------------------------------
+// Tiering
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether a subscription covers a recipe.
+ *
+ * `min_tier` is null on every recipe today, when the whole tab sits behind the
+ * single existing paywall, so this is an identity function in practice. It
+ * exists as one helper rather than an inline check so that splitting the book
+ * across tiers later is a change in one place plus a data update, which is the
+ * whole reason the column was carried in the schema.
+ */
+export function isRecipeUnlocked(recipe: Pick<Recipe, 'minTier'>, userTier: string | null): boolean {
+  if (!recipe.minTier) return true;
+  return userTier === recipe.minTier;
+}

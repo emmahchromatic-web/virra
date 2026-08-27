@@ -19,7 +19,7 @@ export interface FoodEntry {
   fibre_g:      number;
   quantity_g:   number | null;
   quantity_unit?: FoodUnit | string | null;
-  source?:      'manual' | 'common' | 'off' | 'barcode' | 'haiku';
+  source?:      'manual' | 'common' | 'off' | 'barcode' | 'haiku' | 'recipe';
   haiku_input?: string | null;
   log_id?:      string;
 }
