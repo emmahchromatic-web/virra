@@ -17,7 +17,7 @@ import { useCycleStore } from '@/store/cycle';
 import { useProfileStore, personalMetricsFields } from '@/store/profile';
 import {
   fetchRecipes, fetchSlotTotals, fetchDietaryPrefs, saveDietaryPrefs,
-  groupByCollection, searchRecipes, type Recipe,
+  fetchFavouriteIds, groupByCollection, searchRecipes, type Recipe,
 } from '@/lib/recipes';
 import { rankRecipes, recipesForPhase, remainingForSlot } from '@/lib/recipeMatch';
 import { defaultMealSlot, type MealType } from '@/lib/nutritionLog';
@@ -28,12 +28,12 @@ import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
  * The recipe book. Replaces the holding page left when the education library
  * was descoped (card 214).
  *
- * Two personalised rails sit above the collections: what suits today's cycle
- * phase, and what fits the macros still left in the current meal slot. Both
- * are ordered by recipeMatch.ts, which is a pure function and carries the
+ * Rails sit above the collections: what she has saved, what suits today's cycle
+ * phase, and what fits the macros still left in the current meal slot. The last
+ * two are ordered by recipeMatch.ts, which is a pure function and carries the
  * reasoning; this screen only fetches and renders.
  *
- * Nothing here writes a food entry. Logging a recipe is PR 3.
+ * Logging happens on the detail screen, not here.
  */
 
 const DIETARY_ASKED_KEY = 'virra:recipes_dietary_asked';
@@ -84,19 +84,24 @@ function RailCard({ recipe }: { recipe: Recipe }) {
           <SectionLabel tone="muted">{recipe.collectionLabel}</SectionLabel>
           {time && <VirraText variant="mono" size={10} color={colors.muted}>{time}</VirraText>}
         </View>
-        <VirraText variant="display" size={19} color={colors.breath} numberOfLines={2}>
-          {recipe.name}
-        </VirraText>
-        <VirraText variant="mono" size={11} color={colors.pulse}>{macroLine(recipe)}</VirraText>
-        {recipe.dietary.length > 0 && (
-          <View style={styles.chips}>
-            {recipe.dietary.map((d) => (
-              <View key={d} style={styles.chip}>
-                <VirraText variant="mono" size={9} color={colors.slate}>{d.toUpperCase()}</VirraText>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* Bottom-aligned block. Cards in a rail share a height so the row is
+            tidy, and a recipe with no dietary tags would otherwise leave a
+            hole under its macros rather than looking deliberately spaced. */}
+        <View style={styles.railBody}>
+          <VirraText variant="display" size={19} color={colors.breath} numberOfLines={2}>
+            {recipe.name}
+          </VirraText>
+          <VirraText variant="mono" size={11} color={colors.pulse}>{macroLine(recipe)}</VirraText>
+          {recipe.dietary.length > 0 && (
+            <View style={styles.chips}>
+              {recipe.dietary.map((d) => (
+                <View key={d} style={styles.chip}>
+                  <VirraText variant="mono" size={9} color={colors.slate}>{d.toUpperCase()}</VirraText>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </VirraCard>
     </Pressable>
   );
@@ -216,6 +221,7 @@ export default function RecipesScreen() {
   const [prefs,     setPrefs]     = useState<string[]>([]);
   const [askDiet,   setAskDiet]   = useState(false);
   const [slotEaten, setSlotEaten] = useState({ calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 });
+  const [favIds,    setFavIds]    = useState<string[]>([]);
 
   const slot  = defaultMealSlot();
   const today = new Date().toISOString().split('T')[0];
@@ -261,6 +267,10 @@ export default function RecipesScreen() {
     if (session) {
       fetchSlotTotals(session.user.id, today, slot)
         .then((t) => { if (!cancelled) setSlotEaten(t); });
+      // Re-read on focus so a heart tapped on the detail screen is reflected
+      // the moment she comes back.
+      fetchFavouriteIds(session.user.id)
+        .then((ids) => { if (!cancelled) setFavIds(ids); });
     }
     return () => { cancelled = true; };
   }, [session, today, slot]));
@@ -275,6 +285,10 @@ export default function RecipesScreen() {
   const phaseRail = recipesForPhase(recipes, phase, ctx);
   const fitsRail  = rankRecipes(recipes, ctx);
   const groups    = groupByCollection(recipes);
+  // Ordered by when they were favourited, which fetchFavouriteIds already does.
+  const favourites = favIds
+    .map((id) => recipes.find((r) => r.id === id))
+    .filter((r): r is Recipe => Boolean(r));
 
   async function handleDietaryDone(next: string[]) {
     setAskDiet(false);
@@ -338,6 +352,8 @@ export default function RecipesScreen() {
           <>
             {askDiet && <DietaryPrompt onDone={handleDietaryDone} />}
 
+            <Rail label="SAVED" recipes={favourites} />
+
             <Rail label="FOR YOUR PHASE" recipes={phaseRail} />
 
             <Rail
@@ -379,7 +395,8 @@ const styles = StyleSheet.create({
 
   railScroll:    { gap: spacing.sm, paddingRight: spacing.lg },
   railCard:      { width: 236 },
-  railCardInner: { gap: spacing.xs, minHeight: 132 },
+  railCardInner: { minHeight: 132, justifyContent: 'space-between' },
+  railBody:      { gap: spacing.xs },
   railTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
   row:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
