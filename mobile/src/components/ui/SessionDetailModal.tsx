@@ -159,9 +159,10 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
       ? adjustedPaceSecs
       : (isRun ? r.pace_target_secs : 0);
 
-    // Hero target: total distance from the structure if present (sum of all step
-    // distances, matching what the user sees in the step list); otherwise the
-    // planned distance for legacy rows.
+    // Hero target. distance_km is now taken from the session's own structure
+    // upstream, so these agree rather than being two answers to the same
+    // question — see getDaySessionDetail. The structure is still preferred
+    // because it reflects cycle modulation.
     const heroDistanceKm = isRun
       ? (r.modulated_structure?.total_distance_m
           ? r.modulated_structure.total_distance_m / 1000

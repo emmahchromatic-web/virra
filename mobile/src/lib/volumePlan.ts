@@ -81,16 +81,6 @@ export interface DayDetail {
   volume_adjustment_note: string | null;
 }
 
-// Input type for the pure redistribution function (exported for tests)
-export interface WeekInput {
-  week_number: number;
-  original_km: number;
-  phase:       CyclePhase | null;
-  is_current:  boolean;
-  is_past:     boolean;
-  is_taper:    boolean;
-}
-
 // ---- Constants ----
 
 const RACE_DISTANCES: Record<string, number | null> = {
@@ -171,57 +161,6 @@ export function formatPace(secondsPerKm: number): string {
   const mins  = Math.floor(total / 60);
   const secs  = total % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}/km`;
-}
-
-// Pure redistribution: takes remaining km and week metadata, returns adjusted km per week.
-// Past weeks always get 0 (their original_km is already counted in completed_km).
-export function _redistributeKm(remainingKm: number, weeks: WeekInput[]): number[] {
-  const remaining = weeks.filter((w) => !w.is_past);
-  if (!remaining.length) return weeks.map(() => 0);
-
-  // Weights: phase × front-load decay (0-indexed within remaining weeks)
-  const rawWeights = remaining.map((w, i) => {
-    const phaseW = PHASE_WEIGHT[w.phase ?? ''] ?? 1.0;
-    return phaseW * Math.pow(0.92, i);
-  });
-  const totalWeight = rawWeights.reduce((a, b) => a + b, 0);
-
-  // Initial allocation
-  let alloc = remaining.map((w, i) => remainingKm * rawWeights[i] / totalWeight);
-
-  // Apply caps: taper weeks → original_km; others → 1.30 × original_km
-  let overflow = 0;
-  const uncappedIdx: number[] = [];
-  alloc = alloc.map((km, i) => {
-    const cap = remaining[i].is_taper
-      ? remaining[i].original_km
-      : remaining[i].original_km * 1.30;
-    if (km > cap) {
-      overflow += km - cap;
-      return cap;
-    }
-    uncappedIdx.push(i);
-    return km;
-  });
-
-  // Redistribute overflow evenly to uncapped weeks (best-effort)
-  if (overflow > 0 && uncappedIdx.length > 0) {
-    const extra = overflow / uncappedIdx.length;
-    uncappedIdx.forEach((i) => {
-      const cap = remaining[i].is_taper
-        ? remaining[i].original_km
-        : remaining[i].original_km * 1.30;
-      alloc[i] = Math.min(cap, alloc[i] + extra);
-    });
-  }
-
-  // Map back to full weeks array (past → 0)
-  const result: number[] = [];
-  let ri = 0;
-  for (const w of weeks) {
-    result.push(w.is_past ? 0 : (alloc[ri++] ?? 0));
-  }
-  return result;
 }
 
 // Distribute a week's km budget across sessions by label weight.
@@ -362,6 +301,26 @@ export function getSessionPaceTarget(
 
 // ---- 1c. Weekly volume plan ----
 
+/**
+ * The weekly shape of a block, read from the sessions that actually exist.
+ *
+ * Two things changed here together, and they are the same change.
+ *
+ * It used to read the template's `sessions_json`, which stopped being true the
+ * moment plans started being generated for the runner rather than copied from a
+ * template — the template is now presentation, not content.
+ *
+ * And it used to REDISTRIBUTE: missed volume was quietly spread across the
+ * remaining weeks, inflating them by up to 30%, with a reassuring message when
+ * the sum stopped working. The runner never saw any of it, because the session
+ * card read its distance from the stored structure rather than from the
+ * redistributed figure. Reassuring arithmetic performed on someone's behalf,
+ * invisible to them, is not adaptation. Missing training is now handled by
+ * asking — see runProgramme/realignment.ts.
+ *
+ * So: planned volume comes from the sessions themselves, completed volume from
+ * the activities linked to them, and nothing is moved without being asked.
+ */
 export async function getWeeklyVolumePlan(
   userId:     string,
   blockId:    string,
@@ -372,108 +331,80 @@ export async function getWeeklyVolumePlan(
     weeks: [], total_km: 0, completed_km: 0, remaining_km: 0, deficit_message: null,
   };
 
-  // Fetch block + template + sessions_json
   const { data: block, error: blockErr } = await supabase
     .from('training_blocks')
-    .select('starts_on, event_id, template:plan_templates(sessions_json, distance_goal)')
+    .select('starts_on')
     .eq('id', blockId)
     .single();
 
   if (blockErr) console.error('[volumePlan] getWeeklyVolumePlan training_blocks fetch:', blockErr.message);
-  if (!block) return EMPTY;
-  if (!block.starts_on) return EMPTY;
+  if (!block?.starts_on) return EMPTY;
 
-  const sessionsJson: Array<{ week: number; km: number }> =
-    (block.template as any)?.sessions_json ?? [];
-  if (!sessionsJson.length) return EMPTY;
-
-  const total_km = sessionsJson.reduce((sum, w) => sum + (w.km ?? 0), 0);
-
-  // Completed km from linked activities
-  const { data: completedLinks, error: linksErr } = await supabase
+  const { data: rows, error: rowsErr } = await supabase
     .from('planned_sessions')
-    .select('activity_id')
+    .select('week_number, status, activity_id, run_structure')
     .eq('block_id', blockId)
-    .eq('status', 'completed')
-    .not('activity_id', 'is', null);
+    .eq('modality', 'run')
+    .in('status', ['planned', 'completed']);
 
-  if (linksErr) console.error('[volumePlan] getWeeklyVolumePlan completedLinks fetch:', linksErr.message);
+  if (rowsErr) console.error('[volumePlan] getWeeklyVolumePlan planned_sessions fetch:', rowsErr.message);
+  if (!rows?.length) return EMPTY;
+
+  const plannedByWeek = new Map<number, number>();
+  const activityIds: string[] = [];
+  for (const r of rows as Array<{ week_number: number; activity_id: string | null; run_structure: RunWorkoutStructure | null }>) {
+    const km = (r.run_structure?.total_distance_m ?? 0) / 1000;
+    plannedByWeek.set(r.week_number, (plannedByWeek.get(r.week_number) ?? 0) + km);
+    if (r.activity_id) activityIds.push(r.activity_id);
+  }
 
   let completed_km = 0;
-  const actIds = (completedLinks ?? []).map((r: any) => r.activity_id).filter(Boolean);
-  if (actIds.length > 0) {
+  if (activityIds.length > 0) {
     const { data: acts, error: actsErr } = await supabase
       .from('activities')
       .select('distance_meters')
-      .in('id', actIds);
+      .in('id', activityIds);
     if (actsErr) console.error('[volumePlan] getWeeklyVolumePlan activities fetch:', actsErr.message);
-    completed_km = (acts ?? []).reduce(
-      (sum: number, a: any) => sum + (a.distance_meters ?? 0) / 1000,
-      0,
-    );
+    completed_km = (acts ?? []).reduce((sum: number, a: any) => sum + (a.distance_meters ?? 0) / 1000, 0);
   }
 
-  const remaining_km = Math.max(0, total_km - completed_km);
+  const startsOn  = new Date(`${block.starts_on}T00:00:00`);
+  const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+  const currentWeek = Math.floor((Date.now() - startsOn.getTime()) / msPerWeek) + 1;
 
-  // Determine current week index from starts_on
-  const startsOn    = new Date(`${block.starts_on}T00:00:00`);
-  const today       = new Date();
-  const msPerWeek   = 7 * 24 * 60 * 60 * 1000;
-  const currentWeek = Math.floor((today.getTime() - startsOn.getTime()) / msPerWeek) + 1;
+  const weeks: WeekVolumePlan[] = [...plannedByWeek.keys()]
+    .sort((a, b) => a - b)
+    .map((weekNumber) => {
+      const original = plannedByWeek.get(weekNumber) ?? 0;
+      const weekStart = new Date(startsOn.getTime() + (weekNumber - 1) * msPerWeek);
+      let phase: CyclePhase | null = null;
+      if (cycleStore.periodStart) {
+        phase = getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, weekStart)?.phase ?? null;
+      }
+      const isPast = weekNumber < currentWeek;
+      return {
+        week_number: weekNumber,
+        original_km: Math.round(original * 10) / 10,
+        // Load scaling still applies: a stacked gym block genuinely does take
+        // capacity from the run block, and the runner is told that it has.
+        adjusted_km: Math.round(original * (isPast ? 1 : loadScale) * 10) / 10,
+        phase,
+        is_current:  weekNumber === currentWeek,
+        is_past:     isPast,
+      };
+    });
 
-  // Build week metadata with cycle phase projection
-  const weekInputs: WeekInput[] = sessionsJson.map((w, i) => {
-    const weekStart = new Date(startsOn.getTime() + i * msPerWeek);
-    let phase: CyclePhase | null = null;
-    if (cycleStore.periodStart) {
-      const info = getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, weekStart);
-      phase = info?.phase ?? null;
-    }
-    const isPast  = w.week < currentWeek;
-    const isTaper = i > 0 && w.km < sessionsJson[i - 1].km;
-    return {
-      week_number: w.week,
-      original_km: w.km,
-      phase,
-      is_current: w.week === currentWeek,
-      is_past:    isPast,
-      is_taper:   isTaper,
-    };
-  });
+  const total_km = Math.round(weeks.reduce((sum, w) => sum + w.original_km, 0) * 10) / 10;
 
-  const adjustedKms = _redistributeKm(remaining_km, weekInputs);
-
-  const achievableKm = adjustedKms.reduce((sum, km) => sum + km, 0) + completed_km;
-  const deficit_km   = Math.max(0, total_km - achievableKm - 0.5); // 0.5 km tolerance
-
-  let deficit_message: string | null = null;
-  if (deficit_km > 0) {
-    const distGoal = (block.template as any)?.distance_goal ?? null;
-    const raceKm   = distGoal ? (RACE_DISTANCES[distGoal] ?? null) : null;
-
-    if (raceKm) {
-      const { seconds_per_km: goalPaceSecs } = await getGoalPace(userId, blockId, null);
-      const deficitRatio = deficit_km / total_km;
-      const revisedPace  = goalPaceSecs * (1 + deficitRatio * 0.3);
-      deficit_message    = `Whilst you've missed some sessions, your goal is still within reach. Hit the remaining sessions and aim for a revised pace of ${formatPace(revisedPace)} on race day.`;
-    } else {
-      deficit_message =
-        "Whilst you've missed some sessions, your goal is still within reach. Hit the remaining sessions to give yourself the best chance.";
-    }
-  }
-
-  const weeks: WeekVolumePlan[] = weekInputs.map((w, i) => ({
-    week_number: w.week_number,
-    original_km: w.original_km,
-    adjusted_km: w.is_past
-      ? w.original_km
-      : Math.round(adjustedKms[i] * loadScale * 10) / 10,
-    phase:       w.phase,
-    is_current:  w.is_current,
-    is_past:     w.is_past,
-  }));
-
-  return { weeks, total_km, completed_km, remaining_km, deficit_message };
+  return {
+    weeks,
+    total_km,
+    completed_km: Math.round(completed_km * 10) / 10,
+    remaining_km: Math.round(Math.max(0, total_km - completed_km) * 10) / 10,
+    // Retired with the redistribution it existed to explain. Missing sessions
+    // is now a conversation, not a recalculation.
+    deficit_message: null,
+  };
 }
 
 // ---- 1d. Day session detail ----
@@ -623,10 +554,15 @@ export async function getDaySessionDetail(
 
       if (weekSessionsErr) console.error('[volumePlan] getDaySessionDetail weekSessions fetch:', weekSessionsErr.message);
 
+      // Distance comes from the session's own structure. It used to come from
+      // a share of the redistributed weekly total, while the card's headline
+      // read the structure — two different numbers for the same run, and the
+      // runner only ever saw one of them. One source now.
       const distMap = distributeWeeklyKm(weekSessions ?? [], weekAdjKm);
 
       for (const s of runSessions) {
-        const distance_km      = distMap[s.id] ?? 0;
+        const structureKm = ((s as { run_structure?: RunWorkoutStructure | null }).run_structure?.total_distance_m ?? 0) / 1000;
+        const distance_km = structureKm > 0 ? Math.round(structureKm * 10) / 10 : (distMap[s.id] ?? 0);
         const pace_target_secs = getSessionPaceTarget(goalPace.seconds_per_km, s.session_label, phaseForDate);
         const estimated_minutes = pace_target_secs > 0
           ? Math.round(distance_km * pace_target_secs / 60)
