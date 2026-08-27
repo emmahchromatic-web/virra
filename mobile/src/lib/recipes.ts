@@ -220,3 +220,105 @@ export function scaleIngredientQuantity(
   if (quantity === null || serves <= 0) return null;
   return Math.round((quantity / serves) * servings * 10) / 10;
 }
+
+// ---------------------------------------------------------------------------
+// Context the "fits what's left today" rail needs
+// ---------------------------------------------------------------------------
+
+/**
+ * What has already been logged into one meal slot today.
+ *
+ * The rail scores against what is LEFT in a slot, so it needs the slot's
+ * running total rather than the day's. Returns zeroes on any failure: an
+ * empty slot ranks recipes against the full share, which is the same thing
+ * the screen shows a user who has not logged anything yet.
+ */
+export async function fetchSlotTotals(
+  userId:  string,
+  dateISO: string,
+  slot:    MealType,
+): Promise<{ calories: number; carbs_g: number; protein_g: number; fat_g: number }> {
+  const empty = { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 };
+
+  const { data: log, error: logError } = await supabase
+    .from('nutrition_logs')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('recorded_on', dateISO)
+    .maybeSingle();
+
+  if (logError || !log) return empty;
+
+  const { data, error } = await supabase
+    .from('food_entries')
+    .select('calories, carbs_g, protein_g, fat_g')
+    .eq('log_id', log.id)
+    .eq('meal_type', slot);
+
+  if (error) {
+    console.warn('[recipes] fetchSlotTotals failed:', error.message);
+    return empty;
+  }
+
+  return (data ?? []).reduce((acc, e) => ({
+    calories:  acc.calories  + Number(e.calories  ?? 0),
+    carbs_g:   acc.carbs_g   + Number(e.carbs_g   ?? 0),
+    protein_g: acc.protein_g + Number(e.protein_g ?? 0),
+    fat_g:     acc.fat_g     + Number(e.fat_g     ?? 0),
+  }), empty);
+}
+
+/**
+ * The user's stored dietary requirements.
+ *
+ * `user_profiles.dietary_prefs` predates the removal of the onboarding diet
+ * step, so almost every account has an empty array here. The Recipes tab asks
+ * for it on first open, which is the first point in the app where the answer
+ * changes what somebody sees.
+ */
+export async function fetchDietaryPrefs(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('dietary_prefs')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[recipes] fetchDietaryPrefs failed:', error.message);
+    return [];
+  }
+  return (data?.dietary_prefs as string[] | null) ?? [];
+}
+
+export async function saveDietaryPrefs(userId: string, prefs: string[]): Promise<boolean> {
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ dietary_prefs: prefs })
+    .eq('id', userId);
+
+  if (error) {
+    console.warn('[recipes] saveDietaryPrefs failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
+/** Recipes grouped into their collections, preserving the fetched order. */
+export function groupByCollection(recipes: Recipe[]): { collection: string; label: string; recipes: Recipe[] }[] {
+  const out: { collection: string; label: string; recipes: Recipe[] }[] = [];
+  for (const r of recipes) {
+    const found = out.find((g) => g.collection === r.collection);
+    if (found) found.recipes.push(r);
+    else out.push({ collection: r.collection, label: r.collectionLabel, recipes: [r] });
+  }
+  return out;
+}
+
+/** Case- and accent-insensitive name search, matching on any word prefix. */
+export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return recipes;
+  return recipes.filter((r) =>
+    r.name.toLowerCase().includes(q) ||
+    r.collectionLabel.toLowerCase().includes(q));
+}
