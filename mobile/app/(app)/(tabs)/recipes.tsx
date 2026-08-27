@@ -84,19 +84,24 @@ function RailCard({ recipe }: { recipe: Recipe }) {
           <SectionLabel tone="muted">{recipe.collectionLabel}</SectionLabel>
           {time && <VirraText variant="mono" size={10} color={colors.muted}>{time}</VirraText>}
         </View>
-        <VirraText variant="display" size={19} color={colors.breath} numberOfLines={2}>
-          {recipe.name}
-        </VirraText>
-        <VirraText variant="mono" size={11} color={colors.pulse}>{macroLine(recipe)}</VirraText>
-        {recipe.dietary.length > 0 && (
-          <View style={styles.chips}>
-            {recipe.dietary.map((d) => (
-              <View key={d} style={styles.chip}>
-                <VirraText variant="mono" size={9} color={colors.slate}>{d.toUpperCase()}</VirraText>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* Bottom-aligned block. Cards in a rail share a height so the row is
+            tidy, and a recipe with no dietary tags would otherwise leave a
+            hole under its macros rather than looking deliberately spaced. */}
+        <View style={styles.railBody}>
+          <VirraText variant="display" size={19} color={colors.breath} numberOfLines={2}>
+            {recipe.name}
+          </VirraText>
+          <VirraText variant="mono" size={11} color={colors.pulse}>{macroLine(recipe)}</VirraText>
+          {recipe.dietary.length > 0 && (
+            <View style={styles.chips}>
+              {recipe.dietary.map((d) => (
+                <View key={d} style={styles.chip}>
+                  <VirraText variant="mono" size={9} color={colors.slate}>{d.toUpperCase()}</VirraText>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
       </VirraCard>
     </Pressable>
   );
@@ -390,7 +395,8 @@ const styles = StyleSheet.create({
 
   railScroll:    { gap: spacing.sm, paddingRight: spacing.lg },
   railCard:      { width: 236 },
-  railCardInner: { gap: spacing.xs, minHeight: 132 },
+  railCardInner: { minHeight: 132, justifyContent: 'space-between' },
+  railBody:      { gap: spacing.xs },
   railTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
   row:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

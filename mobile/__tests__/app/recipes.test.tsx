@@ -249,6 +249,13 @@ describe('the recipe detail screen', () => {
 
   // Null fibre means "not known", and rendering it as 0 would be a claim we
   // cannot support.
+  // Both facts were bare text next to a pill, so "5 MIN" and "MAKES 1" ran
+  // together into one unreadable string on device.
+  it('separates the time from the serving count', async () => {
+    const { findByText } = render(<RecipeDetailScreen />);
+    expect(await findByText(/30 MIN\s+\u00b7\s+MAKES 6/)).toBeTruthy();
+  });
+
   it('shows a dash for unknown fibre rather than zero', async () => {
     mockFetchDetail.mockResolvedValue({ ...detail, fibre_g: null });
     const { findByText } = render(<RecipeDetailScreen />);

@@ -151,3 +151,43 @@ describe('seed hygiene', () => {
     for (const title of exceedTitles) expect(sql).not.toContain(title);
   });
 });
+
+/**
+ * The widening migration (20260827000000). Found on device: the rail filters on
+ * `meal_types` containing the current slot, and with the original seed most
+ * slots had exactly one candidate, so the rail rendered a single card.
+ */
+describe('meal-slot coverage after the widening migration', () => {
+  const WIDENED = path.join(__dirname, '../../supabase/migrations/20260827000000_recipe_meal_types_widened.sql');
+  const widening = fs.readFileSync(WIDENED, 'utf8');
+
+  const slotsById: Record<string, string[]> = {};
+  const stmt = /set meal_types = array\[([^\]]+)\]::text\[\]\s*where id = '([a-z0-9-]+)'/g;
+  let m: RegExpExecArray | null;
+  while ((m = stmt.exec(widening)) !== null) {
+    slotsById[m[2]] = m[1].split(',').map((s) => s.trim().replace(/'/g, ''));
+  }
+
+  it('updates all four recipes', () => {
+    expect(Object.keys(slotsById).sort()).toEqual([
+      'biscoff-overnight-oats', 'fruity-cous-cous',
+      'mini-frittata-bites', 'prawn-pineapple-stir-fry',
+    ]);
+  });
+
+  // The whole point of the change. One candidate is not a rail.
+  it.each(['breakfast', 'lunch', 'dinner', 'snack'])(
+    'leaves at least two recipes offered at %s',
+    (slot) => {
+      const n = Object.values(slotsById).filter((s) => s.includes(slot)).length;
+      expect(n).toBeGreaterThanOrEqual(2);
+    },
+  );
+
+  it('only ever uses real meal slots', () => {
+    const allowed = ['breakfast', 'lunch', 'dinner', 'snack'];
+    for (const slots of Object.values(slotsById)) {
+      for (const s of slots) expect(allowed).toContain(s);
+    }
+  });
+});

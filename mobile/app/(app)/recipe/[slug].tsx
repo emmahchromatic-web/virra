@@ -213,11 +213,12 @@ export default function RecipeDetailScreen() {
               </VirraText>
             )}
             <View style={styles.metaRow}>
-              {time > 0 && (
-                <VirraText variant="mono" size={11} color={colors.muted}>{time} MIN</VirraText>
-              )}
+              {/* Facts read as plain text and tags as pills, so the two are
+                  told apart at a glance. The separator matters: without it
+                  "5 MIN" and "MAKES 1" ran together into one string. */}
               <VirraText variant="mono" size={11} color={colors.muted}>
-                MAKES {recipe.serves}
+                {[time > 0 ? `${time} MIN` : null, `MAKES ${recipe.serves}`]
+                  .filter(Boolean).join('  \u00b7  ')}
               </VirraText>
               {recipe.dietary.map((d) => (
                 <View key={d} style={styles.chip}>
