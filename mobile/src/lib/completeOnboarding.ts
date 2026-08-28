@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import type { OnboardingData } from '@/context/OnboardingContext';
@@ -113,14 +113,15 @@ export async function completeOnboarding(
   let avatarFailed = false;
   if (data.localAvatarUri) {
     try {
-      const path   = `${userId}/avatar.jpg`;
-      const base64 = await FileSystem.readAsStringAsync(data.localAvatarUri, { encoding: 'base64' });
-      const binary = atob(base64);
-      const bytes  = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const path = `${userId}/avatar.jpg`;
+      // expo-file-system 19 (SDK 54) moved readAsStringAsync to the /legacy
+      // entry point, so `FileSystem.readAsStringAsync` is undefined here and
+      // calling it threw on every single onboarding upload. The profile screen
+      // already uses the current API; this is the same call. Card 224.
+      const bytes = await new File(data.localAvatarUri).bytes();
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(path, bytes.buffer, { contentType: 'image/jpeg', upsert: true });
+        .upload(path, bytes, { contentType: 'image/jpeg', upsert: true });
       if (uploadError) {
         console.error('[onboarding] avatar upload rejected:', uploadError.message);
         avatarFailed = true;
