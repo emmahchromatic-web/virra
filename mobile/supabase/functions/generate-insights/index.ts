@@ -6,7 +6,7 @@ type CyclePhase  = "menstrual" | "follicular" | "ovulatory" | "luteal";
 
 const VALID_PHASES  = new Set<string>(["menstrual","follicular","ovulatory","luteal"]);
 const JSON_HEADERS  = { "Content-Type": "application/json" };
-const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Current phase context will follow.`;
+const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Never use em-dashes; use full stops, commas or colons instead. Current phase context will follow.`;
 
 function err(msg: string, status: number): Response {
   return new Response(JSON.stringify({ error: msg }), { status, headers: JSON_HEADERS });
@@ -184,12 +184,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const isInsufficient = activities.length === 0 && (plannedFutureRes.data ?? []).length === 0;
   if (isInsufficient) {
-    // Not enough signal — fall back to phase-only text, don't call Haiku
+    // Not enough signal, so fall back to phase-only text and don't call Haiku
     const phaseDefaults: Record<string, { training: string; nutrition: string }> = {
-      menstrual:  { training: "Rest and restore — gentle movement only today.", nutrition: "Iron-rich foods support your recovery this phase." },
+      menstrual:  { training: "Rest and restore. Gentle movement only today.", nutrition: "Iron-rich foods support your recovery this phase." },
       follicular: { training: "Energy is rising. This is a great time to build intensity.", nutrition: "Lean protein and complex carbs fuel adaptation." },
       ovulatory:  { training: "Your peak performance window. Push hard today.", nutrition: "High-carb fuelling matches your body's readiness." },
-      luteal:     { training: "Moderate effort. Honour fatigue signals — they are real.", nutrition: "Carbs curb cravings and support mood this phase." },
+      luteal:     { training: "Moderate effort. Your fatigue signals are real, so honour them.", nutrition: "Carbs curb cravings and support mood this phase." },
     };
     const defaults = phaseDefaults[safePhase ?? "follicular"];
     return new Response(
