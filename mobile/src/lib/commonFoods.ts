@@ -52,6 +52,7 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'lamb-s-liver-raw', name: 'Lamb\'s liver', detail: 'raw', serving_g: 100, calories: 137, carbs_g: 1.6, protein_g: 20, fat_g: 6, fibre_g: 0 },
   { id: 'chicken-liver-raw', name: 'Chicken liver', detail: 'raw', serving_g: 100, calories: 119, carbs_g: 0.7, protein_g: 19, fat_g: 4.5, fibre_g: 0 },
 
+  { id: 'bacon-medallions', name: 'Bacon medallions', detail: 'raw, trimmed', serving_g: 50, calories: 120, carbs_g: 0.5, protein_g: 22, fat_g: 3.5, fibre_g: 0, meals: ['breakfast'] },
   // Fish & Seafood
   { id: 'cod-fillet-raw', name: 'Cod fillet', detail: 'raw', serving_g: 100, calories: 76, carbs_g: 0, protein_g: 17.4, fat_g: 0.6, fibre_g: 0 },
   { id: 'haddock-fillet-raw', name: 'Haddock fillet', detail: 'raw', serving_g: 100, calories: 81, carbs_g: 0, protein_g: 19, fat_g: 0.6, fibre_g: 0 },
@@ -90,6 +91,8 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'egg-white-raw', name: 'Egg white', detail: 'raw', serving_g: 100, calories: 52, carbs_g: 0.7, protein_g: 11, fat_g: 0, fibre_g: 0, meals: ['breakfast'] },
   { id: 'egg-yolk-raw', name: 'Egg yolk', detail: 'raw', serving_g: 100, calories: 322, carbs_g: 1, protein_g: 16, fat_g: 27, fibre_g: 0, meals: ['breakfast'] },
 
+  { id: 'ricotta', name: 'Ricotta', detail: 'as packed', serving_g: 50, calories: 156, carbs_g: 3, protein_g: 11, fat_g: 11, fibre_g: 0, meals: ['breakfast', 'snack'] },
+  { id: 'skyr-plain', name: 'Skyr, plain', detail: 'as packed', serving_g: 150, calories: 63, carbs_g: 4, protein_g: 10.5, fat_g: 0.2, fibre_g: 0, meals: ['breakfast', 'snack'] },
   // Grains, Bread & Starches
   { id: 'white-rice-basmati-dry', name: 'White rice, basmati', detail: 'dry', serving_g: 100, calories: 357, carbs_g: 78, protein_g: 7.4, fat_g: 0.7, fibre_g: 1.4, meals: ['lunch', 'dinner'] },
   { id: 'white-rice-long-grain-dry', name: 'White rice, long grain', detail: 'dry', serving_g: 100, calories: 355, carbs_g: 78, protein_g: 7, fat_g: 0.6, fibre_g: 1.4, meals: ['lunch', 'dinner'] },
@@ -114,6 +117,7 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'new-potato-raw', name: 'New potato', detail: 'raw', serving_g: 100, calories: 70, carbs_g: 16, protein_g: 1.7, fat_g: 0.3, fibre_g: 1.5 },
   { id: 'sweet-potato-raw', name: 'Sweet potato', detail: 'raw', serving_g: 100, calories: 87, carbs_g: 21, protein_g: 1.6, fat_g: 0.3, fibre_g: 2.4 },
 
+  { id: 'cornflour', name: 'Cornflour', detail: 'dry', serving_g: 10, calories: 381, carbs_g: 91, protein_g: 0.3, fat_g: 0.1, fibre_g: 0.9 },
   // Legumes & Pulses
   { id: 'baked-beans-in-tomato-sauce-canned', name: 'Baked beans in tomato sauce', detail: 'canned', serving_g: 100, calories: 81, carbs_g: 13, protein_g: 4.7, fat_g: 0.6, fibre_g: 3.7 },
   { id: 'kidney-beans-dry', name: 'Kidney beans', detail: 'dry', serving_g: 100, calories: 332, carbs_g: 60, protein_g: 23, fat_g: 0.8, fibre_g: 15 },
@@ -130,6 +134,7 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'tofu-firm-as-packed', name: 'Tofu, firm', detail: 'as packed', serving_g: 100, calories: 73, carbs_g: 0.7, protein_g: 8.1, fat_g: 4.2, fibre_g: 0.4 },
   { id: 'tofu-silken-as-packed', name: 'Tofu, silken', detail: 'as packed', serving_g: 100, calories: 55, carbs_g: 1.6, protein_g: 5.3, fat_g: 3, fibre_g: 0.2 },
 
+  { id: 'black-beans-canned-drained', name: 'Black beans', detail: 'canned, drained', serving_g: 120, calories: 91, carbs_g: 16, protein_g: 6, fat_g: 0.5, fibre_g: 6.5, meals: ['lunch', 'dinner'] },
   // Vegetables
   { id: 'onion-raw', name: 'Onion', detail: 'raw', serving_g: 100, calories: 36, carbs_g: 7.9, protein_g: 1.2, fat_g: 0.2, fibre_g: 1.4 },
   { id: 'garlic-raw', name: 'Garlic', detail: 'raw', serving_g: 100, calories: 98, carbs_g: 16, protein_g: 7.9, fat_g: 0.6, fibre_g: 4.1 },
@@ -197,6 +202,8 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'prunes-dried', name: 'Prunes', detail: 'dried', serving_g: 100, calories: 141, carbs_g: 34, protein_g: 2.5, fat_g: 0.4, fibre_g: 5.7, meals: ['snack', 'breakfast'] },
   { id: 'apricots-dried', name: 'Apricots', detail: 'dried', serving_g: 100, calories: 188, carbs_g: 43, protein_g: 4, fat_g: 0.5, fibre_g: 7.3, meals: ['snack'] },
 
+  { id: 'sultanas-dried', name: 'Sultanas', detail: 'dried', serving_g: 30, calories: 275, carbs_g: 69.4, protein_g: 2.7, fat_g: 0.4, fibre_g: 2, meals: ['snack', 'breakfast'] },
+  { id: 'pineapple-canned-in-juice', name: 'Pineapple', detail: 'canned in juice, drained', serving_g: 120, calories: 60, carbs_g: 14.5, protein_g: 0.4, fat_g: 0.1, fibre_g: 1, meals: ['snack'] },
   // Nuts & Seeds
   { id: 'almonds-raw', name: 'Almonds', detail: 'raw', serving_g: 100, calories: 612, carbs_g: 6.9, protein_g: 21.1, fat_g: 55.8, fibre_g: 7.4 },
   { id: 'walnuts-raw', name: 'Walnuts', detail: 'raw', serving_g: 100, calories: 688, carbs_g: 3.3, protein_g: 14.7, fat_g: 68.5, fibre_g: 5.9 },
@@ -220,6 +227,7 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'coconut-oil-as-packed', name: 'Coconut oil', detail: 'as packed', serving_g: 100, calories: 892, carbs_g: 0, protein_g: 0, fat_g: 99.1, fibre_g: 0 },
   { id: 'lard-as-packed', name: 'Lard', detail: 'as packed', serving_g: 100, calories: 891, carbs_g: 0, protein_g: 0, fat_g: 99, fibre_g: 0 },
 
+  { id: 'sesame-oil-toasted', name: 'Sesame oil', detail: 'toasted', unit: 'ml', serving_g: 10, calories: 899, carbs_g: 0, protein_g: 0, fat_g: 99.9, fibre_g: 0 },
   // Sweeteners
   { id: 'sugar-white-granulated-as-packed', name: 'Sugar, white granulated', detail: 'as packed', serving_g: 100, calories: 400, carbs_g: 100, protein_g: 0, fat_g: 0, fibre_g: 0 },
   { id: 'sugar-brown-as-packed', name: 'Sugar, brown', detail: 'as packed', serving_g: 100, calories: 380, carbs_g: 98, protein_g: 0, fat_g: 0, fibre_g: 0 },
@@ -228,6 +236,12 @@ export const COMMON_FOODS: VirraFood[] = [
   { id: 'golden-syrup-as-packed', name: 'Golden syrup', detail: 'as packed', serving_g: 100, calories: 325, carbs_g: 79, protein_g: 0.4, fat_g: 0, fibre_g: 0 },
 
 
+
+  // Condiments & Cooking liquids. Added with the recipe book: these are the
+  // things recipes are actually built from that the list had no way to price,
+  // so a soy sauce or a stock cube forced a manual entry.
+  { id: 'soy-sauce-light', name: 'Soy sauce', detail: 'light', unit: 'ml', serving_g: 15, calories: 53, carbs_g: 4.9, protein_g: 8.1, fat_g: 0.1, fibre_g: 0.8 },
+  { id: 'vegetable-stock-made-up', name: 'Vegetable stock', detail: 'made up', unit: 'ml', serving_g: 250, calories: 4, carbs_g: 0.6, protein_g: 0.2, fat_g: 0.1, fibre_g: 0 },
   // Drinks. Card 40: the list had 193 items, no coffee and no juice, so the
   // things people consume every single day forced a barcode scan or a manual
   // entry.
