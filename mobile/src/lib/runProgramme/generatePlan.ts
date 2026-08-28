@@ -122,7 +122,11 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
     weeks.push({
       week:     week.week,
       km:       week.km,
-      label:    PHASE_LABEL[phase],
+      // A back-off week is labelled as one. It is still a Build week by phase,
+      // but that is not what the runner needs to know when they look at it —
+      // they need to know this is the easy one. Emma's own templates call it
+      // Recovery, so it says Recovery.
+      label:    week.kind === 'down' ? 'Recovery' : PHASE_LABEL[phase],
       sessions: composed.map((s) => s.type),
     });
 
