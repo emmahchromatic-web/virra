@@ -11,6 +11,9 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { getActiveBlocks, addBlock, clearSlot, planSlot, inferModality, SLOT_LOAD, type TrainingBlock } from '@/lib/trainingBlocks';
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
+import { loadRunnerModel, type RunnerModel } from '@/lib/runProgramme/runnerModel';
+import { generateRunPlan } from '@/lib/runProgramme/generatePlan';
+import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -179,6 +182,7 @@ export default function PlanDetailScreen() {
   const [sessionCountOverride, setSessionCountOverride] = useState(0);
   const [durationOverride,     setDurationOverride]     = useState(0);
   const [occupiedDays,         setOccupiedDays]         = useState<number[]>([]);
+  const [runnerModel,          setRunnerModel]          = useState<RunnerModel | null>(null);
 
   useEffect(() => {
     if (!id || !session) return;
@@ -197,7 +201,9 @@ export default function PlanDetailScreen() {
         .eq('is_active', true)
         .maybeSingle(),
       getActiveBlocks(session.user.id),
-    ]).then(async ([templateRes, planRes, blocks]) => {
+      loadRunnerModel(session.user.id),
+    ]).then(async ([templateRes, planRes, blocks, model]) => {
+      setRunnerModel(model);
       const t = templateRes.data as PlanTemplate;
       const p = planRes.data as UserPlan | null;
       setPlan(t);
@@ -333,7 +339,32 @@ export default function PlanDetailScreen() {
     Deload:     5.5,
   };
 
-  const displayWeeks = userPlan || (!weeks.length && !isStrength)
+  // Run plans are generated for this runner, so the preview has to be generated
+  // too — a preview built from the template would be showing a plan nobody is
+  // going to get. Strength keeps its authored path.
+  const generatedWeeks = React.useMemo(() => {
+    if (isStrength || !plan || !runnerModel || dayAssignment.length === 0) return null;
+    const archetype = archetypeForTemplate({
+      distanceGoal: plan.distance_goal,
+      name:         plan.name,
+      hasEventDate: raceOpen && Boolean(raceDateObj),
+    });
+    const days = dayAssignment.map((d) => d.day);
+    return generateRunPlan({
+      archetype,
+      goal:                raceDistanceFor(plan.distance_goal),
+      weeks:               durationOverride > 0 ? durationOverride : archetype.defaultWeeks,
+      tier:                runnerModel.tier,
+      preset:              runnerModel.preset,
+      difficulty:          runnerModel.difficulty,
+      currentWeeklyKm:     runnerModel.currentWeeklyKm,
+      currentLongestRunKm: runnerModel.currentLongestRunKm,
+      days,
+      longRunDay:          Math.max(...days),
+    }).weeks;
+  }, [isStrength, plan, runnerModel, dayAssignment, durationOverride, raceOpen, raceDateObj]);
+
+  const displayWeeks = generatedWeeks ?? (userPlan || (!weeks.length && !isStrength)
     ? weeks
     : Array.from({ length: durationOverride }, (_, i) => {
         if (isStrength) {
@@ -349,7 +380,7 @@ export default function PlanDetailScreen() {
         }
         const w = weeks[i % weeks.length];
         return { ...w, week: i + 1, sessions: w.sessions.slice(0, sessionCountOverride) };
-      });
+      }));
 
   const peakKm = displayWeeks.length ? Math.max(...displayWeeks.map((w) => w.km), 1) : 1;
   const sessionsPerWk   = weeks[0]?.sessions.length ?? 0;

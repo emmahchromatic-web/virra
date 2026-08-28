@@ -3,6 +3,9 @@ import { generateAndSaveSchedule, type SessionSlot, type GenerateContext, type P
 import { recomputeSeasonForUser } from './seasonEngine';
 import { useCycleStore } from '@/store/cycle';
 import { loadProgrammeSessions, loadProgrammeMeta, variantForPreference } from './getStrongSession';
+import { loadRunnerModel } from './runProgramme/runnerModel';
+import { generateRunPlan } from './runProgramme/generatePlan';
+import { archetypeForTemplate, raceDistanceFor } from './runProgramme/archetypes';
 import type { WorkoutPreference } from '@/store/profile';
 
 // Cycle phase multipliers: follicular = peak adaptation window, menstrual/luteal = reduced capacity.
@@ -185,18 +188,20 @@ export async function clearSlot(userId: string, slot: PlanSlot): Promise<string[
 
 // Inserts a block. Slot clearing is the caller's job via clearSlot() — kept
 // separate so the two writes can be ordered and reported on.
+export interface AddBlockOptions {
+  templateId:   string | null;
+  modality:     BlockModality;
+  startsOn:     string;
+  endsOn:       string | null;
+  loadModifier: number;
+  isPrimary:    boolean;
+  slotAssignments?: SessionSlot[];
+  maxWeeks?:        number;
+}
+
 export async function addBlock(
   userId: string,
-  opts: {
-    templateId:   string | null;
-    modality:     BlockModality;
-    startsOn:     string;
-    endsOn:       string | null;
-    loadModifier: number;
-    isPrimary:    boolean;
-    slotAssignments?: SessionSlot[];
-    maxWeeks?:        number;
-  },
+  opts:   AddBlockOptions,
 ): Promise<string | null> {
   const { data, error } = await supabase
     .from('training_blocks')
@@ -218,9 +223,35 @@ export async function addBlock(
   if (opts.templateId) {
     const { data: tmpl } = await supabase
       .from('plan_templates')
-      .select('sessions_json, programme_id')
+      .select('sessions_json, programme_id, distance_goal, name')
       .eq('id', opts.templateId)
       .single();
+    // Run plans are generated for this runner rather than read off the
+    // template. The template still supplies the goal, the name and the
+    // presentation; what it no longer supplies is the week-by-week volume.
+    if (opts.modality === 'run') {
+      const generated = await buildGeneratedRunPlan(userId, opts, tmpl as TemplateRow | null);
+      if (generated) {
+        await generateAndSaveSchedule(
+          userId,
+          blockId,
+          opts.modality,
+          opts.startsOn,
+          generated.plan.weeks,
+          undefined,
+          generated.plan.weeks.length,
+          undefined,
+          generated.context,
+          generated.plan.weekSlots,
+        );
+        await recomputeSeasonAfter(userId);
+        return blockId;
+      }
+      // Falling through means we could not build a plan for this runner — a
+      // template with no goal we understand, say. Better the old behaviour than
+      // no plan at all.
+    }
+
     if (tmpl?.sessions_json) {
       // Fetch baseline pace (run structures) + equipment preference (programmes).
       const { data: profileRow } = await supabase
@@ -268,14 +299,74 @@ export async function addBlock(
     }
   }
 
-  // Fire-and-forget: auto-create season if 2+ future events now exist
+  await recomputeSeasonAfter(userId);
+  return blockId;
+}
+
+/** Fire-and-forget: auto-create a season if 2+ future events now exist. */
+async function recomputeSeasonAfter(userId: string): Promise<void> {
   const today = new Date().toLocaleDateString('en-CA');
   const cycleProfile = useCycleStore.getState().cycleProfile;
   recomputeSeasonForUser(userId, today, cycleProfile).catch((e) => {
     console.warn('[seasonEngine] recompute failed', e);
   });
+}
 
-  return blockId;
+interface TemplateRow {
+  sessions_json?: unknown;
+  programme_id?:  string | null;
+  distance_goal?: string | null;
+  name?:          string | null;
+}
+
+/**
+ * Build a plan for this runner, or null if we cannot.
+ *
+ * Everything the generator needs beyond the runner themselves comes from the
+ * enrolment screen: which days, how many weeks, and whether a race date was
+ * given. The template contributes the goal and its name.
+ */
+async function buildGeneratedRunPlan(
+  userId: string,
+  opts:   AddBlockOptions,
+  tmpl:   TemplateRow | null,
+) {
+  const days = (opts.slotAssignments ?? []).map((s) => s.day);
+  if (days.length === 0) return null;
+
+  const model = await loadRunnerModel(userId);
+  const archetype = archetypeForTemplate({
+    distanceGoal: tmpl?.distance_goal ?? null,
+    name:         tmpl?.name ?? null,
+    hasEventDate: Boolean(opts.endsOn),
+  });
+
+  const plan = generateRunPlan({
+    archetype,
+    goal:                raceDistanceFor(tmpl?.distance_goal ?? null),
+    weeks:               opts.maxWeeks ?? archetype.defaultWeeks,
+    tier:                model.tier,
+    preset:              model.preset,
+    difficulty:          model.difficulty,
+    currentWeeklyKm:     model.currentWeeklyKm,
+    currentLongestRunKm: model.currentLongestRunKm,
+    days,
+    // The last day the runner has chosen is the long-run day unless they said
+    // otherwise; most people put their long run at the weekend.
+    longRunDay:          Math.max(...days),
+  });
+
+  const context: GenerateContext = {
+    baseline_pace_secs: model.thresholdSecs,
+    runPlan: {
+      goal:      raceDistanceFor(tmpl?.distance_goal ?? null),
+      intensity: archetype.forceDifficulty ?? model.difficulty,
+      phases:    plan.weeks.map((w) => w.label.toLowerCase() as never),
+      longRunKm: plan.curve.map((w) => w.longRunKm),
+    },
+  };
+
+  return { plan, context };
 }
 
 export async function removeBlock(blockId: string): Promise<void> {
