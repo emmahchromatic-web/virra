@@ -102,8 +102,8 @@ export default function PaywallScreen() {
         <VirraCard style={styles.features}>
           {FEATURES.map((f) => (
             <View key={f} style={styles.featureRow}>
-              <VirraText variant="mono" color={colors.pulse} size={12}>✓  </VirraText>
-              <VirraText variant="body" color={colors.breath}>{f}</VirraText>
+              <VirraText variant="mono" color={colors.pulse} size={12}>✓</VirraText>
+              <VirraText variant="body" color={colors.breath} style={styles.featureLabel}>{f}</VirraText>
             </View>
           ))}
         </VirraCard>
@@ -197,8 +197,13 @@ const styles = StyleSheet.create({
   scroll:      { padding: spacing.lg, gap: spacing.md },
   title:       { marginTop: spacing.lg },
   sub:         { marginTop: spacing.sm, marginBottom: spacing.md },
-  features:    { gap: spacing.sm },
-  featureRow:  { flexDirection: 'row', alignItems: 'flex-start' },
+  features:    { gap: spacing.md },
+  // The gutter after the tick was two hardcoded spaces inside the Text, which
+  // is not a layout: a bullet long enough to wrap put its second line flush
+  // under the tick instead of aligned with the first. A real gap plus a
+  // flexing label keeps every line aligned however the copy grows.
+  featureRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  featureLabel:{ flex: 1 },
   packages:    { gap: spacing.sm },
   pkg:         { paddingVertical: spacing.md },
   pkgSelected: { borderColor: colors.pulse },

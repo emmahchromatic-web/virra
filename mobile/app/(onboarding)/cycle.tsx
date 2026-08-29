@@ -155,7 +155,7 @@ export default function CycleScreen() {
                   </VirraText>
                   {opt.redsLink && (
                     <Pressable onPress={(e) => { e.stopPropagation(); Linking.openURL(REDS_URL); }} hitSlop={8}>
-                      <VirraText variant="body" size={12} color={colors.dawn} style={styles.redsLink}>
+                      <VirraText variant="body" size={12} color={colors.dawn}>
                         {' '}· Learn about RED-S
                       </VirraText>
                     </Pressable>
@@ -273,7 +273,6 @@ const styles = StyleSheet.create({
   profileOption:       { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist, gap: 3 },
   profileOptionActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   subRow:              { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
-  redsLink:            { textDecorationLine: 'underline' },
   fieldRow:            { flexDirection: 'row', alignItems: 'center' },
   fieldLabel:          { letterSpacing: 2 },
   datePicker:          { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.mist, borderRadius: radius.lg, padding: spacing.md, borderWidth: 1, borderColor: colors.control },
