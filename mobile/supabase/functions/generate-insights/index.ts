@@ -145,11 +145,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ? Math.round((completed / (completed + dropped)) * 100)
     : null;
 
-  // Recent activity summary
+  // Recent activity summary.
+  //
+  // Card 216 fixed this exact bug in the CLIENT metric tiles and never touched
+  // this copy of it. Without the activity_type filter every imported walk, hike
+  // and ride carrying a distance lands in the runner's mileage, so the written
+  // insight quoted roughly three times the tile beside it (37 km against 12.9).
+  //
+  // The window is deliberately named for what it is. This runs server-side with
+  // no knowledge of the user's timezone, so it cannot reproduce the tiles' local
+  // Monday-start week; calling a rolling 7 days "this week" is what invited the
+  // comparison in the first place.
   const activities  = activitiesRes.data ?? [];
-  const last7Acts   = activities.filter((a: any) => a.started_at >= `${past7ISO}T00:00:00Z`);
-  const weeklyKm    = Math.round(
-    last7Acts.reduce((s: number, a: any) => s + (a.distance_meters ?? 0) / 1000, 0) * 10
+  const last7Runs   = activities.filter(
+    (a: any) => a.activity_type === "run" && a.started_at >= `${past7ISO}T00:00:00Z`,
+  );
+  const runKmLast7  = Math.round(
+    last7Runs.reduce((s: number, a: any) => s + (a.distance_meters ?? 0) / 1000, 0) * 10
   ) / 10;
 
   // Symptom average
@@ -165,7 +177,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     phase:               safePhase,
     day_of_cycle:        day_of_cycle ?? null,
     adherence_pct:       adherencePct,
-    weekly_km:           weeklyKm,
+    // Key name matters: dataContext is JSON-stringified straight into the
+    // prompt, so this is how the model will describe the number.
+    run_km_last_7_days:  runKmLast7,
     activities_14d:      activities.length,
     upcoming_sessions:   (plannedFutureRes.data ?? []).map((s: any) => ({
       date:     s.scheduled_date,
