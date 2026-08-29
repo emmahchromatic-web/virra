@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Virra",
+    "userInterfaceStyle": "dark",
     "slug": "virra",
     "version": "1.0.0",
     "orientation": "portrait",
