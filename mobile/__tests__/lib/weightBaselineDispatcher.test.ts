@@ -61,11 +61,14 @@ describe('recomputeBaseline', () => {
     expect(cycleBaseline).not.toHaveBeenCalled();
   });
 
-  it('computes only the steady baseline for cycleProfile=perimenopause', async () => {
+  // Card 238. This is the half of Emma's report about reaching weight data: a
+  // perimenopausal user used to get only the steady baseline, so the cycle
+  // weight chart had nothing to draw and she never saw weight against phase.
+  it('computes the cycle baseline too for cycleProfile=perimenopause', async () => {
     cycleMock.__setProfile('perimenopause');
     await recomputeBaseline('user-1');
     expect(steadyBaseline).toHaveBeenCalledWith('user-1');
-    expect(cycleBaseline).not.toHaveBeenCalled();
+    expect(cycleBaseline).toHaveBeenCalledWith('user-1');
   });
 
   it('computes only the steady baseline for cycleProfile=menopause', async () => {

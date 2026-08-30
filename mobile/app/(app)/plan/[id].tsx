@@ -741,6 +741,15 @@ export default function PlanDetailScreen() {
                           setShowRacePicker(false);
                           if (selected) setRaceDateObj(selected);
                         }}
+                        // Card 218. Without this the spinner renders in LIGHT
+                        // appearance -- near-black digits on the dark card, which
+                        // is what Emma's screenshot shows. The other two pickers
+                        // in the app already carry it; this one was missed.
+                        // app.json now declares userInterfaceStyle dark (card
+                        // 243) which fixes it at the root, but the explicit prop
+                        // matches the other two and does not depend on a
+                        // prebuild having happened.
+                        themeVariant="dark"
                       />
                     )}
                     {startHint && (

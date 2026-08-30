@@ -77,11 +77,35 @@ export function getCyclePhase(
   return getCycleInfo(periodStart, cycleLength, today).phase;
 }
 
+/**
+ * Does this profile describe someone who still has a cycle we can track?
+ *
+ * Card 238. Perimenopause used to fall through to `steady` alongside menopause,
+ * postpartum and prefer-not-to-say, so a woman whose cycles are *changing* was
+ * modelled as having none at all: no phase modulation, the no-cycle weight
+ * chart, and copy identical to menopause. Perimenopause means irregular
+ * periods, not absent ones, and the hormonal swings driving energy and appetite
+ * are often wider than in a regular cycle rather than narrower.
+ *
+ * This predicate exists because the natural/irregular pair was hardcoded in
+ * eleven separate places -- the dashboard, profile, weight chart, weight
+ * baseline dispatcher, cycle detail, and the date pickers on both cycle
+ * screens. Adding perimenopause to `deriveCycleMode` alone would have moved the
+ * nutrition targets and left every one of those surfaces still treating her as
+ * non-cycling, which is the half of Emma's report about reaching weight data.
+ *
+ * Anything that asks "is this a cycle user" must call this rather than
+ * comparing profiles itself.
+ */
+export function tracksCycle(profile: CycleProfile | null | undefined): boolean {
+  return profile === 'natural' || profile === 'irregular' || profile === 'perimenopause';
+}
+
 export function deriveCycleMode(
   profile: CycleProfile,
   hasPlaceboWeek: boolean | null,
 ): CycleMode {
-  if (profile === 'natural' || profile === 'irregular') return 'flow';
+  if (tracksCycle(profile)) return 'flow';
   if (profile === 'hormonal' && hasPlaceboWeek === true) return 'pack';
   return 'steady';
 }

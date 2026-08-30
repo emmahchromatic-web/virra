@@ -89,8 +89,11 @@ describe('deriveCycleMode', () => {
   test('hormonal + has_placebo_week null → steady', () => {
     expect(deriveCycleMode('hormonal', null)).toBe('steady');
   });
-  test('perimenopause → steady', () => {
-    expect(deriveCycleMode('perimenopause', null)).toBe('steady');
+  // Card 238, changed deliberately. Perimenopause means cycles are CHANGING,
+  // not absent: periods still come, irregularly. It used to fall through to
+  // steady alongside menopause and share its copy word for word.
+  test('perimenopause → flow, like irregular', () => {
+    expect(deriveCycleMode('perimenopause', null)).toBe('flow');
   });
   test('menopause → steady', () => {
     expect(deriveCycleMode('menopause', null)).toBe('steady');
