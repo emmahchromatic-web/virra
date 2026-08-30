@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, TextInput, StyleSheet, SafeAreaView, AppState } from 'react-native';
+import { View, TextInput, StyleSheet, SafeAreaView, AppState, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import type { AuthError } from '@supabase/supabase-js';
@@ -127,7 +127,12 @@ export default function SignUpScreen() {
   if (awaitingConfirmation) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.container}>
+        <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
           <VirraText variant="display" size={40} color={colors.pulse} style={styles.title}>
             Check your email
           </VirraText>
@@ -166,14 +171,19 @@ export default function SignUpScreen() {
             onPress={useDifferentEmail}
             style={styles.link}
           />
-        </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+      >
         <VirraText variant="display" size={40} color={colors.pulse} style={styles.title}>
           Create account
         </VirraText>
@@ -229,14 +239,18 @@ export default function SignUpScreen() {
           onPress={() => router.replace('/(auth)/sign-in')}
           style={styles.link}
         />
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: colors.mile },
-  container:   { flex: 1, padding: spacing.lg, justifyContent: 'center', gap: spacing.sm },
+  scroll:      { flex: 1 },
+  // flexGrow, not flex: as a ScrollView content container this must be free to
+  // grow taller than the viewport when the keyboard is up, or the submit button
+  // sits under the keyboard with no way to reach it. Card raised in build 12 UAT.
+  container:   { flexGrow: 1, padding: spacing.lg, justifyContent: 'center', gap: spacing.sm },
   title:       { marginBottom: spacing.lg },
   appleBtn:    { height: 52, width: '100%' },
   emailToggle: { marginTop: spacing.xs },

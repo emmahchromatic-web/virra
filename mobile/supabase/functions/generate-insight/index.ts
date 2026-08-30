@@ -123,7 +123,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }
   }
 
-  // Sanitise all metric fields — coerce to numbers to prevent prompt injection
+  // Sanitise all metric fields: coerce to numbers to prevent prompt injection
   const streakDays         = safeNum(metrics.streakDays);
   const weeklyKm           = safeNum(metrics.weeklyKm);
   const monthlyKm          = safeNum(metrics.monthlyKm);
@@ -150,10 +150,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
 Write a 2–3 sentence welcome message that:
 1. Acknowledges this is the start of their journey with Virra
-2. Gives one phase-aware tip they can use right now — today, based on where they are in their cycle
+2. Gives one phase-aware tip they can use right now, today, based on where they are in their cycle
 3. Sets a warm expectation for what insights will show as they log more runs
 
-Tone: warm, direct, expert — like a coach who's glad you showed up. Never salesy.
+Tone: warm, direct, expert, like a coach who's glad you showed up. Never salesy.
+Punctuation: never use em-dashes. Use full stops, commas or colons instead.
 Do not use emojis or bullet points. Plain prose only.`
     : `You are a supportive running coach for a women's fitness app called Virra. The user's current cycle phase is ${safePhase ?? "unknown"}${day_of_cycle ? ` (day ${Math.max(1, Math.min(40, Math.round(Number(day_of_cycle) || 1)))})` : ""}.
 
@@ -169,7 +170,7 @@ ${phasePaceLines}
 Write a 2-3 sentence narrative insight that:
 1. Celebrates one specific thing from the data
 2. Gives one phase-aware recommendation for the coming ${period_type === "weekly" ? "week" : "month"}
-3. Uses fuelling and performance language only — never calorie restriction, never diet culture
+3. Uses fuelling and performance language only, never calorie restriction, never diet culture
 4. Speaks directly to the runner in second person ("you", not "she")
 Tone: warm, direct, expert. Like a coach who knows her data.
 Do not use emojis or bullet points. Plain prose only.`;
@@ -207,7 +208,7 @@ Do not use emojis or bullet points. Plain prose only.`;
   const narrative = aiJson.content?.[0]?.text?.trim() ?? "";
   if (!narrative) return errResponse("Insight generation failed", 502);
 
-  // Upsert cache — log but don't fail the request on cache write errors
+  // Upsert cache: log but don't fail the request on cache write errors
   const { error: upsertErr } = await supabase.from("insight_cache").upsert(
     {
       user_id:      user.id,

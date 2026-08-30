@@ -6,7 +6,7 @@ type CyclePhase  = "menstrual" | "follicular" | "ovulatory" | "luteal";
 
 const VALID_PHASES  = new Set<string>(["menstrual","follicular","ovulatory","luteal"]);
 const JSON_HEADERS  = { "Content-Type": "application/json" };
-const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Current phase context will follow.`;
+const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Never use em-dashes; use full stops, commas or colons instead. Current phase context will follow.`;
 
 function err(msg: string, status: number): Response {
   return new Response(JSON.stringify({ error: msg }), { status, headers: JSON_HEADERS });
@@ -145,11 +145,23 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ? Math.round((completed / (completed + dropped)) * 100)
     : null;
 
-  // Recent activity summary
+  // Recent activity summary.
+  //
+  // Card 216 fixed this exact bug in the CLIENT metric tiles and never touched
+  // this copy of it. Without the activity_type filter every imported walk, hike
+  // and ride carrying a distance lands in the runner's mileage, so the written
+  // insight quoted roughly three times the tile beside it (37 km against 12.9).
+  //
+  // The window is deliberately named for what it is. This runs server-side with
+  // no knowledge of the user's timezone, so it cannot reproduce the tiles' local
+  // Monday-start week; calling a rolling 7 days "this week" is what invited the
+  // comparison in the first place.
   const activities  = activitiesRes.data ?? [];
-  const last7Acts   = activities.filter((a: any) => a.started_at >= `${past7ISO}T00:00:00Z`);
-  const weeklyKm    = Math.round(
-    last7Acts.reduce((s: number, a: any) => s + (a.distance_meters ?? 0) / 1000, 0) * 10
+  const last7Runs   = activities.filter(
+    (a: any) => a.activity_type === "run" && a.started_at >= `${past7ISO}T00:00:00Z`,
+  );
+  const runKmLast7  = Math.round(
+    last7Runs.reduce((s: number, a: any) => s + (a.distance_meters ?? 0) / 1000, 0) * 10
   ) / 10;
 
   // Symptom average
@@ -165,7 +177,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
     phase:               safePhase,
     day_of_cycle:        day_of_cycle ?? null,
     adherence_pct:       adherencePct,
-    weekly_km:           weeklyKm,
+    // Key name matters: dataContext is JSON-stringified straight into the
+    // prompt, so this is how the model will describe the number.
+    run_km_last_7_days:  runKmLast7,
     activities_14d:      activities.length,
     upcoming_sessions:   (plannedFutureRes.data ?? []).map((s: any) => ({
       date:     s.scheduled_date,
@@ -184,12 +198,12 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const isInsufficient = activities.length === 0 && (plannedFutureRes.data ?? []).length === 0;
   if (isInsufficient) {
-    // Not enough signal — fall back to phase-only text, don't call Haiku
+    // Not enough signal, so fall back to phase-only text and don't call Haiku
     const phaseDefaults: Record<string, { training: string; nutrition: string }> = {
-      menstrual:  { training: "Rest and restore — gentle movement only today.", nutrition: "Iron-rich foods support your recovery this phase." },
+      menstrual:  { training: "Rest and restore. Gentle movement only today.", nutrition: "Iron-rich foods support your recovery this phase." },
       follicular: { training: "Energy is rising. This is a great time to build intensity.", nutrition: "Lean protein and complex carbs fuel adaptation." },
       ovulatory:  { training: "Your peak performance window. Push hard today.", nutrition: "High-carb fuelling matches your body's readiness." },
-      luteal:     { training: "Moderate effort. Honour fatigue signals — they are real.", nutrition: "Carbs curb cravings and support mood this phase." },
+      luteal:     { training: "Moderate effort. Your fatigue signals are real, so honour them.", nutrition: "Carbs curb cravings and support mood this phase." },
     };
     const defaults = phaseDefaults[safePhase ?? "follicular"];
     return new Response(

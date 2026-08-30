@@ -14,6 +14,7 @@ import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGen
 import { loadRunnerModel, type RunnerModel } from '@/lib/runProgramme/runnerModel';
 import { generateRunPlan } from '@/lib/runProgramme/generatePlan';
 import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
+import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -388,28 +389,15 @@ export default function PlanDetailScreen() {
   // walks the weeks collecting unique labels, so this is the same number it
   // would produce, and asking for more than this makes it repeat a label:
   // `unique[i % unique.length]`.
-  const authoredSessionCount = (() => {
-    const weeks = (plan?.sessions_json ?? []) as WeekSession[];
-    const seen  = new Set<string>();
-    for (const w of weeks) for (const l of w.sessions ?? []) seen.add(l);
-    return seen.size;
-  })();
-
-  // Card 222: a defined 2-day strength programme could be pushed to three, and
-  // the third day silently repeated one of the authored days, so the user did
-  // lower/upper/lower. Get Strong's block progression assumes each authored day
-  // appears once a week, so that is not a smaller version of the programme, it
-  // is a different one.
-  //
-  // Run plans are generated rather than authored, so extra days there are real
-  // sessions and the old cap still applies.
-  const MAX_SESSIONS    = isStrength && authoredSessionCount > 0
-    ? authoredSessionCount
-    : 5;
+  // Bounds live in src/lib/sessionCountBounds.ts with their own tests: they
+  // were inline and untested here, which is how the second half of card 222
+  // shipped unfixed. See that file for why both ends matter.
+  const authored = authoredSessionCount(plan?.sessions_json as WeekSession[] | undefined);
+  const { min: MIN_SESSIONS, max: MAX_SESSIONS } = sessionCountBounds(isStrength, authored);
 
   function adjustSessions(delta: number) {
     if (!plan?.sessions_json) return;
-    const next = Math.max(1, Math.min(MAX_SESSIONS, sessionCountOverride + delta));
+    const next = Math.max(MIN_SESSIONS, Math.min(MAX_SESSIONS, sessionCountOverride + delta));
     setSessionCountOverride(next);
     setDayAssignment(computeDefaultDayAssignment(plan.sessions_json as any, next));
   }
@@ -542,12 +530,12 @@ export default function PlanDetailScreen() {
                   <Pressable
                     style={styles.adjBtn}
                     onPress={() => adjustSessions(-1)}
-                    disabled={sessionCountOverride <= 1}
+                    disabled={sessionCountOverride <= MIN_SESSIONS}
                     accessibilityRole="button"
                     accessibilityLabel="Fewer sessions"
                   >
                     <SymbolView name="minus" size={11}
-                      tintColor={sessionCountOverride <= 1 ? colors.border : colors.muted} />
+                      tintColor={sessionCountOverride <= MIN_SESSIONS ? colors.border : colors.muted} />
                   </Pressable>
                   <VirraText variant="display" size={20} color={colors.breath}>
                     {sessionCountOverride}/wk
