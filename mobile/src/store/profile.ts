@@ -11,7 +11,8 @@ export interface ProfilePatch {
   lastName?:                        string;
   avatarUrl?:                       string | null;
   stepsTarget?:                     number;
-  workoutPreference?:               WorkoutPreference;
+  /** null means never asked. Card 246: a default is not an answer. */
+  workoutPreference?:               WorkoutPreference | null;
   trackWeight?:                     boolean;
   heightCm?:                        number | null;
   dateOfBirth?:                     string | null;

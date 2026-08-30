@@ -15,6 +15,9 @@ import { loadRunnerModel, type RunnerModel } from '@/lib/runProgramme/runnerMode
 import { generateRunPlan } from '@/lib/runProgramme/generatePlan';
 import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
+import { useProfileStore } from '@/store/profile';
+import { hasEquipmentPreference } from '@/lib/getStrongSession';
+import { WORKOUT_PREFERENCE_OPTIONS } from '@/lib/workoutPreference';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -394,6 +397,14 @@ export default function PlanDetailScreen() {
   // shipped unfixed. See that file for why both ends matter.
   const authored = authoredSessionCount(plan?.sessions_json as WeekSession[] | undefined);
   const { min: MIN_SESSIONS, max: MAX_SESSIONS } = sessionCountBounds(isStrength, authored);
+
+  // Card 246. An unset equipment preference is NOT a preference for the gym.
+  // Rather than guessing, a strength plan shows every variant here and will not
+  // start until one is picked: this is the moment the answer actually changes
+  // what the user gets, which is when people answer accurately.
+  const workoutPreference = useProfileStore((st) => st.workoutPreference);
+  const saveProfile       = useProfileStore((st) => st.save);
+  const needsEquipment    = isStrength && !hasEquipmentPreference(workoutPreference);
 
   function adjustSessions(delta: number) {
     if (!plan?.sessions_json) return;
@@ -775,10 +786,33 @@ export default function PlanDetailScreen() {
                 ))}
               </VirraCard>
             )}
+            {needsEquipment && (
+              <VirraCard style={styles.equipCard}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.equipLabel}>
+                  WHERE ARE YOU TRAINING?
+                </VirraText>
+                <VirraText variant="body" size={13} color="rgba(244,237,224,0.6)" style={styles.equipSub}>
+                  This programme comes in three versions. Pick the one that matches your kit and we will use it from here on. You can change it in your profile at any time.
+                </VirraText>
+                {WORKOUT_PREFERENCE_OPTIONS.map((opt) => (
+                  <Pressable
+                    key={opt.value}
+                    style={styles.equipOption}
+                    onPress={() => session && saveProfile(session.user.id, { workoutPreference: opt.value })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${opt.label}. ${opt.sub}`}
+                  >
+                    <VirraText variant="mono" size={13} color={colors.breath}>{opt.label.toUpperCase()}</VirraText>
+                    <VirraText variant="body" size={12} color="rgba(244,237,224,0.45)">{opt.sub}</VirraText>
+                  </Pressable>
+                ))}
+              </VirraCard>
+            )}
             <VirraButton
               label={ctaLabel}
               onPress={handleStart}
               loading={saving}
+              disabled={needsEquipment}
               style={styles.cta}
             />
           </>
@@ -869,5 +903,9 @@ const styles = StyleSheet.create({
   },
   startHint:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
+  equipCard:   { gap: spacing.sm },
+  equipLabel:  { letterSpacing: 2 },
+  equipSub:    { lineHeight: 19 },
+  equipOption: { gap: 2, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control },
   cta:         { marginTop: spacing.sm },
 });
