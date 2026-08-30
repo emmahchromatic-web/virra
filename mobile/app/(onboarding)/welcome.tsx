@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet, Image, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -11,7 +11,13 @@ export default function WelcomeScreen() {
   useFocusEffect(React.useCallback(() => { setStep(1); }, [setStep]));
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.topSpacer} />
       <View style={styles.hero}>
         <View style={styles.heroContent}>
@@ -43,12 +49,13 @@ export default function WelcomeScreen() {
           onPress={() => router.push('/(onboarding)/profile')}
         />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, padding: spacing.lg },
+  scroll:    { flex: 1 },
+  container:    { flexGrow: 1, padding: spacing.lg },
   topSpacer:    { flex: 1 },
   bottomSpacer: { flex: 1.6 },
   hero:         { alignItems: 'center' },

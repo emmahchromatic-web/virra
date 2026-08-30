@@ -754,6 +754,13 @@ export default function PlanDetailScreen() {
                         }}
                       />
                     )}
+                    {/* Card 029. This field is the GOAL race the plan counts
+                        backwards from, so one is correct here. Other races are
+                        user_events and two or more of them build a season, but
+                        nothing said where they go. */}
+                    <VirraText variant="body" size={12} color={colors.muted} style={styles.raceHint}>
+                      Racing more than once? Add your other races on the Training tab, and Virra will build a season around them.
+                    </VirraText>
                     {startHint && (
                       <View style={styles.startHint}>
                         <SymbolView name="calendar" size={12} tintColor={colors.pulse} />
@@ -903,6 +910,7 @@ const styles = StyleSheet.create({
   },
   startHint:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
+  raceHint:    { lineHeight: 17, marginTop: spacing.xs },
   equipCard:   { gap: spacing.sm },
   equipLabel:  { letterSpacing: 2 },
   equipSub:    { lineHeight: 19 },
