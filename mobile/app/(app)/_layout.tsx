@@ -13,6 +13,7 @@ import { importNewWorkouts } from '@/lib/healthKitImport';
 import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
+import { flushPendingCompletions } from '@/lib/pendingCompletions';
 
 function nextMondayISO(): string {
   const now    = new Date();
@@ -125,7 +126,16 @@ export default function AppLayout() {
 
     useNotificationsStore.getState().hydrate().then(reconcilePresented);
 
+    // Card 253. Workouts finished with no signal are queued locally; this is
+    // where they land. Safe to call every time: anything that fails stays
+    // queued, and `activities` is unique on (user_id, started_at) so a replay
+    // cannot duplicate a session.
+    const syncPending = () => {
+      flushPendingCompletions(session.user.id).catch(() => { /* try again next foreground */ });
+    };
+
     runImport();
+    syncPending();
     scheduleDailyReminders(session.user.id);
     scheduleWeeklyPlanReminder();
     maybeShowWeekAhead();
@@ -133,6 +143,7 @@ export default function AppLayout() {
     const sub = AppState.addEventListener('change', (next) => {
       if (appState.current.match(/inactive|background/) && next === 'active') {
         runImport();
+        syncPending();
         scheduleDailyReminders(session.user.id);
         scheduleWeeklyPlanReminder();
         maybeShowWeekAhead();
