@@ -23,6 +23,11 @@ import { useTodaySessions } from '@/hooks/useTodaySessions';
 import { useSessionStore } from '@/store/sessionStore';
 import { SeasonTimeline, type SeasonChainSummary } from '@/components/ui/SeasonTimeline';
 import { VirraModal } from '@/components/ui/VirraModal';
+import { EquipmentPreferenceModal } from '@/components/ui/EquipmentPreferenceModal';
+import { useProfileStore } from '@/store/profile';
+import { hasEquipmentPreference } from '@/lib/getStrongSession';
+import { EQUIPMENT_ASKED_KEY } from '@/lib/workoutPreference';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PlanTemplate {
   id:             string;
@@ -122,6 +127,36 @@ export default function TrainingScreen() {
   const [calYear,        setCalYear]        = useState(now.getFullYear());
   const [calMonth,       setCalMonth]       = useState(now.getMonth() + 1);
   const [actionDate, setActionDate] = useState<string | null>(null);
+
+  // Card 246. Equipment preference decides which authored variant of a Get
+  // Strong programme someone is enrolled on, and nothing has ever asked for it:
+  // the column defaulted to the full-gym answer, so a user training at home was
+  // silently given a barbell programme.
+  //
+  // Asked once per install, matching the recipes tab's dietary prompt. Skipping
+  // leaves the preference unset on purpose, and the enrolment screen then shows
+  // every variant rather than the app guessing.
+  const workoutPreference = useProfileStore((st) => st.workoutPreference);
+  const saveProfile       = useProfileStore((st) => st.save);
+  const [askEquipment, setAskEquipment] = useState(false);
+
+  useEffect(() => {
+    if (!session) return;
+    // undefined means the profile has not loaded yet; null means genuinely unset.
+    if (workoutPreference === undefined) return;
+    if (hasEquipmentPreference(workoutPreference)) return;
+    let cancelled = false;
+    AsyncStorage.getItem(EQUIPMENT_ASKED_KEY).then((asked) => {
+      if (!cancelled && !asked) setAskEquipment(true);
+    });
+    return () => { cancelled = true; };
+  }, [session, workoutPreference]);
+
+  async function handleEquipmentDone(pref: Parameters<typeof saveProfile>[1]['workoutPreference']) {
+    setAskEquipment(false);
+    await AsyncStorage.setItem(EQUIPMENT_ASKED_KEY, '1');
+    if (session && pref) await saveProfile(session.user.id, { workoutPreference: pref });
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -408,6 +443,7 @@ export default function TrainingScreen() {
           </VirraText>
         </Pressable>
       </ScrollView>
+      <EquipmentPreferenceModal visible={askEquipment} onDone={handleEquipmentDone} />
     </SafeAreaView>
     </GestureHandlerRootView>
   );
