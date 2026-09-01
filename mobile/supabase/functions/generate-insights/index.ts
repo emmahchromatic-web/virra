@@ -92,7 +92,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
          nutritionRes, symptomsRes, eventsRes] = await Promise.all([
     supabase
       .from("activities")
-      .select("started_at, activity_type, distance_meters")
+      .select("started_at, activity_type, distance_meters, duration_seconds")
       .eq("user_id", user.id)
       .gte("started_at", `${past14ISO}T00:00:00Z`)
       .order("started_at", { ascending: false }),
@@ -160,9 +160,24 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const last7Runs   = activities.filter(
     (a: any) => a.activity_type === "run" && a.started_at >= `${past7ISO}T00:00:00Z`,
   );
-  const runKmLast7  = Math.round(
-    last7Runs.reduce((s: number, a: any) => s + (a.distance_meters ?? 0) / 1000, 0) * 10
-  ) / 10;
+
+  // Card 216, second half. One Garmin run can arrive as two overlapping
+  // HealthKit workouts with different UUIDs, so summing every row counts the
+  // same session twice. Same rule as the client's overlappingActivities: sort
+  // longest first and drop anything whose window collides with one already
+  // kept, since a split workout is a fragment of the real one.
+  const byLongest = [...last7Runs].sort(
+    (a: any, b: any) => (b.duration_seconds ?? 0) - (a.duration_seconds ?? 0),
+  );
+  const keptRuns: { start: number; end: number; km: number }[] = [];
+  for (const a of byLongest) {
+    const start = new Date(a.started_at).getTime();
+    if (Number.isNaN(start)) continue;
+    const end = start + (a.duration_seconds ?? 0) * 1000;
+    if (keptRuns.some((k) => start < k.end && end > k.start)) continue;
+    keptRuns.push({ start, end, km: (a.distance_meters ?? 0) / 1000 });
+  }
+  const runKmLast7 = Math.round(keptRuns.reduce((s, k) => s + k.km, 0) * 10) / 10;
 
   // Symptom average
   const symptoms   = symptomsRes.data ?? [];

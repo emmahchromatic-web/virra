@@ -117,7 +117,12 @@ function SchedulePickerRow({
               <VirraText
                 variant="mono"
                 size={11}
-                color={isSelected ? colors.mile : isTaken ? 'rgba(244,237,224,0.25)' : colors.muted}
+                // Card 218. This was a hardcoded 0.25 alpha, measuring 2.12:1 --
+                // well under the 4.5:1 a body-size letter needs, and the day
+                // letter is information you need even when the day is spoken
+                // for. Unavailability is carried by the dropped border and the
+                // dimmed fill instead, which is shape rather than legibility.
+                color={isSelected ? colors.mile : colors.muted}
               >
                 {letter}
               </VirraText>
@@ -140,7 +145,9 @@ const picker = StyleSheet.create({
     borderWidth: 1, borderColor: colors.control,
   },
   dayBtnActive:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  dayBtnTaken:   { borderColor: 'transparent' },
+  // No ring and a recessed fill: 'taken' reads as unavailable without
+  // making the letter itself hard to read. Card 218.
+  dayBtnTaken:   { borderColor: 'transparent', backgroundColor: colors.mist, opacity: 0.55 },
   occupiedDot:   { position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.dawn },
 });
 
