@@ -14,7 +14,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 //   virra:unit_system       : display preference
 //   permissions_granted_v1  : mirrors OS permission state, which persists
 //   sb-*-auth-token         : handled by the auth store's own sign-out sweep
-const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_'];
+//
+// virra:pending_completions:v1:<userId> holds workouts finished with no signal
+// and not yet synced. Keyed by user id, so the next account on this phone must
+// never inherit them. Card 253.
+export const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_', 'virra:pending_completions:'];
 const USER_CACHE_KEYS = ['virra:sessions:v1'];
 
 export async function clearUserScopedCaches(): Promise<void> {
