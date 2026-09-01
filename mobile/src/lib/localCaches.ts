@@ -22,7 +22,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // adding the equipment prompt: `virra:recipes_dietary_asked` had the same leak
 // and has been leaking since the recipes tab shipped. Same family of bug as
 // card 225, where iOS kept the previous account's notifications.
-const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_'];
+//
+// virra:pending_completions:v1:<userId> holds workouts finished with no signal
+// and not yet synced. Keyed by user id, so the next account on this phone must
+// never inherit them. Card 253.
+export const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_', 'virra:pending_completions:'];
 export const USER_CACHE_KEYS = [
   'virra:sessions:v1',
   'virra:equipment_preference_asked',
