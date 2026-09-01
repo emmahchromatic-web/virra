@@ -4,6 +4,7 @@ import { supabase } from './supabase';
 import { getCycleInfo } from './cycleEngine';
 import { cancelTrainingReminderToday } from './notifications';
 import { useSessionStore } from '@/store/sessionStore';
+import { fetchRunHeartRate } from '@/lib/healthKitHeartRate';
 
 const ANCHOR_KEY        = 'hk_workout_anchor_v1';
 const REIMPORT_FLAG_KEY = 'hk_reimport_subtype_v1';
@@ -86,6 +87,17 @@ async function runReconcile(_userId: string): Promise<void> {
   } catch (e) {
     console.warn('[healthKitImport] reconcile', e instanceof Error ? e.message : String(e));
   }
+}
+
+/**
+ * How far back an imported run will have its heart rate fetched. See the note
+ * at the call site: a first sync can carry a year of workouts and each lookup
+ * is a separate HealthKit query with its own timeout.
+ */
+export const HR_BACKFILL_WINDOW_DAYS = 90;
+
+export function withinHrBackfillWindow(startedAt: Date, now: Date = new Date()): boolean {
+  return (now.getTime() - startedAt.getTime()) / 86400000 <= HR_BACKFILL_WINDOW_DAYS;
 }
 
 export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
@@ -173,6 +185,27 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
             const distanceKm = distanceM / 1000;
             const avgPace    = distanceKm > 0 ? Math.round(durationS / distanceKm) : null;
 
+            // Card 044. Heart rate was only ever written by the in-app GPS
+            // tracker, so a run recorded on a watch and synced through Health
+            // arrived with pace and elevation and permanently null HR. Since
+            // most runners never press start in Virra, the feature was
+            // effectively invisible to the people it was built for.
+            //
+            // Two deliberate limits:
+            //
+            // 1. Only recent runs. This runs inside the import loop, once per
+            //    workout, and a first sync can carry a year of them. Older runs
+            //    keep null HR, which is exactly what they have today, so
+            //    nothing regresses -- we simply stop adding to the backlog.
+            // 2. No pause data. An app-recorded run excludes paused stretches
+            //    using Virra's own pause list; an imported workout has none, so
+            //    the whole window is used. A long stop at a crossing will pull
+            //    an imported average down slightly relative to an app-recorded
+            //    one. Accepted knowingly rather than discovered later.
+            const { hrAvg, hrMax } = withinHrBackfillWindow(startedAt)
+              ? await fetchRunHeartRate(startedAt, new Date(startedAt.getTime() + durationS * 1000), [])
+              : { hrAvg: null, hrMax: null };
+
             await supabase
               .from('run_details')
               .upsert(
@@ -180,6 +213,11 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
                   activity_id:               activityRow.id,
                   avg_pace_seconds_per_km:   avgPace,
                   elevation_gain_meters:     w.metadata?.HKElevationAscended ?? null,
+                  // Only overwrite with a real reading. A run already carrying
+                  // HR from the in-app tracker must not be blanked by a
+                  // re-import that happened to find no samples.
+                  ...(hrAvg != null && { hr_avg: hrAvg }),
+                  ...(hrMax != null && { hr_max: hrMax }),
                 },
                 { onConflict: 'activity_id', ignoreDuplicates: false }
               );
