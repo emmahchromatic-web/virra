@@ -41,6 +41,7 @@ import { getOrCreateTodayLogId, defaultMealSlot } from '@/lib/nutritionLog';
 import { appAlert } from '@/components/ui/VirraAlert';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
+import { tracksCycle } from '@/lib/cycleEngine';
 
 const EXERCISE_MINS_TARGET: Record<TrainingLoad, number> = {
   rest: 15, easy: 30, moderate: 45, hard: 60,
@@ -215,11 +216,11 @@ export default function DashboardScreen() {
                 CYCLE PHASE
               </VirraText>
               <VirraText variant="serif" size={15} color={colors.breath} style={styles.tagline}>
-                {cycleProfile === 'natural' || cycleProfile === 'irregular'
+                {tracksCycle(cycleProfile)
                   ? 'Add your cycle data to unlock phase-aware guidance.'
                   : 'Your training and nutrition targets are personalised to your load.'}
               </VirraText>
-              {(cycleProfile === 'natural' || cycleProfile === 'irregular') && (
+              {tracksCycle(cycleProfile) && (
                 <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1.5, marginTop: spacing.xs }}>
                   SET UP CYCLE →
                 </VirraText>

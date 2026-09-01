@@ -12,6 +12,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { HormonalSubPicker } from '@/components/cycle/HormonalSubPicker';
 import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
 import { appAlert } from '@/components/ui/VirraAlert';
+import { tracksCycle } from '@/lib/cycleEngine';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -29,8 +30,16 @@ const CYCLE_PROFILES: { value: CycleProfile; label: string; sub: string; redsLin
   { value: 'prefer_not_to_say',   label: 'Prefer not to say',       sub: 'Set this up later'                    },
 ];
 
+const TRACKING_NOTE: Partial<Record<CycleProfile, string>> = {
+  // Card 238. Perimenopause now routes to flow like any other cycling profile,
+  // so it no longer shows the steady note claiming targets come from training
+  // load alone. What it needs instead is honesty about confidence: the phase is
+  // an estimate, and saying so is the difference between a useful prediction
+  // and a wrong fact.
+  perimenopause: 'Perimenopausal cycles are often unpredictable, so we treat your phase as an estimate rather than a fact. Keep logging your symptoms and your targets will follow what you actually feel.',
+};
+
 const STEADY_NOTE: Partial<Record<CycleProfile, string>> = {
-  perimenopause:     'Your targets are based on training load. Symptom logging is available throughout.',
   menopause:         'Your targets are based on training load. Symptom logging is available throughout.',
   prefer_not_to_say: 'Your targets are based on training load. You can update this at any time.',
 };
@@ -49,7 +58,7 @@ export default function CycleSettingsScreen() {
   const [currentPackStart,  setCurrentPackStart]   = useState<Date | null>(store.currentPackStart);
   const [saving,            setSaving]             = useState(false);
 
-  const showDatePickers = selectedProfile === 'natural' || selectedProfile === 'irregular';
+  const showDatePickers = tracksCycle(selectedProfile);
 
   function shiftDate(days: number) {
     setPeriodStartLocal((prev) => {
@@ -244,10 +253,10 @@ export default function CycleSettingsScreen() {
           </>
         )}
 
-        {!showDatePickers && selectedProfile !== 'hormonal' && STEADY_NOTE[selectedProfile] && (
+        {(TRACKING_NOTE[selectedProfile] ?? (!showDatePickers && selectedProfile !== 'hormonal' ? STEADY_NOTE[selectedProfile] : undefined)) && (
           <View style={s.note}>
             <VirraText variant="body" size={14} color="rgba(244,237,224,0.55)" style={s.noteText}>
-              {STEADY_NOTE[selectedProfile]}
+              {TRACKING_NOTE[selectedProfile] ?? STEADY_NOTE[selectedProfile]}
             </VirraText>
           </View>
         )}

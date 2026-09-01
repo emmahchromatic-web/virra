@@ -137,10 +137,13 @@ describe('useCycleStore — setCycleProfile', () => {
     expect(useCycleStore.getState().cycleProfile).toBe('hormonal');
   });
 
-  it('clears cycleInfo when switching to perimenopause', () => {
+  // Card 238. Perimenopause is a cycling profile now, so switching to it must
+  // KEEP the cycle info rather than wiping it the way menopause does.
+  it('keeps cycleInfo when switching to perimenopause', () => {
     useCycleStore.setState({ cycleProfile: 'natural', cycleInfo: mockCycleInfo });
     useCycleStore.getState().setCycleProfile('perimenopause');
-    expect(useCycleStore.getState().cycleInfo).toBeNull();
+    expect(useCycleStore.getState().cycleMode).toBe('flow');
+    expect(useCycleStore.getState().cycleInfo).not.toBeNull();
   });
 
   it('clears cycleInfo when switching to menopause', () => {
