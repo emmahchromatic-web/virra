@@ -385,7 +385,8 @@ async function buildGeneratedRunPlan(
     baseline_pace_secs: model.thresholdSecs,
     runPlan: {
       goal:      raceDistanceFor(tmpl?.distance_goal ?? null),
-      intensity: archetype.forceDifficulty ?? model.difficulty,
+      intensity:   archetype.forceDifficulty ?? model.difficulty,
+      intensities: plan.intensities,
       phases:    plan.curve.map((w, i) => phaseForWeek(w, i, plan.curve.filter((x) => x.kind === 'build' || x.kind === 'down').length)),
       longRunKm: plan.curve.map((w) => w.longRunKm),
       walkRun:   plan.walkRun,
