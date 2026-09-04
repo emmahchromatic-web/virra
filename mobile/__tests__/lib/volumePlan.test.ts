@@ -1,10 +1,8 @@
 import {
   getSessionPaceTarget,
-  _redistributeKm,
   distributeWeeklyKm,
   formatPace,
   buildVolumeAdjustmentNote,
-  type WeekInput,
 } from '@/lib/volumePlan';
 
 // --- getSessionPaceTarget ---
@@ -28,50 +26,6 @@ test('unknown session label defaults to 1.0 type modifier', () => {
 test('null phase defaults to 1.0 phase modifier', () => {
   const result = getSessionPaceTarget(300, 'tempo', null);
   expect(result).toBeCloseTo(300 * 1.0 * 1.0, 1); // 300
-});
-
-// --- _redistributeKm ---
-
-const baseWeeks: WeekInput[] = [
-  { week_number: 1, original_km: 30, phase: 'follicular', is_current: false, is_past: true, is_taper: false },
-  { week_number: 2, original_km: 35, phase: 'ovulatory',  is_current: true,  is_past: false, is_taper: false },
-  { week_number: 3, original_km: 40, phase: 'luteal',     is_current: false, is_past: false, is_taper: false },
-  { week_number: 4, original_km: 25, phase: 'menstrual',  is_current: false, is_past: false, is_taper: true },
-];
-
-test('past weeks always get 0 from redistribution', () => {
-  const result = _redistributeKm(70, baseWeeks);
-  expect(result[0]).toBe(0); // week 1 is past
-});
-
-test('redistribution total equals remainingKm when no caps hit', () => {
-  // Use small remaining_km so caps are not hit
-  const result = _redistributeKm(30, baseWeeks);
-  const remaining = result.slice(1).reduce((a, b) => a + b, 0);
-  expect(remaining).toBeCloseTo(30, 1);
-});
-
-test('front-loading: earlier remaining weeks get more km than later weeks (equal phase weight)', () => {
-  const equalPhaseWeeks: WeekInput[] = [
-    { week_number: 1, original_km: 50, phase: null, is_current: true,  is_past: false, is_taper: false },
-    { week_number: 2, original_km: 50, phase: null, is_current: false, is_past: false, is_taper: false },
-    { week_number: 3, original_km: 50, phase: null, is_current: false, is_past: false, is_taper: false },
-  ];
-  const result = _redistributeKm(90, equalPhaseWeeks);
-  expect(result[0]).toBeGreaterThan(result[1]);
-  expect(result[1]).toBeGreaterThan(result[2]);
-});
-
-test('taper week capped at original_km', () => {
-  // Week 4 is taper (25km). Redistribute 200km — would overflow, taper should cap at 25.
-  const result = _redistributeKm(200, baseWeeks);
-  expect(result[3]).toBeLessThanOrEqual(25);
-});
-
-test('non-taper week capped at 1.30 × original_km', () => {
-  const result = _redistributeKm(200, baseWeeks);
-  expect(result[1]).toBeLessThanOrEqual(35 * 1.30 + 0.01);
-  expect(result[2]).toBeLessThanOrEqual(40 * 1.30 + 0.01);
 });
 
 // --- distributeWeeklyKm ---

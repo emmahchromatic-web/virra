@@ -28,6 +28,7 @@ import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
 import type { Sex } from '@/lib/nutritionTargets';
 import { enableWeightTracking, readWeightSyncDiagnostic, type WeightSyncDiagnostic } from '@/lib/healthKitWeight';
+import { tracksCycle } from '@/lib/cycleEngine';
 
 function Row({ label, value, onPress }: { label: string; value: string; onPress?: () => void }) {
   return (
@@ -178,7 +179,7 @@ export default function ProfileScreen() {
 
   const displayName      = [firstName, lastName].filter(Boolean).join(' ') || 'Runner';
   const initials         = [firstName?.[0], lastName?.[0]].filter(Boolean).join('').toUpperCase() || '?';
-  const showCycleDetails = cycleProfile === 'natural' || cycleProfile === 'irregular';
+  const showCycleDetails = tracksCycle(cycleProfile);
 
   function fmtBreakRange(start: string, end: string): string {
     const s = new Date(start + 'T00:00:00');
@@ -723,7 +724,7 @@ export default function ProfileScreen() {
 
       <WeightExplainerModal
         visible={showExplainer}
-        mode={(cycleProfile === 'natural' || cycleProfile === 'irregular') ? 'cycle' : 'steady'}
+        mode={tracksCycle(cycleProfile) ? 'cycle' : 'steady'}
         onDismiss={handleDismissExplainer}
       />
 
