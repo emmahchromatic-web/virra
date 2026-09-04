@@ -23,6 +23,12 @@ import { useTodaySessions } from '@/hooks/useTodaySessions';
 import { useSessionStore } from '@/store/sessionStore';
 import { SeasonTimeline, type SeasonChainSummary } from '@/components/ui/SeasonTimeline';
 import { VirraModal } from '@/components/ui/VirraModal';
+import { EquipmentPreferenceModal } from '@/components/ui/EquipmentPreferenceModal';
+import { AddEventModal } from '@/components/ui/AddEventModal';
+import { useProfileStore } from '@/store/profile';
+import { hasEquipmentPreference } from '@/lib/getStrongSession';
+import { EQUIPMENT_ASKED_KEY } from '@/lib/workoutPreference';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PlanTemplate {
   id:             string;
@@ -123,6 +129,43 @@ export default function TrainingScreen() {
   const [calMonth,       setCalMonth]       = useState(now.getMonth() + 1);
   const [actionDate, setActionDate] = useState<string | null>(null);
 
+  // Card 246. Equipment preference decides which authored variant of a Get
+  // Strong programme someone is enrolled on, and nothing has ever asked for it:
+  // the column defaulted to the full-gym answer, so a user training at home was
+  // silently given a barbell programme.
+  //
+  // Asked once per install, matching the recipes tab's dietary prompt. Skipping
+  // leaves the preference unset on purpose, and the enrolment screen then shows
+  // every variant rather than the app guessing.
+  const workoutPreference = useProfileStore((st) => st.workoutPreference);
+  const saveProfile       = useProfileStore((st) => st.save);
+  const [askEquipment, setAskEquipment] = useState(false);
+
+  // Card 029. Races other than a plan's goal race are `user_events`, and two or
+  // more future ones is what builds a season. That already worked; the only way
+  // in was AddEventModal on the INSIGHTS screen, which is not where anyone
+  // looks for a race. So the season could not be discovered, and adding a
+  // second race appeared to do nothing.
+  const [addRaceOpen, setAddRaceOpen] = useState(false);
+
+  useEffect(() => {
+    if (!session) return;
+    // undefined means the profile has not loaded yet; null means genuinely unset.
+    if (workoutPreference === undefined) return;
+    if (hasEquipmentPreference(workoutPreference)) return;
+    let cancelled = false;
+    AsyncStorage.getItem(EQUIPMENT_ASKED_KEY).then((asked) => {
+      if (!cancelled && !asked) setAskEquipment(true);
+    });
+    return () => { cancelled = true; };
+  }, [session, workoutPreference]);
+
+  async function handleEquipmentDone(pref: Parameters<typeof saveProfile>[1]['workoutPreference']) {
+    setAskEquipment(false);
+    await AsyncStorage.setItem(EQUIPMENT_ASKED_KEY, '1');
+    if (session && pref) await saveProfile(session.user.id, { workoutPreference: pref });
+  }
+
   useFocusEffect(
     useCallback(() => {
       if (session) loadData();
@@ -168,16 +211,26 @@ export default function TrainingScreen() {
     // of PlannedSessionRow. The season-summary card is the only consumer
     // of phase outside the SeasonEngine itself, so the column is omitted
     // from the cached row schema to keep AsyncStorage payload lean.
-    const { data: currentSession } = await supabase
+    //
+    // NOT maybeSingle(). One plan per slot means a run and a lift on the same
+    // day is the normal case, not an edge one (card 32), and maybeSingle errors
+    // outright on more than one row. The error was never checked, so the season
+    // card quietly reported phase 'rest' on exactly the double days the
+    // multi-track model creates.
+    const { data: todaySessions } = await supabase
       .from('planned_sessions')
-      .select('phase, block_id')
+      .select('phase, block_id, modality')
       .eq('user_id', userId)
       .eq('scheduled_date', todayISO)
       .neq('status', 'moved')
-      .neq('status', 'dropped')
-      .maybeSingle();
+      .neq('status', 'dropped');
 
-    const currentPhase = currentSession?.phase ?? 'rest';
+    // A season is built around races, so the run block's phase is the one that
+    // describes where the season is. Fall back to any session carrying a phase.
+    const rows        = todaySessions ?? [];
+    const runPhase    = rows.find((r) => r.modality === 'run' && r.phase)?.phase;
+    const anyPhase    = rows.find((r) => r.phase)?.phase;
+    const currentPhase = runPhase ?? anyPhase ?? 'rest';
 
     const totalWeeks = Math.max(
       1,
@@ -290,6 +343,28 @@ export default function TrainingScreen() {
 
         {/* Season chain overview */}
         <SeasonTimeline summary={seasonSummary} />
+
+        {/* Card 029. When there is no season yet, say what would make one.
+            Without this the concept is invisible until it already exists. */}
+        <Pressable
+          style={styles.addRaceRow}
+          onPress={() => setAddRaceOpen(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add a race"
+        >
+          <SymbolView name="flag.checkered" size={15} tintColor={colors.pulse} />
+          <View style={{ flex: 1 }}>
+            <VirraText variant="mono" size={11} color={colors.breath} style={{ letterSpacing: 1.5 }}>
+              ADD A RACE
+            </VirraText>
+            {!seasonSummary && (
+              <VirraText variant="body" size={12} color={colors.muted}>
+                Add two or more and Virra builds a season around them.
+              </VirraText>
+            )}
+          </View>
+          <SymbolView name="chevron.right" size={13} tintColor={colors.muted} />
+        </Pressable>
 
         {/* Today's planned session hero */}
         {(activeBlocks.length > 0 || activePlan) && (
@@ -408,6 +483,15 @@ export default function TrainingScreen() {
           </VirraText>
         </Pressable>
       </ScrollView>
+      <EquipmentPreferenceModal visible={askEquipment} onDone={handleEquipmentDone} />
+      {session && (
+        <AddEventModal
+          visible={addRaceOpen}
+          userId={session.user.id}
+          onClose={() => setAddRaceOpen(false)}
+          onSaved={() => { setAddRaceOpen(false); loadData(); }}
+        />
+      )}
     </SafeAreaView>
     </GestureHandlerRootView>
   );
@@ -669,5 +753,6 @@ const styles = StyleSheet.create({
   activityCard:    { paddingVertical: 0, gap: 0 },
   divider:         { height: 1, backgroundColor: colors.border },
   manualLink:      { alignItems: 'center', paddingVertical: spacing.sm },
+  addRaceRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.md, paddingHorizontal: spacing.md, backgroundColor: colors.mist, borderRadius: radius.md, borderWidth: 1, borderColor: colors.control },
   browseLink:      { alignItems: 'center', paddingVertical: spacing.md },
 });

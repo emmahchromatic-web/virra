@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { sumDistinctKm, type OverlapCandidate } from '@/lib/overlappingActivities';
 
 export interface PhasePace {
   phase:           string;
@@ -96,14 +97,14 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     // against 14km of actual running in the same month.
     supabase
       .from('activities')
-      .select('distance_meters')
+      .select('distance_meters, started_at, duration_seconds')
       .eq('user_id', userId)
       .eq('activity_type', 'run')
       .gte('started_at', weekStart.toISOString()),
 
     supabase
       .from('activities')
-      .select('distance_meters')
+      .select('distance_meters, started_at, duration_seconds')
       .eq('user_id', userId)
       .eq('activity_type', 'run')
       .gte('started_at', monthStart.toISOString()),
@@ -113,7 +114,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
     // that would have silently truncated later anyway.
     supabase
       .from('activities')
-      .select('distance_meters')
+      .select('distance_meters, started_at, duration_seconds')
       .eq('user_id', userId)
       .eq('activity_type', 'run')
       .gte('started_at', yearStart.toISOString()),
@@ -163,8 +164,11 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
   if (nutritionLogsRes.error)  throw nutritionLogsRes.error;
   if (symptomLogsRes.error)    throw symptomLogsRes.error;
 
-  const sumKm = (rows: any[]) =>
-    rows.reduce((acc, r) => acc + (r.distance_meters ?? 0), 0) / 1000;
+  // Card 216. One Garmin run can reach HealthKit as two overlapping workouts
+  // with different UUIDs, which the import's (user_id, started_at) upsert
+  // cannot catch because the timestamps genuinely differ. Summing them counted
+  // the same run twice: 12.89 km against a real 10.7.
+  const sumKm = (rows: any[]) => sumDistinctKm(rows as OverlapCandidate[]);
 
   const weeklyKm  = sumKm(weekRes.data ?? []);
   const monthlyKm = sumKm(monthRes.data ?? []);
