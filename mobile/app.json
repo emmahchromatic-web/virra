@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Virra",
+    "userInterfaceStyle": "dark",
     "slug": "virra",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +13,7 @@
     "icon": "./assets/icon.png",
     "ios": {
       "bundleIdentifier": "com.pauldickenson.virra.app",
-      "buildNumber": "12",
+      "buildNumber": "14",
       "supportsTablet": false,
       "icon": "./assets/ViRRA.icon",
       "infoPlist": {

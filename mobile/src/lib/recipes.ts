@@ -220,3 +220,217 @@ export function scaleIngredientQuantity(
   if (quantity === null || serves <= 0) return null;
   return Math.round((quantity / serves) * servings * 10) / 10;
 }
+
+// ---------------------------------------------------------------------------
+// Context the "fits what's left today" rail needs
+// ---------------------------------------------------------------------------
+
+/**
+ * What has already been logged into one meal slot today.
+ *
+ * The rail scores against what is LEFT in a slot, so it needs the slot's
+ * running total rather than the day's. Returns zeroes on any failure: an
+ * empty slot ranks recipes against the full share, which is the same thing
+ * the screen shows a user who has not logged anything yet.
+ */
+export async function fetchSlotTotals(
+  userId:  string,
+  dateISO: string,
+  slot:    MealType,
+): Promise<{ calories: number; carbs_g: number; protein_g: number; fat_g: number }> {
+  const empty = { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 };
+
+  const { data: log, error: logError } = await supabase
+    .from('nutrition_logs')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('recorded_on', dateISO)
+    .maybeSingle();
+
+  if (logError || !log) return empty;
+
+  const { data, error } = await supabase
+    .from('food_entries')
+    .select('calories, carbs_g, protein_g, fat_g')
+    .eq('log_id', log.id)
+    .eq('meal_type', slot);
+
+  if (error) {
+    console.warn('[recipes] fetchSlotTotals failed:', error.message);
+    return empty;
+  }
+
+  return (data ?? []).reduce((acc, e) => ({
+    calories:  acc.calories  + Number(e.calories  ?? 0),
+    carbs_g:   acc.carbs_g   + Number(e.carbs_g   ?? 0),
+    protein_g: acc.protein_g + Number(e.protein_g ?? 0),
+    fat_g:     acc.fat_g     + Number(e.fat_g     ?? 0),
+  }), empty);
+}
+
+/**
+ * The user's stored dietary requirements.
+ *
+ * `user_profiles.dietary_prefs` predates the removal of the onboarding diet
+ * step, so almost every account has an empty array here. The Recipes tab asks
+ * for it on first open, which is the first point in the app where the answer
+ * changes what somebody sees.
+ */
+export async function fetchDietaryPrefs(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('dietary_prefs')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('[recipes] fetchDietaryPrefs failed:', error.message);
+    return [];
+  }
+  return (data?.dietary_prefs as string[] | null) ?? [];
+}
+
+export async function saveDietaryPrefs(userId: string, prefs: string[]): Promise<boolean> {
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ dietary_prefs: prefs })
+    .eq('id', userId);
+
+  if (error) {
+    console.warn('[recipes] saveDietaryPrefs failed:', error.message);
+    return false;
+  }
+  return true;
+}
+
+/** Recipes grouped into their collections, preserving the fetched order. */
+export function groupByCollection(recipes: Recipe[]): { collection: string; label: string; recipes: Recipe[] }[] {
+  const out: { collection: string; label: string; recipes: Recipe[] }[] = [];
+  for (const r of recipes) {
+    const found = out.find((g) => g.collection === r.collection);
+    if (found) found.recipes.push(r);
+    else out.push({ collection: r.collection, label: r.collectionLabel, recipes: [r] });
+  }
+  return out;
+}
+
+/** Case- and accent-insensitive name search, matching on any word prefix. */
+export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return recipes;
+  return recipes.filter((r) =>
+    r.name.toLowerCase().includes(q) ||
+    r.collectionLabel.toLowerCase().includes(q));
+}
+
+// ---------------------------------------------------------------------------
+// Logging a recipe
+// ---------------------------------------------------------------------------
+
+/**
+ * Write ONE food_entries row for a recipe, not one per ingredient.
+ *
+ * The day view stays readable and the whole meal deletes in one tap. It also
+ * works whatever macro granularity the content came with, which is why this is
+ * the only shape available: a source that gives per-serving totals only has no
+ * per-ingredient rows to write.
+ *
+ * `quantity_g` is deliberately left null. Nobody weighed the finished dish, and
+ * a gram figure invented here would be a fiction the rest of the food log does
+ * not tell. The serving count travels in `food_name` instead.
+ *
+ * Returns null on success, or a message to show the user.
+ */
+export async function logRecipe(args: {
+  logId:    string;
+  mealType: MealType;
+  recipe:   Pick<Recipe, 'id' | 'name' | 'calories' | 'carbs_g' | 'protein_g' | 'fat_g' | 'fibre_g'>;
+  servings: number;
+}): Promise<string | null> {
+  const scaled = scaleServings(args.recipe, args.servings);
+
+  const { error } = await supabase.from('food_entries').insert({
+    log_id:        args.logId,
+    meal_type:     args.mealType,
+    food_name:     recipeEntryName(args.recipe.name, args.servings),
+    quantity_g:    null,
+    quantity_unit: 'g',
+    calories:      scaled.calories,
+    carbs_g:       scaled.carbs_g,
+    protein_g:     scaled.protein_g,
+    fat_g:         scaled.fat_g,
+    // fibre_g is NOT NULL on food_entries, so an unknown has to land as 0
+    // here. The recipe row keeps the null, which is where the truth lives.
+    fibre_g:       scaled.fibre_g ?? 0,
+    source:        'recipe',
+    recipe_id:     args.recipe.id,
+  });
+
+  if (error) {
+    console.warn('[recipes] logRecipe failed:', error.message);
+    return error.message;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Favourites
+// ---------------------------------------------------------------------------
+
+export async function fetchFavouriteIds(userId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('recipe_favourites')
+    .select('recipe_id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('[recipes] fetchFavouriteIds failed:', error.message);
+    return [];
+  }
+  return (data ?? []).map((r: { recipe_id: string }) => r.recipe_id);
+}
+
+/**
+ * Toggle a favourite. Returns the resulting state, or null if it failed, so a
+ * caller that optimistically flipped the heart knows to put it back.
+ */
+export async function toggleFavourite(
+  userId:   string,
+  recipeId: string,
+  next:     boolean,
+): Promise<boolean | null> {
+  const { error } = next
+    ? await supabase.from('recipe_favourites').upsert(
+        { user_id: userId, recipe_id: recipeId },
+        { onConflict: 'user_id,recipe_id' },
+      )
+    : await supabase.from('recipe_favourites')
+        .delete()
+        .eq('user_id', userId)
+        .eq('recipe_id', recipeId);
+
+  if (error) {
+    console.warn('[recipes] toggleFavourite failed:', error.message);
+    return null;
+  }
+  return next;
+}
+
+// ---------------------------------------------------------------------------
+// Tiering
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether a subscription covers a recipe.
+ *
+ * `min_tier` is null on every recipe today, when the whole tab sits behind the
+ * single existing paywall, so this is an identity function in practice. It
+ * exists as one helper rather than an inline check so that splitting the book
+ * across tiers later is a change in one place plus a data update, which is the
+ * whole reason the column was carried in the schema.
+ */
+export function isRecipeUnlocked(recipe: Pick<Recipe, 'minTier'>, userTier: string | null): boolean {
+  if (!recipe.minTier) return true;
+  return userTier === recipe.minTier;
+}

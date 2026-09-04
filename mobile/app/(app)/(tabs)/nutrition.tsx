@@ -36,7 +36,7 @@ interface FoodEntry {
   fibre_g:      number;
   quantity_g:   number | null;
   quantity_unit: FoodUnit | string | null;
-  source:       'manual' | 'common' | 'off' | 'barcode' | 'haiku';
+  source:       'manual' | 'common' | 'off' | 'barcode' | 'haiku' | 'recipe';
   haiku_input:  string | null;
   log_id:       string;
 }
@@ -169,7 +169,7 @@ function FoodEntryRow({ entry, onEdit, onDelete }: FoodEntryRowProps) {
         delayLongPress={400}
         style={({ pressed }) => [styles.entryRow, pressed && { opacity: 0.7 }]}
         accessibilityRole="button"
-        accessibilityLabel={`Edit ${entry.food_name}${entry.source === 'haiku' ? ' (estimated)' : ''}`}
+        accessibilityLabel={`Edit ${entry.food_name}${entry.source === 'haiku' ? ' (estimated)' : ''}${entry.source === 'recipe' ? ' (from the recipe book)' : ''}`}
       >
         <View style={row.nameLine}>
           <VirraText variant="body" size={14} color={colors.breath} style={row.name}>
@@ -178,6 +178,14 @@ function FoodEntryRow({ entry, onEdit, onDelete }: FoodEntryRowProps) {
           {entry.source === 'haiku' && (
             <View style={row.estChip}>
               <VirraText variant="mono" size={9} color={colors.breath} style={row.estChipLabel}>EST.</VirraText>
+            </View>
+          )}
+          {/* Recipe entries carry no quantity_g, so without this the row would
+              read as a bare name and a calorie count with no hint where it
+              came from. */}
+          {entry.source === 'recipe' && (
+            <View style={row.estChip}>
+              <VirraText variant="mono" size={9} color={colors.breath} style={row.estChipLabel}>RECIPE</VirraText>
             </View>
           )}
         </View>

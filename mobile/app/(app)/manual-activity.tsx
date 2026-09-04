@@ -285,7 +285,15 @@ export default function ManualActivityScreen() {
 
           {/* Activity type */}
           <Field label="ACTIVITY">
-            <View style={styles.typeRow}>
+            {/* 13 options since card 221. Wrapped across rows they pushed the
+                rest of the form off screen, so the picker scrolls inside a
+                fixed height instead of growing the page. Card 240. */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.typeRow}
+              keyboardShouldPersistTaps="handled"
+            >
               {ACTIVITY_TYPES.map(({ key, label, icon }) => {
                 const active = activityKey === key;
                 return (
@@ -303,7 +311,7 @@ export default function ManualActivityScreen() {
                   </Pressable>
                 );
               })}
-            </View>
+            </ScrollView>
           </Field>
 
           <VirraCard style={styles.formCard}>
@@ -520,7 +528,9 @@ const styles = StyleSheet.create({
   closeBtn:           { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   scroll:             { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   hint:               { fontStyle: 'italic', lineHeight: 20 },
-  typeRow:            { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  // No flexWrap: this is the content container of a horizontal ScrollView,
+  // so the chips stay on one line and the row scrolls rather than the page.
+  typeRow:            { flexDirection: 'row', gap: spacing.sm, paddingRight: spacing.md },
   typeChip:           { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist },
   typeChipActive:     { backgroundColor: colors.pulse, borderColor: colors.pulse },
   formCard:           { gap: spacing.md },

@@ -5,12 +5,12 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 
 // The contract we hand Haiku. Caching this saves ~80% of input cost steady state.
 //
-// Tone constraints follow Virra's fuelling-language rule from CLAUDE.md —
+// Tone constraints follow Virra's fuelling-language rule from CLAUDE.md:
 // never moralise the food, never "treat/splurge/indulgent" framing.
 // UK portion defaults reflect the primary user base.
 const SYSTEM_PROMPT = `You are Virra's meal estimator. The user describes what they just ate in natural language; you return a structured nutrition estimate.
 
-OUTPUT FORMAT — strict JSON only, no prose, no markdown fences, no commentary:
+OUTPUT FORMAT, strict JSON only, no prose, no markdown fences, no commentary:
 {
   "items": [
     {
@@ -34,8 +34,8 @@ RULES:
 - "confidence" per item: lower (0.3–0.5) for restaurant dishes with high prep variance, higher (0.7–0.9) for branded packaged foods or simple home cooking.
 - "overall_confidence": holistic. If any single item is highly uncertain, drag the overall down.
 - Never editorialise the food. Never use words like "high", "indulgent", "treat", "splurge", "healthy", "unhealthy". Just report what is in it.
-- "notes" is for ambiguity the user should know about (e.g. "Estimate assumes pub-size portion — adjust grams if larger"). Otherwise null.
-- If the description is empty or makes no sense as food, return {"items":[],"overall_confidence":0,"notes":"Couldn't parse this — try again with more detail"}.
+- "notes" is for ambiguity the user should know about (e.g. "Estimate assumes pub-size portion, so adjust grams if larger"). Otherwise null.
+- If the description is empty or makes no sense as food, return {"items":[],"overall_confidence":0,"notes":"Couldn't parse this. Try again with more detail"}.
 - Always include fibre_g, even if 0.`;
 
 function err(msg: string, status: number): Response {
@@ -126,7 +126,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const { data: { user }, error: authErr } = await supabaseAnon.auth.getUser();
   if (authErr || !user) return err("Unauthorized", 401);
 
-  // Service role for the rate-limit read — bypasses RLS so we can scan food_entries
+  // Service role for the rate-limit read: bypasses RLS so we can scan food_entries
   // joined through nutrition_logs without an explicit user_id column.
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -175,7 +175,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     .gte("created_at", oneMinuteAgo)
     .limit(10);
   if ((recentHaikuRows?.length ?? 0) >= 5) {
-    return err("Too many estimates — wait a minute and try again.", 429);
+    return err("Too many estimates. Wait a minute and try again.", 429);
   }
 
   // --- Haiku call ---
@@ -246,7 +246,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     notes,
   };
 
-  // Persist for future cache hits. Only when we actually got items back —
+  // Persist for future cache hits. Only when we actually got items back:
   // failed parses or empty responses aren't worth caching. Upsert handles
   // the race where two parallel calls landed on the same description.
   if (items.length > 0) {

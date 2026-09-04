@@ -1,6 +1,6 @@
 // mobile/app/(onboarding)/permissions.tsx
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -35,7 +35,13 @@ export default function PermissionsScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
+        showsVerticalScrollIndicator={false}
+      >
       <View style={styles.content}>
         <VirraText variant="mono" size={10} color={colors.pulse} style={styles.label}>
           {current.label}
@@ -61,12 +67,13 @@ export default function PermissionsScreen() {
           {permIndex + 1} of {PERMISSIONS.length}
         </VirraText>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.lg, justifyContent: 'space-between' },
+  scroll:    { flex: 1 },
+  container: { flexGrow: 1, padding: spacing.lg, justifyContent: 'space-between' },
   content:   { flex: 1, justifyContent: 'center', gap: spacing.lg },
   label:     { letterSpacing: 2 },
   headline:  { lineHeight: 32 },

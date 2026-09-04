@@ -56,13 +56,24 @@ export interface AuthoredSession {
 }
 
 /** Map the user's stored equipment preference to a programme variant. */
-export function variantForPreference(pref: WorkoutPreference): ProgrammeVariant {
+/**
+ * Card 246. `null` means the user has never been asked, which is NOT the same
+ * as choosing the gym. The enrolment screen makes them choose before starting a
+ * strength plan, so an unset preference should not reach here; the gym fallback
+ * survives only as a last resort for a plan enrolled before the prompt existed.
+ */
+export function variantForPreference(pref: WorkoutPreference | null | undefined): ProgrammeVariant {
   switch (pref) {
     case 'home_dumbbells':  return 'dumbbells';
     case 'home_bodyweight': return 'bodyweight';
     case 'gym_full':
     default:                return 'gym';
   }
+}
+
+/** Has the user actually told us? Distinct from "what would we assume". */
+export function hasEquipmentPreference(pref: WorkoutPreference | null | undefined): boolean {
+  return pref === 'gym_full' || pref === 'home_dumbbells' || pref === 'home_bodyweight';
 }
 
 /**
