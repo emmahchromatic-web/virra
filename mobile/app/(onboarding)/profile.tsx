@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, TextInput, Pressable, StyleSheet, Image, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,12 +9,23 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { useOnboarding } from '@/context/OnboardingContext';
 
 export default function ProfileOnboardingScreen() {
-  const { setStep, setData } = useOnboarding();
+  const { setStep, data, setData } = useOnboarding();
   useFocusEffect(React.useCallback(() => { setStep(2); }, [setStep]));
 
-  const [firstName, setFirstName] = useState('');
-  const [lastName,  setLastName]  = useState('');
-  const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  // Seeded from the context rather than from blanks. Going back a step remounts
+  // this screen, and initialising from '' threw away answers the context was
+  // holding the whole time -- reported on build 14 after stepping back from
+  // body-metrics to check the keyboard.
+  const [firstName, setFirstName] = useState(data.firstName);
+  const [lastName,  setLastName]  = useState(data.lastName);
+  const [avatarUri, setAvatarUri] = useState<string | null>(data.localAvatarUri);
+
+  // Recorded as they are typed, not on Continue: the button stays disabled
+  // until both names are filled, so a user who enters one and steps back would
+  // otherwise lose it.
+  useEffect(() => {
+    setData({ firstName: firstName.trim(), lastName: lastName.trim(), localAvatarUri: avatarUri });
+  }, [firstName, lastName, avatarUri, setData]);
 
   async function pickAvatar() {
     const result = await ImagePicker.launchImageLibraryAsync({

@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/auth';
+import { useNotificationsStore } from '@/store/notifications';
 import { supabase } from '@/lib/supabase';
 
 jest.mock('@/lib/supabase', () => ({
@@ -119,6 +120,37 @@ describe('useAuthStore', () => {
     const { result } = renderHook(() => useAuthStore());
     await act(async () => { await result.current.signOut(); });
     expect(mockCancelAll).toHaveBeenCalledTimes(1);
+  });
+
+  // Card 225 again, and the half that actually failed build 14. Deleting
+  // notif_inbox_v1 does nothing about the copy the store is holding in memory:
+  // `hydrate()` early-returns while `hydrated` is true, so the next account
+  // never re-read the emptied key and rendered the previous account's inbox.
+  it('empties the notification inbox in memory, not just in storage', async () => {
+    await act(async () => {
+      await useNotificationsStore.getState().add({
+        id: 'n1', title: 'Time to train', body: "Today's run is ready.",
+      });
+    });
+    expect(useNotificationsStore.getState().items).toHaveLength(1);
+    expect(useNotificationsStore.getState().hydrated).toBe(false);
+
+    // Hydrating is what the next account's launch does, and it is the step that
+    // used to be skipped.
+    await act(async () => { await useNotificationsStore.getState().hydrate(); });
+    expect(useNotificationsStore.getState().hydrated).toBe(true);
+
+    const { result } = renderHook(() => useAuthStore());
+    await act(async () => { await result.current.signOut(); });
+
+    expect(useNotificationsStore.getState().items).toHaveLength(0);
+    expect(useNotificationsStore.getState().unreadCount).toBe(0);
+    // Cleared so the NEXT account actually reads storage instead of trusting
+    // the previous account's in-memory copy.
+    expect(useNotificationsStore.getState().hydrated).toBe(false);
+
+    await act(async () => { await useNotificationsStore.getState().hydrate(); });
+    expect(useNotificationsStore.getState().items).toHaveLength(0);
   });
 
   it('still signs out even if cancelling notifications fails', async () => {
