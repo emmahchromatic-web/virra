@@ -4,7 +4,7 @@ import { recomputeSeasonForUser } from './seasonEngine';
 import { useCycleStore } from '@/store/cycle';
 import { loadProgrammeSessions, loadProgrammeMeta, variantForPreference } from './getStrongSession';
 import { loadRunnerModel } from './runProgramme/runnerModel';
-import { generateRunPlan } from './runProgramme/generatePlan';
+import { generateRunPlan, phaseForWeek } from './runProgramme/generatePlan';
 import { archetypeForTemplate, raceDistanceFor } from './runProgramme/archetypes';
 import type { WorkoutPreference } from '@/store/profile';
 
@@ -361,8 +361,9 @@ async function buildGeneratedRunPlan(
     runPlan: {
       goal:      raceDistanceFor(tmpl?.distance_goal ?? null),
       intensity: archetype.forceDifficulty ?? model.difficulty,
-      phases:    plan.weeks.map((w) => w.label.toLowerCase() as never),
+      phases:    plan.curve.map((w, i) => phaseForWeek(w, i, plan.curve.filter((x) => x.kind === 'build' || x.kind === 'down').length)),
       longRunKm: plan.curve.map((w) => w.longRunKm),
+      walkRun:   plan.walkRun,
     },
   };
 
