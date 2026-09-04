@@ -65,6 +65,30 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
   <meta name="twitter:title" content={title} />
   <meta name="twitter:description" content={description} />
   <meta name="twitter:image" content={new URL(ogImage, Astro.site)} />
+
+  {/* Own-traffic opt-out. The @vercel/analytics Astro component passes
+      window.webAnalyticsBeforeSend into inject(), so returning null from it
+      drops the event before anything is sent. Visit any page with
+      ?va-disable=1 once per browser to stop your own visits being counted;
+      ?va-disable=0 undoes it. Kept as a classic inline script so it runs
+      before the component's deferred module script upgrades the element. */}
+  <script is:inline>
+    (function () {
+      try {
+        var KEY = 'va-disable';
+        var q = new URLSearchParams(window.location.search);
+        if (q.has(KEY)) {
+          if (q.get(KEY) === '0') localStorage.removeItem(KEY);
+          else localStorage.setItem(KEY, '1');
+        }
+        if (localStorage.getItem(KEY) === '1') {
+          window.webAnalyticsBeforeSend = function () { return null; };
+        }
+      } catch (e) {
+        /* Storage unavailable (private mode, blocked cookies) — track as normal. */
+      }
+    })();
+  </script>
 </head>
 <body>
   <slot />

@@ -2,6 +2,7 @@ import { useCycleStore } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { computeBaseline } from '@/lib/weightBaseline';
 import { computeSteadyBaseline } from '@/lib/weightBaselineSteady';
+import { tracksCycle } from '@/lib/cycleEngine';
 
 /**
  * Recompute whichever weight baselines this user needs and mirror the result
@@ -19,7 +20,7 @@ import { computeSteadyBaseline } from '@/lib/weightBaselineSteady';
  */
 export async function recomputeBaseline(userId: string): Promise<void> {
   const profile   = useCycleStore.getState().cycleProfile;
-  const isCycle   = profile === 'natural' || profile === 'irregular';
+  const isCycle   = tracksCycle(profile);
   const setLocal  = useProfileStore.getState().setLocal;
 
   const steady = await computeSteadyBaseline(userId);

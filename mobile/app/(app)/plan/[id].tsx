@@ -14,6 +14,10 @@ import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGen
 import { loadRunnerModel, type RunnerModel } from '@/lib/runProgramme/runnerModel';
 import { generateRunPlan } from '@/lib/runProgramme/generatePlan';
 import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
+import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
+import { useProfileStore } from '@/store/profile';
+import { hasEquipmentPreference } from '@/lib/getStrongSession';
+import { WORKOUT_PREFERENCE_OPTIONS } from '@/lib/workoutPreference';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -113,7 +117,12 @@ function SchedulePickerRow({
               <VirraText
                 variant="mono"
                 size={11}
-                color={isSelected ? colors.mile : isTaken ? 'rgba(244,237,224,0.25)' : colors.muted}
+                // Card 218. This was a hardcoded 0.25 alpha, measuring 2.12:1 --
+                // well under the 4.5:1 a body-size letter needs, and the day
+                // letter is information you need even when the day is spoken
+                // for. Unavailability is carried by the dropped border and the
+                // dimmed fill instead, which is shape rather than legibility.
+                color={isSelected ? colors.mile : colors.muted}
               >
                 {letter}
               </VirraText>
@@ -136,7 +145,9 @@ const picker = StyleSheet.create({
     borderWidth: 1, borderColor: colors.control,
   },
   dayBtnActive:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  dayBtnTaken:   { borderColor: 'transparent' },
+  // No ring and a recessed fill: 'taken' reads as unavailable without
+  // making the letter itself hard to read. Card 218.
+  dayBtnTaken:   { borderColor: 'transparent', backgroundColor: colors.mist, opacity: 0.55 },
   occupiedDot:   { position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.dawn },
 });
 
@@ -388,28 +399,23 @@ export default function PlanDetailScreen() {
   // walks the weeks collecting unique labels, so this is the same number it
   // would produce, and asking for more than this makes it repeat a label:
   // `unique[i % unique.length]`.
-  const authoredSessionCount = (() => {
-    const weeks = (plan?.sessions_json ?? []) as WeekSession[];
-    const seen  = new Set<string>();
-    for (const w of weeks) for (const l of w.sessions ?? []) seen.add(l);
-    return seen.size;
-  })();
+  // Bounds live in src/lib/sessionCountBounds.ts with their own tests: they
+  // were inline and untested here, which is how the second half of card 222
+  // shipped unfixed. See that file for why both ends matter.
+  const authored = authoredSessionCount(plan?.sessions_json as WeekSession[] | undefined);
+  const { min: MIN_SESSIONS, max: MAX_SESSIONS } = sessionCountBounds(isStrength, authored);
 
-  // Card 222: a defined 2-day strength programme could be pushed to three, and
-  // the third day silently repeated one of the authored days, so the user did
-  // lower/upper/lower. Get Strong's block progression assumes each authored day
-  // appears once a week, so that is not a smaller version of the programme, it
-  // is a different one.
-  //
-  // Run plans are generated rather than authored, so extra days there are real
-  // sessions and the old cap still applies.
-  const MAX_SESSIONS    = isStrength && authoredSessionCount > 0
-    ? authoredSessionCount
-    : 5;
+  // Card 246. An unset equipment preference is NOT a preference for the gym.
+  // Rather than guessing, a strength plan shows every variant here and will not
+  // start until one is picked: this is the moment the answer actually changes
+  // what the user gets, which is when people answer accurately.
+  const workoutPreference = useProfileStore((st) => st.workoutPreference);
+  const saveProfile       = useProfileStore((st) => st.save);
+  const needsEquipment    = isStrength && !hasEquipmentPreference(workoutPreference);
 
   function adjustSessions(delta: number) {
     if (!plan?.sessions_json) return;
-    const next = Math.max(1, Math.min(MAX_SESSIONS, sessionCountOverride + delta));
+    const next = Math.max(MIN_SESSIONS, Math.min(MAX_SESSIONS, sessionCountOverride + delta));
     setSessionCountOverride(next);
     setDayAssignment(computeDefaultDayAssignment(plan.sessions_json as any, next));
   }
@@ -542,12 +548,12 @@ export default function PlanDetailScreen() {
                   <Pressable
                     style={styles.adjBtn}
                     onPress={() => adjustSessions(-1)}
-                    disabled={sessionCountOverride <= 1}
+                    disabled={sessionCountOverride <= MIN_SESSIONS}
                     accessibilityRole="button"
                     accessibilityLabel="Fewer sessions"
                   >
                     <SymbolView name="minus" size={11}
-                      tintColor={sessionCountOverride <= 1 ? colors.border : colors.muted} />
+                      tintColor={sessionCountOverride <= MIN_SESSIONS ? colors.border : colors.muted} />
                   </Pressable>
                   <VirraText variant="display" size={20} color={colors.breath}>
                     {sessionCountOverride}/wk
@@ -753,8 +759,24 @@ export default function PlanDetailScreen() {
                           setShowRacePicker(false);
                           if (selected) setRaceDateObj(selected);
                         }}
+                        // Card 218. Without this the spinner renders in LIGHT
+                        // appearance -- near-black digits on the dark card, which
+                        // is what Emma's screenshot shows. The other two pickers
+                        // in the app already carry it; this one was missed.
+                        // app.json now declares userInterfaceStyle dark (card
+                        // 243) which fixes it at the root, but the explicit prop
+                        // matches the other two and does not depend on a
+                        // prebuild having happened.
+                        themeVariant="dark"
                       />
                     )}
+                    {/* Card 029. This field is the GOAL race the plan counts
+                        backwards from, so one is correct here. Other races are
+                        user_events and two or more of them build a season, but
+                        nothing said where they go. */}
+                    <VirraText variant="body" size={12} color={colors.muted} style={styles.raceHint}>
+                      Racing more than once? Add your other races on the Training tab, and Virra will build a season around them.
+                    </VirraText>
                     {startHint && (
                       <View style={styles.startHint}>
                         <SymbolView name="calendar" size={12} tintColor={colors.pulse} />
@@ -787,10 +809,33 @@ export default function PlanDetailScreen() {
                 ))}
               </VirraCard>
             )}
+            {needsEquipment && (
+              <VirraCard style={styles.equipCard}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.equipLabel}>
+                  WHERE ARE YOU TRAINING?
+                </VirraText>
+                <VirraText variant="body" size={13} color="rgba(244,237,224,0.6)" style={styles.equipSub}>
+                  This programme comes in three versions. Pick the one that matches your kit and we will use it from here on. You can change it in your profile at any time.
+                </VirraText>
+                {WORKOUT_PREFERENCE_OPTIONS.map((opt) => (
+                  <Pressable
+                    key={opt.value}
+                    style={styles.equipOption}
+                    onPress={() => session && saveProfile(session.user.id, { workoutPreference: opt.value })}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${opt.label}. ${opt.sub}`}
+                  >
+                    <VirraText variant="mono" size={13} color={colors.breath}>{opt.label.toUpperCase()}</VirraText>
+                    <VirraText variant="body" size={12} color="rgba(244,237,224,0.45)">{opt.sub}</VirraText>
+                  </Pressable>
+                ))}
+              </VirraCard>
+            )}
             <VirraButton
               label={ctaLabel}
               onPress={handleStart}
               loading={saving}
+              disabled={needsEquipment}
               style={styles.cta}
             />
           </>
@@ -881,5 +926,10 @@ const styles = StyleSheet.create({
   },
   startHint:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
 
+  raceHint:    { lineHeight: 17, marginTop: spacing.xs },
+  equipCard:   { gap: spacing.sm },
+  equipLabel:  { letterSpacing: 2 },
+  equipSub:    { lineHeight: 19 },
+  equipOption: { gap: 2, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control },
   cta:         { marginTop: spacing.sm },
 });

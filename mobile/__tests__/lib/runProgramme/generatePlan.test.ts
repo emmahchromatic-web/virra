@@ -124,6 +124,16 @@ describe('generateRunPlan', () => {
     }
   });
 
+  it('labels a back-off week as recovery, not by its phase', () => {
+    // Compared against the live Beginner 5K template, which calls its week 4
+    // "Recovery". By phase it is a Build week, but that is not what the runner
+    // needs to know when they look at it.
+    const plan = gen({ weeks: 12 });
+    const downIndex = plan.curve.findIndex((w) => w.kind === 'down');
+    expect(downIndex).toBeGreaterThan(-1);
+    expect(plan.weeks[downIndex].label).toBe('Recovery');
+  });
+
   it('labels weeks with the phase they are in', () => {
     const labels = gen({ weeks: 12 }).weeks.map((w) => w.label);
     expect(labels[0]).toBe('Base');

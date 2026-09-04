@@ -15,6 +15,7 @@ import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { classifyReading, classifySteady, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
 import type { CyclePhase } from '@/lib/cycleEngine';
+import { tracksCycle } from '@/lib/cycleEngine';
 
 const REASONING: Record<BandPosition, string> = {
   in_band: 'Day-to-day weight bounces from water, food timing, and hydration. Yours is moving inside the noise band; exactly what a healthy line looks like.',
@@ -86,7 +87,7 @@ export default function WeightScreen() {
   // baseline is not the one their profile computes.
   // Cycle mode needs a logged period start to place readings in the cycle; with
   // no period start we fall back to the steady view rather than showing nothing.
-  const isCycleMode = (cycleProfile === 'natural' || cycleProfile === 'irregular') && periodStart !== null;
+  const isCycleMode = tracksCycle(cycleProfile) && periodStart !== null;
   const phase       = cycleInfo?.phase ?? 'follicular';
 
   const baseline    = isCycleMode ? cycleBaseline : steadyBaseline;

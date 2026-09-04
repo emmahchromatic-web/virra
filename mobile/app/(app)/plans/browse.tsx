@@ -1,11 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
-import { colors, spacing } from '@/constants/theme';
+import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PlanTemplate {
   id:             string;
@@ -17,9 +18,28 @@ interface PlanTemplate {
   tagline:        string | null;
 }
 
+/**
+ * Card 247. A user holds one run block, one strength block and one mobility
+ * block at a time, so modality is already a first-class idea everywhere except
+ * this screen, which mixed all of them into a single scroll.
+ *
+ * The filter also softens a second problem: the plan detail CTA reads
+ * "Replace <plan>" when a slot is occupied, which alarms people who have not
+ * understood that plans live in per-modality slots. Choosing a modality here
+ * teaches that model before they reach the CTA.
+ */
+const FILTER_KEY = 'virra:browse_modality';
+
+const MODALITY_LABEL: Record<string, string> = {
+  run:      'Run',
+  strength: 'Strength',
+  mobility: 'Mobility',
+};
+
 export default function BrowsePlansScreen() {
   const [templates, setTemplates] = useState<PlanTemplate[]>([]);
   const [loading,   setLoading]   = useState(true);
+  const [modality,  setModality]  = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,6 +59,31 @@ export default function BrowsePlansScreen() {
     return () => { cancelled = true; };
   }, []);
 
+  // Remembered rather than reset each visit: someone browsing strength plans is
+  // usually still browsing strength plans the next time they open this.
+  useEffect(() => {
+    AsyncStorage.getItem(FILTER_KEY).then((v) => { if (v) setModality(v); });
+  }, []);
+
+  function chooseModality(next: string) {
+    setModality(next);
+    AsyncStorage.setItem(FILTER_KEY, next).catch(() => { /* preference only */ });
+  }
+
+  // Built from what is actually in the catalogue, so an empty modality never
+  // shows a tab that leads to "No plans available yet".
+  const modalities = useMemo(() => {
+    const seen: string[] = [];
+    for (const t of templates) if (!seen.includes(t.sport_type)) seen.push(t.sport_type);
+    return seen.sort((a, b) => {
+      const order = ['run', 'strength', 'mobility'];
+      return order.indexOf(a) - order.indexOf(b);
+    });
+  }, [templates]);
+
+  const active  = modality && modalities.includes(modality) ? modality : modalities[0] ?? null;
+  const visible = active ? templates.filter((t) => t.sport_type === active) : templates;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -55,8 +100,29 @@ export default function BrowsePlansScreen() {
         <View style={styles.headerBtn} />
       </View>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {modalities.length > 1 && (
+          <View style={styles.segmented}>
+            {modalities.map((m) => {
+              const on = m === active;
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => chooseModality(m)}
+                  style={[styles.segment, on && styles.segmentActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={MODALITY_LABEL[m] ?? m}
+                >
+                  <VirraText variant="mono" size={12} color={on ? colors.mile : colors.breath}>
+                    {(MODALITY_LABEL[m] ?? m).toUpperCase()}
+                  </VirraText>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
         <View style={styles.templateList}>
-          {templates.map((t) => (
+          {visible.map((t) => (
             <TemplateCard key={t.id} template={t} />
           ))}
           {templates.length === 0 && !loading && (
@@ -103,6 +169,9 @@ const styles = StyleSheet.create({
   header:         { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg },
   headerBtn:      { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   scroll:         { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  segmented:      { flexDirection: 'row', gap: spacing.xs, backgroundColor: colors.mist, borderRadius: radius.md, padding: 3, borderWidth: 1, borderColor: colors.control },
+  segment:        { flex: 1, alignItems: 'center', paddingVertical: spacing.sm, borderRadius: radius.sm },
+  segmentActive:  { backgroundColor: colors.pulse },
   templateList:   { gap: spacing.sm },
   templateCard:   { gap: 0 },
   templateHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },

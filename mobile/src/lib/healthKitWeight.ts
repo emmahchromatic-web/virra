@@ -52,6 +52,38 @@ export interface BodyWeightRow {
   cycle_phase_at_time: 'menstrual' | 'follicular' | 'ovulatory' | 'luteal' | null;
 }
 
+/**
+ * How far BEFORE the known period start a reading may still be phase-stamped.
+ *
+ * Card 239. Enabling weight tracking backfills up to a year of HealthKit
+ * history, and every imported reading used to be stamped by projecting the one
+ * period start the user had just typed *backwards* at a fixed cycle length.
+ * Real cycles vary by a few days each time and the error compounds, so a label
+ * two or three cycles back is a guess wearing the same clothes as an
+ * observation -- and `buildPhaseBands` then learns the personalised band from
+ * those guesses. The band is the thing that tells a woman her weight is normal
+ * for her phase, so a confidently wrong one is the failure this whole feature
+ * exists to prevent.
+ *
+ * 60 days is roughly two cycles: recent enough that the projection is
+ * defensible, short enough that the compounding error stays under a phase.
+ * Readings older than that keep a null phase, which every consumer already
+ * handles -- `phaseDeltas` skips them and `medianFollicular` ignores them.
+ *
+ * Readings AFTER the period start are not capped: those are projected forward
+ * within a cycle we actually know about.
+ */
+export const RETRO_PHASE_WINDOW_DAYS = 60;
+
+export function withinRetroPhaseWindow(
+  readingDate: Date,
+  periodStart: Date,
+  windowDays: number = RETRO_PHASE_WINDOW_DAYS,
+): boolean {
+  const daysBefore = (periodStart.getTime() - readingDate.getTime()) / 86400000;
+  return daysBefore <= windowDays;
+}
+
 export function sampleToRow(
   userId:      string,
   sample:      RawWeightSample,
@@ -65,7 +97,7 @@ export function sampleToRow(
 
   let cycleDay:   number | null = null;
   let cyclePhase: BodyWeightRow['cycle_phase_at_time'] = null;
-  if (periodStart) {
+  if (periodStart && withinRetroPhaseWindow(date, periodStart)) {
     const info = getCycleInfo(periodStart, cycleLength, date);
     cycleDay   = info.dayOfCycle;
     cyclePhase = info.phase;

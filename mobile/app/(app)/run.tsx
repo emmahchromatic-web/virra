@@ -16,6 +16,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
+import { enqueueCompletion } from '@/lib/pendingCompletions';
 
 function formatDuration(s: number): string {
   const h  = Math.floor(s / 3600);
@@ -198,8 +199,36 @@ export default function RunTrackerScreen() {
       .single();
 
     if (actErr) {
-      appAlert('Save failed', actErr.message);
+      // Card 253. This used to leave the run in component state and nowhere
+      // else, so closing the app lost it. GPS needs no signal, which is exactly
+      // why runs happen in valleys and on trails: the one workout most likely
+      // to finish offline was the only one with no local persistence at all.
+      await enqueueCompletion(session.user.id, {
+        kind:      'run',
+        queuedAt:  new Date().toISOString(),
+        sessionId: sessionId ?? null,
+        activity: {
+          user_id:          session.user.id,
+          activity_type:    'run',
+          started_at:       startedAt.current.toISOString(),
+          duration_seconds: elapsedS,
+          distance_meters:  Math.round(distanceM),
+          phase_at_time:    phaseAtTime,
+        },
+        runDetails: {
+          avg_pace_seconds_per_km: avgPaceSecKm,
+          splits_json:             splits.map((s, i) => ({ km: i + 1, sec: s })),
+          hr_avg:                  hrAvg,
+          hr_max:                  hrMax,
+          gps_trace:               trackState.current.trace,
+        },
+      });
       setSaving(false);
+      appAlert(
+        'Saved on your phone',
+        'You are offline, so this run will sync as soon as you have signal. Nothing is lost.',
+      );
+      router.back();
       return;
     }
 

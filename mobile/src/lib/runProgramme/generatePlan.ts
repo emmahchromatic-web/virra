@@ -151,8 +151,14 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
     weeks.push({
       week:     week.week,
       km:       week.km,
-      label:    isWalkRun && week.kind !== 'race'
-        ? walkRunLabel(walkRunStages![i])
+      // A back-off week is labelled as one, ahead of everything else. It is
+      // still a Build week by phase, and on a walk-run plan it still has a
+      // ladder stage, but neither is what the runner needs to know when they
+      // look at it — they need to know this is the easy one. Emma's own
+      // templates call it Recovery, so it says Recovery.
+      label:
+        week.kind === 'down'                ? 'Recovery'
+        : isWalkRun && week.kind !== 'race' ? walkRunLabel(walkRunStages![i])
         : PHASE_LABEL[phase],
       sessions,
     });

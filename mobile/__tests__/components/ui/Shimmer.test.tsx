@@ -29,11 +29,12 @@ describe('Shimmer', () => {
   it('omits the sweep when reduce motion is enabled', async () => {
     (AccessibilityInfo.isReduceMotionEnabled as jest.Mock).mockResolvedValue(true);
     const { queryAllByTestId } = render(<Shimmer height={20} width={200} />);
-    // The component starts with reduceMotion=false (sweep present), then the async
-    // isReduceMotionEnabled() resolves true and the sweep is removed on re-render.
-    // Under full-suite parallel load that flush can exceed the default 1000ms, so
-    // give waitFor a generous timeout to keep this deterministic.
-    await waitFor(() => expect(queryAllByTestId('shimmer-sweep')).toHaveLength(0), { timeout: 5000 });
+    // The component starts with reduceMotion=false (sweep present), then the
+    // async isReduceMotionEnabled() resolves true and the sweep is removed on
+    // re-render. The per-call timeout this used to carry is now the global one
+    // in jest.setup.after.js, which covers every suite with the same problem
+    // rather than the one that happened to be noticed first.
+    await waitFor(() => expect(queryAllByTestId('shimmer-sweep')).toHaveLength(0));
   });
 
   it('omits the sweep until width is known (fluid mode)', () => {
