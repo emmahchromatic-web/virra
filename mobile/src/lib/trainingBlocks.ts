@@ -5,6 +5,8 @@ import { useCycleStore } from '@/store/cycle';
 import { loadProgrammeSessions, loadProgrammeMeta, variantForPreference } from './getStrongSession';
 import { loadRunnerModel } from './runProgramme/runnerModel';
 import { generateRunPlan, phaseForWeek } from './runProgramme/generatePlan';
+import { cycleAlignedDownWeeks, rankHardDay, shapingStrength, type CycleContext } from './runProgramme/cycleShaping';
+import { defaultDownWeeks } from './runProgramme/volumeCurve';
 import { archetypeForTemplate, raceDistanceFor } from './runProgramme/archetypes';
 import type { WorkoutPreference } from '@/store/profile';
 
@@ -341,10 +343,27 @@ async function buildGeneratedRunPlan(
     hasEventDate: Boolean(opts.endsOn),
   });
 
+  const weeks = opts.maxWeeks ?? archetype.defaultWeeks;
+
+  // The cycle shapes the plan before it exists, rather than correcting it
+  // afterwards. Read-time modulation still runs; it now has less to correct.
+  const cycleState = useCycleStore.getState();
+  const cycleCtx: CycleContext = {
+    mode:        cycleState.cycleMode,
+    periodStart: cycleState.periodStart,
+    cycleLength: cycleState.cycleLength,
+  };
+  const strength = shapingStrength(cycleCtx, cycleState.cycleProfile === 'irregular');
+  const planStart = new Date(`${opts.startsOn}T00:00:00`);
+
+  const downWeeks = strength === 'none'
+    ? undefined
+    : cycleAlignedDownWeeks(planStart, cycleCtx, defaultDownWeeks(weeks));
+
   const plan = generateRunPlan({
     archetype,
     goal:                raceDistanceFor(tmpl?.distance_goal ?? null),
-    weeks:               opts.maxWeeks ?? archetype.defaultWeeks,
+    weeks,
     tier:                model.tier,
     preset:              model.preset,
     difficulty:          model.difficulty,
@@ -354,6 +373,12 @@ async function buildGeneratedRunPlan(
     // The last day the runner has chosen is the long-run day unless they said
     // otherwise; most people put their long run at the weekend.
     longRunDay:          Math.max(...days),
+    downWeeks,
+    // Day placement is the fine half of the shaping, so it needs a cycle we can
+    // predict. An irregular one gets the coarse half only.
+    rankHardDay:         strength === 'full'
+      ? rankHardDay(planStart, cycleCtx)
+      : undefined,
   });
 
   const context: GenerateContext = {
