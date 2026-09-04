@@ -14,6 +14,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraModal } from '@/components/ui/VirraModal';
+import { InlineError } from '@/components/ui/InlineError';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { formatPace } from '@/lib/volumePlan';
 import { generateStrengthStructure } from '@/lib/strengthWorkoutGenerator';
@@ -35,6 +36,7 @@ import {
 import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStructure';
 import { isStrengthV2 } from '@/lib/workoutStructure';
 import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/workoutDrafts';
+import { enqueueCompletion } from '@/lib/pendingCompletions';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -258,6 +260,13 @@ export default function WorkoutPreviewScreen() {
   const [logged,       setLogged]       = useState<Record<string, LoggedSet[]>>({});
   const [infoExercise, setInfoExercise] = useState<LogExercise | null>(null);
   const [rpeOpen,      setRpeOpen]      = useState(false);
+  // Card 215's bug class, fifth instance. saveSession runs from inside the RPE
+  // sheet, which is a VirraModal, so an appAlert raised from here presents a
+  // second native modal from a view controller that already has one and renders
+  // NOTHING. Emma tapped End workout, the button blinked and nothing happened:
+  // that was setSaving(false) un-spinning it while the error went nowhere.
+  // Errors that keep the user here must be inline.
+  const [rpeError, setRpeError] = useState<{ title: string; message: string } | null>(null);
   const [rest,         setRest]         = useState<RestState | null>(null);
   const [restNow,      setRestNow]      = useState(0);
   const [settings,     setSettings]     = useState<Record<string, ExerciseSettings>>({});
@@ -547,6 +556,52 @@ export default function WorkoutPreviewScreen() {
     setRpeOpen(true);
   }
 
+  /**
+   * The per-set rows and the roll-up, built without `activity_id` so the same
+   * payload works online and from the offline queue. Card 253.
+   */
+  function buildStrengthRows(): { setRows: Record<string, unknown>[]; rollup: StrengthExercise[] } {
+    const setRows: Record<string, unknown>[] = [];
+    const rollup: StrengthExercise[] = [];
+    const structure = sessionData?.strength_structure;
+    if (!structure || sessionData?.modality !== 'strength') return { setRows, rollup };
+
+    for (const ex of toLogExercises(structure)) {
+      const done = (logged[ex.id] ?? [])
+        .map((s, i) => ({ s, i }))
+        .filter(({ s }) => isSetLogged(s));
+      if (done.length === 0) continue;
+      for (const { s, i } of done) {
+        const reps   = parseInt(s.actualReps, 10);
+        const weight = parseFloat(s.weightKg);
+        setRows.push({
+          user_id:            session!.user.id,
+          planned_session_id: sessionId ?? null,
+          exercise_id:        ex.id,
+          exercise_name:      ex.name,
+          set_index:          i,
+          target_reps:        s.targetReps,
+          actual_reps:        Number.isFinite(reps)   ? reps   : null,
+          weight_kg:          Number.isFinite(weight) ? weight : null,
+          // A 30 second plank must not read as 30 reps later on.
+          unit:               parseHoldTarget(ex.reps_label) ? 'seconds' : 'reps',
+        });
+      }
+      rollup.push({
+        name: ex.name,
+        sets: done.map(({ s }) => {
+          const reps   = parseInt(s.actualReps, 10);
+          const weight = parseFloat(s.weightKg);
+          return {
+            reps:      Number.isFinite(reps)   ? reps   : s.targetReps,
+            weight_kg: Number.isFinite(weight) ? weight : 0,
+          };
+        }),
+      });
+    }
+    return { setRows, rollup };
+  }
+
   async function saveSession(durationSeconds: number, rpe: number | null = null) {
     if (!session || !startedAt.current) return;
     setSaving(true);
@@ -565,78 +620,80 @@ export default function WorkoutPreviewScreen() {
       );
     }
 
-    // Insert activity
+    // Built once so the offline queue sends exactly what the online path would.
+    const activityRow = {
+      user_id:            session.user.id,
+      activity_type:      modality,
+      started_at:         startDate,
+      duration_seconds:   durationSeconds,
+      phase_at_time:      phaseAtTime,
+      planned_session_id: sessionId ?? null,
+    };
+
+    // Set logs and the roll-up carry activity_id, which does not exist until
+    // the insert succeeds, so they are built WITHOUT it and the id is stamped
+    // on at write time. That is what lets the same payload be queued.
+    const { setRows, rollup } = buildStrengthRows();
+    const detailsRow = sessionData?.strength_structure && modality === 'strength'
+      ? {
+          session_type:   sessionData.strength_structure.session_type,
+          exercises_json: rollup,
+          session_rpe:    rpe,
+        }
+      : null;
+
     const { data: act, error: actErr } = await supabase
       .from('activities')
-      .insert({
-        user_id:            session.user.id,
-        activity_type:      modality,
-        started_at:         startDate,
-        duration_seconds:   durationSeconds,
-        phase_at_time:      phaseAtTime,
-        planned_session_id: sessionId ?? null,
-      })
+      .insert(activityRow)
       .select('id')
       .single();
 
     if (actErr) {
-      appAlert('Save failed', `${actErr.message}. Tap Finish again to retry.`);
+      // Card 253. "Tap Finish again to retry" cannot succeed with no signal, so
+      // this told someone in a gym basement to keep pressing a button that
+      // would never work, for the rest of their session. The draft meant the
+      // data was safe, but the workout could not be FINISHED, which is what
+      // Emma hit.
+      //
+      // Queue the whole completion and let them finish. It replays on the next
+      // foreground, and `activities` is unique on (user_id, started_at) so a
+      // retry cannot duplicate the session.
+      await enqueueCompletion(session.user.id, {
+        kind:      'strength',
+        queuedAt:  new Date().toISOString(),
+        sessionId: sessionId ?? null,
+        activity:  activityRow,
+        setRows,
+        details:   detailsRow,
+      });
+      deleteWorkoutDraft(session.user.id).catch(() => {});
+      cancelTrainingReminderToday();
+      // Close the sheet BEFORE alerting, or this alert is invisible for exactly
+      // the same reason the old one was.
+      setRpeOpen(false);
+      setRpeError(null);
       setSaving(false);
-      setState('active');
+      router.back();
+      appAlert(
+        'Saved on your phone',
+        'You are offline, so this workout will sync as soon as you have signal. Nothing is lost.',
+      );
       return;
     }
 
     // Strength: persist per-set logs (relational) + the strength sidecar
     // (roll-up blob + session RPE). Best-effort; a logging failure must not
     // block completing the session.
-    const structure = sessionData?.strength_structure;
-    if (structure && modality === 'strength') {
-      const setRows: Record<string, unknown>[] = [];
-      const rollup: StrengthExercise[] = [];
-      for (const ex of toLogExercises(structure)) {
-        const done = (logged[ex.id] ?? [])
-          .map((s, i) => ({ s, i }))
-          .filter(({ s }) => isSetLogged(s));
-        if (done.length === 0) continue;
-        for (const { s, i } of done) {
-          const reps   = parseInt(s.actualReps, 10);
-          const weight = parseFloat(s.weightKg);
-          setRows.push({
-            user_id:            session.user.id,
-            activity_id:        act.id,
-            planned_session_id: sessionId ?? null,
-            exercise_id:        ex.id,
-            exercise_name:      ex.name,
-            set_index:          i,
-            target_reps:        s.targetReps,
-            actual_reps:        Number.isFinite(reps)   ? reps   : null,
-            weight_kg:          Number.isFinite(weight) ? weight : null,
-            // A 30 second plank must not read as 30 reps later on.
-            unit:               parseHoldTarget(ex.reps_label) ? 'seconds' : 'reps',
-          });
-        }
-        rollup.push({
-          name: ex.name,
-          sets: done.map(({ s }) => {
-            const reps   = parseInt(s.actualReps, 10);
-            const weight = parseFloat(s.weightKg);
-            return {
-              reps:      Number.isFinite(reps)   ? reps   : s.targetReps,
-              weight_kg: Number.isFinite(weight) ? weight : 0,
-            };
-          }),
-        });
-      }
-      if (setRows.length > 0) {
-        const { error: logErr } = await supabase.from('strength_set_logs').insert(setRows);
-        if (logErr) console.error('[workout-preview] failed to insert set logs', logErr);
-      }
-      const { error: detErr } = await supabase.from('strength_details').insert({
-        activity_id:    act.id,
-        session_type:   structure.session_type,
-        exercises_json: rollup,
-        session_rpe:    rpe,
-      });
+    if (setRows.length > 0) {
+      const { error: logErr } = await supabase
+        .from('strength_set_logs')
+        .insert(setRows.map((r) => ({ ...r, activity_id: act.id })));
+      if (logErr) console.error('[workout-preview] failed to insert set logs', logErr);
+    }
+    if (detailsRow) {
+      const { error: detErr } = await supabase
+        .from('strength_details')
+        .insert({ ...detailsRow, activity_id: act.id });
       if (detErr) console.error('[workout-preview] failed to insert strength details', detErr);
     }
 
@@ -1043,7 +1100,10 @@ export default function WorkoutPreviewScreen() {
       </VirraModal>
 
       {/* Session RPE on finish */}
-      <VirraModal visible={rpeOpen} onClose={() => { if (!saving) setRpeOpen(false); }} title="How hard was that?">
+      <VirraModal visible={rpeOpen} onClose={() => { if (!saving) { setRpeOpen(false); setRpeError(null); } }} title="How hard was that?">
+        {rpeError && (
+          <InlineError title={rpeError.title} message={rpeError.message} onDismiss={() => setRpeError(null)} />
+        )}
         <VirraText variant="body" size={14} color="rgba(244,237,224,0.6)">
           Rate the whole session. 1 is easy, 10 is max effort.
         </VirraText>

@@ -190,11 +190,16 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
     weeks.push({
       week:     week.week,
       km:       week.km,
-      label:    archetype.progression === 'recovery'
-        ? RECOVERY_LABEL
-        : isWalkRun && week.kind !== 'race'
-          ? walkRunLabel(walkRunStages![i])
-          : PHASE_LABEL[phase],
+      // Recovery wins over everything else, whether it is a whole recovery plan
+      // or a single back-off week inside a building one. A down week is still a
+      // Build week by phase, and on a walk-run plan it still has a ladder stage,
+      // but neither is what the runner needs to know when they look at it —
+      // they need to know this is the easy one. Emma's own templates call it
+      // Recovery, so it says Recovery.
+      label:
+        archetype.progression === 'recovery' || week.kind === 'down' ? RECOVERY_LABEL
+        : isWalkRun && week.kind !== 'race'                          ? walkRunLabel(walkRunStages![i])
+        : PHASE_LABEL[phase],
       sessions,
     });
 

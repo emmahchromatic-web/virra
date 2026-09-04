@@ -19,6 +19,7 @@ import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { WeightGlanceCard } from '@/components/ui/WeightGlanceCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { appAlert } from '@/components/ui/VirraAlert';
+import { tracksCycle } from '@/lib/cycleEngine';
 
 const COACHING_CARD_WIDTH = 260;
 const ACTION_HEIGHT       = 52;
@@ -51,7 +52,7 @@ export default function CycleDetailScreen() {
   }, [session?.user.id, trackWeight, addOpen, weightDataVersion]);
 
   const meta      = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
-  const isNatural = cycleProfile === 'natural' || cycleProfile === 'irregular';
+  const isNatural = tracksCycle(cycleProfile);
   const showFull  = !!(cycleInfo && meta && isNatural && periodStart);
 
   function handleReset() {

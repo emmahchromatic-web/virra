@@ -11,6 +11,7 @@ import {
   type BandPosition, type PhaseBands,
 } from '@/lib/weightBand';
 import type { CyclePhase } from '@/lib/cycleEngine';
+import { tracksCycle } from '@/lib/cycleEngine';
 
 interface Props {
   latestKg: number | null;
@@ -114,7 +115,7 @@ export function WeightGlanceCard({ latestKg, onPress }: Props) {
 
   if (!trackWeight) return null;
 
-  const isCycleMode = cycleProfile === 'natural' || cycleProfile === 'irregular';
+  const isCycleMode = tracksCycle(cycleProfile);
 
   const card = isCycleMode
     ? renderCycleBody({ latestKg, baseline: cycleBaseline, phase: cycleInfo?.phase ?? 'follicular', personal: cyclePhaseBands })
