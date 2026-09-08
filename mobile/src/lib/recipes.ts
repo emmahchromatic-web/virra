@@ -212,6 +212,27 @@ export function recipeEntryName(name: string, servings: number): string {
 }
 
 /** Ingredient quantities scale with servings too, so the cook reads the truth. */
+/**
+ * Does an ingredient note state an amount, rather than describe preparation?
+ *
+ * Notes are authored against the recipe as written ("1 tin, drained", "3
+ * cloves", "6 eggs, about 50 g each"), but the quantity beside them is scaled
+ * to the servings the user asked for. `scaleIngredientQuantity` divides the
+ * stored whole-recipe amount by `serves`, so on anything that serves more than
+ * one the two disagree straight away: a chilli that serves four shows 60 g of
+ * kidney beans next to "1 tin, drained".
+ *
+ * Preparation notes ("diced", "dry weight", "vanilla works best") stay true at
+ * any quantity, so only the ones that lead with a count are suppressed. The
+ * corpus is small and closed enough for a leading-token test to be exact; the
+ * tests check the predicate against every note in the seeded book.
+ */
+const AMOUNT_LEAD = /^\s*(?:\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|half|quarter)\b/i;
+
+export function noteStatesAnAmount(note: string): boolean {
+  return AMOUNT_LEAD.test(note);
+}
+
 export function scaleIngredientQuantity(
   quantity: number | null,
   serves:   number,

@@ -12,7 +12,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { appAlert } from '@/components/ui/VirraAlert';
 import {
   fetchRecipeDetail, scaleServings, scaleIngredientQuantity, logRecipe,
-  fetchFavouriteIds, toggleFavourite, type RecipeDetail,
+  fetchFavouriteIds, toggleFavourite, noteStatesAnAmount, type RecipeDetail,
 } from '@/lib/recipes';
 import { formatQuantity } from '@/lib/foodUnits';
 import { getOrCreateTodayLogId, defaultMealSlot, type MealType } from '@/lib/nutritionLog';
@@ -52,6 +52,12 @@ function MacroTile({ label, value, unit }: { label: string; value: number | null
       <VirraText variant="mono" size={9} color={colors.muted}>{unit}</VirraText>
     </View>
   );
+}
+
+/** "1 serving" / "1.5 servings", matching the stepper's own formatting. */
+function servingsLabel(n: number): string {
+  const num = n % 1 === 0 ? `${n}` : n.toFixed(1);
+  return `${num} ${n === 1 ? 'serving' : 'servings'}`;
 }
 
 export default function RecipeDetailScreen() {
@@ -149,6 +155,9 @@ export default function RecipeDetailScreen() {
   }
 
   const scaled = recipe ? scaleServings(recipe, servings) : null;
+  // The notes read as authored only when the quantities shown are the
+  // authored ones, which is when the servings asked for match `serves`.
+  const notesAsWritten = recipe ? servings === recipe.serves : true;
   const time   = recipe ? (recipe.prepMinutes ?? 0) + (recipe.cookMinutes ?? 0) : 0;
 
   // Ingredient rows are authored for the whole recipe, so one serving is the
@@ -269,8 +278,18 @@ export default function RecipeDetailScreen() {
 
           <View style={styles.section}>
             <SectionLabel>INGREDIENTS</SectionLabel>
+            {/* Quantities are scaled to the servings asked for, while the notes
+                were authored against the recipe as written, so the two only
+                agree when those match. Say which the numbers are, and drop the
+                notes that state an amount rather than print two of them. */}
+            {!notesAsWritten && (
+              <VirraText variant="body" size={12} color={colors.muted} style={styles.ingredientHint}>
+                {`Quantities are for ${servingsLabel(servings)} of a recipe that makes ${recipe.serves}.`}
+              </VirraText>
+            )}
             {recipe.ingredients.map((i) => {
-              const q = quantityFor(i.quantity);
+              const q    = quantityFor(i.quantity);
+              const note = i.note && (notesAsWritten || !noteStatesAnAmount(i.note)) ? i.note : null;
               return (
                 <View key={i.position} style={styles.ingredient}>
                   <VirraText variant="mono" size={12} color={colors.pulse} style={styles.qty}>
@@ -278,8 +297,8 @@ export default function RecipeDetailScreen() {
                   </VirraText>
                   <View style={styles.ingredientMain}>
                     <VirraText variant="body" size={15} color={colors.breath}>{i.foodName}</VirraText>
-                    {i.note && (
-                      <VirraText variant="body" size={12} color={colors.muted}>{i.note}</VirraText>
+                    {note && (
+                      <VirraText variant="body" size={12} color={colors.muted}>{note}</VirraText>
                     )}
                   </View>
                 </View>
@@ -377,6 +396,7 @@ const styles = StyleSheet.create({
   ingredient:     { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
   qty:            { minWidth: 62, paddingTop: 3 },
   ingredientMain: { flex: 1, gap: 1 },
+  ingredientHint: { lineHeight: 18, marginTop: -spacing.xs },
 
   logBar: {
     gap: spacing.sm,
