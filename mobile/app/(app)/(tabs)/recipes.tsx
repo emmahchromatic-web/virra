@@ -79,28 +79,29 @@ function RailCard({ recipe }: { recipe: Recipe }) {
       accessibilityLabel={`Open ${recipe.name}`}
       style={styles.railCard}
     >
-      <VirraCard style={styles.railCardInner}>
+      <VirraCard>
         <View style={styles.railTop}>
           <SectionLabel tone="muted">{recipe.collectionLabel}</SectionLabel>
           {time && <VirraText variant="mono" size={10} color={colors.muted}>{time}</VirraText>}
         </View>
-        {/* Bottom-aligned block. Cards in a rail share a height so the row is
-            tidy, and a recipe with no dietary tags would otherwise leave a
-            hole under its macros rather than looking deliberately spaced. */}
+        {/* Content flows top-down under the meta line so nothing is pushed into
+            the middle of the card; see railChips for why the tag row is always
+            rendered even when a recipe has no dietary tags. */}
         <View style={styles.railBody}>
-          <VirraText variant="display" size={19} color={colors.breath} numberOfLines={2}>
+          <VirraText
+            variant="display" size={19} color={colors.breath}
+            numberOfLines={2} style={styles.railTitle}
+          >
             {recipe.name}
           </VirraText>
           <VirraText variant="mono" size={11} color={colors.pulse}>{macroLine(recipe)}</VirraText>
-          {recipe.dietary.length > 0 && (
-            <View style={styles.chips}>
-              {recipe.dietary.map((d) => (
-                <View key={d} style={styles.chip}>
-                  <VirraText variant="mono" size={9} color={colors.slate}>{d.toUpperCase()}</VirraText>
-                </View>
-              ))}
-            </View>
-          )}
+          <View style={[styles.chips, styles.railChips]}>
+            {recipe.dietary.map((d) => (
+              <View key={d} style={styles.chip}>
+                <VirraText variant="mono" size={9} color={colors.slate}>{d.toUpperCase()}</VirraText>
+              </View>
+            ))}
+          </View>
         </View>
       </VirraCard>
     </Pressable>
@@ -395,8 +396,13 @@ const styles = StyleSheet.create({
 
   railScroll:    { gap: spacing.sm, paddingRight: spacing.lg },
   railCard:      { width: 236 },
-  railCardInner: { minHeight: 132, justifyContent: 'space-between' },
-  railBody:      { gap: spacing.xs },
+  railBody:      { gap: spacing.xs, marginTop: spacing.sm },
+  // The chip row is always reserved so a tag-less recipe does not leave a
+  // chip-sized hole under its macros. Cards in a row stretch to the tallest,
+  // and the only slack left is a one- versus two-line title, which lands at
+  // the bottom of the card as padding rather than as a gap in the middle.
+  railTitle:     { lineHeight: 22 },
+  railChips:     { minHeight: 18 },
   railTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
   row:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
