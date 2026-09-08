@@ -290,12 +290,38 @@ export async function fetchSlotTotals(
 }
 
 /**
- * The user's stored dietary requirements.
+ * Values written by the onboarding diet step that was deleted in 27f4e36,
+ * mapped onto the vocabulary the recipe book actually tags recipes with.
  *
- * `user_profiles.dietary_prefs` predates the removal of the onboarding diet
- * step, so almost every account has an empty array here. The Recipes tab asks
- * for it on first open, which is the first point in the app where the answer
- * changes what somebody sees.
+ * The old screen wrote 'gluten-free' and 'dairy-free'; the book tags 'gf' and
+ * 'df'. `satisfiesDietary` requires a recipe to satisfy EVERY stored
+ * requirement, so an unmapped value is not a filter that matches little, it is
+ * a filter that can never match: every recipe scores null and all three rails
+ * vanish, while the unfiltered collection lists below carry on showing the
+ * whole book. Read-side mapping keeps that from depending on whether a given
+ * account has been migrated yet.
+ *
+ * 'nut-free' and 'halal' are deliberately absent: the book holds no allergen or
+ * certification data, so there is nothing to map them onto. They still pass
+ * through as-is, which shows an empty rail rather than quietly dropping a
+ * requirement somebody may be relying on.
+ */
+const LEGACY_DIETARY: Record<string, string> = {
+  'gluten-free': 'gf',
+  'dairy-free':  'df',
+};
+
+export function normaliseDietaryPrefs(stored: string[]): string[] {
+  return [...new Set(stored.map((v) => LEGACY_DIETARY[v] ?? v))];
+}
+
+/**
+ * The user's stored dietary requirements, in the book's own vocabulary.
+ *
+ * The Recipes tab asks for these on first open, which is the first point in the
+ * app where the answer changes what somebody sees. It only asks when nothing is
+ * stored, so an account carrying a value from the old onboarding screen never
+ * gets the chance to correct it: hence the mapping above rather than a prompt.
  */
 export async function fetchDietaryPrefs(userId: string): Promise<string[]> {
   const { data, error } = await supabase
@@ -308,7 +334,7 @@ export async function fetchDietaryPrefs(userId: string): Promise<string[]> {
     console.warn('[recipes] fetchDietaryPrefs failed:', error.message);
     return [];
   }
-  return (data?.dietary_prefs as string[] | null) ?? [];
+  return normaliseDietaryPrefs((data?.dietary_prefs as string[] | null) ?? []);
 }
 
 export async function saveDietaryPrefs(userId: string, prefs: string[]): Promise<boolean> {
