@@ -1,7 +1,7 @@
 import {
   SLOT_SHARE, remainingForSlot, satisfiesDietary, macroDistance,
-  scoreRecipe, rankRecipes, recipesForPhase,
-  type ScorableRecipe, type MatchContext,
+  scoreRecipe, rankRecipes, recipesForPhase, slotIsCovered, lightestFirst,
+  type ScorableRecipe, type MatchContext, type MacroSet,
 } from '@/lib/recipeMatch';
 import { normaliseDietaryPrefs } from '@/lib/recipes';
 import type { NutritionTargets } from '@/lib/nutritionTargets';
@@ -221,5 +221,63 @@ describe('normaliseDietaryPrefs', () => {
     expect(satisfiesDietary(recipe.dietary, ['dairy-free'])).toBe(false);
     // The fix: mapped first, the same account matches the same recipe.
     expect(satisfiesDietary(recipe.dietary, normaliseDietaryPrefs(['dairy-free']))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A slot that is already covered
+// ---------------------------------------------------------------------------
+
+describe('a covered slot', () => {
+  const ctx = (remaining: Partial<MacroSet>) => ({
+    slot: 'lunch' as const,
+    phase: null,
+    load: 'easy' as const,
+    remaining: { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0, ...remaining },
+    requires: [] as string[],
+  });
+
+  const r = (id: string, calories: number, extra: Partial<ScorableRecipe> = {}) => ({
+    id,
+    meal_types: ['lunch'] as const,
+    phases: [] as never[],
+    loads: [] as never[],
+    dietary: [] as string[],
+    calories,
+    carbs_g: 0,
+    protein_g: 0,
+    fat_g: 0,
+    ...extra,
+  }) as unknown as ScorableRecipe;
+
+  it('knows when the share is spent', () => {
+    expect(slotIsCovered({ calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 })).toBe(true);
+    expect(slotIsCovered({ calories: 400, carbs_g: 0, protein_g: 0, fat_g: 0 })).toBe(false);
+  });
+
+  it('is why rankRecipes cannot be used there: every score collapses to the same value', () => {
+    const recipes = [r('big', 900), r('small', 100), r('medium', 400)];
+    const scores = recipes.map((x) => scoreRecipe(x, ctx({})));
+    expect(new Set(scores).size).toBe(1);
+  });
+
+  it('orders lightest first instead', () => {
+    const recipes = [r('big', 900), r('small', 100), r('medium', 400)];
+    expect(lightestFirst(recipes, ctx({})).map((x) => x.id)).toEqual(['small', 'medium', 'big']);
+  });
+
+  it('still respects the slot and the dietary filter', () => {
+    const recipes = [
+      r('dinner-only', 50, { meal_types: ['dinner'] }),
+      r('has-dairy',   60),
+      r('df-lunch',    500, { dietary: ['df'] }),
+    ];
+    const out = lightestFirst(recipes, { ...ctx({}), requires: ['df'] });
+    expect(out.map((x) => x.id)).toEqual(['df-lunch']);
+  });
+
+  it('breaks ties on id so the rail does not reshuffle between renders', () => {
+    const recipes = [r('b', 300), r('a', 300)];
+    expect(lightestFirst(recipes, ctx({})).map((x) => x.id)).toEqual(['a', 'b']);
   });
 });

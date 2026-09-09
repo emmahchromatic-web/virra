@@ -396,3 +396,40 @@ describe('the tab bar', () => {
     expect(queryByText('recipes')).toBeNull();
   });
 });
+
+describe('the fits rail when the slot is already covered', () => {
+  const covered = { calories: 99999, carbs_g: 9999, protein_g: 9999, fat_g: 9999 };
+
+  it('normally offers what is left', async () => {
+    const { findByText } = render(<RecipesScreen />);
+    expect(await findByText(/FITS WHAT IS LEFT FOR/)).toBeTruthy();
+  });
+
+  it('stops claiming to fit what is left once nothing is', async () => {
+    mockSlotTotals.mockResolvedValue(covered);
+    const { queryByText, findByText } = render(<RecipesScreen />);
+    await findByText(/IS COVERED|ARE COVERED/);
+    expect(queryByText(/FITS WHAT IS LEFT FOR/)).toBeNull();
+  });
+
+  it('never says there is 0 kcal still to go', async () => {
+    mockSlotTotals.mockResolvedValue(covered);
+    const { toJSON } = render(<RecipesScreen />);
+    await flush();
+    expect(JSON.stringify(toJSON())).not.toMatch(/0 kcal and 0g of protein still to go/);
+  });
+
+  it('promises lightest first, which is what the rail actually does', async () => {
+    mockSlotTotals.mockResolvedValue(covered);
+    mockFetchRecipes.mockResolvedValue([
+      recipe({ id: 'big',   name: 'Big Plate',   calories: 900 }),
+      recipe({ id: 'small', name: 'Small Plate', calories: 100 }),
+    ]);
+    const { findByText, toJSON } = render(<RecipesScreen />);
+    expect(await findByText(/Lightest first, in case you are still hungry\./)).toBeTruthy();
+
+    // The promise has to be true: the lighter recipe comes first in the rail.
+    const flat = JSON.stringify(toJSON());
+    expect(flat.indexOf('Small Plate')).toBeLessThan(flat.indexOf('Big Plate'));
+  });
+});

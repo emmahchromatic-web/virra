@@ -19,7 +19,9 @@ import {
   fetchRecipes, fetchSlotTotals, fetchDietaryPrefs, saveDietaryPrefs,
   fetchFavouriteIds, groupByCollection, searchRecipes, type Recipe,
 } from '@/lib/recipes';
-import { rankRecipes, recipesForPhase, remainingForSlot } from '@/lib/recipeMatch';
+import {
+  rankRecipes, recipesForPhase, remainingForSlot, slotIsCovered, lightestFirst,
+} from '@/lib/recipeMatch';
 import { defaultMealSlot, type MealType } from '@/lib/nutritionLog';
 import { resolveNutritionTargets, buildPersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
@@ -51,6 +53,22 @@ const SLOT_LABEL: Record<MealType, string> = {
   lunch:     'LUNCH',
   dinner:    'DINNER',
   snack:     'A SNACK',
+};
+
+// Read as a sentence rather than slotted into the one above: "A SNACK IS
+// COVERED" is not a thing anybody says.
+const SLOT_COVERED_LABEL: Record<MealType, string> = {
+  breakfast: 'BREAKFAST IS COVERED',
+  lunch:     'LUNCH IS COVERED',
+  dinner:    'DINNER IS COVERED',
+  snack:     'SNACKS ARE COVERED',
+};
+
+const SLOT_SHARE_NOUN: Record<MealType, string> = {
+  breakfast: 'breakfast',
+  lunch:     'lunch',
+  dinner:    'dinner',
+  snack:     'snacks',
 };
 
 // ---------------------------------------------------------------------------
@@ -284,7 +302,8 @@ export default function RecipesScreen() {
   const searching = query.trim().length > 0;
   const results   = searchRecipes(recipes, query);
   const phaseRail = recipesForPhase(recipes, phase, ctx);
-  const fitsRail  = rankRecipes(recipes, ctx);
+  const covered   = slotIsCovered(remaining);
+  const fitsRail  = covered ? lightestFirst(recipes, ctx) : rankRecipes(recipes, ctx);
   const groups    = groupByCollection(recipes);
   // Ordered by when they were favourited, which fetchFavouriteIds already does.
   const favourites = favIds
@@ -357,9 +376,15 @@ export default function RecipesScreen() {
 
             <Rail label="FOR YOUR PHASE" recipes={phaseRail} />
 
+            {/* Once the slot is covered the rail cannot answer "what fits what
+                is left", so it changes the question instead of dressing up an
+                order that no longer means anything. The copy promises exactly
+                what `lightestFirst` delivers. */}
             <Rail
-              label={`FITS WHAT IS LEFT FOR ${SLOT_LABEL[slot]}`}
-              hint={`Around ${Math.round(remaining.calories)} kcal and ${Math.round(remaining.protein_g)}g of protein still to go.`}
+              label={covered ? SLOT_COVERED_LABEL[slot] : `FITS WHAT IS LEFT FOR ${SLOT_LABEL[slot]}`}
+              hint={covered
+                ? `Already at your share for ${SLOT_SHARE_NOUN[slot]}. Lightest first, in case you are still hungry.`
+                : `Around ${Math.round(remaining.calories)} kcal and ${Math.round(remaining.protein_g)}g of protein still to go.`}
               recipes={fitsRail.slice(0, 8)}
             />
 
