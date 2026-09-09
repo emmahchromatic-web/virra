@@ -3,6 +3,7 @@ import {
   scoreRecipe, rankRecipes, recipesForPhase,
   type ScorableRecipe, type MatchContext,
 } from '@/lib/recipeMatch';
+import { normaliseDietaryPrefs } from '@/lib/recipes';
 import type { NutritionTargets } from '@/lib/nutritionTargets';
 
 const TARGETS: NutritionTargets = {
@@ -187,5 +188,38 @@ describe('recipesForPhase', () => {
 
   it('is empty when the user does not track a cycle', () => {
     expect(recipesForPhase([luteal], null, ctx())).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Legacy dietary vocabulary
+// ---------------------------------------------------------------------------
+
+describe('normaliseDietaryPrefs', () => {
+  it('maps the deleted onboarding screen values onto the book vocabulary', () => {
+    expect(normaliseDietaryPrefs(['dairy-free'])).toEqual(['df']);
+    expect(normaliseDietaryPrefs(['gluten-free'])).toEqual(['gf']);
+  });
+
+  it('leaves values that are already current alone', () => {
+    expect(normaliseDietaryPrefs(['vegan', 'gf', 'df'])).toEqual(['vegan', 'gf', 'df']);
+  });
+
+  it('does not duplicate when both spellings are stored', () => {
+    expect(normaliseDietaryPrefs(['df', 'dairy-free'])).toEqual(['df']);
+  });
+
+  it('passes through a requirement the book cannot express', () => {
+    // Dropping it would silently disable a filter somebody may rely on, so it
+    // stays and the rail comes back empty instead.
+    expect(normaliseDietaryPrefs(['nut-free'])).toEqual(['nut-free']);
+  });
+
+  it('is what stops a legacy value hiding the entire book', () => {
+    const recipe = { dietary: ['df', 'gf'] };
+    // The bug: the raw stored value can never be satisfied.
+    expect(satisfiesDietary(recipe.dietary, ['dairy-free'])).toBe(false);
+    // The fix: mapped first, the same account matches the same recipe.
+    expect(satisfiesDietary(recipe.dietary, normaliseDietaryPrefs(['dairy-free']))).toBe(true);
   });
 });
