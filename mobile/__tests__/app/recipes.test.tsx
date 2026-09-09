@@ -433,3 +433,19 @@ describe('the fits rail when the slot is already covered', () => {
     expect(flat.indexOf('Small Plate')).toBeLessThan(flat.indexOf('Big Plate'));
   });
 });
+
+describe('macro precision on the detail screen', () => {
+  it('shows calories whole and grams to a decimal', async () => {
+    mockFetchDetail.mockResolvedValue({
+      ...recipe({ calories: 382.5, carbs_g: 44.44, protein_g: 12.5, fat_g: 13.21, fibre_g: 4.4 }),
+      ingredients: [],
+      steps: [],
+    });
+    const { findByText, queryByText } = render(<RecipeDetailScreen />);
+    // 382.5 kcal claims a precision the data does not have.
+    expect(await findByText('383')).toBeTruthy();
+    expect(queryByText('382.5')).toBeNull();
+    // Grams keep the decimal, where it is a real difference.
+    expect(queryByText('12.5')).toBeTruthy();
+  });
+});
