@@ -1,6 +1,7 @@
 import { buildVolumeCurve, type AbilityTier, type CurveWeek, type RaceDistance, type VolumePreset } from './volumeCurve';
 import { composeWeek, type ComposedSession, type Difficulty, type WeekPhase, type DayIndex } from './weekComposer';
 import type { Archetype } from './archetypes';
+import { stageLadder, WALK_RUN_STAGES, type WalkRunStage } from './walkRun';
 
 /**
  * Turns a runner and an archetype into a week-by-week plan.
@@ -31,6 +32,8 @@ export interface GeneratedPlan {
   weekSlots: GeneratedSlot[][];
   curve:     CurveWeek[];
   totalKm:   number;
+  /** Ladder stage per week. Only present for walk-run archetypes. */
+  walkRun?:  WalkRunStage[];
 }
 
 export interface GeneratePlanInput {
@@ -48,6 +51,8 @@ export interface GeneratePlanInput {
   downWeeks?:          number[];
   /** Ranks candidate days for hard work. PR 6 plugs `anchorKeySession` in here. */
   rankHardDay?:        (day: DayIndex) => number;
+  /** Where a returning runner joins the walk-run ladder. */
+  startStage?:         number;
 }
 
 /**
@@ -98,6 +103,18 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
 
   const buildWeekCount = curve.filter((w) => w.kind === 'build' || w.kind === 'down').length;
 
+  const isWalkRun = archetype.progression === 'walk_run';
+
+  // The ladder needs to know how long the sessions are, and the curve deals in
+  // distance. Minutes per session is the honest unit for someone who is not yet
+  // running continuously, so convert through an assumed easy effort.
+  const walkRunStages: WalkRunStage[] | undefined = isWalkRun
+    ? stageLadder(
+        curve.map((w) => (w.km / Math.max(1, input.days.length)) * 7),
+        input.startStage ?? 0,
+      ).map((i) => WALK_RUN_STAGES[i])
+    : undefined;
+
   const weeks:     GeneratedWeek[] = [];
   const weekSlots: GeneratedSlot[][] = [];
 
@@ -119,22 +136,35 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
       rankHardDay: input.rankHardDay,
     });
 
+    // A walk-run plan is walk-run all the way through: hard sessions and long
+    // runs mean nothing to someone still building continuous running, and the
+    // ladder is the progression. The race is the exception — a Path to parkrun
+    // plan that does not end with the parkrun in it is missing the point.
+    const sessions = isWalkRun
+      ? composed.map((s) => (s.type === 'race' ? 'race' : 'run_walk'))
+      : composed.map((s) => s.type);
+
     weeks.push({
       week:     week.week,
       km:       week.km,
-      // A back-off week is labelled as one. It is still a Build week by phase,
-      // but that is not what the runner needs to know when they look at it —
-      // they need to know this is the easy one. Emma's own templates call it
-      // Recovery, so it says Recovery.
-      label:    week.kind === 'down' ? 'Recovery' : PHASE_LABEL[phase],
-      sessions: composed.map((s) => s.type),
+      // A back-off week is labelled as one, ahead of everything else. It is
+      // still a Build week by phase, and on a walk-run plan it still has a
+      // ladder stage, but neither is what the runner needs to know when they
+      // look at it — they need to know this is the easy one. Emma's own
+      // templates call it Recovery, so it says Recovery.
+      label:
+        week.kind === 'down'                ? 'Recovery'
+        : isWalkRun && week.kind !== 'race' ? walkRunLabel(walkRunStages![i])
+        : PHASE_LABEL[phase],
+      sessions,
     });
 
     const seen: Record<string, number> = {};
-    weekSlots.push(composed.map((s) => {
-      const n = seen[s.type] ?? 0;
-      seen[s.type] = n + 1;
-      return { key: `${s.type}_${n}`, label: s.type, day: s.day };
+    weekSlots.push(composed.map((s, si) => {
+      const label = sessions[si];
+      const n = seen[label] ?? 0;
+      seen[label] = n + 1;
+      return { key: `${label}_${n}`, label, day: s.day };
     }));
   });
 
@@ -143,5 +173,13 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
     weekSlots,
     curve,
     totalKm: Math.round(curve.reduce((sum, w) => sum + w.km, 0) * 10) / 10,
+    walkRun: walkRunStages,
   };
+}
+
+/** "Run 3 min / walk 1 min", or "Continuous" at the top of the ladder. */
+export function walkRunLabel(stage: WalkRunStage): string {
+  if (stage.walkS === 0) return 'Continuous';
+  const mins = (s: number) => (s % 60 === 0 ? `${s / 60}` : `${(s / 60).toFixed(1)}`);
+  return `Run ${mins(stage.runS)} / walk ${mins(stage.walkS)}`;
 }

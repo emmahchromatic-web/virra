@@ -19,15 +19,21 @@ export type ArchetypeKey =
   | 'run_faster'
   | 'run_further'
   | 'maintain'
-  | 'train_your_way';
+  | 'train_your_way'
+  | 'new_to_running'
+  | 'path_to_parkrun'
+  | 'return_after_break';
 
 export interface Archetype {
   key:   ArchetypeKey;
   label: string;
   /** Does the plan build towards a fixed date, and therefore taper? */
   hasRace: boolean;
-  /** Volume-led plans grow the weeks; intensity-led hold them and sharpen. */
-  progression: 'volume' | 'intensity' | 'flat';
+  /**
+   * Volume-led plans grow the weeks; intensity-led hold them and sharpen;
+   * walk-run plans progress by moving up the run:walk ladder instead.
+   */
+  progression: 'volume' | 'intensity' | 'flat' | 'walk_run';
   /** Sensible default length when the runner does not pick one. */
   defaultWeeks: number;
   /** Minimum that still produces a coherent plan. */
@@ -69,6 +75,30 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
     key: 'train_your_way', label: 'Train your way', hasRace: false,
     progression: 'flat', defaultWeeks: 12, minWeeks: 3,
   },
+
+  // --- walk-run ---
+  //
+  // Deliberately gentle: gradual volume and comfortable intensity are forced,
+  // because the ladder is already the progression and stacking a volume ramp on
+  // top of it would be two things rising at once.
+  //
+  // Postpartum and return-after-injury are NOT here. They use the same ladder
+  // but need a clinician's review of the progression before they ship.
+  new_to_running: {
+    key: 'new_to_running', label: 'New to running', hasRace: false,
+    progression: 'walk_run', defaultWeeks: 9, minWeeks: 4,
+    forcePreset: 'gradual', forceDifficulty: 'comfortable',
+  },
+  path_to_parkrun: {
+    key: 'path_to_parkrun', label: 'Path to parkrun', hasRace: true,
+    progression: 'walk_run', defaultWeeks: 9, minWeeks: 5,
+    forcePreset: 'gradual', forceDifficulty: 'comfortable',
+  },
+  return_after_break: {
+    key: 'return_after_break', label: 'Return after a break', hasRace: false,
+    progression: 'walk_run', defaultWeeks: 8, minWeeks: 4,
+    forcePreset: 'gradual', forceDifficulty: 'comfortable',
+  },
 };
 
 /**
@@ -89,6 +119,9 @@ export function archetypeForTemplate(input: {
   }
 
   const name = (input.name ?? '').toLowerCase();
+  if (/parkrun/.test(name))                            return ARCHETYPES.path_to_parkrun;
+  if (/new to running|couch|from scratch/.test(name))  return ARCHETYPES.new_to_running;
+  if (/return|comeback|back to running/.test(name))    return ARCHETYPES.return_after_break;
   if (/\bmaintain|keep running\b/.test(name)) return ARCHETYPES.maintain;
   if (/\bfaster|speed\b/.test(name))          return ARCHETYPES.run_faster;
   if (/\bfurther|endurance\b/.test(name))     return ARCHETYPES.run_further;

@@ -26,6 +26,12 @@ export interface SessionSpec {
   goal?:       RaceDistance;
   phase?:      WeekPhase;
   intensity?:  Difficulty;
+  /**
+   * Where this session sits on the walk-run ladder. Only meaningful for
+   * `run_walk`; without it the original fixed 4-minutes-on, 1-minute-off is
+   * used, which is what the legacy call sites expect.
+   */
+  walkRun?:    { runS: number; walkS: number };
 }
 
 const WARMUP_M   = 1500;
@@ -286,16 +292,18 @@ export function buildRunSession(spec: SessionSpec): RunWorkoutStructure {
   }
 
   if (type === 'run_walk') {
+    const runS  = spec.walkRun?.runS  ?? RUN_WALK_RUN_S;
+    const walkS = spec.walkRun?.walkS ?? RUN_WALK_WALK_S;
     const easyPace   = pace('easy');
-    const runMperRep = (RUN_WALK_RUN_S / easyPace) * 1000;
+    const runMperRep = (runS / easyPace) * 1000;
     const reps       = Math.max(3, Math.round(totalM / runMperRep));
     const repeat: RunStep = {
       id: id(), kind: 'repeat', repeat_count: reps, target: {},
       sub_steps: [
         { id: id(), kind: 'work', label: 'run',
-          target: { duration_s: RUN_WALK_RUN_S, pace_band: 'easy', pace_secs_per_km: easyPace } },
-        { id: id(), kind: 'rest', label: 'walk',
-          target: { duration_s: RUN_WALK_WALK_S, pace_band: 'recovery', pace_secs_per_km: pace('recovery') } },
+          target: { duration_s: runS, pace_band: 'easy', pace_secs_per_km: easyPace } },
+        ...(walkS > 0 ? [{ id: id(), kind: 'rest' as const, label: 'walk',
+          target: { duration_s: walkS, pace_band: 'recovery' as const, pace_secs_per_km: pace('recovery') } }] : []),
       ],
     };
     return {
