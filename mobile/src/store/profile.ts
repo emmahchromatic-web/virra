@@ -31,7 +31,9 @@ interface ProfileState {
   lastName:                        string;
   avatarUrl:                       string | null;
   stepsTarget:                     number;
-  workoutPreference:               WorkoutPreference;
+  // `null` is "never asked", which the 20260830 migration made a real state in
+  // the database. Typing this non-nullable is what put it back out of reach.
+  workoutPreference:               WorkoutPreference | null;
   haikuDisclosureAcknowledgedAt:   string | null;
   trackWeight:                     boolean;
   heightCm:                        number | null;
@@ -59,7 +61,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
   lastName:                      '',
   avatarUrl:                     null,
   stepsTarget:                   8000,
-  workoutPreference:             'gym_full',
+  workoutPreference:             null,
   haikuDisclosureAcknowledgedAt: null,
   trackWeight:                    false,
   heightCm:                       null,
@@ -87,7 +89,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         lastName:                       data.last_name    ?? '',
         avatarUrl:                      data.avatar_url   ?? null,
         stepsTarget:                    data.steps_target ?? 8000,
-        workoutPreference:              (data.workout_preference as WorkoutPreference) ?? 'gym_full',
+        workoutPreference:              (data.workout_preference as WorkoutPreference | null) ?? null,
         haikuDisclosureAcknowledgedAt:  data.haiku_disclosure_acknowledged_at ?? null,
         trackWeight:                    data.track_weight ?? false,
         heightCm:                       data.height_cm ?? null,
