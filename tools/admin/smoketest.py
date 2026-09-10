@@ -124,6 +124,27 @@ pinned = [r for r in STORE["recipes"] if r["id"] == "top-of-shelf"][0]
 check("an explicit 0 is honoured, not auto-filled", pinned["sort_order"] == 0,
       f"got {pinned['sort_order']}")
 
+print("\ningredient units")
+from admin import validators  # noqa: E402
+
+for unit in validators.UNITS:
+    post("/recipes/new", {
+        "name": f"Unit {unit}", "collection": "quick", "collection_label": "Quick wins",
+        "meal_types": "lunch", "serves": "1", "sort_order": "",
+        "calories": "100", "carbs_g": "1", "protein_g": "1", "fat_g": "1", "fibre_g": "",
+        "ing-0-food_name": "Vanilla extract", "ing-0-quantity": "1", "ing-0-unit": unit,
+        "step-0-body": "Stir.",
+    })
+    saved = [r for r in STORE["recipe_ingredients"] if r["recipe_id"] == f"unit-{unit}"]
+    check(f"'{unit}' is stored as authored", saved and saved[0]["unit"] == unit,
+          f"got {saved[0]['unit'] if saved else 'nothing'}")
+
+post("/recipes/new", {
+    "name": "Bad unit", "collection": "quick", "collection_label": "Quick wins",
+    "meal_types": "lunch", "serves": "1",
+    "ing-0-food_name": "Flour", "ing-0-quantity": "1", "ing-0-unit": "cups",
+}, 200, "unit must be one of")
+
 print("\nfibre: blank stays unknown, never zero")
 check("fibre is None", added["fibre_g"] is None, f"got {added['fibre_g']!r}")
 check("the other macros are kept", added["calories"] == 300.0)

@@ -88,6 +88,11 @@
 
     <fieldset>
       <legend>Ingredients</legend>
+      <p class="hint" style="margin:0 0 0.7rem">
+        <b style="color:var(--dawn)">tsp, tbsp and whole need build 15.</b> Earlier builds render any
+        unit they do not know as <code>g</code>, so a spoon would show as grams on a phone until then.
+        Use <code>g</code> or <code>ml</code> for anything you want visible today.
+      </p>
       <p class="hint" style="margin:0 0 0.7rem">Macros are for the stated quantity of that ingredient in the <b>whole</b> recipe — not per 100 g, not per serving. Leave a macro blank if it is genuinely unknown; blank is not zero.</p>
       <div class="rowhead ingredient">
         <span>Food</span><span>Qty</span><span>Unit</span><span>Note</span><span>kcal</span><span>Carbs</span><span>Protein</span><span>Fat</span><span>Fibre</span><span></span>
@@ -98,7 +103,7 @@
             <input type="text" name="ing-{{ loop.index0 }}-food_name" value="{{ ingredient.food_name or '' }}" placeholder="Rolled oats">
             <input type="text" name="ing-{{ loop.index0 }}-quantity" value="{{ ingredient.quantity if ingredient.quantity is not none }}">
             <select name="ing-{{ loop.index0 }}-unit">
-              {% for unit in v.UNITS %}<option value="{{ unit }}" {{ 'selected' if ingredient.unit == unit }}>{{ unit }}</option>{% endfor %}
+              {% for unit in v.UNITS %}<option value="{{ unit }}" {{ 'selected' if ingredient.unit == unit }}>{{ v.UNIT_LABELS[unit] }}</option>{% endfor %}
             </select>
             <input type="text" name="ing-{{ loop.index0 }}-note" value="{{ ingredient.note or '' }}" placeholder="finely sliced">
             <input type="text" name="ing-{{ loop.index0 }}-calories" value="{{ ingredient.calories if ingredient.calories is not none }}">

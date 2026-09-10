@@ -146,7 +146,10 @@ def parse(form: Any, *, existing_id: str | None) -> dict[str, Any]:
             problems.append(f"Ingredient {position} has no food name.")
             continue
         if raw["unit"] and raw["unit"] not in validators.UNITS:
-            problems.append(f"Ingredient {position}: unit must be g or ml.")
+            problems.append(
+                f"Ingredient {position}: unit must be one of "
+                f"{', '.join(validators.UNITS)}."
+            )
         row: dict[str, Any] = {
             "recipe_id": recipe_id,
             "position": position,

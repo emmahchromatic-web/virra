@@ -18,7 +18,18 @@ PHASES = ("menstrual", "follicular", "ovulatory", "luteal")
 LOADS = ("rest", "easy", "moderate", "hard")
 DIETARY = ("vegan", "vegetarian", "pescatarian", "gf", "df")
 # recipe_ingredients_unit_check
-UNITS = ("g", "ml")
+UNITS = ("g", "ml", "tsp", "tbsp", "unit")
+UNIT_LABELS = {
+    "g": "g",
+    "ml": "ml",
+    "tsp": "tsp",
+    "tbsp": "tbsp",
+    "unit": "whole",   # 1 red pepper, 2 eggs: prints as the count alone
+}
+# Spoons and counts are presentation only, and the app has to know how to print
+# them. Anything here that the installed build does not understand renders as
+# grams, so these two need build 15 before they are safe to use.
+UNITS_NEEDING_BUILD_15 = ("tsp", "tbsp", "unit")
 
 MACROS = ("calories", "carbs_g", "protein_g", "fat_g", "fibre_g")
 MACRO_LABELS = {
