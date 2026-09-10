@@ -104,9 +104,22 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
 /**
  * Which archetype a plan template describes.
  *
- * Templates carry `distance_goal` and a name, and nothing that says what kind
- * of plan they are — so this reads the intent out of what is there. An explicit
- * `archetype_key` column supersedes this the moment one exists.
+ * `plan_templates.archetype_key` is the answer when a template has one. The
+ * name matching below is the fallback for rows that do not, and it exists
+ * because templates once carried nothing but a name and a distance goal.
+ *
+ * Card 266. Reading intent out of a name makes the name load-bearing:
+ * renaming "Path to parkrun" to "Your first 5K" silently stops it being a
+ * walk-run plan and hands a continuous-running plan to people who cannot yet
+ * run continuously. Run template content is edited directly in the Supabase
+ * dashboard, where no test can intervene, so the coupling had to go.
+ *
+ * ONE THING THE STORED KEY DOES NOT DECIDE. Whether a goal plan is a `race`
+ * plan or a `distance_goal` plan depends on whether the runner set a race
+ * date, which is a fact about the runner and not about the template. So the
+ * stored key names the base archetype and the race-date upgrade still applies
+ * on top of it. Freezing `race` into the column instead would stop Beginner 5K
+ * tapering for a real race.
  */
 export function archetypeForTemplate(input: {
   archetypeKey?:  string | null;
@@ -115,7 +128,10 @@ export function archetypeForTemplate(input: {
   hasEventDate?:  boolean;
 }): Archetype {
   if (input.archetypeKey && input.archetypeKey in ARCHETYPES) {
-    return ARCHETYPES[input.archetypeKey as ArchetypeKey];
+    const stored = ARCHETYPES[input.archetypeKey as ArchetypeKey];
+    return stored.key === 'distance_goal' && input.hasEventDate
+      ? ARCHETYPES.race
+      : stored;
   }
 
   const name = (input.name ?? '').toLowerCase();
