@@ -313,12 +313,25 @@ export default function ProfileScreen() {
     if (!session) return;
     setSaving(true);
     setCycleLength(days);
-    const { error } = await supabase
+    // Resolve the row first, then update by id. `.update().eq(user).order().limit(1)`
+    // reads as "the latest one" and is not: PostgREST applies order and limit to
+    // the returned representation, not to which rows the UPDATE touches, so this
+    // rewrote the cycle length on EVERY log the user had. Changing your current
+    // cycle should not retroactively rewrite the cycles you have already been
+    // through, and every one of those lengths is what phase-stamps the weight
+    // readings recorded during it.
+    const { data: latest } = await supabase
       .from('cycle_logs')
-      .update({ cycle_length_days: days })
+      .select('id')
       .eq('user_id', session.user.id)
       .order('period_start', { ascending: false })
-      .limit(1);
+      .order('created_at',   { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { error } = latest
+      ? await supabase.from('cycle_logs').update({ cycle_length_days: days }).eq('id', latest.id)
+      : { error: null };
     setSaving(false);
     if (error) appAlert('Could not update', error.message);
   }
