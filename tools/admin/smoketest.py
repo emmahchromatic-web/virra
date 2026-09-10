@@ -145,6 +145,56 @@ post("/recipes/new", {
     "ing-0-food_name": "Flour", "ing-0-quantity": "1", "ing-0-unit": "cups",
 }, 200, "unit must be one of")
 
+print("\nmacro auto-fill from the food catalogue")
+from admin import foods  # noqa: E402
+
+oats = foods.resolve("Rolled / porridge oats, dry")
+check("the catalogue parses", oats is not None and oats["serving_g"] == 100)
+check("scaling uses serving_g, not a hardcoded 100",
+      foods.scale({"serving_g": 50, "calories": 100, "carbs_g": None, "protein_g": 0,
+                   "fat_g": 0, "fibre_g": 0}, 25)["calories"] == 50.0)
+
+post("/recipes/new", {
+    "name": "Autofilled", "collection": "quick", "collection_label": "Quick wins",
+    "meal_types": "breakfast", "serves": "1", "sort_order": "",
+    "ing-0-food_name": "Oats", "ing-0-quantity": "80", "ing-0-unit": "g",
+    "ing-0-common_food_id": "Rolled / porridge oats, dry",
+    "step-0-body": "Stir.",
+})
+filled = [r for r in STORE["recipe_ingredients"] if r["recipe_id"] == "autofilled"]
+expected = foods.scale(oats, 80)
+check("blank macros are filled from the catalogue",
+      filled and filled[0]["calories"] == expected["calories"], f"got {filled}")
+check("the catalogue id is stored, not the label",
+      filled and filled[0]["common_food_id"] == oats["id"],
+      f"got {filled[0]['common_food_id'] if filled else None}")
+
+post("/recipes/new", {
+    "name": "Hand typed", "collection": "quick", "collection_label": "Quick wins",
+    "meal_types": "breakfast", "serves": "1", "sort_order": "",
+    "ing-0-food_name": "Oats", "ing-0-quantity": "80", "ing-0-unit": "g",
+    "ing-0-common_food_id": "Rolled / porridge oats, dry", "ing-0-calories": "999",
+    "step-0-body": "Stir.",
+})
+typed = [r for r in STORE["recipe_ingredients"] if r["recipe_id"] == "hand-typed"]
+check("a typed macro is never overwritten", typed and typed[0]["calories"] == 999.0,
+      f"got {typed[0]['calories'] if typed else None}")
+check("the other blanks are still filled", typed and typed[0]["protein_g"] == expected["protein_g"])
+
+post("/recipes/new", {
+    "name": "Spoon fill", "collection": "quick", "collection_label": "Quick wins",
+    "meal_types": "breakfast", "serves": "1",
+    "ing-0-food_name": "Oats", "ing-0-quantity": "1", "ing-0-unit": "tsp",
+    "ing-0-common_food_id": "Rolled / porridge oats, dry",
+}, 200, "only be filled in from the catalogue for a quantity in g or ml")
+
+post("/recipes/new", {
+    "name": "Unknown food", "collection": "quick", "collection_label": "Quick wins",
+    "meal_types": "breakfast", "serves": "1",
+    "ing-0-food_name": "Unobtainium", "ing-0-quantity": "10", "ing-0-unit": "g",
+    "ing-0-common_food_id": "Not A Real Food",
+}, 200, "is not in the food catalogue")
+
 print("\nfibre: blank stays unknown, never zero")
 check("fibre is None", added["fibre_g"] is None, f"got {added['fibre_g']!r}")
 check("the other macros are kept", added["calories"] == 300.0)

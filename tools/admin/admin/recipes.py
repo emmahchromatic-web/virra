@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from . import audit, db, forms, validators
+from . import audit, db, foods, forms, validators
 from .validators import MACROS, ValidationError
 
 INGREDIENT_FIELDS = [
@@ -165,6 +165,33 @@ def parse(form: Any, *, existing_id: str | None) -> dict[str, Any]:
             except ValidationError as error:
                 problems.extend(error.problems)
                 row[field] = None
+
+        # Auto-fill from the app's own catalogue, so a recipe's numbers agree
+        # with what the same food logs as through search. Only blanks are
+        # filled: a figure you typed is a judgement and is never overwritten.
+        food = foods.resolve(raw["common_food_id"])
+        if food is not None:
+            row["common_food_id"] = food["id"]
+            if row["quantity"] is not None and row["unit"] in ("g", "ml"):
+                scaled = foods.scale(food, row["quantity"])
+                for macro in MACROS:
+                    if row[macro] is None and scaled[macro] is not None:
+                        row[macro] = scaled[macro]
+            elif row["quantity"] is not None:
+                # tsp/tbsp/unit are not a mass, so there is nothing to scale by.
+                # Saying so beats filling in a number that means nothing.
+                problems.append(
+                    f"Ingredient {position} ({row['food_name']}): macros can only be "
+                    f"filled in from the catalogue for a quantity in g or ml, not "
+                    f"'{row['unit']}'. Enter its macros by hand, or use a weight."
+                )
+        elif raw["common_food_id"]:
+            problems.append(
+                f"Ingredient {position}: '{raw['common_food_id']}' is not in the food "
+                "catalogue. Pick one from the list, or leave it blank and type the "
+                "macros yourself."
+            )
+
         ingredients.append(row)
 
     steps: list[dict[str, Any]] = []

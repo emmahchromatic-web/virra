@@ -14,6 +14,8 @@ from __future__ import annotations
 import base64
 import json
 import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 
@@ -105,7 +107,12 @@ def install() -> dict[str, list[dict[str, Any]]]:
     os.environ.setdefault("SUPABASE_SERVICE_ROLE_KEY", _jwt("service_role"))
     os.environ["ADMIN_READONLY"] = "0"
 
-    from admin import db
+    from admin import audit, db
+
+    # The audit log is a real file in the real changes/ directory. Without this
+    # every test run writes entries for recipes that were never saved, which
+    # makes the log answer "what did I change today" with fiction.
+    audit.CHANGES_DIR = Path(tempfile.mkdtemp(prefix="virra-admin-fixture-")) / "changes"
 
     store = _seed()
 

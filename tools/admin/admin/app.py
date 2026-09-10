@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import audit, db, export, programmes, recipes, validators
+from . import audit, db, export, foods, programmes, recipes, validators
 from .config import ALLOWLIST, config
 from .validators import ValidationError
 
@@ -65,6 +65,13 @@ def dashboard(request: Request) -> HTMLResponse:
     )
 
 
+def _catalogue_label(food_id: str | None) -> str:
+    """Stored ids become the label the picker shows, so an already-linked
+    ingredient comes back looking the way it was chosen."""
+    food = foods.by_id(food_id) if food_id else None
+    return foods.label(food) if food else ""
+
+
 # --- recipes ---------------------------------------------------------------
 
 
@@ -85,7 +92,9 @@ def recipe_list(request: Request) -> HTMLResponse:
 
 @app.get("/recipes/new", response_class=HTMLResponse)
 def recipe_new(request: Request) -> HTMLResponse:
-    return render(request, "recipe_edit.html", recipe=recipes.blank(), is_new=True, derived={}, drift={})
+    return render(request, "recipe_edit.html", recipe=recipes.blank(), is_new=True,
+                  derived={}, drift={}, foods=foods.catalogue(), food_label=foods.label,
+                  catalogue_label=_catalogue_label)
 
 
 @app.get("/recipes/{recipe_id}", response_class=HTMLResponse)
@@ -101,6 +110,9 @@ def recipe_edit(request: Request, recipe_id: str) -> HTMLResponse:
         is_new=False,
         derived=derived,
         drift=validators.macro_drift(recipe, derived),
+        foods=foods.catalogue(),
+        food_label=foods.label,
+        catalogue_label=_catalogue_label,
     )
 
 

@@ -93,9 +93,15 @@
         unit they do not know as <code>g</code>, so a spoon would show as grams on a phone until then.
         Use <code>g</code> or <code>ml</code> for anything you want visible today.
       </p>
+      <p class="hint" style="margin:0 0 0.7rem">
+        <b>Fill macros from</b> looks the ingredient up in the app's own food catalogue and works out
+        its macros from the quantity, so a recipe's numbers agree with what the same food logs as
+        through search. It fills <b>blanks only</b> &mdash; anything you have typed is left alone.
+        Needs a quantity in g or ml.
+      </p>
       <p class="hint" style="margin:0 0 0.7rem">Macros are for the stated quantity of that ingredient in the <b>whole</b> recipe — not per 100 g, not per serving. Leave a macro blank if it is genuinely unknown; blank is not zero.</p>
       <div class="rowhead ingredient">
-        <span>Food</span><span>Qty</span><span>Unit</span><span>Note</span><span>kcal</span><span>Carbs</span><span>Protein</span><span>Fat</span><span>Fibre</span><span></span>
+        <span>Food</span><span>Qty</span><span>Unit</span><span>Note</span><span>Fill macros from</span><span>kcal</span><span>Carbs</span><span>Protein</span><span>Fat</span><span>Fibre</span><span></span>
       </div>
       <div class="rows" id="ingredients">
         {% for ingredient in (recipe.ingredients or [{}]) %}
@@ -106,6 +112,9 @@
               {% for unit in v.UNITS %}<option value="{{ unit }}" {{ 'selected' if ingredient.unit == unit }}>{{ v.UNIT_LABELS[unit] }}</option>{% endfor %}
             </select>
             <input type="text" name="ing-{{ loop.index0 }}-note" value="{{ ingredient.note or '' }}" placeholder="finely sliced">
+            <input type="text" name="ing-{{ loop.index0 }}-common_food_id" list="food-catalogue"
+                   value="{{ catalogue_label(ingredient.common_food_id) }}"
+                   placeholder="optional" autocomplete="off" spellcheck="false">
             <input type="text" name="ing-{{ loop.index0 }}-calories" value="{{ ingredient.calories if ingredient.calories is not none }}">
             <input type="text" name="ing-{{ loop.index0 }}-carbs_g" value="{{ ingredient.carbs_g if ingredient.carbs_g is not none }}">
             <input type="text" name="ing-{{ loop.index0 }}-protein_g" value="{{ ingredient.protein_g if ingredient.protein_g is not none }}">
@@ -113,11 +122,13 @@
             <input type="text" name="ing-{{ loop.index0 }}-fibre_g" value="{{ ingredient.fibre_g if ingredient.fibre_g is not none }}">
             <button type="button" class="drop" onclick="dropRow(this)" title="Remove">&times;</button>
             <input type="hidden" name="ing-{{ loop.index0 }}-group_label" value="{{ ingredient.group_label or '' }}">
-            <input type="hidden" name="ing-{{ loop.index0 }}-common_food_id" value="{{ ingredient.common_food_id or '' }}">
           </div>
         {% endfor %}
       </div>
       <p style="margin:0.7rem 0 0"><button type="button" class="btn small" onclick="addRow('ingredients')">+ Ingredient</button></p>
+      <datalist id="food-catalogue">
+        {% for food in foods %}<option value="{{ food_label(food) }}"></option>{% endfor %}
+      </datalist>
     </fieldset>
 
     <fieldset>
