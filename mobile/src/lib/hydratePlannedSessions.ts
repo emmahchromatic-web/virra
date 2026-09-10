@@ -2,7 +2,7 @@ import { generateRunStructure } from './runWorkoutGenerator';
 import { generateStrengthStructure } from './strengthWorkoutGenerator';
 import type { RunWorkoutStructure, AnyStrengthStructure } from './workoutStructure';
 import { normalizeStrengthSessionType } from './strengthTypes';
-import { getAuthoredSession, blockForWeek, variantForPreference } from './getStrongSession';
+import { getAuthoredSession, blockForWeek, variantForPreference, hasEquipmentPreference } from './getStrongSession';
 import { buildProgrammeStructure } from './strengthProgramme';
 import type { WorkoutPreference } from '@/store/profile';
 
@@ -102,7 +102,16 @@ export async function recoverProgrammeStructure(
     .select('workout_preference')
     .eq('id', userId)
     .maybeSingle();
-  const variant = variantForPreference((profileRow?.workout_preference as WorkoutPreference | undefined) ?? 'gym_full');
+  // Card 261. This used to read `?? 'gym_full'`, which put back exactly what
+  // migration 20260830 removed: a default nobody had chosen, deciding which
+  // authored variant of a programme someone is handed.
+  //
+  // Unset is not a variant, so there is nothing to recover. Returning null
+  // leaves the caller to ask the question rather than answer it on the user's
+  // behalf, which is what the enrolment screen already does.
+  const pref = (profileRow?.workout_preference as WorkoutPreference | null | undefined) ?? null;
+  if (!hasEquipmentPreference(pref)) return null;
+  const variant = variantForPreference(pref);
   const block   = blockForWeek(row.week_number);
 
   const authored = await getAuthoredSession(programmeId, dayIndex, variant, block);

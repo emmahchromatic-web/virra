@@ -10,6 +10,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useSessionStore } from '@/store/sessionStore';
+import { useProfileStore } from '@/store/profile';
+import { hasEquipmentPreference } from '@/lib/getStrongSession';
+import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
 import { cancelTrainingReminderToday, scheduleRestComplete, cancelRestComplete } from '@/lib/notifications';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -389,6 +392,9 @@ export default function WorkoutPreviewScreen() {
   // Card 258. Loading this screen used to have no failure branch at all.
   const [loadError, setLoadError] = useState<{ title: string; message: string } | null>(null);
   const [loadedFromCache, setLoadedFromCache] = useState(false);
+  // Bumped when the equipment answer arrives, so the session is re-read and the
+  // authored variant can be recovered instead of the generic fallback.
+  const [reloadKey, setReloadKey] = useState(0);
   const [rest,         setRest]         = useState<RestState | null>(null);
   const [restNow,      setRestNow]      = useState(0);
   const [settings,     setSettings]     = useState<Record<string, ExerciseSettings>>({});
@@ -512,7 +518,7 @@ export default function WorkoutPreviewScreen() {
         setState('idle');
     })();
     return () => { cancelled = true; };
-  }, [sessionId]);
+  }, [sessionId, reloadKey]);
 
   useEffect(() => {
     if (!session) return;
@@ -881,6 +887,15 @@ export default function WorkoutPreviewScreen() {
   const modality = sessionData?.modality ?? 'other';
   const steps    = useMemo(() => sessionData ? buildStepLines(sessionData) : [], [sessionData]);
   const strengthStructure = sessionData?.strength_structure ?? null;
+  // Card 261. With the gym default gone, an unset user reaching a strength
+  // session has no variant to build from: `recoverProgrammeStructure` returns
+  // null rather than guessing, and the generic generator's pool still leans on
+  // gym machines. So ask, here, at the moment the answer changes what is on
+  // screen. Same question and wording as the enrolment screen, one component.
+  const workoutPreference = useProfileStore((st) => st.workoutPreference);
+  const profileLoaded     = useProfileStore((st) => st.isLoaded);
+  const saveProfile       = useProfileStore((st) => st.save);
+  const needsEquipment    = modality === 'strength' && profileLoaded && !hasEquipmentPreference(workoutPreference);
   const allLogExercises = useMemo(
     () => strengthStructure ? toLogExercises(strengthStructure) : [],
     [strengthStructure],
@@ -1003,7 +1018,23 @@ export default function WorkoutPreviewScreen() {
         </View>
       )}
 
-      {state === 'idle' && (
+      {/* Asked before anything is drawn, because the answer decides what would
+          be drawn. Reloads the session once saved, so the authored variant can
+          be recovered rather than the generic pool. */}
+      {needsEquipment && state !== 'loading' && (
+        <ScrollView contentContainerStyle={s.scroll}>
+          <EquipmentChooser
+            intro="This session comes in three versions. Pick the one that matches your kit and we will use it from here on. You can change it in your profile at any time."
+            onPick={async (value) => {
+              if (!session) return;
+              await saveProfile(session.user.id, { workoutPreference: value });
+              setReloadKey((k) => k + 1);
+            }}
+          />
+        </ScrollView>
+      )}
+
+      {!needsEquipment && state === 'idle' && (
         <ScrollView contentContainerStyle={s.scroll}>
           <VirraCard style={{ gap: spacing.sm }}>
             <View style={s.sessionRow}>
