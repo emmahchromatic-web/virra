@@ -9,6 +9,33 @@ export type FoodUnit = 'g' | 'ml';
 export const DEFAULT_FOOD_UNIT: FoodUnit = 'g';
 
 /**
+ * What a recipe ingredient is written in, which is a wider set than what a
+ * food is LOGGED in. Spoons are how a cook reads small quantities — "1 tsp
+ * vanilla" rather than "5 g vanilla" — but they are not a mass, so they must
+ * never reach food_entries.quantity_unit, which is g/ml by constraint.
+ *
+ * Nothing is converted: an ingredient's macros are authored as absolute
+ * figures for the stated quantity, so the unit is presentation only.
+ */
+export type IngredientUnit = FoodUnit | 'tsp' | 'tbsp' | 'unit';
+
+export const INGREDIENT_UNITS: readonly IngredientUnit[] = ['g', 'ml', 'tsp', 'tbsp', 'unit'];
+
+/**
+ * 'unit' counts whole things: one red pepper, two eggs. It prints as the bare
+ * number, because the food name already says what is being counted and
+ * "1 unit red pepper" is not how anyone writes a recipe.
+ */
+export const COUNTED_UNIT: IngredientUnit = 'unit';
+
+/** Anything unrecognised falls back to grams, which is how it was authored. */
+export function toIngredientUnit(value: unknown): IngredientUnit {
+  return (INGREDIENT_UNITS as readonly string[]).includes(value as string)
+    ? (value as IngredientUnit)
+    : 'g';
+}
+
+/**
  * Words that mean the thing is sold and consumed by volume. Used only as a
  * fallback: the common-foods catalogue and OpenFoodFacts are both authoritative
  * and are consulted first.
@@ -92,7 +119,9 @@ export function per100Label(unit: FoodUnit): string {
 }
 
 /** A quantity rendered with its unit, e.g. "500 ml" / "125 g". */
-export function formatQuantity(quantity: number, unit: FoodUnit): string {
+export function formatQuantity(quantity: number, unit: IngredientUnit): string {
   const rounded = Math.round(quantity * 10) / 10;
+  // Whole things print as the count alone; the food name carries the noun.
+  if (unit === COUNTED_UNIT) return `${rounded}`;
   return `${rounded} ${unit}`;
 }
