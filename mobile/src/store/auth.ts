@@ -5,6 +5,8 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { clearUserScopedCaches } from '@/lib/localCaches';
 import { cancelAllNotifications } from '@/lib/notifications';
+import { useNotificationsStore } from '@/store/notifications';
+import { useSessionStore } from '@/store/sessionStore';
 
 interface AuthState {
   session:    Session | null;
@@ -53,6 +55,31 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Notification cleanup must never block sign-out. Leaving a stale
       // reminder behind is a bug; leaving someone signed in when they asked
       // not to be is a much worse one.
+    }
+
+    // Clearing STORAGE is not clearing the app. Both persisted stores keep
+    // their contents in memory, and nothing reloads between sign-out and the
+    // next sign-in, so the previous account's data stays on screen even though
+    // its keys are gone.
+    //
+    // Card 225 failed build 14 exactly here: the notifications store guards
+    // `hydrate()` behind a `hydrated` flag that was still true, so it never
+    // re-read the emptied key and rendered the old inbox from memory. The
+    // session store has the same shape, and its `clearCache` had never been
+    // called from anywhere.
+    //
+    // This runs BEFORE the storage sweep, not after. `clearCache` resets a
+    // zustand `persist` store, so the reset itself writes the emptied state
+    // straight back to `virra:sessions:v1`. Sweeping afterwards removes the key
+    // it just recreated; doing it the other way round leaves a user-scoped key
+    // rebuilt at the moment of sign-out, which is the shape of the bug this is
+    // fixing.
+    try {
+      useNotificationsStore.getState().reset();
+      await useSessionStore.getState().clearCache();
+    } catch {
+      // Same rule as the notification cancel above: a store that will not
+      // reset must not leave someone signed in.
     }
 
     // Drop this user's cached data so the next account on this device starts

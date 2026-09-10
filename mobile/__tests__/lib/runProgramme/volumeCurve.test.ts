@@ -9,6 +9,7 @@ import {
   LONG_RUN_HARD_SHARE,
   GOAL_LONG_TARGET_KM,
   DOWN_WEEK_FRACTION,
+  planFeasibility,
   type CurveInput,
 } from '@/lib/runProgramme/volumeCurve';
 
@@ -49,8 +50,11 @@ describe('buildVolumeCurve — shape', () => {
     expect(build({ currentWeeklyKm: 30 })[0].km).toBe(30);
   });
 
-  it('lifts a runner below the tier floor up to it rather than starting absurdly low', () => {
-    expect(build({ tier: 'intermediate', currentWeeklyKm: 4 })[0].km).toBe(TIER_LIMITS.intermediate.floorKm);
+  it('starts a low-volume runner where they are, not at the tier floor', () => {
+    // This used to lift them to the floor. Build 14 UAT showed why that is
+    // wrong: it tripled a real runner's mileage without saying anything. See
+    // the 'starting where the runner actually is' block below.
+    expect(build({ tier: 'intermediate', currentWeeklyKm: 4 })[0].km).toBe(4);
   });
 
   it('treats a missing current volume as the tier floor', () => {
@@ -341,5 +345,50 @@ describe('buildVolumeCurve — golden fixture', () => {
       [11, 27.2, 10.9, 'taper'],
       [12, 21.1, 21.1, 'race'],
     ]);
+  });
+});
+
+describe('starting where the runner actually is', () => {
+  it('does not inflate a low weekly volume to the tier floor', () => {
+    // Found in build 14 UAT: a runner doing 5km a week, whose level put them in
+    // the recreational tier, was started at 15km — three times their mileage,
+    // silently. The floor is for runners we know nothing about.
+    const curve = build({ tier: 'recreational', currentWeeklyKm: 5, goal: '5k', weeks: 8 });
+    expect(curve[0].km).toBe(5);
+  });
+
+  it('still uses the floor when there is no volume to go on', () => {
+    expect(build({ tier: 'recreational', currentWeeklyKm: 0 })[0].km)
+      .toBe(TIER_LIMITS.recreational.floorKm);
+  });
+
+  it('never starts anyone above the tier ceiling', () => {
+    expect(build({ tier: 'beginner', currentWeeklyKm: 200 })[0].km)
+      .toBeLessThanOrEqual(TIER_LIMITS.beginner.ceilingKm);
+  });
+});
+
+describe('planFeasibility', () => {
+  it('says a plan is not enough when it cannot reach the goal\'s long run', () => {
+    // Emma's actual case: 5km a week, eight weeks, aiming at a 5K.
+    const curve = build({ tier: 'recreational', currentWeeklyKm: 5, currentLongestRunKm: 5, goal: '5k', weeks: 8 });
+    const f = planFeasibility(curve, '5k');
+    expect(f.reachesTarget).toBe(false);
+    expect(f.shortfallKm).toBeGreaterThan(0);
+    expect(f.longestRunKm).toBeLessThan(f.targetLongRunKm);
+  });
+
+  it('does not cry wolf over a plan that is basically there', () => {
+    // A 12-week half building to a 17km long run against an 18km target is a
+    // good plan. Warning about it would teach people to ignore warnings.
+    const curve = build({ goal: 'half_marathon', weeks: 12, currentWeeklyKm: 20, currentLongestRunKm: 7 });
+    expect(planFeasibility(curve, 'half_marathon').reachesTarget).toBe(true);
+  });
+
+  it('reports no shortfall for a plan that gets there', () => {
+    const curve = build({ goal: 'marathon', weeks: 16, tier: 'intermediate', currentWeeklyKm: 40, currentLongestRunKm: 16 });
+    const f = planFeasibility(curve, 'marathon');
+    expect(f.reachesTarget).toBe(true);
+    expect(f.shortfallKm).toBe(0);
   });
 });

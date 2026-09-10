@@ -1,6 +1,7 @@
 import {
   inferUnitFromName, toFoodUnit, foodUnit,
   per100Label, unitInputLabel, formatQuantity,
+  toIngredientUnit, INGREDIENT_UNITS,
 } from '@/lib/foodUnits';
 import { unitForOFFProduct } from '@/lib/openFoodFacts';
 
@@ -117,5 +118,53 @@ describe('unitForOFFProduct', () => {
   it('ignores a unit field that is empty or unrecognised', () => {
     expect(unitForOFFProduct({ product_quantity_unit: '  ' }, 'Craft lager')).toBe('ml');
     expect(unitForOFFProduct({ product_quantity_unit: 'oz' }, 'Craft lager')).toBe('ml');
+  });
+});
+
+describe('toIngredientUnit', () => {
+  it.each(INGREDIENT_UNITS)('keeps %s', (unit) => {
+    expect(toIngredientUnit(unit)).toBe(unit);
+  });
+
+  // The bug this replaced: recipes.ts mapped anything that was not 'ml' to
+  // 'g', so a spoon measure rendered as "1 g vanilla" with no error anywhere.
+  it('keeps spoons rather than flattening them to grams', () => {
+    expect(toIngredientUnit('tsp')).toBe('tsp');
+    expect(toIngredientUnit('tbsp')).toBe('tbsp');
+  });
+
+  it.each([null, undefined, '', 'cups', 'oz', 42])(
+    'falls back to grams for %p', (value) => {
+      expect(toIngredientUnit(value)).toBe('g');
+    });
+});
+
+describe('formatQuantity for counted things', () => {
+  // "1x egg" rather than "1 egg": it reads as a count, and it does not look
+  // like a weight whose unit went missing.
+  it('prints the count with an x and no unit word', () => {
+    expect(formatQuantity(1, 'unit')).toBe('1x');
+    expect(formatQuantity(2, 'unit')).toBe('2x');
+  });
+
+  it('still rounds a scaled count', () => {
+    expect(formatQuantity(1.5, 'unit')).toBe('1.5x');
+  });
+
+  it('is kept by toIngredientUnit', () => {
+    expect(toIngredientUnit('unit')).toBe('unit');
+  });
+});
+
+describe('formatQuantity with spoons', () => {
+  it('prints the spoon as written', () => {
+    expect(formatQuantity(1, 'tsp')).toBe('1 tsp');
+    expect(formatQuantity(2, 'tbsp')).toBe('2 tbsp');
+  });
+
+  it('rounds a scaled spoon the same way as a weight', () => {
+    // Halving a 1 tsp ingredient for a single serving of a two-serve recipe.
+    expect(formatQuantity(0.5, 'tsp')).toBe('0.5 tsp');
+    expect(formatQuantity(0.333, 'tsp')).toBe('0.3 tsp');
   });
 });

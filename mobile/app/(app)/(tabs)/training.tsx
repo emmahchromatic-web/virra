@@ -138,6 +138,7 @@ export default function TrainingScreen() {
   // leaves the preference unset on purpose, and the enrolment screen then shows
   // every variant rather than the app guessing.
   const workoutPreference = useProfileStore((st) => st.workoutPreference);
+  const profileLoaded     = useProfileStore((st) => st.isLoaded);
   const saveProfile       = useProfileStore((st) => st.save);
   const [askEquipment, setAskEquipment] = useState(false);
 
@@ -150,15 +151,20 @@ export default function TrainingScreen() {
 
   useEffect(() => {
     if (!session) return;
-    // undefined means the profile has not loaded yet; null means genuinely unset.
-    if (workoutPreference === undefined) return;
+    // `null` is genuinely unset, so "not loaded yet" needs its own signal or the
+    // prompt fires against an empty store before the profile arrives. This
+    // comment used to claim `undefined` carried that, which the store never did:
+    // it typed the field non-nullable and initialised it to 'gym_full', so an
+    // unasked user looked exactly like someone who had chosen the gym. Card 246
+    // failed build 14 on precisely that.
+    if (!profileLoaded) return;
     if (hasEquipmentPreference(workoutPreference)) return;
     let cancelled = false;
     AsyncStorage.getItem(EQUIPMENT_ASKED_KEY).then((asked) => {
       if (!cancelled && !asked) setAskEquipment(true);
     });
     return () => { cancelled = true; };
-  }, [session, workoutPreference]);
+  }, [session, profileLoaded, workoutPreference]);
 
   async function handleEquipmentDone(pref: Parameters<typeof saveProfile>[1]['workoutPreference']) {
     setAskEquipment(false);

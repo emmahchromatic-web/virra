@@ -26,18 +26,24 @@ function deriveGoal(hk: Awaited<ReturnType<typeof fetchHKGoalData>>): RunningGoa
 }
 
 export default function GoalScreen() {
-  const { setStep, setData } = useOnboarding();
+  const { setStep, data, setData } = useOnboarding();
   useFocusEffect(React.useCallback(() => { setStep(5); }, [setStep]));
 
-  const [goal, setGoal]               = useState<RunningGoal | null>(null);
+  const [goal, setGoal]               = useState<RunningGoal | null>(data.runningGoal);
   const [hkSuggested, setHkSuggested] = useState(false);
 
+  // Health can only SUGGEST a goal, so it must not overwrite one the user has
+  // already chosen. On a first visit the context is empty and the suggestion
+  // stands; on a return visit their own answer wins.
+  const hasStoredGoal = data.runningGoal !== null;
+
   useEffect(() => {
+    if (hasStoredGoal) return;
     fetchHKGoalData().then((hk) => {
       const derived = deriveGoal(hk);
       if (derived) { setGoal(derived); setHkSuggested(true); }
     });
-  }, []);
+  }, [hasStoredGoal]);
 
   function handleContinue() {
     if (!goal) return;

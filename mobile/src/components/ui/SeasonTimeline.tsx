@@ -24,7 +24,12 @@ export function SeasonTimeline({ summary }: Props) {
 
   return (
     <VirraCard style={styles.card}>
-      <View style={styles.headerRow}>
+      {/* Stacked, not a space-between row. The season name is as long as the
+          races it chains ("Half Marathon -> Marathon"), and on one line with a
+          kicker that also grows with the week count it ran off the card edge
+          with nothing able to shrink. Emma's call on build 14: the focus reads
+          under the label. */}
+      <View style={styles.header}>
         <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
           MY SEASON · {summary.total_weeks} WEEKS
         </VirraText>
@@ -67,7 +72,7 @@ export function SeasonTimeline({ summary }: Props) {
 const styles = StyleSheet.create({
   card:      { gap: spacing.sm },
   kicker:    { letterSpacing: 1.5 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  header:    { gap: 2 },
   barTrack:  { height: 4, backgroundColor: 'rgba(212,255,38,0.15)', borderRadius: radius.full, overflow: 'hidden' },
   barFill:   { height: 4, backgroundColor: colors.pulse },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
