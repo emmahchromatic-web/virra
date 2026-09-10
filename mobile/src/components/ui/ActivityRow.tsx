@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
@@ -17,7 +17,7 @@ export interface Activity {
   run_details?:     { avg_pace_seconds_per_km: number | null }[] | null;
 }
 
-const ACTIVITY_ICON: Record<ActivityType, React.ComponentProps<typeof SymbolView>['name']> = {
+export const ACTIVITY_ICON: Record<ActivityType, React.ComponentProps<typeof SymbolView>['name']> = {
   run:      'figure.run',
   swim:     'figure.pool.swim',
   strength: 'dumbbell',
@@ -25,7 +25,7 @@ const ACTIVITY_ICON: Record<ActivityType, React.ComponentProps<typeof SymbolView
   other:    'figure.mixed.cardio',
 };
 
-const ACTIVITY_NAME: Record<ActivityType, string> = {
+export const ACTIVITY_NAME: Record<ActivityType, string> = {
   run:      'Run',
   swim:     'Swim',
   strength: 'Strength',
@@ -36,7 +36,7 @@ const ACTIVITY_NAME: Record<ActivityType, string> = {
 // Sub-type label + matching SF Symbol when present.
 // Keep in sync with mapSubType() in healthKitImport.ts.
 type SymName = React.ComponentProps<typeof SymbolView>['name'];
-const SUB_TYPE_LABEL: Record<string, string> = {
+export const SUB_TYPE_LABEL: Record<string, string> = {
   trail_run:        'Trail Run',
   open_water_swim:  'Open Water Swim',
   hike:             'Hike',
@@ -60,7 +60,7 @@ const SUB_TYPE_LABEL: Record<string, string> = {
   cross_train:      'Cross Train',
   mixed_cardio:     'Mixed Cardio',
 };
-const SUB_TYPE_ICON: Record<string, SymName> = {
+export const SUB_TYPE_ICON: Record<string, SymName> = {
   trail_run:        'figure.run',
   open_water_swim:  'figure.open.water.swim',
   hike:             'figure.hiking',
@@ -126,7 +126,13 @@ export function formatPace(secPerKm: number | null): string | null {
   return `${m}:${String(s).padStart(2, '0')}/km`;
 }
 
-export function ActivityRow({ activity }: { activity: Activity }) {
+/**
+ * `onPress` rather than a hardcoded route: this row appears on the timeline and
+ * on the training tab, and the caller knows where it belongs. Without one it
+ * renders exactly as before, which is what card 259 found: it was a plain View,
+ * so an imported run could be seen and never opened.
+ */
+export function ActivityRow({ activity, onPress }: { activity: Activity; onPress?: () => void }) {
   const type       = activity.activity_type;
   const sub        = activity.sub_type ?? null;
   const icon       = sub ? (SUB_TYPE_ICON[sub]  ?? ACTIVITY_ICON[type]) : ACTIVITY_ICON[type];
@@ -144,7 +150,7 @@ export function ActivityRow({ activity }: { activity: Activity }) {
 
   const isToday = new Date(activity.started_at).toDateString() === new Date().toDateString();
 
-  return (
+  const body = (
     <View style={styles.container}>
       <View style={[styles.iconWrap, { borderColor: modalityColor }]}>
         <SymbolView name={icon} size={18} tintColor={modalityColor} />
@@ -171,6 +177,18 @@ export function ActivityRow({ activity }: { activity: Activity }) {
         </View>
       </View>
     </View>
+  );
+
+  if (!onPress) return body;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${date}. Open details.`}
+    >
+      {body}
+    </Pressable>
   );
 }
 

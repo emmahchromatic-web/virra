@@ -193,6 +193,7 @@ export default function AppLayout() {
       <Stack.Screen name="notifications"   options={{ presentation: 'card'  }} />
       <Stack.Screen name="achievements"    options={{ presentation: 'card'  }} />
       <Stack.Screen name="recipe/[slug]"   options={{ presentation: 'card'  }} />
+      <Stack.Screen name="activity/[id]"   options={{ presentation: 'card'  }} />
     </Stack>
   );
 }
