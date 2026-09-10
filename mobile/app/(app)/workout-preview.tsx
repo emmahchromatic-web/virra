@@ -21,6 +21,7 @@ import { generateStrengthStructure } from '@/lib/strengthWorkoutGenerator';
 import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
 import type { StrengthExercise } from '@/lib/strengthTypes';
 import { getExerciseMeta } from '@/lib/exerciseLibrary';
+import { isSetAsideCandidate, setAsideReason } from '@/lib/menstrualSetAside';
 import { getLastLoggedWeights } from '@/lib/strengthHistory';
 import { getExerciseSettings, DEFAULT_LOAD_TYPE, type ExerciseSettings } from '@/lib/exerciseSettings';
 import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
@@ -89,6 +90,8 @@ interface LogExercise {
   target_sets:   { reps: number }[];
   section:       string | null;
   section_label: string | null;
+  /** Core-led or explosive: a candidate for setting aside on the worst days. */
+  sensitive:     boolean;
 }
 
 // Parse an authored reps string ("8", "8-10", "30s") to a numeric target for
@@ -120,6 +123,7 @@ function toLogExercises(structure: AnyStrengthStructure): LogExercise[] {
           target_sets:   Array.from({ length: setCount }, () => ({ reps })),
           section:       sec.section,
           section_label: sec.label,
+          sensitive:     isSetAsideCandidate(getExerciseMeta(ex.name)?.primaryMuscles, ex.tempo),
         });
       });
     });
@@ -139,8 +143,60 @@ function toLogExercises(structure: AnyStrengthStructure): LogExercise[] {
       target_sets:   ex.target_sets.map((ts) => ({ reps: ts.reps })),
       section:       null,
       section_label: null,
+      sensitive:     isSetAsideCandidate(meta?.primaryMuscles, meta?.tempo ?? null),
     };
   });
+}
+
+/**
+ * Core and explosive work moved to the bottom of the session on the roughest
+ * days, with the reason attached and a tap to put it back.
+ *
+ * Emma's rule, 2026-09-10: set them aside on the heaviest and most
+ * uncomfortable days, but let the user see them and reactivate them, because
+ * every woman is different. So this is a suggestion the user can overrule, not
+ * a decision taken on her behalf. Nothing is removed from the structure and
+ * nothing is silently swapped: the sets are already seeded, so putting one back
+ * costs nothing and loses nothing.
+ */
+function SetAsideGroup({ exercises, reason, onRestore }: {
+  exercises: LogExercise[];
+  reason:    string;
+  onRestore: (id: string) => void;
+}) {
+  if (!exercises.length) return null;
+  return (
+    <VirraCard style={{ gap: spacing.sm, marginTop: spacing.md }}>
+      <VirraText variant="mono" size={10} color={colors.dawn} style={{ letterSpacing: 1.5 }}>
+        SET ASIDE FOR TODAY
+      </VirraText>
+      <VirraText variant="body" size={13} color="rgba(244,237,224,0.75)" style={{ lineHeight: 20 }}>
+        {reason} Core and explosive work can be uncomfortable on these days, so we have moved it
+        out of your way. Add anything back if you want it.
+      </VirraText>
+      {exercises.map((ex) => (
+        <View key={ex.id} style={s.asideRow}>
+          <View style={{ flex: 1 }}>
+            <VirraText variant="bodyMedium" size={14} color={colors.breath}>{ex.name}</VirraText>
+            <VirraText variant="mono" size={10} color={colors.muted}>
+              {ex.target_sets.length} x {ex.reps_label}
+            </VirraText>
+          </View>
+          <Pressable
+            onPress={() => onRestore(ex.id)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={`Add ${ex.name} back to the workout`}
+            style={s.asideBtn}
+          >
+            <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1 }}>
+              ADD BACK
+            </VirraText>
+          </Pressable>
+        </View>
+      ))}
+    </VirraCard>
+  );
 }
 
 function seedLoggedSets(exercises: LogExercise[]): Record<string, LoggedSet[]> {
@@ -267,6 +323,12 @@ export default function WorkoutPreviewScreen() {
   // that was setSaving(false) un-spinning it while the error went nowhere.
   // Errors that keep the user here must be inline.
   const [rpeError, setRpeError] = useState<{ title: string; message: string } | null>(null);
+  // Today's check-in, read so core and explosive work can be set aside on the
+  // days the user has told us are rough rather than on the calendar alone.
+  const [checkin, setCheckin] = useState<{ energy: number; symptoms: string[] } | null>(null);
+  // Exercises the user has put back. Emma's rule: every woman is different, so
+  // the app suggests and she decides.
+  const [reactivated, setReactivated] = useState<Set<string>>(new Set());
   const [rest,         setRest]         = useState<RestState | null>(null);
   const [restNow,      setRestNow]      = useState(0);
   const [settings,     setSettings]     = useState<Record<string, ExerciseSettings>>({});
@@ -388,6 +450,26 @@ export default function WorkoutPreviewScreen() {
         setState('idle');
       });
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    const today = new Date().toLocaleDateString('en-CA');
+    void supabase
+      .from('symptom_logs')
+      .select('energy, symptoms')
+      .eq('user_id', session.user.id)
+      .eq('recorded_on', today)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setCheckin({
+          energy:   typeof data.energy === 'number' ? data.energy : 3,
+          symptoms: Array.isArray(data.symptoms) ? data.symptoms : [],
+        });
+      });
+    return () => { cancelled = true; };
+  }, [session]);
 
   // Cleanup timer on unmount
   useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
@@ -511,6 +593,14 @@ export default function WorkoutPreviewScreen() {
     const next = { ...logged, [current.exId]: sets };
     setLogged(next);
     persistDraft(next, sessionRpe);
+  }
+
+  function restoreSetAside(id: string) {
+    setReactivated((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
   }
 
   function beginRest(ex: LogExercise, loggedNow: Record<string, LoggedSet[]>) {
@@ -728,9 +818,29 @@ export default function WorkoutPreviewScreen() {
   const modality = sessionData?.modality ?? 'other';
   const steps    = useMemo(() => sessionData ? buildStepLines(sessionData) : [], [sessionData]);
   const strengthStructure = sessionData?.strength_structure ?? null;
-  const logExercises = useMemo(
+  const allLogExercises = useMemo(
     () => strengthStructure ? toLogExercises(strengthStructure) : [],
     [strengthStructure],
+  );
+
+  // Why today qualifies, or null. Shown to the user, never just acted on.
+  const asideReason = useMemo(
+    () => setAsideReason(cycleInfo?.phase ?? null, cycleInfo?.dayOfCycle ?? null, checkin),
+    [cycleInfo?.phase, cycleInfo?.dayOfCycle, checkin],
+  );
+
+  // Set aside, not removed. The sets are still seeded and still logged if she
+  // puts one back, so reactivating costs nothing and loses nothing.
+  const setAsideExercises = useMemo(
+    () => (asideReason
+      ? allLogExercises.filter((ex) => ex.sensitive && !reactivated.has(ex.id))
+      : []),
+    [asideReason, allLogExercises, reactivated],
+  );
+
+  const logExercises = useMemo(
+    () => allLogExercises.filter((ex) => !setAsideExercises.some((a) => a.id === ex.id)),
+    [allLogExercises, setAsideExercises],
   );
   const deloadNote = isStrengthV2(strengthStructure) ? strengthStructure.deload_note ?? null : null;
   const restRemaining = restRemainingSeconds(rest, restNow);
@@ -836,6 +946,14 @@ export default function WorkoutPreviewScreen() {
             </VirraCard>
           )}
 
+
+          {asideReason && (
+            <SetAsideGroup
+              exercises={setAsideExercises}
+              reason={asideReason}
+              onRestore={restoreSetAside}
+            />
+          )}
           {strengthStructure ? (
             <VirraCard style={{ gap: spacing.sm, marginTop: spacing.md }}>
               <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>WORKOUT</VirraText>
@@ -920,6 +1038,13 @@ export default function WorkoutPreviewScreen() {
                   {deloadNote}
                 </VirraText>
               </VirraCard>
+            )}
+            {asideReason && (
+              <SetAsideGroup
+                exercises={setAsideExercises}
+                reason={asideReason}
+                onRestore={restoreSetAside}
+              />
             )}
             {logExercises.map((ex, i) => {
               const hasInfo = !!ex.description || !!ex.tempo || ex.cues.length > 0;
@@ -1151,6 +1276,8 @@ const s = StyleSheet.create({
   headerBtn:      { width: 18, height: 32, alignItems: 'flex-start', justifyContent: 'center' },
   centred:        { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll:         { padding: spacing.lg, gap: spacing.md, paddingBottom: 40 },
+  asideRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  asideBtn:  { borderWidth: 1, borderColor: colors.control, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 6 },
   sessionRow:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   stepRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   exListRow:      { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
