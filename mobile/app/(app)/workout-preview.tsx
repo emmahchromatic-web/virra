@@ -9,6 +9,7 @@ import type { SFSymbol } from 'sf-symbols-typescript';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
+import { useSessionStore } from '@/store/sessionStore';
 import { cancelTrainingReminderToday, scheduleRestComplete, cancelRestComplete } from '@/lib/notifications';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -54,6 +55,62 @@ const MODALITY_ICON: Record<string, string> = {
   swim:     'figure.pool.swim',
   other:    'figure.mixed.cardio',
 };
+
+/**
+ * Card 258. Read the session from the network, and fall back to the copy the
+ * session store already holds.
+ *
+ * The previous version had no fallback and no failure branch: the query result
+ * was handled inside `if (!error && data)` with nothing after it, so with no
+ * signal the screen simply never populated and said nothing about why. A gym
+ * with no signal and no wifi is exactly where someone opens this screen, which
+ * made the one place it had to work the one place it could not.
+ *
+ * Network first rather than cache first: a session can be moved, dropped or
+ * regenerated, and the cache is a fallback rather than a source of truth. The
+ * store persists to `virra:sessions:v1`, so the row is usually already on the
+ * phone from the training tab that got the user here.
+ *
+ * Everything downstream already degrades correctly offline:
+ * `recoverProgrammeStructure` catches to null and generation is local, and the
+ * weight prefill catches its own failure.
+ */
+async function loadSessionRow(sessionId: string): Promise<{ row: SessionData; fromCache: boolean } | null> {
+  const { data, error } = await supabase
+    .from('planned_sessions')
+    .select('id, session_label, modality, week_number, block_id, run_structure, strength_structure')
+    .eq('id', sessionId)
+    .single();
+
+  if (!error && data) {
+    return {
+      row: {
+        ...(data as Omit<SessionData, 'cycle_reason_short' | 'cycle_adjusted_pace_secs'>),
+        cycle_reason_short:       null,
+        cycle_adjusted_pace_secs: null,
+      },
+      fromCache: false,
+    };
+  }
+
+  const cached = useSessionStore.getState().byId[sessionId];
+  if (!cached) return null;
+
+  return {
+    row: {
+      id:                       cached.id,
+      session_label:            cached.session_label ?? '',
+      modality:                 cached.modality,
+      week_number:              cached.week_number ?? null,
+      block_id:                 cached.block_id,
+      run_structure:            (cached.run_structure ?? null) as SessionData['run_structure'],
+      strength_structure:       (cached.strength_structure ?? null) as SessionData['strength_structure'],
+      cycle_reason_short:       null,
+      cycle_adjusted_pace_secs: null,
+    },
+    fromCache: true,
+  };
+}
 
 interface SessionData {
   id:                       string;
@@ -329,6 +386,9 @@ export default function WorkoutPreviewScreen() {
   // Exercises the user has put back. Emma's rule: every woman is different, so
   // the app suggests and she decides.
   const [reactivated, setReactivated] = useState<Set<string>>(new Set());
+  // Card 258. Loading this screen used to have no failure branch at all.
+  const [loadError, setLoadError] = useState<{ title: string; message: string } | null>(null);
+  const [loadedFromCache, setLoadedFromCache] = useState(false);
   const [rest,         setRest]         = useState<RestState | null>(null);
   const [restNow,      setRestNow]      = useState(0);
   const [settings,     setSettings]     = useState<Record<string, ExerciseSettings>>({});
@@ -375,18 +435,14 @@ export default function WorkoutPreviewScreen() {
     // runtime (see todaysSession.ts) and are NOT columns on planned_sessions
     // selecting them made this query error out, leaving every non-run session
     // stuck on the generic timer with no exercises.
-    supabase
-      .from('planned_sessions')
-      .select('id, session_label, modality, week_number, block_id, run_structure, strength_structure')
-      .eq('id', sessionId)
-      .single()
-      .then(async ({ data, error }) => {
-        if (!error && data) {
-          const row: SessionData = {
-            ...(data as Omit<SessionData, 'cycle_reason_short' | 'cycle_adjusted_pace_secs'>),
-            cycle_reason_short:       null,
-            cycle_adjusted_pace_secs: null,
-          };
+    let cancelled = false;
+    (async () => {
+        const loaded = await loadSessionRow(sessionId);
+        if (cancelled) return;
+        if (loaded) {
+          const { row, fromCache } = loaded;
+          setLoadedFromCache(fromCache);
+          setLoadError(null);
           // Recover strength sessions saved without a structure. Prefer the
           // authored Get Strong session (join block → template → programme_id)
           // fall back to on-the-fly generation so a bare timer never shows.
@@ -447,8 +503,15 @@ export default function WorkoutPreviewScreen() {
           if (!resumed) setState('idle');
           return;
         }
+        // Neither the network nor the cache has it. Say so, rather than
+        // leaving an empty screen the user cannot act on.
+        setLoadError({
+          title:   'Could not open this session',
+          message: 'We could not reach the server and this workout is not saved on your phone yet. Open it once with signal and it will be available offline.',
+        });
         setState('idle');
-      });
+    })();
+    return () => { cancelled = true; };
   }, [sessionId]);
 
   useEffect(() => {
@@ -910,6 +973,29 @@ export default function WorkoutPreviewScreen() {
         </VirraText>
         <View style={s.headerBtn} />
       </View>
+
+      {/* Card 258. Above the state branches deliberately: the preview and the
+          live workout both need to say where this session came from, and a
+          load failure has to be visible in whichever state we land in. */}
+      {loadError && (
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+          <InlineError
+            title={loadError.title}
+            message={loadError.message}
+            onDismiss={() => setLoadError(null)}
+          />
+        </View>
+      )}
+      {loadedFromCache && (
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+          <VirraCard style={{ gap: spacing.xs }}>
+            <VirraText variant="mono" size={10} color={colors.dawn} style={{ letterSpacing: 1.5 }}>OFFLINE</VirraText>
+            <VirraText variant="body" size={13} color="rgba(244,237,224,0.75)" style={{ lineHeight: 20 }}>
+              Loaded from this phone. You can train and finish as normal, and it will sync when you have signal again.
+            </VirraText>
+          </VirraCard>
+        </View>
+      )}
 
       {state === 'loading' && (
         <View style={s.centred}>
