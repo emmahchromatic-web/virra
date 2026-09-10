@@ -6,7 +6,7 @@ type CyclePhase  = "menstrual" | "follicular" | "ovulatory" | "luteal";
 
 const VALID_PHASES  = new Set<string>(["menstrual","follicular","ovulatory","luteal"]);
 const JSON_HEADERS  = { "Content-Type": "application/json" };
-const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Never use em-dashes; use full stops, commas or colons instead. The figure run_km_last_7_days covers a rolling 7 days ending today. It is NOT a calendar week: call it "the last 7 days" and never "this week" or "last week". The app shows the runner a separate Monday-start weekly total beside your words, and the two are different numbers, so naming a week invites her to compare them and find them contradictory. Current phase context will follow.`;
+const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Never use em-dashes; use full stops, commas or colons instead. The figure adherence_pct_last_28_days covers the last 28 days and NOT the current week: call it "the last 28 days" and never "this week". The figure run_km_last_7_days covers a rolling 7 days ending today. It is NOT a calendar week: call it "the last 7 days" and never "this week" or "last week". The app shows the runner a separate Monday-start weekly total beside your words, and the two are different numbers, so naming a week invites her to compare them and find them contradictory. Current phase context will follow.`;
 
 function err(msg: string, status: number): Response {
   return new Response(JSON.stringify({ error: msg }), { status, headers: JSON_HEADERS });
@@ -191,7 +191,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const dataContext = {
     phase:               safePhase,
     day_of_cycle:        day_of_cycle ?? null,
-    adherence_pct:       adherencePct,
+    // Named for its window, same reason as run_km_last_7_days below: the key is
+    // how the model describes the number, and an unnamed window gets described
+    // as whatever the surrounding heading implies. Emma, 2026-09-10: the
+    // narrative under a THIS WEEK heading reported 22% adherence in a week
+    // where she had completed 2 of 2 sessions. 22% was the 28-day figure, which
+    // the tile beside it labels correctly as LAST 28 DAYS.
+    adherence_pct_last_28_days: adherencePct,
     // Key name matters: dataContext is JSON-stringified straight into the
     // prompt, so this is how the model will describe the number.
     run_km_last_7_days:  runKmLast7,
