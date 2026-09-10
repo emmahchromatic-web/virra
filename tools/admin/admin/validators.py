@@ -24,7 +24,7 @@ UNIT_LABELS = {
     "ml": "ml",
     "tsp": "tsp",
     "tbsp": "tbsp",
-    "unit": "whole",   # 1 red pepper, 2 eggs: prints as the count alone
+    "unit": "x",       # 1 red pepper, 2 eggs: the app prints these as "1x"
 }
 # Spoons and counts are presentation only, and the app has to know how to print
 # them. Anything here that the installed build does not understand renders as
