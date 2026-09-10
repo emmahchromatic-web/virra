@@ -5,6 +5,15 @@ module.exports = {
     '@testing-library/jest-native/extend-expect',
     '<rootDir>/jest.setup.after.js',
   ],
+  /**
+   * Jest kills an individual test at this point, whatever it is waiting for.
+   *
+   * It has to sit ABOVE the react-native-testing-library `asyncUtilTimeout` in
+   * jest.setup.after.js, or that setting cannot do its job: a `waitFor` given a
+   * fifteen-second budget was still being killed at five, so raising the one
+   * without the other achieved nothing. They are a pair.
+   */
+  testTimeout: 30000,
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|@sentry/.*|native-base|react-native-svg)'
   ],
