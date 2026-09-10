@@ -29,7 +29,7 @@
 --
 -- Idempotent: keyed on name, and only fills rows that are still null.
 --
--- NOT applied here — the parent applies it.
+-- NOT applied here: the parent applies it.
 
 begin;
 
@@ -38,7 +38,7 @@ alter table public.plan_templates
 
 comment on column public.plan_templates.archetype_key is
   'Which run archetype this template is, from src/lib/runProgramme/archetypes.ts. '
-  'Null falls back to matching the template name, which is fragile — set it. '
+  'Null falls back to matching the template name, which is fragile; set it. '
   'Goal plans use distance_goal; the app upgrades that to race when the runner '
   'sets an event date.';
 
