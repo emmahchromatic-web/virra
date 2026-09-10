@@ -315,9 +315,8 @@ export function getSessionPaceTarget(
  * the sum stopped working. The runner never saw any of it, because the session
  * card read its distance from the stored structure rather than from the
  * redistributed figure. Reassuring arithmetic performed on someone's behalf,
- * invisible to them, is not adaptation. Nothing is moved without being asked;
- * the prompt that does the asking lands with the realignment work, and until it
- * does, a missed session is simply a missed session.
+ * invisible to them, is not adaptation. Missing training is now handled by
+ * asking — see runProgramme/realignment.ts.
  *
  * So: planned volume comes from the sessions themselves, completed volume from
  * the activities linked to them, and nothing is moved without being asked.
