@@ -1,0 +1,5 @@
+# Local only — never committed.
+.env
+.venv/
+changes/*.jsonl
+__pycache__/

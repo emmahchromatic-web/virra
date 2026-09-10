@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}VIRRA Admin{% endblock %}</title>
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/">VIRRA · Admin</a>
+    <nav>
+      <a href="/recipes" class="{{ 'on' if nav == 'recipes' }}">Recipes</a>
+      <a href="/programmes" class="{{ 'on' if nav == 'programmes' }}">Programmes</a>
+      <a href="/exercises" class="{{ 'on' if nav == 'exercises' }}">Exercises</a>
+    </nav>
+  </header>
+
+  {% if readonly %}<div class="banner readonly">Read-only mode — every write is disabled</div>{% endif %}
+  {% if request.query_params.get('saved') %}<div class="banner saved">Saved and read back from the database</div>{% endif %}
+  {% if request.query_params.get('exported') %}<div class="banner saved">Exported {{ request.query_params.get('exported') }} to mobile/supabase/seeds/content/</div>{% endif %}
+
+  <main>{% block body %}{% endblock %}</main>
+
+  <script>
+    // The only script in the tool: clone the last row of a repeating group,
+    // renumber its fields, and clear it. Removing a row just drops it from the
+    // DOM — positions are reassigned server-side on save, so gaps are fine.
+    function addRow(groupId) {
+      const group = document.getElementById(groupId);
+      const rows = group.querySelectorAll('.row');
+      const template = rows[rows.length - 1];
+      if (!template) return;
+      const copy = template.cloneNode(true);
+      const index = rows.length;
+      copy.querySelectorAll('input, select, textarea').forEach(function (field) {
+        if (field.name) field.name = field.name.replace(/-\d+-/, '-' + index + '-');
+        if (field.type === 'checkbox') { field.checked = false; } else { field.value = ''; }
+      });
+      group.appendChild(copy);
+    }
+    function dropRow(button) {
+      const group = button.closest('.rows');
+      if (group.querySelectorAll('.row').length <= 1) {
+        button.closest('.row').querySelectorAll('input, select, textarea').forEach(function (f) { f.value = ''; });
+        return;
+      }
+      button.closest('.row').remove();
+    }
+  </script>
+</body>
+</html>

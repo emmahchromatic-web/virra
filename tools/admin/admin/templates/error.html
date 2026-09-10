@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — VIRRA Admin{% endblock %}
+{% block body %}
+  <h1>{{ title }}</h1>
+  <div class="notice bad">
+    <span class="t">Nothing was changed</span>
+    <ul>{% for problem in problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+  </div>
+  <p style="margin-top:1.4rem"><a class="btn" href="{{ back }}">Back</a></p>
+{% endblock %}

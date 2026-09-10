@@ -106,6 +106,8 @@ export interface RunPlanContext {
   /** Indexed by week. */
   phases:    WeekPhase[];
   longRunKm: number[];
+  /** Walk-run ladder stage per week, for the plans that use one. */
+  walkRun?:  Array<{ runS: number; walkS: number }>;
 }
 
 export interface GenerateContext {
@@ -187,6 +189,7 @@ export function generateSchedule(
             goal:          plan?.goal,
             phase:         plan?.phases[weekIndex],
             intensity:     plan?.intensity,
+            walkRun:       plan?.walkRun?.[weekIndex],
           });
         } else if (modality === 'strength') {
           const prog = context.programme;
