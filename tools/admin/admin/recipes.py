@@ -43,6 +43,25 @@ def list_all() -> list[dict[str, Any]]:
     return db.select("recipes", order="collection,sort_order,name")
 
 
+def collections() -> list[dict[str, Any]]:
+    """The shelves that already exist, with how many recipes are on each.
+
+    Offered as a list rather than a free-text box because slug and label have
+    to agree with the rows already stored: a label typed slightly differently
+    silently splits one shelf into two in the app.
+    """
+    rows = db.select("recipes", columns="collection,collection_label,is_active",
+                     order="collection")
+    seen: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        slug = row["collection"]
+        entry = seen.setdefault(slug, {"collection": slug,
+                                       "label": row["collection_label"],
+                                       "count": 0})
+        entry["count"] += 1
+    return sorted(seen.values(), key=lambda c: c["label"].lower())
+
+
 def next_sort_order(collection: str, *, exclude_id: str | None = None) -> int:
     """Ten past the last recipe on that shelf.
 
@@ -116,8 +135,7 @@ def parse(form: Any, *, existing_id: str | None) -> dict[str, Any]:
     recipe = {
         "id": recipe_id,
         "name": name,
-        "collection": forms.text(form, "collection") or "general",
-        "collection_label": forms.text(form, "collection_label") or "General",
+        # collection is resolved below, not defaulted here.
         "intro": forms.optional_text(form, "intro"),
         "meal_types": meal_types,
         "phases": tag_set("phases", validators.PHASES, "Phases"),
@@ -131,6 +149,30 @@ def parse(form: Any, *, existing_id: str | None) -> dict[str, Any]:
         "source": forms.text(form, "source") or "virra-authored",
         "is_active": forms.flag(form, "is_active"),
     }
+
+    # Which shelf. Either an existing one, whose label is taken from what is
+    # already stored so the two cannot drift, or a brand new one.
+    chosen = forms.text(form, "collection")
+    if chosen == "__new__":
+        new_label = forms.text(form, "new_collection_label")
+        if not new_label:
+            problems.append("Name the new collection, or pick an existing one.")
+        recipe["collection"] = forms.text(form, "new_collection") or validators.slugify(new_label)
+        recipe["collection_label"] = new_label
+    elif chosen:
+        existing = next((c for c in collections() if c["collection"] == chosen), None)
+        if existing is None:
+            problems.append(f"'{chosen}' is not one of the existing collections.")
+            recipe["collection"], recipe["collection_label"] = chosen, chosen
+        else:
+            recipe["collection"] = existing["collection"]
+            recipe["collection_label"] = existing["label"]
+    else:
+        problems.append(
+            "Pick a collection. It is the shelf the recipe sits on in the app, "
+            "and there is no sensible default."
+        )
+        recipe["collection"], recipe["collection_label"] = "", ""
 
     # Left blank means "put it at the end of its shelf". An explicit 0 is
     # honoured, because 0 is a legitimate position and guessing over it would

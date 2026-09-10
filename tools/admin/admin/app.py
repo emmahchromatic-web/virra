@@ -94,7 +94,7 @@ def recipe_list(request: Request) -> HTMLResponse:
 def recipe_new(request: Request) -> HTMLResponse:
     return render(request, "recipe_edit.html", recipe=recipes.blank(), is_new=True,
                   derived={}, drift={}, foods=foods.catalogue(), food_label=foods.label,
-                  catalogue_label=_catalogue_label)
+                  catalogue_label=_catalogue_label, collections=recipes.collections())
 
 
 @app.get("/recipes/{recipe_id}", response_class=HTMLResponse)
@@ -113,6 +113,7 @@ def recipe_edit(request: Request, recipe_id: str) -> HTMLResponse:
         foods=foods.catalogue(),
         food_label=foods.label,
         catalogue_label=_catalogue_label,
+        collections=recipes.collections(),
     )
 
 

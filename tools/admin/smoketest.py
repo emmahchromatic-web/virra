@@ -124,6 +124,37 @@ pinned = [r for r in STORE["recipes"] if r["id"] == "top-of-shelf"][0]
 check("an explicit 0 is honoured, not auto-filled", pinned["sort_order"] == 0,
       f"got {pinned['sort_order']}")
 
+print("\ncollections")
+# The bug this replaced: a blank collection silently fell back to
+# 'general'/'General', so a recipe landed on a shelf that did not exist.
+post("/recipes/new", {
+    "name": "No shelf", "meal_types": "lunch", "serves": "1",
+    "calories": "1", "carbs_g": "1", "protein_g": "1", "fat_g": "1", "fibre_g": "",
+}, 200, "Pick a collection")
+
+post("/recipes/new", {
+    "name": "New shelf", "collection": "__new__",
+    "new_collection_label": "Sunday batch cooking",
+    "meal_types": "lunch", "serves": "1", "sort_order": "",
+    "calories": "1", "carbs_g": "1", "protein_g": "1", "fat_g": "1", "fibre_g": "",
+})
+fresh = [r for r in STORE["recipes"] if r["id"] == "new-shelf"]
+check("a new collection is slugged from its name",
+      fresh and fresh[0]["collection"] == "sunday-batch-cooking"
+      and fresh[0]["collection_label"] == "Sunday batch cooking",
+      f"got {fresh}")
+
+# The label is taken from what is stored, so a mistyped one cannot split a shelf.
+post("/recipes/new", {
+    "name": "Label drift", "collection": "quick", "collection_label": "QUICK WINS!!",
+    "meal_types": "lunch", "serves": "1", "sort_order": "",
+    "calories": "1", "carbs_g": "1", "protein_g": "1", "fat_g": "1", "fibre_g": "",
+})
+drifted = [r for r in STORE["recipes"] if r["id"] == "label-drift"]
+check("an existing shelf keeps its stored label",
+      drifted and drifted[0]["collection_label"] == "Quick wins",
+      f"got {drifted[0]['collection_label'] if drifted else None}")
+
 print("\ningredient units")
 from admin import validators  # noqa: E402
 

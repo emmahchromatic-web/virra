@@ -44,12 +44,19 @@
           <input type="text" name="id" value="{{ recipe.id }}" {{ 'readonly' if not is_new }} placeholder="left blank = from the name">
         </div>
         <div class="field">
-          <label>Collection <span class="hint">— slug</span></label>
-          <input type="text" name="collection" value="{{ recipe.collection }}">
+          <label>Collection <span class="hint">— the shelf it sits on</span></label>
+          <select name="collection" onchange="document.getElementById('new-collection').hidden = this.value !== '__new__';">
+            <option value="" {{ 'selected' if not recipe.collection }}>— pick one —</option>
+            {% for c in collections %}
+              <option value="{{ c.collection }}" {{ 'selected' if recipe.collection == c.collection }}>{{ c.label }} ({{ c.count }})</option>
+            {% endfor %}
+            <option value="__new__">New collection…</option>
+          </select>
         </div>
-        <div class="field">
-          <label>Collection label <span class="hint">— what the reader sees</span></label>
-          <input type="text" name="collection_label" value="{{ recipe.collection_label }}">
+        <div class="field" id="new-collection" hidden>
+          <label>New collection name <span class="hint">— what the reader sees</span></label>
+          <input type="text" name="new_collection_label" placeholder="Sunday batch cooking">
+          <span class="hint">The slug is worked out from the name.</span>
         </div>
         <div class="field wide">
           <label>Intro <span class="hint">— the most visible line on the card</span></label>
