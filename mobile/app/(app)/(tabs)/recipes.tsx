@@ -89,7 +89,15 @@ function RailCard({ recipe }: { recipe: Recipe }) {
     >
       <VirraCard>
         <View style={styles.railTop}>
-          <SectionLabel tone="muted">{recipe.collectionLabel}</SectionLabel>
+          {/* The label has to give way, not the time: "Pre-run and race morning"
+              is wider than the card, and left to itself it runs straight into
+              the minutes with no gap. */}
+          <VirraText
+            variant="label" color={colors.muted}
+            numberOfLines={1} style={styles.railMeta}
+          >
+            {recipe.collectionLabel}
+          </VirraText>
           {time && <VirraText variant="mono" size={10} color={colors.muted}>{time}</VirraText>}
         </View>
         {/* Content flows top-down under the meta line so nothing is pushed into
@@ -416,7 +424,9 @@ const styles = StyleSheet.create({
   // the bottom of the card as padding rather than as a gap in the middle.
   railTitle:     { lineHeight: 22 },
   railChips:     { minHeight: 18 },
-  railTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  railTop:       { flexDirection: 'row', justifyContent: 'space-between',
+                   alignItems: 'center', gap: spacing.sm },
+  railMeta:      { flex: 1 },
 
   row:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowMain: { flex: 1, gap: 2 },
