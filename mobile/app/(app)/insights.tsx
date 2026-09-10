@@ -127,6 +127,13 @@ export default function InsightsScreen() {
           insight_type:  'weekly',
           phase:         cycleInfo?.phase,
           day_of_cycle:  cycleInfo?.dayOfCycle,
+          // Card 260. The exact window the RUN / WEEK tile above was measured
+          // over, so the narrative describes that week rather than a rolling
+          // seven days of its own. Sending the boundary rather than a timezone
+          // is deliberate: the two numbers are then the same window by
+          // construction, instead of two implementations that agree until one
+          // of them drifts.
+          week_start:    metricsResult?.weekStartISO,
         },
       });
       if (!error && data) {
