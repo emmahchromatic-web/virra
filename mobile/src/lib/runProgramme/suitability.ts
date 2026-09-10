@@ -36,8 +36,13 @@ export type SuitabilityVerdict =
   | 'wrong_plan';
 
 export interface EntryCriteria {
-  /** One line naming who the plan is for. Shown on the plan card. */
+  /** One line naming who the plan is for. Shown on the plan detail screen. */
   whoFor: string;
+  /**
+   * The same thing at card size. A browse card has room for a few words, not a
+   * sentence, and a sentence truncated mid-clause tells a runner nothing.
+   */
+  cardLine: string;
   /** The assumptions spelled out, shown on the detail screen. */
   points: string[];
   /** Weekly volume the plan assumes. null when it meets you where you are. */
@@ -79,13 +84,13 @@ export interface Suitability {
  */
 export const GOAL_ENTRY: Record<
   RaceDistance,
-  { weeklyKm: number; longRunKm: number; inWords: string } | null
+  { weeklyKm: number; longRunKm: number; inWords: string; shortWords: string } | null
 > = {
-  '5k':          { weeklyKm: 10, longRunKm:  3, inWords: 'run for 20 minutes without walking' },
-  '10k':         { weeklyKm: 15, longRunKm:  5, inWords: 'run 5km without walking' },
-  half_marathon: { weeklyKm: 25, longRunKm: 10, inWords: 'run 10km' },
-  marathon:      { weeklyKm: 40, longRunKm: 16, inWords: 'run 16km' },
-  ultra:         { weeklyKm: 60, longRunKm: 30, inWords: 'finished a marathon' },
+  '5k':          { weeklyKm: 10, longRunKm:  3, inWords: 'run for 20 minutes without walking', shortWords: 'Runs 20 min non-stop' },
+  '10k':         { weeklyKm: 15, longRunKm:  5, inWords: 'run 5km without walking',            shortWords: 'Runs 5km non-stop' },
+  half_marathon: { weeklyKm: 25, longRunKm: 10, inWords: 'run 10km',                           shortWords: 'Runs 10km already' },
+  marathon:      { weeklyKm: 40, longRunKm: 16, inWords: 'run 16km',                           shortWords: 'Runs 16km already' },
+  ultra:         { weeklyKm: 60, longRunKm: 30, inWords: 'finished a marathon',                shortWords: 'Marathon finisher' },
   // A general-fitness plan is built around whatever the runner already does,
   // so it has no entry bar to state.
   general:       null,
@@ -107,9 +112,10 @@ export const STRETCH_FRACTION = 0.7;
 /** Below this share, it is the wrong plan rather than a hard one. */
 export const WRONG_PLAN_FRACTION = 0.4;
 
-const WALK_RUN_COPY: Partial<Record<ArchetypeKey, { whoFor: string; points: string[] }>> = {
+const WALK_RUN_COPY: Partial<Record<ArchetypeKey, { whoFor: string; cardLine: string; points: string[] }>> = {
   new_to_running: {
     whoFor: 'For anyone starting from nothing. You do not need to be able to run yet.',
+    cardLine: 'No running needed to start',
     points: [
       'You can walk briskly for 30 minutes.',
       'You have never run regularly, or not for a long time.',
@@ -118,6 +124,7 @@ const WALK_RUN_COPY: Partial<Record<ArchetypeKey, { whoFor: string; points: stri
   },
   path_to_parkrun: {
     whoFor: 'For getting to your first parkrun. Walk breaks are part of the plan.',
+    cardLine: 'Walk breaks included',
     points: [
       'You can walk briskly for 30 minutes.',
       'You want to finish 5K, not race it.',
@@ -126,6 +133,7 @@ const WALK_RUN_COPY: Partial<Record<ArchetypeKey, { whoFor: string; points: stri
   },
   return_after_break: {
     whoFor: 'For coming back after time off, with walk breaks built in from week one.',
+    cardLine: 'Walk breaks included',
     points: [
       'You have run before but not recently.',
       'You would rather rebuild than pick up where you left off.',
@@ -162,6 +170,7 @@ export function entryCriteria(archetype: Archetype, goal: RaceDistance): EntryCr
     const copy = WALK_RUN_COPY[archetype.key] ?? WALK_RUN_COPY.new_to_running!;
     return {
       whoFor:           copy.whoFor,
+      cardLine:         copy.cardLine,
       points:           copy.points,
       assumesWeeklyKm:  null,
       assumesLongRunKm: null,
@@ -187,6 +196,7 @@ export function entryCriteria(archetype: Archetype, goal: RaceDistance): EntryCr
       ?? (entry
         ? `For runners who can already ${entry.inWords}.`
         : 'For runners who want structure around what they already do.'),
+    cardLine: entry?.shortWords ?? 'Any level',
     points,
     assumesWeeklyKm:  entry?.weeklyKm  ?? null,
     assumesLongRunKm: entry?.longRunKm ?? null,
@@ -215,6 +225,12 @@ function km(n: number): string {
   return `${Math.round(n * 10) / 10}km`;
 }
 
+// Ordered worst-last. Severity accumulates as a number rather than by
+// reassigning the verdict, because a closure that mutates a narrowed union is
+// invisible to the compiler: written that way, `verdict === 'stretch'` below
+// was flagged as a comparison that could never be true, and it was right that
+// it could not prove otherwise.
+const VERDICTS: SuitabilityVerdict[] = ['suited', 'stretch', 'wrong_plan'];
 const RANK: Record<SuitabilityVerdict, number> = { suited: 0, stretch: 1, wrong_plan: 2 };
 
 export interface AssessInput {
@@ -242,11 +258,9 @@ export function assessSuitability(input: AssessInput): Suitability {
     return { verdict: 'suited', reasons: [], alternative: null };
   }
 
-  let verdict: SuitabilityVerdict = 'suited';
   const reasons: string[] = [];
-  const worsen = (v: SuitabilityVerdict) => {
-    if (RANK[v] > RANK[verdict]) verdict = v;
-  };
+  let rank = RANK.suited;
+  const worsen = (v: SuitabilityVerdict) => { rank = Math.max(rank, RANK[v]); };
 
   const assumesKm = criteria.assumesWeeklyKm;
   if (assumesKm && runner.currentWeeklyKm > 0) {
@@ -281,18 +295,20 @@ export function assessSuitability(input: AssessInput): Suitability {
   // Coming back after a break is not on its own a reason to be steered
   // anywhere — a runner returning after a fortnight with real mileage behind
   // them is fine. It only tips a plan that is already a stretch.
-  if (runner.fitnessLevel === 'returning' && verdict === 'stretch') {
-    verdict = 'wrong_plan';
+  if (runner.fitnessLevel === 'returning' && rank === RANK.stretch) {
+    rank = RANK.wrong_plan;
     reasons.push('You told us you are coming back after a break, so rebuilding with walk breaks is the safer route in.');
   }
 
-  const alternative = gentlerAlternative(goal, runner.fitnessLevel);
+  const verdict = VERDICTS[rank];
 
   return {
     verdict,
     reasons,
-    // Shown whenever it would be useful: always where a walk-run plan is the
-    // adjacent one, and on a bad verdict wherever we can name anything at all.
-    alternative: verdict === 'suited' && !alternative ? null : alternative,
+    // Not conditional on the verdict. Someone looking at a 5K plan who cannot
+    // yet run 5K needs to see the door whether or not our measurements
+    // happened to notice: gentlerAlternative already returns null wherever
+    // naming a plan would be noise.
+    alternative: gentlerAlternative(goal, runner.fitnessLevel),
   };
 }

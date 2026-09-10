@@ -7,7 +7,7 @@ import {
   WRONG_PLAN_FRACTION,
   type SuitabilityRunner,
 } from '@/lib/runProgramme/suitability';
-import { ARCHETYPES } from '@/lib/runProgramme/archetypes';
+import { ARCHETYPES, archetypeForTemplate } from '@/lib/runProgramme/archetypes';
 import { buildVolumeCurve, planFeasibility } from '@/lib/runProgramme/volumeCurve';
 
 const runner = (over: Partial<SuitabilityRunner> = {}): SuitabilityRunner => ({
@@ -214,5 +214,53 @@ describe('feasibility, read off the curve this runner would actually get', () =>
       feasibility: f,
     });
     expect(s.reasons.join(' ')).not.toContain('short');
+  });
+});
+
+describe('the live catalogue routes where card 257 says it should', () => {
+  // archetypeForTemplate reads the template NAME, so the catalogue and the
+  // matcher are coupled: renaming a row silently changes which plan a runner
+  // gets. These are the exact names in prod plus the three seeded by
+  // 20260910000000_walk_run_plan_templates.sql. If one of them is renamed,
+  // this test is where it should hurt.
+  const LIVE: Array<[string, string | null, string]> = [
+    ['Beginner 5K',          '5k',            'race'],
+    ['Intermediate 10K',     '10k',           'race'],
+    ['Half Marathon Build',  'half_marathon', 'race'],
+    ['Marathon Foundation',  'marathon',      'race'],
+    ['General Fitness',      null,            'train_your_way'],
+    ['New to Running',       null,            'new_to_running'],
+    ['Path to parkrun',      '5k',            'path_to_parkrun'],
+    ['Return to Running',    null,            'return_after_break'],
+  ];
+
+  it.each(LIVE)('routes %s to the right archetype', (name, distanceGoal, expected) => {
+    const a = archetypeForTemplate({ name, distanceGoal, hasEventDate: true });
+    expect(a.key).toBe(expected);
+  });
+
+  it('gives the three new rows a walk-run progression, which is the point of them', () => {
+    for (const name of ['New to Running', 'Path to parkrun', 'Return to Running']) {
+      expect(archetypeForTemplate({ name }).progression).toBe('walk_run');
+    }
+  });
+
+  it('does not accidentally reroute an existing plan into a walk-run one', () => {
+    for (const [name, distanceGoal] of LIVE.slice(0, 5)) {
+      expect(archetypeForTemplate({ name, distanceGoal }).progression).not.toBe('walk_run');
+    }
+  });
+
+  it('offers a run-walker on Beginner 5K a plan that actually exists', () => {
+    const archetype = archetypeForTemplate({ name: 'Beginner 5K', distanceGoal: '5k' });
+    const s = assessSuitability({
+      archetype, goal: '5k',
+      criteria: entryCriteria(archetype, '5k'),
+      // Emma's own numbers from the build 14 UAT.
+      runner:   { fitnessLevel: 'beginner', currentWeeklyKm: 5, currentLongestRunKm: 5 },
+    });
+    expect(s.alternative).toBe('path_to_parkrun');
+    const target = LIVE.find(([name]) => archetypeForTemplate({ name }).key === s.alternative);
+    expect(target?.[0]).toBe('Path to parkrun');
   });
 });
