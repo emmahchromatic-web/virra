@@ -170,10 +170,28 @@ export async function clearSlot(userId: string, slot: PlanSlot): Promise<string[
   const displaced = (open ?? []) as { id: string; template_id: string | null }[];
   if (displaced.length === 0) return [];
 
+  const displacedIds = displaced.map((b) => b.id);
+
+  // Card 256. Closing the block is not the same as clearing the schedule.
+  // `planned_sessions` are read by user and date range with no join back to
+  // `training_blocks`, so a displaced block's future sessions kept showing up
+  // in the calendar alongside the new plan's: switch from a 5K plan to a
+  // marathon plan and you were booked for both. `endTrainingBlock` has always
+  // dropped them; this path never did.
+  //
+  // Past sessions are left alone on purpose. They are a record of what the
+  // runner actually did, and a plan they have left does not un-happen.
+  await supabase
+    .from('planned_sessions')
+    .update({ status: 'dropped' })
+    .in('block_id', displacedIds)
+    .eq('status', 'planned')
+    .gte('scheduled_date', today);
+
   await supabase
     .from('training_blocks')
     .update({ ends_on: closedOn })
-    .in('id', displaced.map((b) => b.id));
+    .in('id', displacedIds);
 
   const templateIds = displaced.map((b) => b.template_id).filter(Boolean) as string[];
   if (templateIds.length > 0) {
