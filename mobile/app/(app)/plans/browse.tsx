@@ -7,6 +7,8 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
+import { entryCriteria } from '@/lib/runProgramme/suitability';
 
 interface PlanTemplate {
   id:             string;
@@ -135,6 +137,16 @@ export default function BrowsePlansScreen() {
 }
 
 function TemplateCard({ template }: { template: PlanTemplate }) {
+  // Card 257. A run plan says who it is for on the card, not only once you
+  // have opened it: the whole problem was picking the wrong plan, and by the
+  // detail screen the pick has already been made.
+  const cardLine = template.sport_type === 'run'
+    ? entryCriteria(
+        archetypeForTemplate({ distanceGoal: template.distance_goal, name: template.name }),
+        raceDistanceFor(template.distance_goal),
+      ).cardLine
+    : null;
+
   return (
     <Pressable onPress={() => router.push(`/(app)/plan/${template.id}` as any)}>
       <VirraCard style={styles.templateCard}>
@@ -150,6 +162,14 @@ function TemplateCard({ template }: { template: PlanTemplate }) {
               <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={{ marginTop: 4, lineHeight: 18 }}>
                 {template.tagline}
               </VirraText>
+            )}
+            {cardLine && (
+              <View style={styles.forWhom}>
+                <SymbolView name="figure.run" size={10} tintColor={colors.sage} />
+                <VirraText variant="mono" size={10} color={colors.sage}>
+                  {cardLine.toUpperCase()}
+                </VirraText>
+              </View>
             )}
           </View>
           <View style={styles.templateRight}>
@@ -176,4 +196,5 @@ const styles = StyleSheet.create({
   templateCard:   { gap: 0 },
   templateHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   templateRight:  { alignItems: 'flex-end', gap: 4 },
+  forWhom:        { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: spacing.sm },
 });

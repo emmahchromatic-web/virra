@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% set nav = 'recipes' %}
+{% block body %}
+  <h1>Delete {{ recipe.name }}?</h1>
+  <div class="notice bad">
+    <span class="t">This cannot be undone</span>
+    <p style="margin:0;font-size:0.9rem;color:var(--muted)">
+      Deleting removes the recipe and cascades to its {{ recipe.ingredients | length }} ingredient(s)
+      and {{ recipe.steps | length }} step(s). Any user who favourited it loses that too.
+      <b>Deactivating instead</b> hides it from the app and keeps everything.
+    </p>
+  </div>
+  <form class="stack" method="post" action="/recipes/{{ recipe.id }}/delete" style="margin-top:1.4rem;max-width:28rem">
+    <div class="field">
+      <label>Type <code>{{ recipe.id }}</code> to confirm</label>
+      <input type="text" name="confirm_id" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="actions">
+      <button class="btn danger" {{ 'disabled' if readonly }}>Delete permanently</button>
+      <a class="btn" href="/recipes/{{ recipe.id }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

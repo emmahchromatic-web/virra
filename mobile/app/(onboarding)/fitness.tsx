@@ -26,15 +26,22 @@ const FITNESS_OPTIONS: { value: FitnessLevel; label: string; sub: string }[] = [
 const MILEAGE_OPTIONS: WeeklyMileageBracket[] = ['<5', '5-15', '15-30', '30+'];
 
 export default function FitnessScreen() {
-  const { setStep, setData } = useOnboarding();
+  const { setStep, data, setData } = useOnboarding();
   useFocusEffect(React.useCallback(() => { setStep(4); }, [setStep]));
 
-  const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(null);
-  const [mileage, setMileage]           = useState<WeeklyMileageBracket | null>(null);
-  const [fiveKTime, setFiveKTime]       = useState('');
+  const [fitnessLevel, setFitnessLevel] = useState<FitnessLevel | null>(data.fitnessLevel);
+  const [mileage, setMileage]           = useState<WeeklyMileageBracket | null>(data.weeklyMileage);
+  const [fiveKTime, setFiveKTime]       = useState(data.fiveKTime);
   const [hkBadges, setHkBadges]         = useState<Set<string>>(new Set());
 
+  // Health prefills this screen, which is only correct the first time. Once the
+  // user has answered, re-deriving from Health on a return visit would quietly
+  // overwrite their own answer with a guess -- and the "from your Health data"
+  // badge would then be a lie about which of the two is on screen.
+  const hasStoredFitness = data.fitnessLevel !== null || data.weeklyMileage !== null;
+
   useEffect(() => {
+    if (hasStoredFitness) return;
     fetchHKFitnessData().then((hk) => {
       const badges = new Set<string>();
       const level   = deriveFitnessLevel(hk.avgPaceSeconds);
@@ -49,7 +56,7 @@ export default function FitnessScreen() {
       }
       setHkBadges(badges);
     });
-  }, []);
+  }, [hasStoredFitness]);
 
   function handleContinue() {
     if (!fitnessLevel || !mileage) return;

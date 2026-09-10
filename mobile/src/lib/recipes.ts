@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import type { CyclePhase } from '@/store/cycle';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { MealType } from '@/lib/nutritionLog';
-import type { FoodUnit } from '@/lib/foodUnits';
+import { toIngredientUnit, type IngredientUnit } from '@/lib/foodUnits';
 
 /**
  * Read-path for the recipe book, over the content tables seeded in migration
@@ -49,7 +49,7 @@ export interface RecipeIngredient {
   foodName:      string;
   /** Null for "a pinch" / "to taste". */
   quantity:      number | null;
-  unit:          FoodUnit;
+  unit:          IngredientUnit;
   note:          string | null;
   commonFoodId:  string | null;
   calories:      number | null;
@@ -161,7 +161,7 @@ export async function fetchRecipeDetail(id: string): Promise<RecipeDetail | null
       groupLabel:   r.group_label ?? null,
       foodName:     r.food_name,
       quantity:     num(r.quantity),
-      unit:         (r.unit === 'ml' ? 'ml' : 'g') as FoodUnit,
+      unit:         toIngredientUnit(r.unit),
       note:         r.note ?? null,
       commonFoodId: r.common_food_id ?? null,
       calories:     num(r.calories),
@@ -212,6 +212,27 @@ export function recipeEntryName(name: string, servings: number): string {
 }
 
 /** Ingredient quantities scale with servings too, so the cook reads the truth. */
+/**
+ * Does an ingredient note state an amount, rather than describe preparation?
+ *
+ * Notes are authored against the recipe as written ("1 tin, drained", "3
+ * cloves", "6 eggs, about 50 g each"), but the quantity beside them is scaled
+ * to the servings the user asked for. `scaleIngredientQuantity` divides the
+ * stored whole-recipe amount by `serves`, so on anything that serves more than
+ * one the two disagree straight away: a chilli that serves four shows 60 g of
+ * kidney beans next to "1 tin, drained".
+ *
+ * Preparation notes ("diced", "dry weight", "vanilla works best") stay true at
+ * any quantity, so only the ones that lead with a count are suppressed. The
+ * corpus is small and closed enough for a leading-token test to be exact; the
+ * tests check the predicate against every note in the seeded book.
+ */
+const AMOUNT_LEAD = /^\s*(?:\d+(?:\.\d+)?|a|an|one|two|three|four|five|six|half|quarter)\b/i;
+
+export function noteStatesAnAmount(note: string): boolean {
+  return AMOUNT_LEAD.test(note);
+}
+
 export function scaleIngredientQuantity(
   quantity: number | null,
   serves:   number,
@@ -269,12 +290,38 @@ export async function fetchSlotTotals(
 }
 
 /**
- * The user's stored dietary requirements.
+ * Values written by the onboarding diet step that was deleted in 27f4e36,
+ * mapped onto the vocabulary the recipe book actually tags recipes with.
  *
- * `user_profiles.dietary_prefs` predates the removal of the onboarding diet
- * step, so almost every account has an empty array here. The Recipes tab asks
- * for it on first open, which is the first point in the app where the answer
- * changes what somebody sees.
+ * The old screen wrote 'gluten-free' and 'dairy-free'; the book tags 'gf' and
+ * 'df'. `satisfiesDietary` requires a recipe to satisfy EVERY stored
+ * requirement, so an unmapped value is not a filter that matches little, it is
+ * a filter that can never match: every recipe scores null and all three rails
+ * vanish, while the unfiltered collection lists below carry on showing the
+ * whole book. Read-side mapping keeps that from depending on whether a given
+ * account has been migrated yet.
+ *
+ * 'nut-free' and 'halal' are deliberately absent: the book holds no allergen or
+ * certification data, so there is nothing to map them onto. They still pass
+ * through as-is, which shows an empty rail rather than quietly dropping a
+ * requirement somebody may be relying on.
+ */
+const LEGACY_DIETARY: Record<string, string> = {
+  'gluten-free': 'gf',
+  'dairy-free':  'df',
+};
+
+export function normaliseDietaryPrefs(stored: string[]): string[] {
+  return [...new Set(stored.map((v) => LEGACY_DIETARY[v] ?? v))];
+}
+
+/**
+ * The user's stored dietary requirements, in the book's own vocabulary.
+ *
+ * The Recipes tab asks for these on first open, which is the first point in the
+ * app where the answer changes what somebody sees. It only asks when nothing is
+ * stored, so an account carrying a value from the old onboarding screen never
+ * gets the chance to correct it: hence the mapping above rather than a prompt.
  */
 export async function fetchDietaryPrefs(userId: string): Promise<string[]> {
   const { data, error } = await supabase
@@ -287,7 +334,7 @@ export async function fetchDietaryPrefs(userId: string): Promise<string[]> {
     console.warn('[recipes] fetchDietaryPrefs failed:', error.message);
     return [];
   }
-  return (data?.dietary_prefs as string[] | null) ?? [];
+  return normaliseDietaryPrefs((data?.dietary_prefs as string[] | null) ?? []);
 }
 
 export async function saveDietaryPrefs(userId: string, prefs: string[]): Promise<boolean> {
