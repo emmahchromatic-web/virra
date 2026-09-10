@@ -179,8 +179,11 @@ describe('the Recipes tab', () => {
 
     it('does not ask when preferences are already stored', async () => {
       mockFetchPrefs.mockResolvedValue(['vegetarian']);
-      const { queryByText, findAllByText } = render(<RecipesScreen />);
-      await findAllByText('Mini Frittata Bites');
+      const { queryByText, findByText } = render(<RecipesScreen />);
+      // Wait on the collections heading rather than a recipe name: recipe names
+      // no longer render on the tab, and this account's stored 'vegetarian'
+      // keeps the bacon-bearing frittata out of every rail.
+      await findByText('COLLECTIONS');
       expect(queryByText('Anything you do not eat?')).toBeNull();
     });
 
@@ -447,5 +450,44 @@ describe('macro precision on the detail screen', () => {
     expect(queryByText('382.5')).toBeNull();
     // Grams keep the decimal, where it is a real difference.
     expect(queryByText('12.5')).toBeTruthy();
+  });
+});
+
+describe('collections are rows, not the whole book inline', () => {
+  it('lists each collection once with a count, and no recipe names', async () => {
+    // meal_types empty on purpose: no rail can claim these, so anything on
+    // screen got there through a collection. Otherwise the assertion below
+    // depends on what time of day the suite happens to run.
+    mockFetchRecipes.mockResolvedValue([
+      recipe({ id: 'r1', name: 'Mini Frittata Bites', meal_types: [], collection: 'batch-and-freeze', collectionLabel: 'Batch and freeze' }),
+      recipe({ id: 'r2', name: 'Red Lentil Soup',     meal_types: [], collection: 'batch-and-freeze', collectionLabel: 'Batch and freeze' }),
+      recipe({ id: 'r3', name: 'Race Morning Bagel',  meal_types: [], collection: 'pre-run',          collectionLabel: 'Pre-run and race morning' }),
+    ]);
+    const { findByText, queryByText, getByText } = render(<RecipesScreen />);
+    await findByText('COLLECTIONS');
+
+    expect(getByText('Batch and freeze')).toBeTruthy();
+    expect(getByText('2 RECIPES')).toBeTruthy();
+    expect(getByText('Pre-run and race morning')).toBeTruthy();
+    expect(getByText('1 RECIPE')).toBeTruthy();
+
+    // The whole point: the book is not mounted here any more.
+    expect(queryByText('Red Lentil Soup')).toBeNull();
+  });
+
+  it('opens a collection when its row is tapped', async () => {
+    mockFetchRecipes.mockResolvedValue([
+      recipe({ id: 'r1', name: 'Mini Frittata Bites', collection: 'batch-and-freeze', collectionLabel: 'Batch and freeze' }),
+    ]);
+    const { findByLabelText } = render(<RecipesScreen />);
+    fireEvent.press(await findByLabelText('Open Batch and freeze, 1 recipes'));
+    expect(mockPush).toHaveBeenCalledWith('/(app)/collection/batch-and-freeze');
+  });
+
+  it('still shows recipe names when searching, which does not go through a collection', async () => {
+    mockFetchRecipes.mockResolvedValue([recipe({ name: 'Mini Frittata Bites' })]);
+    const { findByLabelText, findByText } = render(<RecipesScreen />);
+    fireEvent.changeText(await findByLabelText('Search recipes'), 'frittata');
+    expect(await findByText('Mini Frittata Bites')).toBeTruthy();
   });
 });
