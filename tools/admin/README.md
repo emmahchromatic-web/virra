@@ -53,13 +53,17 @@ ADMIN_READONLY=1 tools/admin/.venv/bin/python tools/admin/run.py
 ## Checking it still works
 
 ```bash
-tools/admin/.venv/bin/python tools/admin/selftest.py
+tools/admin/.venv/bin/python tools/admin/selftest.py && tools/admin/.venv/bin/python tools/admin/smoketest.py
 ```
 
-No network, no key needed. It covers the rules that would otherwise only fail
-against production: tempo format, tag sets, macro derivation, the recipe coverage
-invariants, variant gap detection, plan-template derivation, SQL escaping, and
-the table allowlist.
+Neither needs a key or a network, and neither can touch production.
+
+- **selftest.py** — the rules in isolation: tempo format, tag sets, macro
+  derivation, the recipe coverage invariants, variant gap detection,
+  plan-template derivation, SQL escaping, the table allowlist.
+- **smoketest.py** — the routes end to end against `fixtures.py`, an in-memory
+  stand-in for Supabase: every page renders, bad input is refused, saves write
+  what they claim, and read-only mode really does block.
 
 ---
 

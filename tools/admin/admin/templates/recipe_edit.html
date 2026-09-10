@@ -74,7 +74,8 @@
         <div class="field"><label>Serves</label><input type="number" name="serves" min="1" value="{{ recipe.serves or 1 }}"></div>
         <div class="field"><label>Prep minutes</label><input type="number" name="prep_minutes" value="{{ recipe.prep_minutes if recipe.prep_minutes is not none }}"></div>
         <div class="field"><label>Cook minutes</label><input type="number" name="cook_minutes" value="{{ recipe.cook_minutes if recipe.cook_minutes is not none }}"></div>
-        <div class="field"><label>Sort order</label><input type="number" name="sort_order" value="{{ recipe.sort_order or 0 }}"></div>
+        <div class="field"><label>Sort order <span class="hint">— position on its shelf</span></label>
+          <input type="number" name="sort_order" value="{{ recipe.sort_order if recipe.sort_order is not none }}" placeholder="blank = end of collection"></div>
         <div class="field"><label>Source</label><input type="text" name="source" value="{{ recipe.source or 'virra-authored' }}"></div>
         <div class="field"><label>Min tier <span class="hint">— blank = base</span></label><input type="text" name="min_tier" value="{{ recipe.min_tier or '' }}"></div>
         <div class="field wide"><label>Image URL</label><input type="url" name="image_url" value="{{ recipe.image_url or '' }}" placeholder="blank until photography exists"></div>

@@ -43,6 +43,18 @@ def list_all() -> list[dict[str, Any]]:
     return db.select("recipes", order="collection,sort_order,name")
 
 
+def next_sort_order(collection: str, *, exclude_id: str | None = None) -> int:
+    """Ten past the last recipe on that shelf.
+
+    Spaced in tens so a recipe can be slotted between two later without
+    renumbering the collection. Scoped to the collection, because the app
+    orders by (collection, sort_order) and shelves sort independently.
+    """
+    rows = db.select("recipes", columns="id,sort_order", collection=f"eq.{collection}")
+    used = [r["sort_order"] or 0 for r in rows if r["id"] != exclude_id]
+    return (max(used) + 10) if used else 10
+
+
 def blank() -> dict[str, Any]:
     return {
         "id": "",
@@ -60,7 +72,7 @@ def blank() -> dict[str, Any]:
         "image_url": None,
         "min_tier": None,
         "source": "virra-authored",
-        "sort_order": 0,
+        "sort_order": None,
         "is_active": False,
         "ingredients": [],
         "steps": [],
@@ -117,9 +129,16 @@ def parse(form: Any, *, existing_id: str | None) -> dict[str, Any]:
         "image_url": forms.optional_text(form, "image_url"),
         "min_tier": forms.optional_text(form, "min_tier"),
         "source": forms.text(form, "source") or "virra-authored",
-        "sort_order": forms.integer(form, "sort_order", 0),
         "is_active": forms.flag(form, "is_active"),
     }
+
+    # Left blank means "put it at the end of its shelf". An explicit 0 is
+    # honoured, because 0 is a legitimate position and guessing over it would
+    # be worse than a surprising default.
+    if forms.text(form, "sort_order") == "":
+        recipe["sort_order"] = next_sort_order(recipe["collection"], exclude_id=recipe_id)
+    else:
+        recipe["sort_order"] = forms.integer(form, "sort_order", 0)
 
     ingredients: list[dict[str, Any]] = []
     for position, raw in enumerate(forms.rows_from(form, "ing", INGREDIENT_FIELDS), start=1):
