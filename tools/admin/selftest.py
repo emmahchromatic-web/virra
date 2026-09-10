@@ -123,6 +123,43 @@ check("a comma inside a tag cannot break out", export.sql_literal(["a,b"]) == '\
 check("booleans are unquoted", export.sql_literal(True) == "true")
 check("jsonb for dicts", export.sql_literal({"week": 1}).endswith("::jsonb"))
 
+print("\npaging (the real loop, no network)")
+from admin.db import DbError, paginate  # noqa: E402
+
+
+def pager(total: int):
+    """A server that caps every response at 1000 rows, as PostgREST does."""
+    rows = [{"i": i} for i in range(total)]
+    calls = []
+
+    def fetch(offset, size):
+        calls.append((offset, size))
+        return rows[offset:offset + min(size, 1000)]
+
+    return fetch, calls
+
+
+fetch, calls = pager(2007)
+check("a 2007-row table comes back whole", len(paginate(fetch, ordered=True)) == 2007,
+      f"got {len(paginate(*pager(2007)[:1], ordered=True))}")
+check("it took three requests", len(calls) == 3, f"got {calls}")
+
+fetch, calls = pager(1000)
+check("an exactly-full page still asks once more", len(paginate(fetch, ordered=True)) == 1000)
+check("that is two requests", len(calls) == 2, f"got {calls}")
+
+fetch, _ = pager(12)
+check("a short table takes one request", len(paginate(fetch, ordered=True)) == 12)
+
+fetch, _ = pager(0)
+check("an empty table is empty", paginate(fetch, ordered=True) == [])
+
+try:
+    paginate(pager(2007)[0], ordered=False)
+    check("unordered paging is refused", False, "it was allowed")
+except DbError:
+    check("unordered paging is refused", True)
+
 print("\nallowlist")
 from admin import config as config_module  # noqa: E402
 

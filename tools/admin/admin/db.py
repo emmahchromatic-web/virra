@@ -69,17 +69,62 @@ def select(
     limit: int | None = None,
     **filters: str,
 ) -> list[dict[str, Any]]:
-    """Read rows. Filters are PostgREST operators, e.g. `id="eq.oats"`."""
+    """Read rows. Filters are PostgREST operators, e.g. `id="eq.oats"`.
+
+    Pages until the table is exhausted when no explicit limit is given.
+    PostgREST caps a response at its configured maximum (1000 rows on this
+    project) and says nothing about it: the request succeeds and the caller
+    gets a short list that looks complete. That silently truncated the content
+    snapshot to half the programme exercises, which is the one failure a
+    snapshot must not have.
+    """
     _check(table, write=False)
-    params: dict[str, Any] = {"select": columns, **filters}
+    base: dict[str, Any] = {"select": columns, **filters}
     if order:
-        params["order"] = order
+        base["order"] = order
+
     if limit:
-        params["limit"] = limit
+        with _client() as client:
+            response = client.get(f"/{table}", params={**base, "limit": limit}, headers=_headers())
+        _raise_for(response)
+        return response.json()
+
     with _client() as client:
-        response = client.get(f"/{table}", params=params, headers=_headers())
-    _raise_for(response)
-    return response.json()
+        def fetch(offset: int, size: int) -> list[dict[str, Any]]:
+            response = client.get(
+                f"/{table}",
+                params={**base, "limit": size, "offset": offset},
+                headers=_headers(),
+            )
+            _raise_for(response)
+            return response.json()
+
+        return paginate(fetch, ordered=bool(order), what=table)
+
+
+PAGE_SIZE = 1000
+
+
+def paginate(fetch, *, ordered: bool, what: str = "table", page_size: int = PAGE_SIZE):
+    """Read pages until one comes back short.
+
+    Split out from `select` so it can be tested without a network: the failure
+    it exists to prevent (a silently truncated read) is invisible in any test
+    that stubs `select` itself.
+    """
+    rows: list[dict[str, Any]] = []
+    while True:
+        page = fetch(len(rows), page_size)
+        rows.extend(page)
+        if len(page) < page_size:
+            return rows
+        # An unordered paged read may repeat or skip rows: the server is free
+        # to return them in a different order between requests.
+        if not ordered:
+            raise DbError(
+                f"{what} has more than {page_size} rows and no `order`. "
+                "Paging without one is not stable; pass an order."
+            )
 
 
 def select_one(table: str, **filters: str) -> dict[str, Any] | None:

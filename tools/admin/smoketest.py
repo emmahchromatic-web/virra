@@ -48,6 +48,8 @@ def post(path: str, data: dict, expect: int = 303, *must: str) -> None:
           f"[{response.status_code}, wanted {expect}] missing {missing}")
 
 
+from admin import db as db_module  # noqa: E402
+
 print("\npages render")
 get("/", "Wants attention", "Export recipes.sql", "Tables this tool can touch")
 get("/recipes", "Biscoff Overnight Oats", "Fruity Cous Cous", "Quick wins")
