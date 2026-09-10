@@ -58,15 +58,48 @@ fi
 # a raw Python traceback about the address being in use.
 PORT=${ADMIN_PORT:-$(grep -E '^ADMIN_PORT=' .env 2>/dev/null | cut -d= -f2)}
 PORT=${PORT:-8787}
-if lsof -ti "tcp:$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+RUNNING_PID=$(lsof -ti "tcp:$PORT" -sTCP:LISTEN 2>/dev/null | head -1)
+if [[ -n "$RUNNING_PID" ]]; then
+  # Which mode is the running one in? Checking the port alone is not enough:
+  # opening the browser at a read-only instance when read/write was asked for
+  # looks like the launcher ignoring the choice.
+  RUNNING_READONLY=0
+  ps eww -p "$RUNNING_PID" 2>/dev/null | tr ' ' '\n' | grep -q '^ADMIN_READONLY=1' && RUNNING_READONLY=1
+
+  if [[ "$RUNNING_READONLY" == "$READONLY" ]]; then
+    print ""
+    print "  Already running in this mode."
+    print "  Open it at: http://127.0.0.1:$PORT"
+    open "http://127.0.0.1:$PORT" 2>/dev/null || true
+    print ""
+    print "  Press any key to close this window."
+    read -k 1 -s
+    exit 0
+  fi
+
+  [[ "$RUNNING_READONLY" == 1 ]] && HAVE="read-only" || HAVE="read/write"
+  [[ "$READONLY" == 1 ]] && WANT="read-only" || WANT="read/write"
   print ""
-  print "  The console is already running."
-  print "  Open it at: http://127.0.0.1:$PORT"
+  print "  The console is already running in $HAVE mode,"
+  print "  but you asked for $WANT."
   print ""
-  open "http://127.0.0.1:$PORT" 2>/dev/null || true
-  print "  Press any key to close this window."
-  read -k 1 -s
-  exit 0
+  if [[ ! -t 0 ]]; then
+    print "  Stop the other one first (close its window, or Ctrl-C in it)."
+    exit 1
+  fi
+  print -n "  Stop it and restart in $WANT mode? [Y/n] "
+  read -r ANSWER
+  if [[ -n "$ANSWER" && "$ANSWER" != [Yy]* ]]; then
+    print "  Left it alone. Opening the $HAVE one."
+    open "http://127.0.0.1:$PORT" 2>/dev/null || true
+    exit 0
+  fi
+  kill "$RUNNING_PID" 2>/dev/null
+  for i in {1..20}; do
+    lsof -ti "tcp:$PORT" -sTCP:LISTEN >/dev/null 2>&1 || break
+    sleep 0.25
+  done
+  print "  Stopped."
 fi
 
 # --- go --------------------------------------------------------------------
