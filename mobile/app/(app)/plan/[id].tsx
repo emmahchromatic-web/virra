@@ -13,7 +13,9 @@ import { getActiveBlocks, addBlock, clearSlot, planSlot, inferModality, SLOT_LOA
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 import { loadRunnerModel, type RunnerModel } from '@/lib/runProgramme/runnerModel';
 import { generateRunPlan } from '@/lib/runProgramme/generatePlan';
-import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
+import { archetypeForTemplate, raceDistanceFor, type ArchetypeKey } from '@/lib/runProgramme/archetypes';
+import { planFeasibility } from '@/lib/runProgramme/volumeCurve';
+import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
@@ -39,6 +41,13 @@ interface PlanTemplate {
   sessions_json:  WeekSession[] | null;
 }
 
+/** Just enough of a row to name it and work out what kind of plan it is. */
+interface RunTemplateRef {
+  id:            string;
+  name:          string;
+  distance_goal: string | null;
+}
+
 const SPORT_LABEL: Record<string, string> = {
   run:      'Running',
   strength: 'Gym',
@@ -62,11 +71,25 @@ const PHASE_COLOR: Record<string, string> = {
   Deload:      '#5BA4CF',
 };
 
+/**
+ * A walk-run plan labels its weeks by the rung of the ladder ("Run 3 / walk 1")
+ * rather than by a training phase, so PHASE_COLOR has nothing for them. They
+ * are still a progression, so they get a progression colour rather than
+ * falling through to the same accent as everything else.
+ */
+function weekColor(label: string): string {
+  if (PHASE_COLOR[label]) return PHASE_COLOR[label];
+  if (label === 'Continuous') return colors.pulse;
+  if (/^Run \d/.test(label))  return colors.sage;
+  return colors.pulse;
+}
+
 const SESSION_LABEL: Record<string, string> = {
   easy:      'Easy',
   tempo:     'Tempo',
   threshold: 'Threshold',
   long:      'Long run',
+  run_walk:  'Run/walk',
   strength:  'Strength',
   lower:     'Lower body',
   upper:     'Upper body',
@@ -157,7 +180,7 @@ function VolumeChart({ weeks }: { weeks: WeekSession[] }) {
     <View style={chart.container}>
       {weeks.map((w) => {
         const ratio    = w.km / maxKm;
-        const barColor = PHASE_COLOR[w.label] ?? colors.pulse;
+        const barColor = weekColor(w.label);
         return (
           <View key={w.week} style={chart.col}>
             <View style={chart.track}>
@@ -194,6 +217,9 @@ export default function PlanDetailScreen() {
   const [durationOverride,     setDurationOverride]     = useState(0);
   const [occupiedDays,         setOccupiedDays]         = useState<number[]>([]);
   const [runnerModel,          setRunnerModel]          = useState<RunnerModel | null>(null);
+  // The rest of the run catalogue, purely so a plan that is wrong for someone
+  // can point at a real row rather than naming a plan they then have to find.
+  const [runTemplates,         setRunTemplates]         = useState<RunTemplateRef[]>([]);
 
   useEffect(() => {
     if (!id || !session) return;
@@ -213,8 +239,14 @@ export default function PlanDetailScreen() {
         .maybeSingle(),
       getActiveBlocks(session.user.id),
       loadRunnerModel(session.user.id),
-    ]).then(async ([templateRes, planRes, blocks, model]) => {
+      supabase
+        .from('plan_templates')
+        .select('id, name, distance_goal')
+        .eq('sport_type', 'run')
+        .eq('is_active', true),
+    ]).then(async ([templateRes, planRes, blocks, model, runRes]) => {
       setRunnerModel(model);
+      setRunTemplates((runRes.data ?? []) as RunTemplateRef[]);
       const t = templateRes.data as PlanTemplate;
       const p = planRes.data as UserPlan | null;
       setPlan(t);
@@ -353,13 +385,19 @@ export default function PlanDetailScreen() {
   // Run plans are generated for this runner, so the preview has to be generated
   // too — a preview built from the template would be showing a plan nobody is
   // going to get. Strength keeps its authored path.
-  const generatedWeeks = React.useMemo(() => {
-    if (isStrength || !plan || !runnerModel || dayAssignment.length === 0) return null;
-    const archetype = archetypeForTemplate({
+  // Hoisted out of the memo below: the same answer decides what the generator
+  // builds and what the screen says about who the plan is for, and those two
+  // must not be allowed to disagree.
+  const archetype = React.useMemo(() => (
+    isStrength || !plan ? null : archetypeForTemplate({
       distanceGoal: plan.distance_goal,
       name:         plan.name,
       hasEventDate: raceOpen && Boolean(raceDateObj),
-    });
+    })
+  ), [isStrength, plan, raceOpen, raceDateObj]);
+
+  const generated = React.useMemo(() => {
+    if (isStrength || !plan || !runnerModel || !archetype || dayAssignment.length === 0) return null;
     const days = dayAssignment.map((d) => d.day);
     return generateRunPlan({
       archetype,
@@ -372,8 +410,46 @@ export default function PlanDetailScreen() {
       currentLongestRunKm: runnerModel.currentLongestRunKm,
       days,
       longRunDay:          Math.max(...days),
-    }).weeks;
-  }, [isStrength, plan, runnerModel, dayAssignment, durationOverride, raceOpen, raceDateObj]);
+    });
+  }, [isStrength, plan, runnerModel, archetype, dayAssignment, durationOverride]);
+
+  const generatedWeeks = generated?.weeks ?? null;
+
+  // Card 257. Who this plan is for, and what the numbers say about whether
+  // this runner is that person.
+  //
+  // The criteria are shown to everyone, always. The verdict is shown only
+  // before someone commits: telling a runner their own active plan is wrong
+  // for them, every time they open it, is nagging rather than help.
+  const runGoal    = plan && !isStrength ? raceDistanceFor(plan.distance_goal) : null;
+  const criteria   = archetype && runGoal ? entryCriteria(archetype, runGoal) : null;
+  const feasibility = generated && runGoal && runGoal !== 'general'
+    ? planFeasibility(generated.curve, runGoal)
+    : null;
+  const suitability = criteria && archetype && runGoal && runnerModel && !userPlan
+    ? assessSuitability({
+        archetype,
+        goal:     runGoal,
+        criteria,
+        runner: {
+          fitnessLevel:        runnerModel.fitnessLevel,
+          currentWeeklyKm:     runnerModel.currentWeeklyKm,
+          currentLongestRunKm: runnerModel.currentLongestRunKm,
+        },
+        feasibility,
+      })
+    : null;
+
+  // The suggested plan resolved to an actual row. Missing is fine and expected
+  // until the walk-run templates are seeded: the copy still stands on its own,
+  // it simply stops being a link.
+  const alternativeTemplate = suitability?.alternative
+    ? runTemplates.find((t) =>
+        t.id !== plan?.id
+        && archetypeForTemplate({ distanceGoal: t.distance_goal, name: t.name }).key
+           === (suitability.alternative as ArchetypeKey))
+      ?? null
+    : null;
 
   const displayWeeks = generatedWeeks ?? (userPlan || (!weeks.length && !isStrength)
     ? weeks
@@ -577,6 +653,72 @@ export default function PlanDetailScreen() {
           </View>
         )}
 
+        {/* Who this plan is for. Card 257. */}
+        {criteria && (
+          <VirraCard style={styles.whoForCard}>
+            <VirraText variant="mono" size={11} color={colors.dawn} style={styles.sectionLabel}>
+              WHO THIS PLAN IS FOR
+            </VirraText>
+            <VirraText variant="bodyMedium" size={15} color={colors.breath} style={{ lineHeight: 22 }}>
+              {criteria.whoFor}
+            </VirraText>
+            <View style={styles.whoForPoints}>
+              {criteria.points.map((point) => (
+                <View key={point} style={styles.whoForPoint}>
+                  <SymbolView name="checkmark" size={11} tintColor={colors.sage} />
+                  <VirraText variant="body" size={13} color="rgba(244,237,224,0.7)" style={{ flex: 1, lineHeight: 19 }}>
+                    {point}
+                  </VirraText>
+                </View>
+              ))}
+            </View>
+
+            {suitability && suitability.verdict !== 'suited' && (
+              <View style={[
+                styles.verdictBox,
+                { borderColor: suitability.verdict === 'wrong_plan' ? colors.heat : colors.peach },
+              ]}>
+                <VirraText
+                  variant="mono"
+                  size={10}
+                  color={suitability.verdict === 'wrong_plan' ? colors.heat : colors.peach}
+                >
+                  {suitability.verdict === 'wrong_plan'
+                    ? 'THIS MAY NOT BE YOUR PLAN YET'
+                    : 'THIS WILL BE A STRETCH'}
+                </VirraText>
+                {suitability.reasons.map((reason) => (
+                  <VirraText key={reason} variant="body" size={13} color="rgba(244,237,224,0.75)" style={{ lineHeight: 19 }}>
+                    {reason}
+                  </VirraText>
+                ))}
+                <VirraText variant="body" size={12} color={colors.muted} style={{ lineHeight: 18 }}>
+                  You can still start it. This is what the numbers say, not a rule.
+                </VirraText>
+              </View>
+            )}
+
+            {suitability?.alternative && alternativeTemplate && (
+              <Pressable
+                style={styles.altRow}
+                onPress={() => router.replace(`/(app)/plan/${alternativeTemplate.id}` as any)}
+                accessibilityRole="button"
+                accessibilityLabel={`See ${alternativeTemplate.name} instead`}
+              >
+                <View style={{ flex: 1 }}>
+                  <VirraText variant="mono" size={10} color={colors.muted}>
+                    NOT THERE YET?
+                  </VirraText>
+                  <VirraText variant="bodyMedium" size={14} color={colors.pulse} style={{ marginTop: 2 }}>
+                    {alternativeTemplate.name}
+                  </VirraText>
+                </View>
+                <SymbolView name="chevron.right" size={14} tintColor={colors.pulse} />
+              </Pressable>
+            )}
+          </VirraCard>
+        )}
+
         {/* Current week card: active plans only */}
         {userPlan && currentWeek && (
           <VirraCard style={styles.currentWeekCard} accent>
@@ -585,7 +727,7 @@ export default function PlanDetailScreen() {
                 <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
                   CURRENT WEEK · WEEK {weekIndex + 1} OF {weeks.length}
                 </VirraText>
-                <VirraText variant="bodyMedium" size={18} color={PHASE_COLOR[currentWeek.label] ?? colors.breath}>
+                <VirraText variant="bodyMedium" size={18} color={weekColor(currentWeek.label)}>
                   {currentWeek.label}
                 </VirraText>
               </View>
@@ -680,7 +822,7 @@ export default function PlanDetailScreen() {
                   <View>
                     <VirraText variant="mono" size={11} color={isCurrent ? colors.pulse : colors.muted}>
                       WEEK {w.week}{isCurrent ? ' · NOW' : ''}</VirraText>
-                    <VirraText variant="bodyMedium" size={15} color={PHASE_COLOR[w.label] ?? colors.breath} style={{ marginTop: 2 }}>
+                    <VirraText variant="bodyMedium" size={15} color={weekColor(w.label)} style={{ marginTop: 2 }}>
                       {w.label}
                     </VirraText>
                   </View>
@@ -864,6 +1006,11 @@ const chart = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  whoForCard:    { gap: spacing.sm },
+  whoForPoints:  { gap: spacing.xs, marginTop: spacing.xs },
+  whoForPoint:   { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  verdictBox:    { borderWidth: 1, borderRadius: radius.sm, padding: spacing.md, gap: spacing.xs, marginTop: spacing.xs },
+  altRow:        { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
   safe:        { flex: 1, backgroundColor: colors.mile },
   header:      { height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, backgroundColor: colors.mile },
   backBtn:     { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },

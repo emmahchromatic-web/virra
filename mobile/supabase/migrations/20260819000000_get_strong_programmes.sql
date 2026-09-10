@@ -1,3 +1,14 @@
+-- ============================================================================
+-- HISTORICAL: APPLIED, AND MUST NOT BE RE-RUN.
+--
+-- This migration DELETES before it inserts (delete from programmes where
+-- family = 'get_strong'), so re-running it discards every later edit.
+--
+-- Since 2026-09-10 this content is edited in the admin console (tools/admin)
+-- and the database is its source of truth. The repo's record is the generated
+-- snapshot in mobile/supabase/seeds/content/, exported from the console.
+-- ============================================================================
+
 -- Get Strong strength programmes: content model + seed.
 -- GENERATED from supabase/seed/get-strong.json by build-get-strong-migration.mjs — do not edit by hand.
 -- Source: "VIRRA - Workout Plans v2" sheet (6 programme tabs). 103 exercises, 6 programmes.

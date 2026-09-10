@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { colors, spacing, radius } from '@/constants/theme';
@@ -11,15 +11,21 @@ import { appAlert } from '@/components/ui/VirraAlert';
 import { INJURY_LEVELS, type InjuryLevel } from '@/lib/injuryLevels';
 
 export default function InjuriesScreen() {
-  const { setStep } = useOnboarding();
+  const { setStep, data, setData } = useOnboarding();
   const { session } = useAuthStore();
   useFocusEffect(React.useCallback(() => { setStep(8); }, [setStep]));
 
-  const [level,  setLevel]  = useState<InjuryLevel | null>(null);
+  // Held on the context for the same reason as the body-metrics step: this is
+  // the last screen before the paywall, and a user who steps back to check
+  // something should not have to answer it twice.
+  const [level,  setLevel]  = useState<InjuryLevel | null>(data.injuryLevel);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setData({ injuryLevel: level }); }, [level, setData]);
 
   async function finish() {
     if (!level) return;
+    setData({ injuryLevel: level });
     // Same guard as the body-metrics step: with no session the update is
     // impossible, and silently landing at the paywall discards the answer.
     if (!session) {

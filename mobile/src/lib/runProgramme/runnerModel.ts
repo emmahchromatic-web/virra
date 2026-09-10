@@ -12,6 +12,13 @@ import type { Difficulty } from './weekComposer';
 
 export interface RunnerModel {
   tier:                AbilityTier;
+  /**
+   * The raw `fitness_level` as well as the tier it maps to. `returning` is a
+   * state, not a rung, and `tierForFitnessLevel` deliberately flattens it away
+   * — but suitability needs to know, because a comeback runner who is already
+   * below what a plan assumes is a different case from a beginner who is.
+   */
+  fitnessLevel:        string | null;
   thresholdSecs:       number;
   currentWeeklyKm:     number;
   currentLongestRunKm: number;
@@ -95,6 +102,7 @@ export async function loadRunnerModel(
 
   return {
     tier:                tierForFitnessLevel(profile?.fitness_level),
+    fitnessLevel:        profile?.fitness_level ?? null,
     thresholdSecs:       profile?.baseline_pace_seconds_per_km ?? DEFAULT_THRESHOLD_SECS,
     currentWeeklyKm,
     currentLongestRunKm: longestM > 0

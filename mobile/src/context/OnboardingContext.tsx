@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useState } from 'react';
 import type { FitnessLevel, WeeklyMileageBracket } from '@/lib/healthKitOnboarding';
 import type { CycleProfile, ContraceptionType } from '@/lib/cycleEngine';
+import type { Sex } from '@/lib/nutritionTargets';
+import type { InjuryLevel } from '@/lib/injuryLevels';
 
 export type RunningGoal = '5k' | '10k' | 'half_marathon' | 'marathon' | 'general';
 
@@ -18,6 +20,15 @@ export interface OnboardingData {
   contraceptionType: ContraceptionType | null;
   hasPlaceboWeek:    boolean | null;
   currentPackStart:  Date | null;
+  // Steps 7 and 8 held these in local component state only, so going back to an
+  // earlier step and returning lost them entirely. They live here now for the
+  // same reason as everything above: a step that is re-entered has to be able
+  // to show what the user already told us.
+  dob:               Date | null;
+  heightCm:          number;
+  sex:               Sex;
+  trackWeight:       boolean;
+  injuryLevel:       InjuryLevel | null;
 }
 
 interface OnboardingContextValue {
@@ -41,6 +52,11 @@ const defaultData: OnboardingData = {
   contraceptionType: null,
   hasPlaceboWeek:    null,
   currentPackStart:  null,
+  dob:               null,
+  heightCm:          165,
+  sex:               'female',
+  trackWeight:       false,
+  injuryLevel:       null,
 };
 
 const OnboardingContext = createContext<OnboardingContextValue>({
@@ -54,12 +70,19 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const [currentStep, setStep] = useState(1);
   const [data, setDataState]   = useState<OnboardingData>(defaultData);
 
-  function setData(patch: Partial<OnboardingData>) {
+  // Stable across renders so the steps can write through from an effect without
+  // the identity of `setData` itself retriggering that effect every render.
+  const setData = useCallback((patch: Partial<OnboardingData>) => {
     setDataState((prev) => ({ ...prev, ...patch }));
-  }
+  }, []);
+
+  const value = useMemo(
+    () => ({ currentStep, setStep, data, setData }),
+    [currentStep, data, setData],
+  );
 
   return (
-    <OnboardingContext.Provider value={{ currentStep, setStep, data, setData }}>
+    <OnboardingContext.Provider value={value}>
       {children}
     </OnboardingContext.Provider>
   );

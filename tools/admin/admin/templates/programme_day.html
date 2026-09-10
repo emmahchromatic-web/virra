@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% set nav = 'programmes' %}
+{% block title %}{{ programme.name }} · Day {{ day.day_index }} — VIRRA Admin{% endblock %}
+{% block body %}
+  <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+    <h1>Day {{ day.day_index }} · {{ day.focus }}</h1>
+    <a class="btn" style="margin-left:auto" href="/programmes/{{ programme.id }}">{{ programme.name }}</a>
+  </div>
+  <p class="sub">
+    Three variants of the same session. They should mirror each other block for block — a gap in one is
+    someone getting less work for choosing dumbbells.
+  </p>
+
+  <h2>As it stands</h2>
+  <div class="variants">
+    {% for variant in v.VARIANTS %}
+      <div class="variant {{ 'empty' if not day.grid[variant].values() | map('length') | sum }}">
+        <h4>{{ variant }}</h4>
+        {% for block in v.BLOCKS %}
+          {% if day.grid[variant][block] %}
+            <div class="block">
+              <span class="bl">Block {{ block }}</span>
+              <ul>
+                {% for row in day.grid[variant][block] %}
+                  <li><b>{{ row.exercise_id }}</b> · {{ row.section }}{% if row.sets %} · {{ row.sets }}×{{ row.reps or '?' }}{% endif %}{% if row.tempo %} · {{ row.tempo }}{% endif %}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+        {% endfor %}
+        {% if not day.grid[variant].values() | map('length') | sum %}
+          <p style="margin:0;font-size:0.85rem;color:var(--heat)">Empty — nobody can train this variant.</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  {% for variant in v.VARIANTS %}
+    <h2>Edit · {{ variant }}</h2>
+    <form method="post" action="/programmes/{{ programme.id }}/days/{{ day.day_index }}">
+      <input type="hidden" name="variant" value="{{ variant }}">
+      <fieldset>
+        <legend>{{ variant }}</legend>
+        <div class="rowhead exercise">
+          <span>Exercise</span><span>Block</span><span>Section</span><span>Sets</span><span>Reps</span><span>Tempo</span><span>Rest</span><span></span>
+        </div>
+        <div class="rows" id="ex-{{ variant }}">
+          {% set rows = day.exercise_rows | selectattr('variant', 'equalto', variant) | list %}
+          {% for row in (rows or [{}]) %}
+            <div class="row exercise">
+              <select name="ex-{{ loop.index0 }}-exercise_id">
+                <option value="">—</option>
+                {% for exercise in catalogue %}
+                  <option value="{{ exercise.id }}" {{ 'selected' if row.exercise_id == exercise.id }}>{{ exercise.name }}</option>
+                {% endfor %}
+              </select>
+              <select name="ex-{{ loop.index0 }}-block">
+                {% for block in v.BLOCKS %}<option value="{{ block }}" {{ 'selected' if row.block == block }}>{{ block }}</option>{% endfor %}
+              </select>
+              <select name="ex-{{ loop.index0 }}-section">
+                {% for section in v.SECTIONS %}<option value="{{ section }}" {{ 'selected' if row.section == section }}>{{ section }}</option>{% endfor %}
+              </select>
+              <input type="text" name="ex-{{ loop.index0 }}-sets" value="{{ row.sets if row.sets is not none }}">
+              <input type="text" name="ex-{{ loop.index0 }}-reps" value="{{ row.reps or '' }}" placeholder="8-10">
+              <input type="text" name="ex-{{ loop.index0 }}-tempo" value="{{ row.tempo or '' }}" placeholder="3-1-1-0">
+              <input type="text" name="ex-{{ loop.index0 }}-rest" value="{{ row.rest or '' }}" placeholder="90s">
+              <button type="button" class="drop" onclick="dropRow(this)" title="Remove">&times;</button>
+            </div>
+          {% endfor %}
+        </div>
+        <p style="margin:0.7rem 0 0" class="actions">
+          <button type="button" class="btn small" onclick="addRow('ex-{{ variant }}')">+ Exercise</button>
+          <button class="btn primary" {{ 'disabled' if readonly }}>Save {{ variant }}</button>
+        </p>
+        <p class="hint" style="margin:0.6rem 0 0">
+          Order within a block and section is the order of the rows here. Tempo must be four counts, e.g. <code>3-1-1-0</code>.
+        </p>
+      </fieldset>
+    </form>
+  {% endfor %}
+{% endblock %}

@@ -50,6 +50,17 @@ const BELOW_BAND: Record<CyclePhase, string> = {
   luteal:     'Below the typical luteal range. If training is high, you may need more carbs.',
 };
 
+// Luteal and ovulatory in-band copy above explains an expected water RISE, and
+// reads as nonsense to someone sitting BELOW their follicular baseline: there
+// is no lift to reassure them about and nothing to "resolve in 5-7 days".
+// Reported on build 14 at -0.6 kg, in band, luteal.
+//
+// Menstrual and follicular need no variant: neither promises a rise.
+const IN_BAND_NOT_ABOVE_BASELINE: Partial<Record<CyclePhase, string>> = {
+  ovulatory: 'Inside your usual ovulatory range, without the water lift this phase often brings.',
+  luteal:    'Inside your usual luteal range, and sitting below your follicular baseline rather than above it. Nothing to act on.',
+};
+
 const STEADY_COPY: Record<BandPosition, string> = {
   in_band: 'Within your usual daily range.',
   above:   'A touch above your steady line. One day isn\'t a trend. Water, salt, or food timing can do this.',
@@ -60,9 +71,15 @@ const PHASE_LABEL: Record<CyclePhase, string> = {
   menstrual: 'MENSTRUAL', follicular: 'FOLLICULAR', ovulatory: 'OVULATORY', luteal: 'LUTEAL',
 };
 
-function cycleCopyFor(position: BandPosition, phase: CyclePhase): string {
+function cycleCopyFor(position: BandPosition, phase: CyclePhase, delta: number): string {
   if (position === 'above') return ABOVE_BAND[phase];
   if (position === 'below') return BELOW_BAND[phase];
+  // In band still spans both sides of the baseline, so the direction has to be
+  // read from the delta rather than assumed from the phase.
+  if (delta <= 0) {
+    const notAbove = IN_BAND_NOT_ABOVE_BASELINE[phase];
+    if (notAbove) return notAbove;
+  }
   return IN_BAND[phase];
 }
 
@@ -194,7 +211,7 @@ function renderCycleBody({
           <VirraText variant="mono" size={9} color={colors.muted}>+3 kg</VirraText>
         </View>
       </View>
-      <VirraText variant="body" size={14} color={colors.breath}>{cycleCopyFor(position, phase)}</VirraText>
+      <VirraText variant="body" size={14} color={colors.breath}>{cycleCopyFor(position, phase, delta)}</VirraText>
     </VirraCard>
   );
 }
