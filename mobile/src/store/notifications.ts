@@ -21,6 +21,7 @@ interface NotificationsState {
   add:         (input: { id: string; title: string; body: string; data?: Record<string, unknown> | null }) => Promise<void>;
   markAllRead: () => Promise<void>;
   clear:       () => Promise<void>;
+  reset:       () => void;
 }
 
 function computeUnread(items: NotificationItem[]): number {
@@ -79,5 +80,24 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   clear: async () => {
     set({ items: [], unreadCount: 0 });
     await persist([]);
+  },
+
+  /**
+   * Drop this account's inbox from MEMORY, without touching storage.
+   *
+   * Card 225, second half. Sign-out already deleted `notif_inbox_v1` and
+   * cancelled the OS notifications, but the store kept its items in memory with
+   * `hydrated` still true. `hydrate()` early-returns on that flag, so the next
+   * account never re-read the (now empty) key and rendered the previous
+   * account's inbox straight out of memory. Worse, the next `add()` persisted
+   * `[new, ...theirs]` and wrote the leak back to disk.
+   *
+   * Storage is deliberately not written here: sign-out clears the key itself,
+   * and persisting from a store mid-teardown is how the leak came back last
+   * time. Clearing `hydrated` is the part that matters, since it is what lets
+   * the next account hydrate from an empty key.
+   */
+  reset: () => {
+    set({ items: [], unreadCount: 0, hydrated: false });
   },
 }));

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set nav = 'exercises' %}
+{% block body %}
+  <h1>Exercise catalogue</h1>
+  <p class="sub">
+    Shared by every programme, so a rename lands everywhere at once. The usage count is how many programmes
+    would change with it.
+  </p>
+
+  <form class="stack" method="post" action="/exercises/save" style="margin-bottom:2rem">
+    <fieldset>
+      <legend>{{ 'Edit ' ~ editing.name if editing else 'Add an exercise' }}</legend>
+      <div class="fields">
+        <div class="field"><label>Name</label><input type="text" name="name" value="{{ editing.name if editing else '' }}" required></div>
+        <div class="field"><label>Id <span class="hint">— slug</span></label>
+          <input type="text" name="id" value="{{ editing.id if editing else '' }}" {{ 'readonly' if editing }} placeholder="left blank = from the name"></div>
+        <div class="field"><label>Load type</label>
+          <select name="load_type">
+            {% for load_type in v.LOAD_TYPES %}
+              <option value="{{ load_type }}" {{ 'selected' if editing and editing.load_type == load_type }}>{{ load_type }}</option>
+            {% endfor %}
+          </select></div>
+        <div class="field"><label>Default tempo <span class="hint">— four counts</span></label>
+          <input type="text" name="default_tempo" value="{{ editing.default_tempo if editing and editing.default_tempo else '' }}" placeholder="2-1-2-1"></div>
+        <div class="field wide"><label>Description <span class="hint">— read by the user mid-set</span></label>
+          <textarea name="description" rows="2">{{ editing.description if editing and editing.description else '' }}</textarea></div>
+      </div>
+      <p style="margin:0.9rem 0 0" class="actions">
+        <button class="btn primary" {{ 'disabled' if readonly }}>{{ 'Save changes' if editing else 'Add exercise' }}</button>
+        {% if editing %}
+          <a class="btn" href="/exercises">Cancel</a>
+          <span class="pill {{ 'drift' if usage.get(editing.id, 0) > 1 }}">used by {{ usage.get(editing.id, 0) }} programme(s)</span>
+        {% endif %}
+      </p>
+    </fieldset>
+  </form>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Name</th><th>Load</th><th>Tempo</th><th class="num">Used by</th><th>Description</th><th></th></tr></thead>
+      <tbody>
+        {% for exercise in exercises %}
+          <tr>
+            <td>{{ exercise.name }}<br><code>{{ exercise.id }}</code></td>
+            <td>{{ exercise.load_type }}</td>
+            <td class="mono">{{ exercise.default_tempo or '—' }}</td>
+            <td class="num">{{ usage.get(exercise.id, 0) }}</td>
+            <td style="color:var(--muted);max-width:26rem">{{ exercise.description or '' }}</td>
+            <td><a class="btn small" href="/exercises/{{ exercise.id }}">Edit</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% set nav = 'recipes' %}
+{% block body %}
+  <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+    <h1>Recipes</h1>
+    <span class="mono">{{ total }} total</span>
+    <a class="btn primary" style="margin-left:auto" href="/recipes/new">New recipe</a>
+  </div>
+  <p class="sub">Grouped by the shelf they sit on. Inactive recipes are staged — they exist but the app does not show them.</p>
+
+  {% if warnings %}
+    <div class="notice" style="margin-bottom:1.5rem">
+      <span class="t">Coverage</span>
+      <ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  {% for label, rows in collections.items() %}
+    <h2>{{ label }}</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Meal</th><th>Phases</th><th>Serves</th><th class="num">kcal</th><th class="num">P</th><th class="num">C</th><th class="num">F</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr class="{{ '' if row.is_active else 'off' }}">
+              <td><a href="/recipes/{{ row.id }}">{{ row.name }}</a><br><code>{{ row.id }}</code></td>
+              <td>{{ (row.meal_types or []) | join(', ') }}</td>
+              <td>{{ (row.phases or []) | join(', ') or 'any' }}</td>
+              <td class="num">{{ row.serves }}</td>
+              <td class="num">{{ row.calories | round | int }}</td>
+              <td class="num">{{ row.protein_g | round(1) }}</td>
+              <td class="num">{{ row.carbs_g | round(1) }}</td>
+              <td class="num">{{ row.fat_g | round(1) }}</td>
+              <td><span class="pill {{ 'live' if row.is_active }}">{{ 'live' if row.is_active else 'staged' }}</span></td>
+              <td>
+                <form class="inline" method="post" action="/recipes/{{ row.id }}/active">
+                  <input type="hidden" name="active" value="{{ '0' if row.is_active else '1' }}">
+                  <button class="btn small" {{ 'disabled' if readonly }}>{{ 'Deactivate' if row.is_active else 'Activate' }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endfor %}
+{% endblock %}

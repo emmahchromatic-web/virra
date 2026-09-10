@@ -37,4 +37,9 @@ describe('WeightGlanceCard', () => {
     const { getByText } = render(<WeightGlanceCard latestKg={62.5} />);
     expect(getByText(/ABOVE BAND/i)).toBeTruthy();
   });
+
+  it('still explains the lift when the reading is actually above baseline', () => {
+    const { getByText } = render(<WeightGlanceCard latestKg={61.5} />);
+    expect(getByText(/water, not fat/i)).toBeTruthy();
+  });
 });

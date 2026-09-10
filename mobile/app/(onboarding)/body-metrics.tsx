@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Pressable, Switch, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -16,16 +16,24 @@ const MAX_HEIGHT = 210;
 const DEFAULT_DOB = new Date(new Date().getFullYear() - 30, 0, 1);
 
 export default function BodyMetricsScreen() {
-  const { setStep } = useOnboarding();
+  const { setStep, data, setData } = useOnboarding();
   const { session } = useAuthStore();
   useFocusEffect(React.useCallback(() => { setStep(7); }, [setStep]));
 
-  const [dob, setDob]                 = useState<Date | null>(null);
+  // This step used to keep everything in local state and hand it straight to
+  // Supabase, so leaving and coming back reset the whole form to defaults --
+  // and a 165cm default that silently replaced a real height is worse than an
+  // empty field, because nothing looks wrong.
+  const [dob, setDob]                 = useState<Date | null>(data.dob);
   const [showPicker, setShowPicker]   = useState(false);
-  const [heightCm, setHeightCm]       = useState(165);
-  const [sex, setSex]                 = useState<Sex>('female');
-  const [trackWeight, setTrackWeight] = useState(false);
+  const [heightCm, setHeightCm]       = useState(data.heightCm);
+  const [sex, setSex]                 = useState<Sex>(data.sex);
+  const [trackWeight, setTrackWeight] = useState(data.trackWeight);
   const [saving, setSaving]           = useState(false);
+
+  useEffect(() => {
+    setData({ dob, heightCm, sex, trackWeight });
+  }, [dob, heightCm, sex, trackWeight, setData]);
 
   function stepHeight(delta: number) {
     setHeightCm((h) => Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, h + delta)));
@@ -37,6 +45,9 @@ export default function BodyMetricsScreen() {
   }
 
   async function finish(withMetrics: boolean) {
+    // Record the answers before anything can fail or navigate away, so coming
+    // back to this step shows them again either way.
+    setData({ dob, heightCm, sex, trackWeight });
     // Same failure as the diet step: with no session the update is impossible.
     // This previously dropped the user at the paywall and silently discarded
     // whatever they had entered.
