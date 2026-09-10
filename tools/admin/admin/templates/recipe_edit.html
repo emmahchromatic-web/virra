@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% set nav = 'recipes' %}
+{% block title %}{{ recipe.name or 'New recipe' }} — VIRRA Admin{% endblock %}
+
+{% macro tags(field, options, chosen, note='') %}
+  <div class="field wide">
+    <label>{{ field.replace('_', ' ') | title }}{% if note %} <span class="hint">— {{ note }}</span>{% endif %}</label>
+    <div class="tags">
+      {% for option in options %}
+        <label><input type="checkbox" name="{{ field }}" value="{{ option }}" {{ 'checked' if option in (chosen or []) }}> {{ option }}</label>
+      {% endfor %}
+    </div>
+  </div>
+{% endmacro %}
+
+{% block body %}
+  <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+    <h1>{{ recipe.name or 'New recipe' }}</h1>
+    {% if not is_new %}<span class="pill {{ 'live' if recipe.is_active }}">{{ 'live' if recipe.is_active else 'staged' }}</span>{% endif %}
+    <a class="btn" style="margin-left:auto" href="/recipes">All recipes</a>
+  </div>
+
+  {% if drift %}
+    <div class="notice bad" style="margin-bottom:1.2rem">
+      <span class="t">Stored macros disagree with the ingredients</span>
+      <ul>
+        {% for macro, pair in drift.items() %}<li>{{ macro }}: stored {{ pair[0] }}, ingredients give {{ pair[1] }}</li>{% endfor %}
+      </ul>
+      <p style="margin:0.5rem 0 0;font-size:0.86rem;color:var(--muted)">Saving recomputes the stored figures from the ingredients. A recipe cannot be activated while they disagree.</p>
+    </div>
+  {% endif %}
+
+  <form class="stack" method="post" action="{{ '/recipes/new' if is_new else '/recipes/' ~ recipe.id }}">
+
+    <fieldset>
+      <legend>Identity</legend>
+      <div class="fields">
+        <div class="field">
+          <label>Name</label>
+          <input type="text" name="name" value="{{ recipe.name }}" required>
+        </div>
+        <div class="field">
+          <label>Id <span class="hint">— slug, permanent</span></label>
+          <input type="text" name="id" value="{{ recipe.id }}" {{ 'readonly' if not is_new }} placeholder="left blank = from the name">
+        </div>
+        <div class="field">
+          <label>Collection <span class="hint">— the shelf it sits on</span></label>
+          <select name="collection" onchange="document.getElementById('new-collection').hidden = this.value !== '__new__';">
+            <option value="" {{ 'selected' if not recipe.collection }}>— pick one —</option>
+            {% for c in collections %}
+              <option value="{{ c.collection }}" {{ 'selected' if recipe.collection == c.collection }}>{{ c.label }} ({{ c.count }})</option>
+            {% endfor %}
+            <option value="__new__">New collection…</option>
+          </select>
+        </div>
+        <div class="field" id="new-collection" hidden>
+          <label>New collection name <span class="hint">— what the reader sees</span></label>
+          <input type="text" name="new_collection_label" placeholder="Sunday batch cooking">
+          <span class="hint">The slug is worked out from the name.</span>
+        </div>
+        <div class="field wide">
+          <label>Intro <span class="hint">— the most visible line on the card</span></label>
+          <textarea name="intro">{{ recipe.intro or '' }}</textarea>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Matching</legend>
+      <div class="fields">
+        {{ tags('meal_types', v.MEAL_TYPES, recipe.meal_types, 'at least one, or it appears nowhere') }}
+        {{ tags('phases', v.PHASES, recipe.phases, 'empty means suits any phase') }}
+        {{ tags('loads', v.LOADS, recipe.loads, 'empty means suits any load') }}
+        {{ tags('dietary', v.DIETARY, recipe.dietary, 'as authored, not inferred') }}
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Practicalities</legend>
+      <div class="fields">
+        <div class="field"><label>Serves</label><input type="number" name="serves" min="1" value="{{ recipe.serves or 1 }}"></div>
+        <div class="field"><label>Prep minutes</label><input type="number" name="prep_minutes" value="{{ recipe.prep_minutes if recipe.prep_minutes is not none }}"></div>
+        <div class="field"><label>Cook minutes</label><input type="number" name="cook_minutes" value="{{ recipe.cook_minutes if recipe.cook_minutes is not none }}"></div>
+        <div class="field"><label>Sort order <span class="hint">— position on its shelf</span></label>
+          <input type="number" name="sort_order" value="{{ recipe.sort_order if recipe.sort_order is not none }}" placeholder="blank = end of collection"></div>
+        <div class="field"><label>Source</label><input type="text" name="source" value="{{ recipe.source or 'virra-authored' }}"></div>
+        <div class="field"><label>Min tier <span class="hint">— blank = base</span></label><input type="text" name="min_tier" value="{{ recipe.min_tier or '' }}"></div>
+        <div class="field wide"><label>Image URL</label><input type="url" name="image_url" value="{{ recipe.image_url or '' }}" placeholder="blank until photography exists"></div>
+        <div class="field wide">
+          <label class="switch"><input type="checkbox" name="is_active" value="1" {{ 'checked' if recipe.is_active }}> Active — shown in the app</label>
+          <span class="hint">Activating requires an intro, at least one ingredient, at least one step, and macros that agree with the ingredients.</span>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ingredients</legend>
+      <p class="hint" style="margin:0 0 0.7rem">
+        <b style="color:var(--dawn)">tsp, tbsp and whole need build 15.</b> Earlier builds render any
+        unit they do not know as <code>g</code>, so a spoon would show as grams on a phone until then.
+        Use <code>g</code> or <code>ml</code> for anything you want visible today.
+      </p>
+      <p class="hint" style="margin:0 0 0.7rem">
+        <b>Fill macros from</b> looks the ingredient up in the app's own food catalogue and works out
+        its macros from the quantity, so a recipe's numbers agree with what the same food logs as
+        through search. It fills <b>blanks only</b> &mdash; anything you have typed is left alone.
+        Needs a quantity in g or ml.
+      </p>
+      <p class="hint" style="margin:0 0 0.7rem">Macros are for the stated quantity of that ingredient in the <b>whole</b> recipe — not per 100 g, not per serving. Leave a macro blank if it is genuinely unknown; blank is not zero.</p>
+      <div class="rowhead ingredient">
+        <span>Food</span><span>Qty</span><span>Unit</span><span>Note</span><span>Fill macros from</span><span>kcal</span><span>Carbs</span><span>Protein</span><span>Fat</span><span>Fibre</span><span></span>
+      </div>
+      <div class="rows" id="ingredients">
+        {% for ingredient in (recipe.ingredients or [{}]) %}
+          <div class="row ingredient">
+            <input type="text" name="ing-{{ loop.index0 }}-food_name" value="{{ ingredient.food_name or '' }}" placeholder="Rolled oats">
+            <input type="text" name="ing-{{ loop.index0 }}-quantity" value="{{ ingredient.quantity if ingredient.quantity is not none }}">
+            <select name="ing-{{ loop.index0 }}-unit">
+              {% for unit in v.UNITS %}<option value="{{ unit }}" {{ 'selected' if ingredient.unit == unit }}>{{ v.UNIT_LABELS[unit] }}</option>{% endfor %}
+            </select>
+            <input type="text" name="ing-{{ loop.index0 }}-note" value="{{ ingredient.note or '' }}" placeholder="finely sliced">
+            <input type="text" name="ing-{{ loop.index0 }}-common_food_id" list="food-catalogue"
+                   value="{{ catalogue_label(ingredient.common_food_id) }}"
+                   placeholder="optional" autocomplete="off" spellcheck="false">
+            <input type="text" name="ing-{{ loop.index0 }}-calories" value="{{ ingredient.calories if ingredient.calories is not none }}">
+            <input type="text" name="ing-{{ loop.index0 }}-carbs_g" value="{{ ingredient.carbs_g if ingredient.carbs_g is not none }}">
+            <input type="text" name="ing-{{ loop.index0 }}-protein_g" value="{{ ingredient.protein_g if ingredient.protein_g is not none }}">
+            <input type="text" name="ing-{{ loop.index0 }}-fat_g" value="{{ ingredient.fat_g if ingredient.fat_g is not none }}">
+            <input type="text" name="ing-{{ loop.index0 }}-fibre_g" value="{{ ingredient.fibre_g if ingredient.fibre_g is not none }}">
+            <button type="button" class="drop" onclick="dropRow(this)" title="Remove">&times;</button>
+            <input type="hidden" name="ing-{{ loop.index0 }}-group_label" value="{{ ingredient.group_label or '' }}">
+          </div>
+        {% endfor %}
+      </div>
+      <p style="margin:0.7rem 0 0"><button type="button" class="btn small" onclick="addRow('ingredients')">+ Ingredient</button></p>
+      <datalist id="food-catalogue">
+        {% for food in foods %}<option value="{{ food_label(food) }}"></option>{% endfor %}
+      </datalist>
+    </fieldset>
+
+    <fieldset>
+      <legend>Per serving</legend>
+      <p class="hint" style="margin:0 0 0.7rem">
+        Computed from the ingredients wherever every ingredient supplies that macro — those boxes are read-only and
+        recalculated on save. Where the ingredients are incomplete the authored figure below is used instead.
+      </p>
+      <div class="fields">
+        {% for macro in v.MACROS %}
+          <div class="field">
+            <label>{{ v.MACRO_LABELS[macro] }} {% if derived.get(macro) is not none %}<span class="pill live">computed</span>{% else %}<span class="hint">— authored</span>{% endif %}</label>
+            {% if derived.get(macro) is not none %}
+              {# Named even though it is read-only, so the value is still posted: if an
+                 ingredient edit makes this macro underivable, the authored fallback has
+                 something to read instead of silently becoming 0. #}
+              <input type="text" name="{{ macro }}" value="{{ derived[macro] }}" readonly>
+            {% else %}
+              <input type="text" name="{{ macro }}" value="{{ recipe[macro] if recipe[macro] is not none }}" placeholder="{{ 'blank = unknown' if macro == 'fibre_g' else '0' }}">
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Method</legend>
+      <div class="rowhead step"><span>Step</span><span>Timer (s)</span><span></span></div>
+      <div class="rows" id="steps">
+        {% for step in (recipe.steps or [{}]) %}
+          <div class="row step">
+            <textarea name="step-{{ loop.index0 }}-body" rows="2">{{ step.body or '' }}</textarea>
+            <input type="text" name="step-{{ loop.index0 }}-timer_seconds" value="{{ step.timer_seconds if step.timer_seconds is not none }}" placeholder="blank">
+            <button type="button" class="drop" onclick="dropRow(this)" title="Remove">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+      <p style="margin:0.7rem 0 0"><button type="button" class="btn small" onclick="addRow('steps')">+ Step</button></p>
+    </fieldset>
+
+    <div class="actions">
+      <button class="btn primary" {{ 'disabled' if readonly }}>Save recipe</button>
+      <a class="btn" href="/recipes">Cancel</a>
+      {% if not is_new %}<a class="btn danger" style="margin-left:auto" href="/recipes/{{ recipe.id }}/delete">Delete</a>{% endif %}
+    </div>
+  </form>
+{% endblock %}

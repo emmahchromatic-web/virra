@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% set nav = 'programmes' %}
+{% block title %}{{ programme.name or 'New programme' }} — VIRRA Admin{% endblock %}
+{% block body %}
+  <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+    <h1>{{ programme.name or 'New programme' }}</h1>
+    {% if not is_new %}<span class="pill {{ 'live' if programme.is_active }}">{{ 'live' if programme.is_active else 'staged' }}</span>{% endif %}
+    <a class="btn" style="margin-left:auto" href="/programmes">All programmes</a>
+  </div>
+
+  {% if gaps %}
+    <div class="notice" style="margin-bottom:1.2rem">
+      <span class="t">Variant gaps</span>
+      <ul>{% for gap in gaps %}<li>{{ gap }}</li>{% endfor %}</ul>
+      <p style="margin:0.5rem 0 0;font-size:0.86rem;color:var(--muted)">Someone on the bodyweight track should get the same session shape as someone in a gym.</p>
+    </div>
+  {% endif %}
+
+  <form class="stack" method="post" action="{{ '/programmes/new' if is_new else '/programmes/' ~ programme.id }}">
+    <fieldset>
+      <legend>Identity</legend>
+      <div class="fields">
+        <div class="field"><label>Name</label><input type="text" name="name" value="{{ programme.name }}" required></div>
+        <div class="field"><label>Id <span class="hint">— slug, permanent</span></label>
+          <input type="text" name="id" value="{{ programme.id }}" {{ 'readonly' if not is_new }} placeholder="left blank = from the name"></div>
+        <div class="field"><label>Family <span class="hint">— slug</span></label><input type="text" name="family" value="{{ programme.family }}"></div>
+        <div class="field"><label>Family label</label><input type="text" name="family_label" value="{{ programme.family_label }}"></div>
+        <div class="field"><label>Days per week</label><input type="number" name="days_per_week" min="1" max="7" value="{{ programme.days_per_week }}"></div>
+        <div class="field"><label>Duration (weeks)</label><input type="number" name="duration_weeks" min="1" value="{{ programme.duration_weeks }}"></div>
+        <div class="field"><label>Sort order</label><input type="number" name="sort_order" value="{{ programme.sort_order or 0 }}"></div>
+        <div class="field wide"><label>Short description <span class="hint">— the picker's tagline</span></label>
+          <textarea name="short_description" rows="2">{{ programme.short_description or '' }}</textarea></div>
+        <div class="field wide"><label>Full description</label>
+          <textarea name="full_description" rows="4">{{ programme.full_description or '' }}</textarea></div>
+        <div class="field wide"><label>Deload note</label>
+          <textarea name="deload_note" rows="2">{{ programme.deload_note or '' }}</textarea></div>
+        <div class="field wide">
+          <label class="switch"><input type="checkbox" name="is_active" value="1" {{ 'checked' if programme.is_active }}> Active — appears in the plan picker</label>
+          <span class="hint">Deactivating also removes its derived <code>plan_templates</code> row, so it cannot linger in the picker.</span>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Days</legend>
+      <p class="hint" style="margin:0 0 0.7rem">
+        The focus strings are what the schedule shows week after week, and what the derived plan template repeats.
+        The number of days must match days per week. Removing a day deletes its exercises.
+      </p>
+      <div class="rowhead step"><span>Focus</span><span>Day number</span><span></span></div>
+      <div class="rows" id="days">
+        {% for day in (programme.days or [{'day_index': 1, 'focus': ''}]) %}
+          <div class="row step">
+            <input type="text" name="day-{{ loop.index0 }}-focus" value="{{ day.focus or '' }}" placeholder="Push">
+            <input type="number" name="day-{{ loop.index0 }}-day_index" value="{{ day.day_index or loop.index }}" min="1">
+            <button type="button" class="drop" onclick="dropRow(this)" title="Remove">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+      <p style="margin:0.7rem 0 0"><button type="button" class="btn small" onclick="addRow('days')">+ Day</button></p>
+    </fieldset>
+
+    <div class="actions">
+      <button class="btn primary" {{ 'disabled' if readonly }}>Save programme</button>
+      <a class="btn" href="/programmes">Cancel</a>
+    </div>
+  </form>
+
+  {% if not is_new and programme.days %}
+    <h2>Sessions</h2>
+    <p class="sub">Each day carries three complete variants. Open a day to edit them side by side.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Day</th><th>Focus</th><th></th></tr></thead>
+        <tbody>
+          {% for day in programme.days %}
+            <tr>
+              <td class="num">{{ day.day_index }}</td>
+              <td>{{ day.focus }}</td>
+              <td><a class="btn small" href="/programmes/{{ programme.id }}/days/{{ day.day_index }}">Edit exercises</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  {% if programme.template %}
+    <h2>Derived plan-picker row</h2>
+    <p class="sub">
+      Regenerated on every save from this programme — <code>{{ programme.template.name }}</code>,
+      {{ programme.template.duration_weeks }} weeks, {{ (programme.template.sessions_json or []) | length }} week entries.
+      Not editable here on purpose: it is output, not content.
+    </p>
+  {% endif %}
+{% endblock %}

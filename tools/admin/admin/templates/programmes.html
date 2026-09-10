@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set nav = 'programmes' %}
+{% block body %}
+  <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+    <h1>Training programmes</h1>
+    <a class="btn primary" style="margin-left:auto" href="/programmes/new">New programme</a>
+  </div>
+  <p class="sub">
+    Authored strength programmes. Saving one also regenerates the <code>plan_templates</code> row the plan picker reads,
+    so the picker can never show a stale name.
+  </p>
+
+  <div class="notice" style="margin-bottom:1.5rem">
+    <span class="t">Run programmes are not here</span>
+    <p style="margin:0;font-size:0.88rem;color:var(--muted)">
+      Run plans are built by the generator in code, not from stored templates. The knob you would want —
+      how hard week 6 is — is a TypeScript constant with tests around it, so editing it here would change
+      something the app no longer reads.
+    </p>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Programme</th><th>Family</th><th class="num">Days/wk</th><th class="num">Weeks</th><th>Picker row</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        {% for programme in programmes %}
+          <tr class="{{ '' if programme.is_active else 'off' }}">
+            <td><a href="/programmes/{{ programme.id }}">{{ programme.name }}</a><br><code>{{ programme.id }}</code></td>
+            <td>{{ programme.family_label }}</td>
+            <td class="num">{{ programme.days_per_week }}</td>
+            <td class="num">{{ programme.duration_weeks }}</td>
+            <td>{{ 'derived' if programme.is_active else '—' }}</td>
+            <td><span class="pill {{ 'live' if programme.is_active }}">{{ 'live' if programme.is_active else 'staged' }}</span></td>
+            <td>
+              <form class="inline" method="post" action="/programmes/{{ programme.id }}/active">
+                <input type="hidden" name="active" value="{{ '0' if programme.is_active else '1' }}">
+                <button class="btn small" {{ 'disabled' if readonly }}>{{ 'Deactivate' if programme.is_active else 'Activate' }}</button>
+              </form>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

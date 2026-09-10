@@ -1,4 +1,4 @@
-import { recipeEntryName, scaleServings, isRecipeUnlocked } from '@/lib/recipes';
+import { recipeEntryName, scaleServings, isRecipeUnlocked, noteStatesAnAmount } from '@/lib/recipes';
 
 /**
  * The pure half of the logging path. logRecipe() itself is exercised through
@@ -68,5 +68,94 @@ describe('isRecipeUnlocked', () => {
     expect(isRecipeUnlocked({ minTier: 'plus' }, null)).toBe(false);
     expect(isRecipeUnlocked({ minTier: 'plus' }, 'free')).toBe(false);
     expect(isRecipeUnlocked({ minTier: 'plus' }, 'plus')).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ingredient notes vs scaled quantities
+// ---------------------------------------------------------------------------
+
+describe('noteStatesAnAmount', () => {
+  // Every note in the seeded book, split by hand into the two kinds. The
+  // predicate decides whether a note survives when the quantity beside it has
+  // been scaled, so getting it wrong shows a contradiction on the screen: a
+  // gram figure for one serving beside a count for the whole recipe.
+  const statesAnAmount = [
+    '6 eggs, about 50 g each once shelled',
+    '2 tomatoes, about 110 g each',
+    '1 tin, drained',
+    '2 tins, drained',
+    '3 cloves',
+    '2 large eggs',
+    '3 large eggs',
+    '1 thick slice, toasted',
+    '1 medium, sliced',
+    '2 slices',
+    '2 breasts',
+    '2 fillets',
+    '2 nests',
+    '2 medallions',
+    '1 biscuit',
+    '1 pepper, deseeded and cut into thin strips',
+    '2 large, diced',
+    '1 large, diced',
+    '2 sticks, diced',
+    'half a pepper',
+    'half a lemon',
+    'half a tsp',
+    'half a lemon, to finish',
+    'a wedge',
+    'a drizzle, to finish',
+    'a drizzle, for the pan',
+    'a thin scrape, not a thick layer',
+    'a pouch or a drained tin',
+    '1 tbsp',
+  ];
+
+  const holdsAtAnyScale = [
+    'diced',
+    'chopped',
+    'roughly chopped',
+    'fresh, chopped',
+    'chopped, to finish',
+    'sliced',
+    'sliced on the diagonal',
+    'grated',
+    'halved',
+    'torn',
+    'trimmed',
+    'podded',
+    'peeled and cubed',
+    'pressed and cubed',
+    'raw, peeled',
+    'broken into florets',
+    'florets',
+    'cut into wedges, skin on',
+    'toasted',
+    'to taste',
+    'to finish',
+    'for the top, added last',
+    'dry weight',
+    'dry weight, rinsed',
+    'tinned, drained',
+    'in juice, save the juice for the sauce',
+    'optional, for a bit of body',
+    'vanilla works best',
+    'vanilla or chocolate',
+  ];
+
+  it.each(statesAnAmount)('treats %p as stating an amount', (note) => {
+    expect(noteStatesAnAmount(note)).toBe(true);
+  });
+
+  it.each(holdsAtAnyScale)('treats %p as holding at any scale', (note) => {
+    expect(noteStatesAnAmount(note)).toBe(false);
+  });
+
+  it('does not mistake a word that merely starts with a count letter', () => {
+    // "an" and "a" are amounts; "almonds" and "apple" are not.
+    expect(noteStatesAnAmount('almonds, flaked')).toBe(false);
+    expect(noteStatesAnAmount('apple, cored')).toBe(false);
+    expect(noteStatesAnAmount('an apple, cored')).toBe(true);
   });
 });
