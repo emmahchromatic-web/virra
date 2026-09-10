@@ -22,7 +22,8 @@ export type ArchetypeKey =
   | 'train_your_way'
   | 'new_to_running'
   | 'path_to_parkrun'
-  | 'return_after_break';
+  | 'return_after_break'
+  | 'post_race_recovery';
 
 export interface Archetype {
   key:   ArchetypeKey;
@@ -33,7 +34,7 @@ export interface Archetype {
    * Volume-led plans grow the weeks; intensity-led hold them and sharpen;
    * walk-run plans progress by moving up the run:walk ladder instead.
    */
-  progression: 'volume' | 'intensity' | 'flat' | 'walk_run';
+  progression: 'volume' | 'intensity' | 'flat' | 'walk_run' | 'recovery';
   /** Sensible default length when the runner does not pick one. */
   defaultWeeks: number;
   /** Minimum that still produces a coherent plan. */
@@ -99,6 +100,15 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
     progression: 'walk_run', defaultWeeks: 8, minWeeks: 4,
     forcePreset: 'gradual', forceDifficulty: 'comfortable',
   },
+
+  // The fortnight after a race, when the temptation is to do nothing and the
+  // mistake is to do too much. Descends deliberately: a recovery plan that
+  // quietly progressed would be a trap.
+  post_race_recovery: {
+    key: 'post_race_recovery', label: 'Post-race recovery', hasRace: false,
+    progression: 'recovery', defaultWeeks: 2, minWeeks: 1,
+    forcePreset: 'gradual', forceDifficulty: 'comfortable',
+  },
 };
 
 /**
@@ -119,6 +129,7 @@ export function archetypeForTemplate(input: {
   }
 
   const name = (input.name ?? '').toLowerCase();
+  if (/post.?race|recovery/.test(name))                return ARCHETYPES.post_race_recovery;
   if (/parkrun/.test(name))                            return ARCHETYPES.path_to_parkrun;
   if (/new to running|couch|from scratch/.test(name))  return ARCHETYPES.new_to_running;
   if (/return|comeback|back to running/.test(name))    return ARCHETYPES.return_after_break;

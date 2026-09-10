@@ -102,7 +102,10 @@ export interface ProgrammeContext {
  */
 export interface RunPlanContext {
   goal:      RaceDistance;
+  /** Fallback when a week has no intensity of its own. */
   intensity: Difficulty;
+  /** Per week. On an intensity-led plan this is what progresses. */
+  intensities?: Difficulty[];
   /** Indexed by week. */
   phases:    WeekPhase[];
   longRunKm: number[];
@@ -188,7 +191,7 @@ export function generateSchedule(
             thresholdSecs: context.baseline_pace_secs,
             goal:          plan?.goal,
             phase:         plan?.phases[weekIndex],
-            intensity:     plan?.intensity,
+            intensity:     plan?.intensities?.[weekIndex] ?? plan?.intensity,
             walkRun:       plan?.walkRun?.[weekIndex],
           });
         } else if (modality === 'strength') {

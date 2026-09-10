@@ -34,6 +34,11 @@ export interface GeneratedPlan {
   totalKm:   number;
   /** Ladder stage per week. Only present for walk-run archetypes. */
   walkRun?:  WalkRunStage[];
+  /**
+   * How hard each week's quality work should be. Constant for most plans; on an
+   * intensity-led plan this is what progresses, because the volume does not.
+   */
+  intensities: Difficulty[];
 }
 
 export interface GeneratePlanInput {
@@ -74,6 +79,8 @@ export function phaseForWeek(week: CurveWeek, index: number, buildWeekCount: num
   return 'build';
 }
 
+const RECOVERY_LABEL = 'Recovery';
+
 const PHASE_LABEL: Record<WeekPhase, string> = {
   base:  'Base',
   build: 'Build',
@@ -95,6 +102,9 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
   const difficulty = archetype.forceDifficulty ?? input.difficulty;
 
   const curve = buildVolumeCurve({
+    mode:                archetype.progression === 'recovery' ? 'descend'
+                       : archetype.progression === 'volume' || archetype.progression === 'walk_run' ? 'build'
+                       : 'flat',
     weeks:               Math.max(archetype.minWeeks, input.weeks),
     tier:                input.tier,
     preset,
@@ -107,7 +117,8 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
 
   const buildWeekCount = curve.filter((w) => w.kind === 'build' || w.kind === 'down').length;
 
-  const isWalkRun = archetype.progression === 'walk_run';
+  const isWalkRun      = archetype.progression === 'walk_run';
+  const isIntensityLed = archetype.progression === 'intensity';
 
   // The ladder needs to know how long the sessions are, and the curve deals in
   // distance. Minutes per session is the honest unit for someone who is not yet
@@ -119,8 +130,19 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
       ).map((i) => WALK_RUN_STAGES[i])
     : undefined;
 
-  const weeks:     GeneratedWeek[] = [];
-  const weekSlots: GeneratedSlot[][] = [];
+  // An intensity-led plan holds its volume and progresses the work inside the
+  // sessions instead. Escalating over the plan is that progression: the first
+  // third eases in, the last third is the hard part.
+  const intensityFor = (i: number, total: number): Difficulty => {
+    if (!isIntensityLed) return difficulty;
+    if (i < Math.ceil(total / 3))     return 'comfortable';
+    if (i < Math.ceil((total * 2) / 3)) return 'balanced';
+    return 'challenging';
+  };
+
+  const weeks:       GeneratedWeek[] = [];
+  const weekSlots:   GeneratedSlot[][] = [];
+  const intensities: Difficulty[] = [];
 
   curve.forEach((week, i) => {
     const phase = phaseForWeek(week, i, buildWeekCount);
@@ -128,14 +150,26 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
     // A down week is a back-off, so it is composed as a base week however far
     // into the plan it falls: the point of it is less hard work, not less
     // running. Race week composes itself.
-    const composePhase: WeekPhase = week.kind === 'down' ? 'base' : phase;
+    //
+    // Intensity-led plans skip the base phase entirely. Base exists to build an
+    // aerobic engine before the sharp work starts, and it does that by removing
+    // a hard session — which on a plan someone chose *because* they want to get
+    // faster means three weeks of easy running and no reason given. The
+    // escalation is the ramp-in here.
+    const composePhase: WeekPhase =
+      week.kind === 'down'                     ? 'base'
+      : isIntensityLed && phase === 'base'     ? 'build'
+      : phase;
+
+    const weekIntensity = intensityFor(i, curve.length);
+    intensities.push(weekIntensity);
 
     const composed: ComposedSession[] = composeWeek({
       days:        input.days,
       longRunDay:  input.longRunDay,
       phase:       composePhase,
       goal:        input.goal,
-      difficulty,
+      difficulty:  weekIntensity,
       isRaceWeek:  week.kind === 'race',
       rankHardDay: input.rankHardDay ? (day) => input.rankHardDay!(day, i) : undefined,
     });
@@ -144,21 +178,27 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
     // runs mean nothing to someone still building continuous running, and the
     // ladder is the progression. The race is the exception — a Path to parkrun
     // plan that does not end with the parkrun in it is missing the point.
+    // A recovery plan has no hard days in it at all. Whatever the composer
+    // chose, it comes out easy — the point of the fortnight after a race is
+    // that nothing in it is a session.
     const sessions = isWalkRun
       ? composed.map((s) => (s.type === 'race' ? 'race' : 'run_walk'))
-      : composed.map((s) => s.type);
+      : archetype.progression === 'recovery'
+        ? composed.map((s) => (s.isLong ? 'easy' : 'recovery'))
+        : composed.map((s) => s.type);
 
     weeks.push({
       week:     week.week,
       km:       week.km,
-      // A back-off week is labelled as one, ahead of everything else. It is
-      // still a Build week by phase, and on a walk-run plan it still has a
-      // ladder stage, but neither is what the runner needs to know when they
-      // look at it — they need to know this is the easy one. Emma's own
-      // templates call it Recovery, so it says Recovery.
+      // Recovery wins over everything else, whether it is a whole recovery plan
+      // or a single back-off week inside a building one. A down week is still a
+      // Build week by phase, and on a walk-run plan it still has a ladder stage,
+      // but neither is what the runner needs to know when they look at it —
+      // they need to know this is the easy one. Emma's own templates call it
+      // Recovery, so it says Recovery.
       label:
-        week.kind === 'down'                ? 'Recovery'
-        : isWalkRun && week.kind !== 'race' ? walkRunLabel(walkRunStages![i])
+        archetype.progression === 'recovery' || week.kind === 'down' ? RECOVERY_LABEL
+        : isWalkRun && week.kind !== 'race'                          ? walkRunLabel(walkRunStages![i])
         : PHASE_LABEL[phase],
       sessions,
     });
@@ -178,6 +218,7 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
     curve,
     totalKm: Math.round(curve.reduce((sum, w) => sum + w.km, 0) * 10) / 10,
     walkRun: walkRunStages,
+    intensities,
   };
 }
 
