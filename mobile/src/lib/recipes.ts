@@ -301,14 +301,15 @@ export async function fetchSlotTotals(
  * whole book. Read-side mapping keeps that from depending on whether a given
  * account has been migrated yet.
  *
- * 'nut-free' and 'halal' are deliberately absent: the book holds no allergen or
- * certification data, so there is nothing to map them onto. They still pass
- * through as-is, which shows an empty rail rather than quietly dropping a
- * requirement somebody may be relying on.
+ * 'nut-free' now maps onto 'nf', which the book carries after every recipe was
+ * audited for nuts. 'halal' is still deliberately absent: there is no
+ * certification data to map it onto, so it passes through as-is and shows an
+ * empty rail rather than quietly dropping a requirement somebody relies on.
  */
 const LEGACY_DIETARY: Record<string, string> = {
   'gluten-free': 'gf',
   'dairy-free':  'df',
+  'nut-free':    'nf',
 };
 
 export function normaliseDietaryPrefs(stored: string[]): string[] {
