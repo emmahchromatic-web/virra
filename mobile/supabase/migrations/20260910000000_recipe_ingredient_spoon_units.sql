@@ -15,8 +15,8 @@
 -- entry is a mass or a volume, and logRecipe writes one food_entries row for
 -- the whole recipe rather than one per ingredient, so no spoon ever reaches it.
 --
--- 'unit' counts whole things: one red pepper, two eggs. It prints as the bare
--- number, because the food name already says what is being counted.
+-- 'unit' counts whole things: one red pepper, two eggs. The app prints it as
+-- "1x", because the food name already says what is being counted.
 --
 -- Use weights for anything substantial. Spoons are for vanilla, spices, soy
 -- sauce: quantities small enough that the gram figure is noise.
@@ -29,7 +29,8 @@ alter table public.recipe_ingredients add constraint recipe_ingredients_unit_che
 
 comment on column public.recipe_ingredients.unit is
   'How the quantity is written for the cook: g, ml, tsp, tbsp, or unit for '
-  'whole things counted rather than measured. Presentation '
+  'whole things counted rather than measured, which the app prints as "1x". '
+  'Presentation '
   'only. Macros on this row are absolute for the stated quantity, so no unit '
   'here is ever converted or multiplied. Not the same vocabulary as '
   'food_entries.quantity_unit, which is g/ml because a logged entry is a mass.';

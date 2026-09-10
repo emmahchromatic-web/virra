@@ -22,9 +22,9 @@ export type IngredientUnit = FoodUnit | 'tsp' | 'tbsp' | 'unit';
 export const INGREDIENT_UNITS: readonly IngredientUnit[] = ['g', 'ml', 'tsp', 'tbsp', 'unit'];
 
 /**
- * 'unit' counts whole things: one red pepper, two eggs. It prints as the bare
- * number, because the food name already says what is being counted and
- * "1 unit red pepper" is not how anyone writes a recipe.
+ * 'unit' counts whole things: one red pepper, two eggs. It prints as "1x",
+ * which reads as a count rather than a measure and sits in the same column as
+ * "80 g" without looking like a weight that lost its unit.
  */
 export const COUNTED_UNIT: IngredientUnit = 'unit';
 
@@ -121,7 +121,7 @@ export function per100Label(unit: FoodUnit): string {
 /** A quantity rendered with its unit, e.g. "500 ml" / "125 g". */
 export function formatQuantity(quantity: number, unit: IngredientUnit): string {
   const rounded = Math.round(quantity * 10) / 10;
-  // Whole things print as the count alone; the food name carries the noun.
-  if (unit === COUNTED_UNIT) return `${rounded}`;
+  // Whole things print as "1x"; the food name carries the noun.
+  if (unit === COUNTED_UNIT) return `${rounded}x`;
   return `${rounded} ${unit}`;
 }

@@ -140,13 +140,15 @@ describe('toIngredientUnit', () => {
 });
 
 describe('formatQuantity for counted things', () => {
-  it('prints the count alone, with no unit word', () => {
-    expect(formatQuantity(1, 'unit')).toBe('1');
-    expect(formatQuantity(2, 'unit')).toBe('2');
+  // "1x egg" rather than "1 egg": it reads as a count, and it does not look
+  // like a weight whose unit went missing.
+  it('prints the count with an x and no unit word', () => {
+    expect(formatQuantity(1, 'unit')).toBe('1x');
+    expect(formatQuantity(2, 'unit')).toBe('2x');
   });
 
   it('still rounds a scaled count', () => {
-    expect(formatQuantity(1.5, 'unit')).toBe('1.5');
+    expect(formatQuantity(1.5, 'unit')).toBe('1.5x');
   });
 
   it('is kept by toIngredientUnit', () => {
