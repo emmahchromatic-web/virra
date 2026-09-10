@@ -46,6 +46,12 @@ export const FUELLING_MARGIN = 0.10;
 export interface InsightMetrics {
   streakDays:              number;
   weeklyKm:                number;
+  /**
+   * The exact window `weeklyKm` was measured over, as an ISO instant. Passed
+   * to the insight narrative so it describes the same week the tile shows
+   * rather than a window of its own. See `weekStartLocal`.
+   */
+  weekStartISO:            string;
   monthlyKm:               number;
   /** Running km so far this calendar year. */
   yearKm:                  number;
@@ -75,11 +81,35 @@ export function currentPeriodKeys(): { weekKey: string; monthKey: string } {
   return { weekKey: isoWeekKey(), monthKey: monthKey() };
 }
 
+/**
+ * The instant the runner's training week begins: the most recent Monday, at
+ * local midnight.
+ *
+ * Card 260. This is the single definition of "the week" in the app. It used to
+ * be four lines inline in `computeInsightMetrics`, which was fine while the
+ * tiles were the only thing that needed it. They are not: the insight
+ * narrative describes a window too, and when a second surface computed its own
+ * the two disagreed in public. Emma saw 6.1 km called "last week" beside a
+ * tile reading 10.7 km, and both figures were correct about different weeks.
+ *
+ * So it is exported, and `computeInsightMetrics` hands the value it used back
+ * to its caller to pass on. Anything describing the runner's week uses THIS
+ * boundary rather than deriving an equivalent one, because two derivations
+ * that agree today are two derivations that can stop agreeing.
+ *
+ * Local by design. A runner's week starts when Monday starts where they are,
+ * not at 00:00 UTC.
+ */
+export function weekStartLocal(now: Date = new Date()): Date {
+  const start = new Date(now);
+  start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
 export async function computeInsightMetrics(userId: string): Promise<InsightMetrics> {
   const now       = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  weekStart.setHours(0, 0, 0, 0);
+  const weekStart = weekStartLocal(now);
 
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const yearStart  = new Date(now.getFullYear(), 0, 1);
@@ -297,6 +327,7 @@ export async function computeInsightMetrics(userId: string): Promise<InsightMetr
   return {
     streakDays,
     weeklyKm:              Math.round(weeklyKm * 10) / 10,
+    weekStartISO:          weekStart.toISOString(),
     monthlyKm:             Math.round(monthlyKm * 10) / 10,
     yearKm:                Math.round(yearKm * 10) / 10,
     consistencyPct,

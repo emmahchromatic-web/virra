@@ -6,7 +6,7 @@ type CyclePhase  = "menstrual" | "follicular" | "ovulatory" | "luteal";
 
 const VALID_PHASES  = new Set<string>(["menstrual","follicular","ovulatory","luteal"]);
 const JSON_HEADERS  = { "Content-Type": "application/json" };
-const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Never use em-dashes; use full stops, commas or colons instead. The figure adherence_pct_last_28_days covers the last 28 days and NOT the current week: call it "the last 28 days" and never "this week". The figure run_km_last_7_days covers a rolling 7 days ending today. It is NOT a calendar week: call it "the last 7 days" and never "this week" or "last week". The app shows the runner a separate Monday-start weekly total beside your words, and the two are different numbers, so naming a week invites her to compare them and find them contradictory. Current phase context will follow.`;
+const SYSTEM_PROMPT = `You are Virra's training intelligence. You write short, direct, motivating insight for women runners. Two sentences maximum per section. Never use diet culture language. Speak to the runner directly. Never use em-dashes; use full stops, commas or colons instead. The figure adherence_pct_last_28_days covers the last 28 days and NOT the current week: call it "the last 28 days" and never "this week". The figure run_km_last_7_days covers a rolling 7 days ending today. It is NOT a calendar week: call it "the last 7 days" and never "this week" or "last week". The app shows the runner a separate Monday-start weekly total beside your words, and the two are different numbers, so naming a week invites her to compare them and find them contradictory. The figure run_km_this_week appears instead of it when the app has told us where the runner's week begins. That one IS the Monday-start total shown beside your words, the same number she is looking at, so call it "this week". Current phase context will follow.`;
 
 function err(msg: string, status: number): Response {
   return new Response(JSON.stringify({ error: msg }), { status, headers: JSON_HEADERS });
@@ -46,14 +46,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  let body: { insight_type: InsightType; phase?: string; day_of_cycle?: number };
+  let body: { insight_type: InsightType; phase?: string; day_of_cycle?: number; week_start?: string };
   try {
     body = await req.json();
   } catch {
     return err("Invalid JSON", 400);
   }
 
-  const { insight_type, phase, day_of_cycle } = body;
+  const { insight_type, phase, day_of_cycle, week_start } = body;
   if (insight_type !== "dashboard" && insight_type !== "weekly") {
     return err("Invalid insight_type", 400);
   }
@@ -79,6 +79,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
       { headers: JSON_HEADERS },
     );
   }
+
+  /**
+   * Card 260(b). The client sends the exact instant its RUN / WEEK tile was
+   * measured from: the most recent Monday at local midnight, computed by
+   * `weekStartLocal` in insightMetrics.ts.
+   *
+   * We take the boundary rather than a timezone on purpose. Given a timezone
+   * this function would have to derive the local Monday a second time, and a
+   * second derivation of "the week" is exactly the bug being fixed here: the
+   * narrative said 6.1 km "last week" beside a tile reading 10.7 km, and both
+   * were right about different windows. Given the boundary itself there is
+   * nothing to derive and nothing to disagree about.
+   *
+   * Absent or unparseable, we fall back to the rolling 7 days. That is not
+   * politeness: every build already on a phone predates this and sends
+   * nothing, so the fallback is the live path until a new build ships.
+   */
+  const weekStart = (() => {
+    if (typeof week_start !== "string") return null;
+    const t = new Date(week_start);
+    if (Number.isNaN(t.getTime())) return null;
+    // A real Monday-start week begins between zero and seven days ago; the
+    // extra day absorbs timezone offset. Anything outside that is a clock we
+    // cannot trust, and is treated as no clock at all. The bound also has to
+    // stay inside the 14 days of activities fetched below, or the window would
+    // be measured against rows that were never loaded.
+    const ageDays = (Date.now() - t.getTime()) / 86_400_000;
+    return ageDays >= 0 && ageDays <= 8 ? t : null;
+  })();
 
   // --- Aggregate data ---
   const today       = new Date();
@@ -157,8 +186,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Monday-start week; calling a rolling 7 days "this week" is what invited the
   // comparison in the first place.
   const activities  = activitiesRes.data ?? [];
+  const runsFrom    = weekStart ? weekStart.toISOString() : `${past7ISO}T00:00:00Z`;
   const last7Runs   = activities.filter(
-    (a: any) => a.activity_type === "run" && a.started_at >= `${past7ISO}T00:00:00Z`,
+    (a: any) => a.activity_type === "run" && a.started_at >= runsFrom,
   );
 
   // Card 216, second half. One Garmin run can arrive as two overlapping
@@ -199,8 +229,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // the tile beside it labels correctly as LAST 28 DAYS.
     adherence_pct_last_28_days: adherencePct,
     // Key name matters: dataContext is JSON-stringified straight into the
-    // prompt, so this is how the model will describe the number.
-    run_km_last_7_days:  runKmLast7,
+    // prompt, so this is how the model will describe the number. It names the
+    // window it was actually measured over, which is now one of two.
+    ...(weekStart
+      ? { run_km_this_week: runKmLast7 }
+      : { run_km_last_7_days: runKmLast7 }),
     activities_14d:      activities.length,
     upcoming_sessions:   (plannedFutureRes.data ?? []).map((s: any) => ({
       date:     s.scheduled_date,
