@@ -1,5 +1,5 @@
 -- ============================================================================
--- HISTORICAL — APPLIED, AND MUST NOT BE RE-RUN.
+-- HISTORICAL: APPLIED, AND MUST NOT BE RE-RUN.
 --
 -- This migration DELETES before it inserts (delete from programmes where
 -- family = 'get_strong'), so re-running it discards every later edit.

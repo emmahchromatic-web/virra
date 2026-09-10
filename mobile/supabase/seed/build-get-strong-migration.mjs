@@ -36,7 +36,7 @@ const out = [];
 // edited in the admin console (tools/admin) and the database is the source of
 // truth. Regenerating from the sheet would discard every edit made since.
 out.push(`-- ============================================================================`);
-out.push(`-- HISTORICAL — APPLIED, AND MUST NOT BE RE-RUN.`);
+out.push(`-- HISTORICAL: APPLIED, AND MUST NOT BE RE-RUN.`);
 out.push(`--`);
 out.push(`-- This migration DELETES before it inserts (delete from programmes where`);
 out.push(`-- family = 'get_strong'), so re-running it discards every later edit.`);
