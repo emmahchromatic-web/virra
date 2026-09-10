@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block body %}
+  <h1>Content</h1>
+  <p class="sub">Writing to <code>{{ supabase_host }}</code> — production. There is no staging project.</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="label">Recipes</div>
+      <div class="n">{{ recipes | selectattr('is_active') | list | length }}<span style="color:var(--faint);font-size:1rem"> / {{ recipes | length }}</span></div>
+      <div class="label" style="color:var(--muted)">active of total</div>
+    </div>
+    <div class="card">
+      <div class="label">Programmes</div>
+      <div class="n">{{ programmes | selectattr('is_active') | list | length }}<span style="color:var(--faint);font-size:1rem"> / {{ programmes | length }}</span></div>
+      <div class="label" style="color:var(--muted)">active of total</div>
+    </div>
+    <div class="card">
+      <div class="label">Exercise catalogue</div>
+      <div class="n">{{ exercise_count }}</div>
+      <div class="label" style="color:var(--muted)">shared across programmes</div>
+    </div>
+  </div>
+
+  {% if recipe_warnings or programme_warnings %}
+    <h2>Wants attention</h2>
+    {% if recipe_warnings %}
+      <div class="notice" style="margin-bottom:0.8rem">
+        <span class="t">Recipe coverage</span>
+        <ul>{% for warning in recipe_warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+    {% if programme_warnings %}
+      <div class="notice">
+        <span class="t">Programme gaps</span>
+        <ul>{% for warning in programme_warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+  {% else %}
+    <h2>Wants attention</h2>
+    <div class="notice good"><span class="t">All clear</span>
+      <p style="margin:0;font-size:0.9rem;color:var(--muted)">Every meal slot has at least two active recipes, every cycle phase is covered, and no active programme has a variant gap.</p>
+    </div>
+  {% endif %}
+
+  <h2>Snapshot to the repo</h2>
+  <p class="sub" style="margin-bottom:0.9rem">
+    Content is edited here, not in migrations, so the repo keeps a generated snapshot as the record.
+    Export after a batch of edits, then commit <code>mobile/supabase/seeds/content/</code>.
+  </p>
+  <div class="actions">
+    <form class="inline" method="post" action="/export/recipes"><button class="btn" {{ 'disabled' if readonly }}>Export recipes.sql</button></form>
+    <form class="inline" method="post" action="/export/programmes"><button class="btn" {{ 'disabled' if readonly }}>Export programmes.sql</button></form>
+  </div>
+
+  {% if changes %}
+    <h2>Recent changes</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>When</th><th>Action</th><th>Table</th><th>Row</th></tr></thead>
+        <tbody>
+          {% for change in changes %}
+            <tr class="log">
+              <td>{{ change.at.replace('T', ' ').replace('+00:00', '') }}</td>
+              <td><b>{{ change.action }}</b></td>
+              <td>{{ change.table }}</td>
+              <td>{{ change.id }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+
+  <h2>Tables this tool can touch</h2>
+  <p class="sub">{% for table in allowlist %}<code>{{ table }}</code>{{ ', ' if not loop.last }}{% endfor %}<br>
+  Anything user-owned — activities, cycle logs, profiles, food entries — is outside the allowlist and unreachable from here.</p>
+{% endblock %}

@@ -32,6 +32,20 @@ seed.exercises.forEach(([name], i) => {
 });
 
 const out = [];
+// This generator is itself historical: since 2026-09-10 strength programmes are
+// edited in the admin console (tools/admin) and the database is the source of
+// truth. Regenerating from the sheet would discard every edit made since.
+out.push(`-- ============================================================================`);
+out.push(`-- HISTORICAL — APPLIED, AND MUST NOT BE RE-RUN.`);
+out.push(`--`);
+out.push(`-- This migration DELETES before it inserts (delete from programmes where`);
+out.push(`-- family = 'get_strong'), so re-running it discards every later edit.`);
+out.push(`--`);
+out.push(`-- Since 2026-09-10 this content is edited in the admin console (tools/admin)`);
+out.push(`-- and the database is its source of truth. The repo's record is the generated`);
+out.push(`-- snapshot in mobile/supabase/seeds/content/, exported from the console.`);
+out.push(`-- ============================================================================`);
+out.push(``);
 out.push(`-- Get Strong strength programmes: content model + seed.`);
 out.push(`-- GENERATED from supabase/seed/get-strong.json by build-get-strong-migration.mjs — do not edit by hand.`);
 out.push(`-- Source: "VIRRA - Workout Plans v2" sheet (6 programme tabs). ${seed.exercises.length} exercises, ${seed.programmes.length} programmes.`);

@@ -1,3 +1,17 @@
+-- ============================================================================
+-- HISTORICAL — APPLIED, AND MUST NOT BE RE-RUN.
+--
+-- This migration DELETES before it inserts (delete from public.recipes where source = 'virra-teamfit'),
+-- so re-running it discards every later edit to those rows.
+--
+-- Since 2026-09-10 this content is edited in the admin console
+-- (tools/admin) and the database is its source of truth. The repo's record is
+-- the generated snapshot in mobile/supabase/seeds/content/, exported from the
+-- console — not this file.
+--
+-- To rebuild from scratch, run this first and then the snapshot.
+-- ============================================================================
+
 -- Seed: Emma's four #TeamFIT recipes.
 --
 -- Written by her for her own coaching clients, so VIRRA owns what it ships.
