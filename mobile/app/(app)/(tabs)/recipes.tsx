@@ -46,6 +46,7 @@ const DIETARY_OPTIONS: { value: string; label: string }[] = [
   { value: 'pescatarian', label: 'Pescatarian' },
   { value: 'gf',          label: 'Gluten free' },
   { value: 'df',          label: 'Dairy free' },
+  { value: 'nf',          label: 'Nut free' },
 ];
 
 const SLOT_LABEL: Record<MealType, string> = {

@@ -105,6 +105,9 @@ const DIETARY_IMPLIES: Record<string, string[]> = {
   pescatarian: ['pescatarian'],
   gf:          ['gf'],
   df:          ['df'],
+  // Nut free implies nothing and nothing implies it: a vegan recipe is not
+  // therefore nut free, which is the whole reason it needed auditing.
+  nf:          ['nf'],
 };
 
 export function satisfiesDietary(recipeDietary: string[], requires: string[]): boolean {

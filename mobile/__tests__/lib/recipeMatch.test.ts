@@ -211,8 +211,11 @@ describe('normaliseDietaryPrefs', () => {
 
   it('passes through a requirement the book cannot express', () => {
     // Dropping it would silently disable a filter somebody may rely on, so it
-    // stays and the rail comes back empty instead.
-    expect(normaliseDietaryPrefs(['nut-free'])).toEqual(['nut-free']);
+    // stays and the rail comes back empty instead. 'nut-free' used to be the
+    // example here; it now maps onto 'nf', because the book was audited for
+    // nuts. 'halal' has no certification data behind it, so it still cannot be
+    // answered honestly.
+    expect(normaliseDietaryPrefs(['halal'])).toEqual(['halal']);
   });
 
   it('is what stops a legacy value hiding the entire book', () => {
@@ -279,5 +282,59 @@ describe('a covered slot', () => {
   it('breaks ties on id so the rail does not reshuffle between renders', () => {
     const recipes = [r('b', 300), r('a', 300)];
     expect(lightestFirst(recipes, ctx({})).map((x) => x.id)).toEqual(['a', 'b']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nut free
+// ---------------------------------------------------------------------------
+
+describe('the nut free filter', () => {
+  // 'nf' is a positive claim: "audited, contains no nuts". The direction is the
+  // safety property, so these tests are about what happens when a recipe has
+  // NOT been tagged, not just when it has.
+  it('lets an audited recipe through', () => {
+    expect(satisfiesDietary(['nf'], ['nf'])).toBe(true);
+  });
+
+  it('excludes a recipe that was never audited, rather than assuming it is safe', () => {
+    expect(satisfiesDietary([], ['nf'])).toBe(false);
+    expect(satisfiesDietary(['vegan', 'gf'], ['nf'])).toBe(false);
+  });
+
+  it('does not let any other tag imply nut free', () => {
+    // Vegan food is full of nuts. This is the whole reason for the audit.
+    expect(satisfiesDietary(['vegan'], ['nf'])).toBe(false);
+    expect(satisfiesDietary(['gf', 'df', 'vegetarian'], ['nf'])).toBe(false);
+  });
+
+  it('combines with other requirements', () => {
+    expect(satisfiesDietary(['nf', 'gf'], ['nf', 'gf'])).toBe(true);
+    expect(satisfiesDietary(['nf'], ['nf', 'gf'])).toBe(false);
+  });
+
+  it('maps the legacy onboarding value onto it', () => {
+    expect(normaliseDietaryPrefs(['nut-free'])).toEqual(['nf']);
+    // ...and that mapped value now actually filters, which it could not before.
+    expect(satisfiesDietary(['nf'], normaliseDietaryPrefs(['nut-free']))).toBe(true);
+    expect(satisfiesDietary([],     normaliseDietaryPrefs(['nut-free']))).toBe(false);
+  });
+
+  it('still leaves halal unmapped, because there is nothing to map it to', () => {
+    expect(normaliseDietaryPrefs(['halal'])).toEqual(['halal']);
+  });
+
+  it('drops a nut-bearing recipe out of the ranked rail entirely', () => {
+    const ctx = {
+      slot: 'breakfast' as const, phase: null, load: 'easy' as const,
+      remaining: { calories: 500, carbs_g: 60, protein_g: 30, fat_g: 20 },
+      requires: ['nf'],
+    };
+    const mk = (id: string, dietary: string[]) => ({
+      id, meal_types: ['breakfast'], phases: [], loads: [], dietary,
+      calories: 400, carbs_g: 40, protein_g: 20, fat_g: 15,
+    } as unknown as ScorableRecipe);
+    const out = rankRecipes([mk('porridge', []), mk('eggs', ['nf'])], ctx);
+    expect(out.map((r) => r.id)).toEqual(['eggs']);
   });
 });
