@@ -19,6 +19,7 @@ const ICON: Record<PermissionItem['id'], SymbolViewProps['name']> = {
   location:      'location.fill',
   notifications: 'bell.fill',
   camera:        'camera.fill',
+  photos:        'photo.on.rectangle',
 };
 
 const TINT: Record<PermissionItem['id'], string> = {
@@ -26,6 +27,7 @@ const TINT: Record<PermissionItem['id'], string> = {
   location:      colors.breath,
   notifications: colors.dawn,
   camera:        colors.pulse,
+  photos:        colors.dawn,
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -38,6 +40,19 @@ function statusColor(status: string): string {
   if (status === 'granted') return colors.pulse;
   if (status === 'denied')  return colors.heat;
   return colors.muted as string;
+}
+
+/**
+ * What tapping the pill will do, said plainly.
+ *
+ * A granted permission used to say nothing at all, which left the pill looking
+ * decorative on exactly the rows where someone most often wants to go and turn
+ * something off.
+ */
+function actionLabel(entry: PermissionStatusEntry | undefined): string {
+  if (!entry) return '';
+  if (entry.status === 'undetermined' || entry.canAskAgain) return 'TAP TO GRANT';
+  return 'TAP TO OPEN IOS SETTINGS';
 }
 
 export default function PermissionsStatusScreen() {
@@ -74,40 +89,43 @@ export default function PermissionsStatusScreen() {
           const entry = entries.find((e) => e.id === item.id);
           const status = entry?.status ?? 'undetermined';
           return (
-            <Pressable key={item.id} onPress={() => entry && handlePress(item, entry)}>
-              <VirraCard style={styles.card}>
-                <View style={styles.row}>
-                  <View style={[styles.iconWrap, { backgroundColor: `${TINT[item.id]}22` }]}>
-                    <SymbolView name={ICON[item.id]} size={18} tintColor={TINT[item.id]} />
-                  </View>
-                  <View style={styles.titleWrap}>
-                    <VirraText variant="bodyMedium" size={15} color={colors.breath}>
-                      {item.title}
-                    </VirraText>
-                    <VirraText variant="body" size={12} color="rgba(244,237,224,0.55)" style={{ marginTop: 2 }}>
-                      {item.body}
-                    </VirraText>
-                  </View>
-                  <View style={[styles.badge, { borderColor: statusColor(status) }]}>
-                    <VirraText variant="mono" size={11} color={statusColor(status)}>
-                      {STATUS_LABEL[status]}
-                    </VirraText>
-                  </View>
+            <VirraCard key={item.id} style={styles.card}>
+              <View style={styles.row}>
+                <View style={[styles.iconWrap, { backgroundColor: `${TINT[item.id]}22` }]}>
+                  <SymbolView name={ICON[item.id]} size={18} tintColor={TINT[item.id]} />
                 </View>
-                {entry && status !== 'granted' && (
-                  <VirraText variant="mono" size={10} color={colors.pulse} style={styles.action}>
-                    {entry.status === 'undetermined' || entry.canAskAgain ? 'TAP TO GRANT' : 'TAP TO OPEN SETTINGS'}
+                <View style={styles.titleWrap}>
+                  <VirraText variant="bodyMedium" size={15} color={colors.breath}>
+                    {item.title}
                   </VirraText>
-                )}
-                {item.id === 'health' && status === 'granted' && (
-                  <Pressable onPress={() => Linking.openURL('x-apple-health://')}>
-                    <VirraText variant="mono" size={10} color={colors.heat} style={styles.action}>
-                      VIEW IN HEALTH
-                    </VirraText>
-                  </Pressable>
-                )}
-              </VirraCard>
-            </Pressable>
+                  <VirraText variant="body" size={12} color="rgba(244,237,224,0.55)" style={{ marginTop: 2 }}>
+                    {item.body}
+                  </VirraText>
+                </View>
+                {/* The PILL is the control, not the whole card. A card-sized
+                    target with a second Pressable nested inside it meant a tap
+                    could do either of two things depending where it landed,
+                    and neither was signposted. Emma's call from the build 14
+                    regression pass. */}
+                <Pressable
+                  onPress={() => entry && handlePress(item, entry)}
+                  disabled={!entry}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.title} permission, ${STATUS_LABEL[status]}. ${actionLabel(entry)}`}
+                  style={[styles.badge, { borderColor: statusColor(status) }]}
+                >
+                  <VirraText variant="mono" size={11} color={statusColor(status)}>
+                    {STATUS_LABEL[status]}
+                  </VirraText>
+                </Pressable>
+              </View>
+              {entry && (
+                <VirraText variant="mono" size={10} color={colors.muted} style={styles.action}>
+                  {actionLabel(entry)}
+                </VirraText>
+              )}
+            </VirraCard>
           );
         })}
         <VirraText variant="body" size={12} color="rgba(244,237,224,0.4)" style={styles.footnote}>

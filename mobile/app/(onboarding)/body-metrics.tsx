@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable, Switch, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Pressable, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
+import { VirraSwitch } from '@/components/ui/VirraSwitch';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { useAuthStore } from '@/store/auth';
@@ -174,12 +175,9 @@ export default function BodyMetricsScreen() {
               Sharpens your fuelling targets. You&apos;re in control: weight is never shown unless you turn this on.
             </VirraText>
           </View>
-          <Switch
+          <VirraSwitch
             value={trackWeight}
             onValueChange={setTrackWeight}
-            trackColor={{ false: colors.border, true: `${colors.pulse}99` }}
-            thumbColor={trackWeight ? colors.pulse : 'rgba(244,237,224,0.4)'}
-            ios_backgroundColor={colors.border}
           />
         </View>
       </View>

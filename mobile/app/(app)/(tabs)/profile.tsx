@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, SafeAreaView,
-  Pressable, TextInput, Image, Linking, Switch, Share, Platform,
+  Pressable, TextInput, Image, Linking, Share, Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
@@ -18,6 +18,7 @@ import { INJURY_LEVELS, INJURY_LABEL, type InjuryLevel } from '@/lib/injuryLevel
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
+import { VirraSwitch } from '@/components/ui/VirraSwitch';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraModal } from '@/components/ui/VirraModal';
@@ -312,12 +313,25 @@ export default function ProfileScreen() {
     if (!session) return;
     setSaving(true);
     setCycleLength(days);
-    const { error } = await supabase
+    // Resolve the row first, then update by id. `.update().eq(user).order().limit(1)`
+    // reads as "the latest one" and is not: PostgREST applies order and limit to
+    // the returned representation, not to which rows the UPDATE touches, so this
+    // rewrote the cycle length on EVERY log the user had. Changing your current
+    // cycle should not retroactively rewrite the cycles you have already been
+    // through, and every one of those lengths is what phase-stamps the weight
+    // readings recorded during it.
+    const { data: latest } = await supabase
       .from('cycle_logs')
-      .update({ cycle_length_days: days })
+      .select('id')
       .eq('user_id', session.user.id)
       .order('period_start', { ascending: false })
-      .limit(1);
+      .order('created_at',   { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const { error } = latest
+      ? await supabase.from('cycle_logs').update({ cycle_length_days: days }).eq('id', latest.id)
+      : { error: null };
     setSaving(false);
     if (error) appAlert('Could not update', error.message);
   }
@@ -491,12 +505,10 @@ export default function ProfileScreen() {
                     : 'Off. No weight data syncs or displays'}
               </VirraText>
             </View>
-            <Switch
+            <VirraSwitch
               value={trackWeight}
               onValueChange={handleToggleWeight}
               disabled={weightSyncing}
-              trackColor={{ true: colors.pulse, false: colors.border }}
-              thumbColor={colors.breath}
             />
           </View>
           {weightSyncNote && (
@@ -672,19 +684,10 @@ export default function ProfileScreen() {
           <SymbolView name="square.and.arrow.up" size={16} tintColor={colors.pulse} />
         </Pressable>
 
-        {/* Only the accounts that actually exist. Instagram is the one linked
-            from the website footer; inventing handles for the others would put
-            dead links in the app. */}
-        <Pressable
-          style={styles.socialRow}
-          onPress={() => openExternal('https://instagram.com/virrarun')}
-          accessibilityRole="link"
-          accessibilityLabel="Virra on Instagram"
-        >
-          <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-            FOLLOW @VIRRARUN
-          </VirraText>
-        </Pressable>
+        {/* The Instagram link is gone rather than hidden: @virrarun is not an
+            active account, and a link to an empty profile is worse than no
+            link. Put it back when the account is running, alongside the share
+            graphics in card 269. */}
 
         <VirraButton
           label="Sign out"
@@ -1052,7 +1055,6 @@ const styles = StyleSheet.create({
   divider:           { height: 1, backgroundColor: colors.border, marginVertical: 2 },
   sexOption:       { paddingVertical: spacing.md, alignItems: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: colors.control, backgroundColor: colors.mist },
   sexOptionActive: { backgroundColor: colors.pulse, borderColor: colors.pulse },
-  socialRow:    { alignItems: 'center', paddingVertical: spacing.md },
   signout:           { marginTop: spacing.md },
   referCard:         { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.pulse}44`, backgroundColor: 'rgba(212,255,38,0.05)', marginTop: spacing.sm },
   prefRow:           { paddingTop: spacing.xs },
