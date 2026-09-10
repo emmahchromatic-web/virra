@@ -30,7 +30,7 @@ import { RestTimerBar } from '@/components/ui/RestTimerBar';
 import { playRestComplete } from '@/lib/restChime';
 import { parseHoldTarget, formatHold, heldSeconds, holdComplete, type HoldTarget } from '@/lib/timedHold';
 import {
-  startRest, restartRest, restRemainingSeconds, restProgress, shouldChime,
+  startRest, restartRest, restRemainingSeconds, restProgress, shouldChime, restCompleteBody,
   type RestState,
 } from '@/lib/restTimer';
 import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStructure';
@@ -482,7 +482,7 @@ export default function WorkoutPreviewScreen() {
     persistDraft(next, sessionRpe);
     // Ticking a set off starts that movement's authored rest. Unticking a set
     // (correcting a mistap) should not.
-    if (nextDone) beginRest(ex);
+    if (nextDone) beginRest(ex, next);
   }
 
   /**
@@ -513,15 +513,25 @@ export default function WorkoutPreviewScreen() {
     persistDraft(next, sessionRpe);
   }
 
-  function beginRest(ex: LogExercise) {
+  function beginRest(ex: LogExercise, loggedNow: Record<string, LoggedSet[]>) {
     const next = startRest(ex.id, ex.name, ex.rest_seconds, Date.now());
     if (!next) return;   // mobility and activation carry no authored rest
     chimedRef.current = false;
     setRest(next);
     setRestNow(Date.now());
+
+    // Rest starts after EVERY set, the last one included, so the notification
+    // cannot assume another set of the same movement is coming. Work out what
+    // actually follows: another set here, the next exercise, or nothing.
+    const setsLeft   = (loggedNow[ex.id] ?? []).filter((st) => !st.done).length;
+    const idx        = logExercises.findIndex((e) => e.id === ex.id);
+    const upNext     = idx >= 0
+      ? logExercises.slice(idx + 1).find((e) => (loggedNow[e.id] ?? []).some((st) => !st.done)) ?? null
+      : null;
+
     // iOS suspends the JS runtime in the background, so the in-app chime cannot
     // reach someone who has switched away. A scheduled notification can. Card 197.
-    void scheduleRestComplete(ex.name, next.endsAt);
+    void scheduleRestComplete(restCompleteBody(ex.name, setsLeft, upNext?.name ?? null), next.endsAt);
   }
 
   // A set is logged once the user checks it off. (We no longer treat a filled
@@ -893,7 +903,7 @@ export default function WorkoutPreviewScreen() {
                 chimedRef.current = false;
                 const restarted = restartRest(rest, Date.now());
                 setRest(restarted);
-                void scheduleRestComplete(restarted.exerciseName, restarted.endsAt);
+                void scheduleRestComplete(restCompleteBody(restarted.exerciseName, 1, null), restarted.endsAt);
               }}
             />
           )}
