@@ -206,8 +206,20 @@ export function buildVolumeCurve(input: CurveInput): CurveWeek[] {
   const tier  = TIER_LIMITS[input.tier];
   const { rate, maxMultiple } = VOLUME_PRESETS[input.preset];
 
+  // Start where the runner actually is.
+  //
+  // This used to be `max(currentWeeklyKm, tier.floorKm)`, which silently
+  // overrode a volume we knew. A runner doing 5km a week, whose level put them
+  // in the recreational tier, was started at 15km — three times their mileage,
+  // with nothing said about it. The floor exists for runners we know nothing
+  // about, and that is now all it does.
+  //
+  // The consequence is deliberate: a very low starting volume produces a very
+  // small plan, and `planFeasibility` below reports when that plan cannot reach
+  // what its goal demands. A plan that is too small should say so, not quietly
+  // inflate the runner to fit it.
   const startKm = Math.min(
-    Math.max(input.currentWeeklyKm > 0 ? input.currentWeeklyKm : tier.floorKm, tier.floorKm),
+    input.currentWeeklyKm > 0 ? input.currentWeeklyKm : tier.floorKm,
     tier.ceilingKm,
   );
 
@@ -309,4 +321,57 @@ export function buildVolumeCurve(input: CurveInput): CurveWeek[] {
 /** Total distance a curve asks for, which is what the plan preview shows. */
 export function curveTotalKm(curve: CurveWeek[]): number {
   return round1(curve.reduce((sum, w) => sum + w.km, 0));
+}
+
+/**
+ * Whether a plan can actually get the runner to what the goal asks of them.
+ *
+ * The generator will always produce *a* plan. That is not the same as the plan
+ * being suitable: someone running 5km a week, in eight weeks, cannot build to a
+ * long run of the race distance however the curve is drawn. Previously the
+ * starting volume was inflated until the arithmetic worked, which made the plan
+ * look fine and moved the problem onto the runner.
+ *
+ * This reports the gap instead, so the app can say who a plan is for rather
+ * than pretending every plan suits everyone.
+ */
+export interface PlanFeasibility {
+  /** The longest run the plan actually builds to, excluding race day. */
+  longestRunKm:  number;
+  /** What the goal wants the runner to have covered before race day. */
+  targetLongRunKm: number;
+  /** Peak weekly volume the plan reaches. */
+  peakKm:        number;
+  /** True when the plan gets the runner to the goal's long-run target. */
+  reachesTarget: boolean;
+  /**
+   * How far short it falls, in km. Zero when the plan is sufficient. This is
+   * the number worth putting in front of someone before they start.
+   */
+  shortfallKm:   number;
+}
+
+/**
+ * How close to the target counts as reaching it.
+ *
+ * Without a tolerance this flags plans that are fine: a 12-week half that
+ * builds to a 17km long run against an 18km target is a good plan, and warning
+ * about it would teach people to ignore the warning. A quarter short is a real
+ * gap; a twentieth is rounding.
+ */
+export const FEASIBILITY_TOLERANCE = 0.9;
+
+export function planFeasibility(curve: CurveWeek[], goal: RaceDistance): PlanFeasibility {
+  const building = curve.filter((w) => w.kind !== 'race');
+  const longestRunKm = building.length ? Math.max(...building.map((w) => w.longRunKm)) : 0;
+  const peakKm       = curve.length ? Math.max(...curve.map((w) => w.km)) : 0;
+  const targetLongRunKm = GOAL_LONG_TARGET_KM[goal];
+  const shortfall = Math.max(0, targetLongRunKm - longestRunKm);
+  return {
+    longestRunKm:  round1(longestRunKm),
+    targetLongRunKm,
+    peakKm:        round1(peakKm),
+    reachesTarget: longestRunKm >= targetLongRunKm * FEASIBILITY_TOLERANCE,
+    shortfallKm:   round1(shortfall),
+  };
 }
