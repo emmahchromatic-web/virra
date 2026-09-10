@@ -2,7 +2,7 @@ import { supabase } from '@/lib/supabase';
 import type { CyclePhase } from '@/store/cycle';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { MealType } from '@/lib/nutritionLog';
-import type { FoodUnit } from '@/lib/foodUnits';
+import { toIngredientUnit, type IngredientUnit } from '@/lib/foodUnits';
 
 /**
  * Read-path for the recipe book, over the content tables seeded in migration
@@ -49,7 +49,7 @@ export interface RecipeIngredient {
   foodName:      string;
   /** Null for "a pinch" / "to taste". */
   quantity:      number | null;
-  unit:          FoodUnit;
+  unit:          IngredientUnit;
   note:          string | null;
   commonFoodId:  string | null;
   calories:      number | null;
@@ -161,7 +161,7 @@ export async function fetchRecipeDetail(id: string): Promise<RecipeDetail | null
       groupLabel:   r.group_label ?? null,
       foodName:     r.food_name,
       quantity:     num(r.quantity),
-      unit:         (r.unit === 'ml' ? 'ml' : 'g') as FoodUnit,
+      unit:         toIngredientUnit(r.unit),
       note:         r.note ?? null,
       commonFoodId: r.common_food_id ?? null,
       calories:     num(r.calories),
