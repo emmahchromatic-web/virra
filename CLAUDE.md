@@ -56,7 +56,7 @@ Full design reference: `docs/design/virra-mvp-master.html` (open in browser).
 
 | Layer | Choice | Notes |
 |---|---|---|
-| Mobile framework | Expo + expo-router | File-based routing, EAS Build for App Store |
+| Mobile framework | Expo + expo-router | File-based routing. Builds are cut LOCALLY, not on EAS cloud: see [docs/cutting-a-build.md](docs/cutting-a-build.md), and note that `expo prebuild` needs `--clean` or `app.json` changes never reach the app |
 | Backend / DB / auth | Supabase (Postgres + RLS) | Row-level security scoped per user |
 | Subscriptions | RevenueCat | 14-day trial → paid. Apple SBP = 15% cut |
 | Food database | Open Food Facts API | Free, open source, strong UK/global coverage. Barcode scan + food search shipped — replaces Nutritionix entirely. |

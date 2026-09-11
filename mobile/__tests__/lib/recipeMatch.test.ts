@@ -1,7 +1,7 @@
 import {
   SLOT_SHARE, remainingForSlot, satisfiesDietary, macroDistance,
-  scoreRecipe, rankRecipes, recipesForPhase,
-  type ScorableRecipe, type MatchContext,
+  scoreRecipe, rankRecipes, recipesForPhase, slotIsCovered, lightestFirst,
+  type ScorableRecipe, type MatchContext, type MacroSet,
 } from '@/lib/recipeMatch';
 import { normaliseDietaryPrefs } from '@/lib/recipes';
 import type { NutritionTargets } from '@/lib/nutritionTargets';
@@ -211,8 +211,11 @@ describe('normaliseDietaryPrefs', () => {
 
   it('passes through a requirement the book cannot express', () => {
     // Dropping it would silently disable a filter somebody may rely on, so it
-    // stays and the rail comes back empty instead.
-    expect(normaliseDietaryPrefs(['nut-free'])).toEqual(['nut-free']);
+    // stays and the rail comes back empty instead. 'nut-free' used to be the
+    // example here; it now maps onto 'nf', because the book was audited for
+    // nuts. 'halal' has no certification data behind it, so it still cannot be
+    // answered honestly.
+    expect(normaliseDietaryPrefs(['halal'])).toEqual(['halal']);
   });
 
   it('is what stops a legacy value hiding the entire book', () => {
@@ -221,5 +224,117 @@ describe('normaliseDietaryPrefs', () => {
     expect(satisfiesDietary(recipe.dietary, ['dairy-free'])).toBe(false);
     // The fix: mapped first, the same account matches the same recipe.
     expect(satisfiesDietary(recipe.dietary, normaliseDietaryPrefs(['dairy-free']))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A slot that is already covered
+// ---------------------------------------------------------------------------
+
+describe('a covered slot', () => {
+  const ctx = (remaining: Partial<MacroSet>) => ({
+    slot: 'lunch' as const,
+    phase: null,
+    load: 'easy' as const,
+    remaining: { calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0, ...remaining },
+    requires: [] as string[],
+  });
+
+  const r = (id: string, calories: number, extra: Partial<ScorableRecipe> = {}) => ({
+    id,
+    meal_types: ['lunch'] as const,
+    phases: [] as never[],
+    loads: [] as never[],
+    dietary: [] as string[],
+    calories,
+    carbs_g: 0,
+    protein_g: 0,
+    fat_g: 0,
+    ...extra,
+  }) as unknown as ScorableRecipe;
+
+  it('knows when the share is spent', () => {
+    expect(slotIsCovered({ calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 })).toBe(true);
+    expect(slotIsCovered({ calories: 400, carbs_g: 0, protein_g: 0, fat_g: 0 })).toBe(false);
+  });
+
+  it('is why rankRecipes cannot be used there: every score collapses to the same value', () => {
+    const recipes = [r('big', 900), r('small', 100), r('medium', 400)];
+    const scores = recipes.map((x) => scoreRecipe(x, ctx({})));
+    expect(new Set(scores).size).toBe(1);
+  });
+
+  it('orders lightest first instead', () => {
+    const recipes = [r('big', 900), r('small', 100), r('medium', 400)];
+    expect(lightestFirst(recipes, ctx({})).map((x) => x.id)).toEqual(['small', 'medium', 'big']);
+  });
+
+  it('still respects the slot and the dietary filter', () => {
+    const recipes = [
+      r('dinner-only', 50, { meal_types: ['dinner'] }),
+      r('has-dairy',   60),
+      r('df-lunch',    500, { dietary: ['df'] }),
+    ];
+    const out = lightestFirst(recipes, { ...ctx({}), requires: ['df'] });
+    expect(out.map((x) => x.id)).toEqual(['df-lunch']);
+  });
+
+  it('breaks ties on id so the rail does not reshuffle between renders', () => {
+    const recipes = [r('b', 300), r('a', 300)];
+    expect(lightestFirst(recipes, ctx({})).map((x) => x.id)).toEqual(['a', 'b']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nut free
+// ---------------------------------------------------------------------------
+
+describe('the nut free filter', () => {
+  // 'nf' is a positive claim: "audited, contains no nuts". The direction is the
+  // safety property, so these tests are about what happens when a recipe has
+  // NOT been tagged, not just when it has.
+  it('lets an audited recipe through', () => {
+    expect(satisfiesDietary(['nf'], ['nf'])).toBe(true);
+  });
+
+  it('excludes a recipe that was never audited, rather than assuming it is safe', () => {
+    expect(satisfiesDietary([], ['nf'])).toBe(false);
+    expect(satisfiesDietary(['vegan', 'gf'], ['nf'])).toBe(false);
+  });
+
+  it('does not let any other tag imply nut free', () => {
+    // Vegan food is full of nuts. This is the whole reason for the audit.
+    expect(satisfiesDietary(['vegan'], ['nf'])).toBe(false);
+    expect(satisfiesDietary(['gf', 'df', 'vegetarian'], ['nf'])).toBe(false);
+  });
+
+  it('combines with other requirements', () => {
+    expect(satisfiesDietary(['nf', 'gf'], ['nf', 'gf'])).toBe(true);
+    expect(satisfiesDietary(['nf'], ['nf', 'gf'])).toBe(false);
+  });
+
+  it('maps the legacy onboarding value onto it', () => {
+    expect(normaliseDietaryPrefs(['nut-free'])).toEqual(['nf']);
+    // ...and that mapped value now actually filters, which it could not before.
+    expect(satisfiesDietary(['nf'], normaliseDietaryPrefs(['nut-free']))).toBe(true);
+    expect(satisfiesDietary([],     normaliseDietaryPrefs(['nut-free']))).toBe(false);
+  });
+
+  it('still leaves halal unmapped, because there is nothing to map it to', () => {
+    expect(normaliseDietaryPrefs(['halal'])).toEqual(['halal']);
+  });
+
+  it('drops a nut-bearing recipe out of the ranked rail entirely', () => {
+    const ctx = {
+      slot: 'breakfast' as const, phase: null, load: 'easy' as const,
+      remaining: { calories: 500, carbs_g: 60, protein_g: 30, fat_g: 20 },
+      requires: ['nf'],
+    };
+    const mk = (id: string, dietary: string[]) => ({
+      id, meal_types: ['breakfast'], phases: [], loads: [], dietary,
+      calories: 400, carbs_g: 40, protein_g: 20, fat_g: 15,
+    } as unknown as ScorableRecipe);
+    const out = rankRecipes([mk('porridge', []), mk('eggs', ['nf'])], ctx);
+    expect(out.map((r) => r.id)).toEqual(['eggs']);
   });
 });

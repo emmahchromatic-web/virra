@@ -19,10 +19,13 @@ import {
   fetchRecipes, fetchSlotTotals, fetchDietaryPrefs, saveDietaryPrefs,
   fetchFavouriteIds, groupByCollection, searchRecipes, type Recipe,
 } from '@/lib/recipes';
-import { rankRecipes, recipesForPhase, remainingForSlot } from '@/lib/recipeMatch';
+import {
+  rankRecipes, recipesForPhase, remainingForSlot, slotIsCovered, lightestFirst,
+} from '@/lib/recipeMatch';
 import { defaultMealSlot, type MealType } from '@/lib/nutritionLog';
 import { resolveNutritionTargets, buildPersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
+import { RecipeRow, macroLine, timeLine } from '@/components/recipes/RecipeRow';
 
 /**
  * The recipe book. Replaces the holding page left when the education library
@@ -44,6 +47,7 @@ const DIETARY_OPTIONS: { value: string; label: string }[] = [
   { value: 'pescatarian', label: 'Pescatarian' },
   { value: 'gf',          label: 'Gluten free' },
   { value: 'df',          label: 'Dairy free' },
+  { value: 'nf',          label: 'Nut free' },
 ];
 
 const SLOT_LABEL: Record<MealType, string> = {
@@ -53,21 +57,25 @@ const SLOT_LABEL: Record<MealType, string> = {
   snack:     'A SNACK',
 };
 
+// Read as a sentence rather than slotted into the one above: "A SNACK IS
+// COVERED" is not a thing anybody says.
+const SLOT_COVERED_LABEL: Record<MealType, string> = {
+  breakfast: 'BREAKFAST IS COVERED',
+  lunch:     'LUNCH IS COVERED',
+  dinner:    'DINNER IS COVERED',
+  snack:     'SNACKS ARE COVERED',
+};
+
+const SLOT_SHARE_NOUN: Record<MealType, string> = {
+  breakfast: 'breakfast',
+  lunch:     'lunch',
+  dinner:    'dinner',
+  snack:     'snacks',
+};
+
 // ---------------------------------------------------------------------------
 // Cards
 // ---------------------------------------------------------------------------
-
-function macroLine(r: Recipe): string {
-  // Fibre is deliberately absent: it is nullable on the row, and a card is not
-  // the place to explain the difference between "no fibre" and "not known".
-  return `${Math.round(r.calories)} kcal   C${Math.round(r.carbs_g)}  P${Math.round(r.protein_g)}  F${Math.round(r.fat_g)}`;
-}
-
-function timeLine(r: Recipe): string | null {
-  const total = (r.prepMinutes ?? 0) + (r.cookMinutes ?? 0);
-  if (!total) return null;
-  return `${total} MIN`;
-}
 
 /** Wide card used inside the horizontal rails. */
 function RailCard({ recipe }: { recipe: Recipe }) {
@@ -81,7 +89,15 @@ function RailCard({ recipe }: { recipe: Recipe }) {
     >
       <VirraCard>
         <View style={styles.railTop}>
-          <SectionLabel tone="muted">{recipe.collectionLabel}</SectionLabel>
+          {/* The label has to give way, not the time: "Pre-run and race morning"
+              is wider than the card, and left to itself it runs straight into
+              the minutes with no gap. */}
+          <VirraText
+            variant="label" color={colors.muted}
+            numberOfLines={1} style={styles.railMeta}
+          >
+            {recipe.collectionLabel}
+          </VirraText>
           {time && <VirraText variant="mono" size={10} color={colors.muted}>{time}</VirraText>}
         </View>
         {/* Content flows top-down under the meta line so nothing is pushed into
@@ -103,30 +119,6 @@ function RailCard({ recipe }: { recipe: Recipe }) {
             ))}
           </View>
         </View>
-      </VirraCard>
-    </Pressable>
-  );
-}
-
-/** Full-width row used inside the collection lists and search results. */
-function RecipeRow({ recipe }: { recipe: Recipe }) {
-  const time = timeLine(recipe);
-  return (
-    <Pressable
-      onPress={() => router.push(`/(app)/recipe/${recipe.id}` as never)}
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${recipe.name}`}
-    >
-      <VirraCard style={styles.row}>
-        <View style={styles.rowMain}>
-          <VirraText variant="bodyMedium" size={15} color={colors.breath} numberOfLines={2}>
-            {recipe.name}
-          </VirraText>
-          <VirraText variant="mono" size={11} color={colors.muted}>
-            {macroLine(recipe)}{time ? `   ${time}` : ''}
-          </VirraText>
-        </View>
-        <SymbolView name="chevron.right" size={14} tintColor={colors.muted} />
       </VirraCard>
     </Pressable>
   );
@@ -284,7 +276,8 @@ export default function RecipesScreen() {
   const searching = query.trim().length > 0;
   const results   = searchRecipes(recipes, query);
   const phaseRail = recipesForPhase(recipes, phase, ctx);
-  const fitsRail  = rankRecipes(recipes, ctx);
+  const covered   = slotIsCovered(remaining);
+  const fitsRail  = covered ? lightestFirst(recipes, ctx) : rankRecipes(recipes, ctx);
   const groups    = groupByCollection(recipes);
   // Ordered by when they were favourited, which fetchFavouriteIds already does.
   const favourites = favIds
@@ -357,18 +350,46 @@ export default function RecipesScreen() {
 
             <Rail label="FOR YOUR PHASE" recipes={phaseRail} />
 
+            {/* Once the slot is covered the rail cannot answer "what fits what
+                is left", so it changes the question instead of dressing up an
+                order that no longer means anything. The copy promises exactly
+                what `lightestFirst` delivers. */}
             <Rail
-              label={`FITS WHAT IS LEFT FOR ${SLOT_LABEL[slot]}`}
-              hint={`Around ${Math.round(remaining.calories)} kcal and ${Math.round(remaining.protein_g)}g of protein still to go.`}
+              label={covered ? SLOT_COVERED_LABEL[slot] : `FITS WHAT IS LEFT FOR ${SLOT_LABEL[slot]}`}
+              hint={covered
+                ? `Already at your share for ${SLOT_SHARE_NOUN[slot]}. Lightest first, in case you are still hungry.`
+                : `Around ${Math.round(remaining.calories)} kcal and ${Math.round(remaining.protein_g)}g of protein still to go.`}
               recipes={fitsRail.slice(0, 8)}
             />
 
-            {groups.map((g) => (
-              <View key={g.collection} style={styles.section}>
-                <SectionLabel>{g.label}</SectionLabel>
-                {g.recipes.map((r) => <RecipeRow key={r.id} recipe={r} />)}
-              </View>
-            ))}
+            {/* One row per shelf rather than every recipe inline. The old
+                version mounted the whole book in a single un-virtualised
+                scroll, which was already long at twenty-eight recipes and does
+                not survive the recipe packs. The rails above answer "what
+                now"; this answers "show me everything in here". */}
+            <View style={styles.section}>
+              <SectionLabel>COLLECTIONS</SectionLabel>
+              {groups.map((g) => (
+                <Pressable
+                  key={g.collection}
+                  onPress={() => router.push(`/(app)/collection/${g.collection}` as never)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Open ${g.label}, ${g.recipes.length} recipes`}
+                >
+                  <VirraCard style={styles.row}>
+                    <View style={styles.rowMain}>
+                      <VirraText variant="bodyMedium" size={15} color={colors.breath}>
+                        {g.label}
+                      </VirraText>
+                      <VirraText variant="mono" size={11} color={colors.muted}>
+                        {g.recipes.length === 1 ? '1 RECIPE' : `${g.recipes.length} RECIPES`}
+                      </VirraText>
+                    </View>
+                    <SymbolView name="chevron.right" size={14} tintColor={colors.muted} />
+                  </VirraCard>
+                </Pressable>
+              ))}
+            </View>
           </>
         )}
       </ScrollView>
@@ -403,7 +424,9 @@ const styles = StyleSheet.create({
   // the bottom of the card as padding rather than as a gap in the middle.
   railTitle:     { lineHeight: 22 },
   railChips:     { minHeight: 18 },
-  railTop:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  railTop:       { flexDirection: 'row', justifyContent: 'space-between',
+                   alignItems: 'center', gap: spacing.sm },
+  railMeta:      { flex: 1 },
 
   row:     { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   rowMain: { flex: 1, gap: 2 },

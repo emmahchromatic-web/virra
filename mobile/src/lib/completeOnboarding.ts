@@ -183,12 +183,19 @@ export async function completeOnboarding(
   }
 
   if (data.periodStart) {
-    const { error } = await supabase.from('cycle_logs').insert({
-      user_id:           userId,
-      period_start:      data.periodStart.toISOString().split('T')[0],
-      cycle_length_days: data.cycleLength,
-    });
-    if (error) console.error('[onboarding] cycle_logs insert failed:', error);
+    // Upsert for the same reason resetCycleToToday does: onboarding can be
+    // re-run after a failure part-way through, and a plain insert would leave
+    // two rows for one period start, which the store then resolves
+    // non-deterministically.
+    const { error } = await supabase.from('cycle_logs').upsert(
+      {
+        user_id:           userId,
+        period_start:      data.periodStart.toISOString().split('T')[0],
+        cycle_length_days: data.cycleLength,
+      },
+      { onConflict: 'user_id,period_start' },
+    );
+    if (error) console.error('[onboarding] cycle_logs upsert failed:', error);
   }
 
   const { setCycleProfile, setPeriodStart, setHormonalSubData } = useCycleStore.getState();

@@ -364,7 +364,7 @@ export async function cancelTrialReminders(): Promise<void> {
 let restNotificationId: string | null = null;
 
 /** Alert at `endsAt` if the user is elsewhere. Replaces any rest already pending. */
-export async function scheduleRestComplete(exerciseName: string, endsAt: number): Promise<void> {
+export async function scheduleRestComplete(body: string, endsAt: number): Promise<void> {
   await cancelRestComplete();
   const secondsAway = (endsAt - Date.now()) / 1000;
   // Under a couple of seconds there is no point: the user is plainly watching
@@ -374,7 +374,10 @@ export async function scheduleRestComplete(exerciseName: string, endsAt: number)
     restNotificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: 'Rest complete',
-        body:  `Time for your next set of ${exerciseName}.`,
+        // The caller decides what comes next: after the last set of a movement
+        // this must not point back at the movement just finished. See
+        // restCompleteBody.
+        body,
         sound: true,
       },
       trigger: {

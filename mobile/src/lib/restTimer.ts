@@ -64,3 +64,27 @@ export function formatRest(seconds: number): string {
   const s = Math.max(0, Math.floor(seconds));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/**
+ * What the rest-complete notification should say.
+ *
+ * It used to be `Time for your next set of ${exerciseName}` unconditionally,
+ * using the exercise just finished. Rest starts after EVERY completed set,
+ * including the last one, so finishing your third of three box squats produced
+ * "Time for your next set of Barbell Box Squats" and sent you back to a
+ * movement you had finished. Reported by Emma on the build 14 regression pass.
+ *
+ * Pure so the three branches can be tested without a notification permission,
+ * a timer, or a rendered screen.
+ */
+export function restCompleteBody(
+  currentExerciseName: string,
+  setsLeftOnCurrent:   number,
+  nextExerciseName:    string | null,
+): string {
+  if (setsLeftOnCurrent > 0) return `Time for your next set of ${currentExerciseName}.`;
+  if (nextExerciseName)      return `${currentExerciseName} done. Next up: ${nextExerciseName}.`;
+  // Last set of the last exercise. There is no next thing to point at, and
+  // pretending otherwise is how this bug read in the first place.
+  return `${currentExerciseName} done. That is your last set, nice work.`;
+}

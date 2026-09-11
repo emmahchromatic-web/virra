@@ -106,9 +106,18 @@ export const useCycleStore = create<CycleState>((set, get) => ({
     const [cycleRes, profileRes] = await Promise.all([
       supabase
         .from('cycle_logs')
+        // `created_at` is the tiebreaker, not decoration. Nothing stops two
+        // rows sharing a period_start, and Emma's account had exactly that:
+        // 2026-08-15 logged at 28 days, then corrected to 27 three minutes
+        // later. With period_start alone to order by, which cycle length the
+        // app used came down to whatever the planner returned first, so every
+        // phase boundary could move between sessions.
+        //
+        // Newest wins, because the later row is the correction.
         .select('period_start, cycle_length_days')
         .eq('user_id', userId)
         .order('period_start', { ascending: false })
+        .order('created_at',   { ascending: false })
         .limit(1)
         .maybeSingle(),
       supabase

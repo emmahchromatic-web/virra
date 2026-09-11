@@ -1,6 +1,6 @@
 import {
   startRest, restartRest, restRemainingSeconds, restProgress, shouldChime, formatRest,
-} from '@/lib/restTimer';
+ restCompleteBody, } from '@/lib/restTimer';
 
 const T0 = 1_700_000_000_000;
 
@@ -81,5 +81,28 @@ describe('restTimer', () => {
       expect(formatRest(0)).toBe('0:00');
       expect(formatRest(-3)).toBe('0:00');
     });
+  });
+});
+
+describe('restCompleteBody — card from the build 14 regression pass', () => {
+  // Rest starts after EVERY completed set, so the notification used to send you
+  // back to a movement you had just finished: "Time for your next set of
+  // Barbell Box Squats" after the third of three.
+  it('points at the same movement while sets remain', () => {
+    expect(restCompleteBody('Barbell Box Squat', 2, 'Romanian Deadlift'))
+      .toBe('Time for your next set of Barbell Box Squat.');
+  });
+
+  it('points at the NEXT movement once this one is finished', () => {
+    const body = restCompleteBody('Barbell Box Squat', 0, 'Romanian Deadlift');
+    expect(body).toBe('Barbell Box Squat done. Next up: Romanian Deadlift.');
+    expect(body).not.toMatch(/next set of Barbell Box Squat/);
+  });
+
+  it('does not invent a next movement after the last set of the last exercise', () => {
+    const body = restCompleteBody('Romanian Deadlift', 0, null);
+    expect(body).toMatch(/last set/i);
+    expect(body).not.toMatch(/next set/i);
+    expect(body).not.toMatch(/Next up/i);
   });
 });

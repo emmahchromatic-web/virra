@@ -203,13 +203,48 @@ export async function importNewWeightSamples(ctx: ImportContext): Promise<number
     return 0;
   }
 
-  const { error } = await supabase
-    .from('body_weights')
-    .upsert(rows, { onConflict: 'user_id,recorded_on,source', ignoreDuplicates: false });
+  // A NULL phase is the absence of information, never information itself, so it
+  // must not be written over a stamp we already hold.
+  //
+  // This import re-reads a full year whenever the anchor is cleared (which
+  // `enableWeightTracking` does deliberately, so re-enabling refills the chart),
+  // and the upsert UPDATEs every column it is given. A run with no period start
+  // to project from therefore rewrote every existing row's phase to null.
+  //
+  // Found on Emma's account 2026-09-10 after she toggled Apple Health weight
+  // sync off and on: 45 readings in the baseline window, 45 of them null-phased,
+  // 0 follicular. `medianFollicular` needs five, so the baseline nulled and the
+  // screen fell back to CALIBRATING. Her 306 readings were all still there; only
+  // the derived stamp was gone.
+  //
+  // Rows we could stamp are written whole. Rows we could not are written WITHOUT
+  // the phase columns, so PostgREST leaves them out of the ON CONFLICT SET list:
+  // an existing row keeps the phase it has, and a genuinely new row gets the
+  // column default of null.
+  const stamped   = rows.filter((r) => r.cycle_phase_at_time !== null);
+  const unstamped = rows.filter((r) => r.cycle_phase_at_time === null);
 
-  if (error) {
-    console.warn('[healthKitWeight] upsert failed:', error.message);
-    await writeDiag({ ranAt, startDate, bridgeReady: true, error: `upsert: ${error.message}`, samples: samples.length, imported: 0 });
+  const writes: PromiseLike<{ error: { message: string } | null }>[] = [];
+  if (stamped.length) {
+    writes.push(supabase
+      .from('body_weights')
+      .upsert(stamped, { onConflict: 'user_id,recorded_on,source', ignoreDuplicates: false }));
+  }
+  if (unstamped.length) {
+    writes.push(supabase
+      .from('body_weights')
+      .upsert(
+        unstamped.map(({ cycle_day_at_time: _d, cycle_phase_at_time: _p, ...rest }) => rest),
+        { onConflict: 'user_id,recorded_on,source', ignoreDuplicates: false },
+      ));
+  }
+
+  const results = await Promise.all(writes);
+  const failed  = results.find((r) => r.error);
+
+  if (failed?.error) {
+    console.warn('[healthKitWeight] upsert failed:', failed.error.message);
+    await writeDiag({ ranAt, startDate, bridgeReady: true, error: `upsert: ${failed.error.message}`, samples: samples.length, imported: 0 });
     return 0;
   }
 
