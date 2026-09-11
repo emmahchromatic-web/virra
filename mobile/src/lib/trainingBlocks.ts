@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { generateAndSaveSchedule, type SessionSlot, type GenerateContext, type ProgrammeContext } from './scheduleGenerator';
 import { recomputeSeasonForUser } from './seasonEngine';
 import { useCycleStore } from '@/store/cycle';
-import { loadProgrammeSessions, loadProgrammeMeta, variantForPreference } from './getStrongSession';
+import { loadProgrammeSessions, loadProgrammeMeta, variantForPreference, hasEquipmentPreference } from './getStrongSession';
 import { loadRunnerModel } from './runProgramme/runnerModel';
 import { generateRunPlan, phaseForWeek } from './runProgramme/generatePlan';
 import { archetypeForTemplate, raceDistanceFor } from './runProgramme/archetypes';
@@ -283,8 +283,14 @@ export async function addBlock(
       // the authored sessions once so generateSchedule stays synchronous.
       let programme: ProgrammeContext | undefined;
       const programmeId = (tmpl as { programme_id?: string | null }).programme_id ?? null;
-      if (programmeId) {
-        const pref    = (profileRow?.workout_preference as WorkoutPreference | undefined) ?? 'gym_full';
+      // Card 261. `?? 'gym_full'` here decided which authored variant a whole
+      // block was generated against, from a value nobody had supplied. The
+      // enrolment CTA is already disabled until a strength plan has an answer,
+      // so reaching this unset means something bypassed that gate: build from
+      // the template's own sessions rather than silently committing the user to
+      // barbell work for the length of a block.
+      const pref = (profileRow?.workout_preference as WorkoutPreference | null | undefined) ?? null;
+      if (programmeId && hasEquipmentPreference(pref)) {
         const variant = variantForPreference(pref);
         const [sessions, meta] = await Promise.all([
           loadProgrammeSessions(programmeId, variant),

@@ -19,7 +19,7 @@ import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
-import { WORKOUT_PREFERENCE_OPTIONS } from '@/lib/workoutPreference';
+import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -952,26 +952,9 @@ export default function PlanDetailScreen() {
               </VirraCard>
             )}
             {needsEquipment && (
-              <VirraCard style={styles.equipCard}>
-                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.equipLabel}>
-                  WHERE ARE YOU TRAINING?
-                </VirraText>
-                <VirraText variant="body" size={13} color="rgba(244,237,224,0.6)" style={styles.equipSub}>
-                  This programme comes in three versions. Pick the one that matches your kit and we will use it from here on. You can change it in your profile at any time.
-                </VirraText>
-                {WORKOUT_PREFERENCE_OPTIONS.map((opt) => (
-                  <Pressable
-                    key={opt.value}
-                    style={styles.equipOption}
-                    onPress={() => session && saveProfile(session.user.id, { workoutPreference: opt.value })}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${opt.label}. ${opt.sub}`}
-                  >
-                    <VirraText variant="mono" size={13} color={colors.breath}>{opt.label.toUpperCase()}</VirraText>
-                    <VirraText variant="body" size={12} color="rgba(244,237,224,0.45)">{opt.sub}</VirraText>
-                  </Pressable>
-                ))}
-              </VirraCard>
+              <EquipmentChooser
+                onPick={(value) => session && saveProfile(session.user.id, { workoutPreference: value })}
+              />
             )}
             <VirraButton
               label={ctaLabel}
