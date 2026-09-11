@@ -40,6 +40,8 @@ interface PlanTemplate {
   duration_weeks: number;
   description:    string | null;
   sessions_json:  WeekSession[] | null;
+  /** Card 266. Null falls back to reading the archetype out of the name. */
+  archetype_key:  string | null;
 }
 
 /** Just enough of a row to name it and work out what kind of plan it is. */
@@ -47,6 +49,7 @@ interface RunTemplateRef {
   id:            string;
   name:          string;
   distance_goal: string | null;
+  archetype_key: string | null;
 }
 
 const SPORT_LABEL: Record<string, string> = {
@@ -232,7 +235,7 @@ export default function PlanDetailScreen() {
     Promise.all([
       supabase
         .from('plan_templates')
-        .select('id, name, sport_type, distance_goal, duration_weeks, description, sessions_json')
+        .select('id, name, sport_type, distance_goal, duration_weeks, description, sessions_json, archetype_key')
         .eq('id', id)
         .single(),
       supabase
@@ -246,7 +249,7 @@ export default function PlanDetailScreen() {
       loadRunnerModel(session.user.id),
       supabase
         .from('plan_templates')
-        .select('id, name, distance_goal')
+        .select('id, name, distance_goal, archetype_key')
         .eq('sport_type', 'run')
         .eq('is_active', true),
     ]).then(async ([templateRes, planRes, blocks, model, runRes]) => {
@@ -473,6 +476,7 @@ export default function PlanDetailScreen() {
   // must not be allowed to disagree.
   const archetype = React.useMemo(() => (
     isStrength || !plan ? null : archetypeForTemplate({
+      archetypeKey: plan.archetype_key,
       distanceGoal: plan.distance_goal,
       name:         plan.name,
       hasEventDate: raceOpen && Boolean(raceDateObj),
@@ -529,7 +533,7 @@ export default function PlanDetailScreen() {
   const alternativeTemplate = suitability?.alternative
     ? runTemplates.find((t) =>
         t.id !== plan?.id
-        && archetypeForTemplate({ distanceGoal: t.distance_goal, name: t.name }).key
+        && archetypeForTemplate({ archetypeKey: t.archetype_key, distanceGoal: t.distance_goal, name: t.name }).key
            === (suitability.alternative as ArchetypeKey))
       ?? null
     : null;
