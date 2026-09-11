@@ -235,19 +235,24 @@ describe('the recipe detail screen', () => {
 
   it('scales macros and ingredients together when servings change', async () => {
     const { findByLabelText, getByText, queryByText } = render(<RecipeDetailScreen />);
-    fireEvent.press(await findByLabelText('More servings'));   // 1 -> 1.5
-    await waitFor(() => expect(getByText('75 g')).toBeTruthy());
+    // Quarter steps now, per Emma. 50 g x 1.25 = 62.5 g, and 110 kcal x 1.25 =
+    // 137.5, which the tile shows whole as 138.
+    fireEvent.press(await findByLabelText('More servings'));   // 1 -> 1.25
+    await waitFor(() => expect(getByText('62.5 g')).toBeTruthy());
     expect(queryByText('50 g')).toBeNull();
-    expect(getByText('165')).toBeTruthy();                     // 110 kcal x 1.5
+    expect(getByText('138')).toBeTruthy();
   });
 
-  it('will not go below half a serving', async () => {
+  it('will not go below a quarter serving', async () => {
     const { findByLabelText, getByText } = render(<RecipeDetailScreen />);
     const minus = await findByLabelText('Fewer servings');
+    // 1 -> 0.75 -> 0.5 -> 0.25, then a fourth tap that must be refused. Four
+    // presses rather than three, or this would pass without testing the clamp.
     fireEvent.press(minus);
     fireEvent.press(minus);
     fireEvent.press(minus);
-    await waitFor(() => expect(getByText('0.5')).toBeTruthy());
+    fireEvent.press(minus);
+    await waitFor(() => expect(getByText('0.25')).toBeTruthy());
   });
 
   // Null fibre means "not known", and rendering it as 0 would be a claim we
@@ -294,10 +299,10 @@ describe('logging a recipe', () => {
   // one on the button would be the worst possible bug in this screen.
   it('logs the scaled servings, not the recipe as written', async () => {
     const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
-    fireEvent.press(await findByLabelText('More servings'));   // 1 -> 1.5
+    fireEvent.press(await findByLabelText('More servings'));   // 1 -> 1.25
     fireEvent.press(getByLabelText(/^Log this/));
     await waitFor(() =>
-      expect(mockLogRecipe).toHaveBeenCalledWith(expect.objectContaining({ servings: 1.5 })));
+      expect(mockLogRecipe).toHaveBeenCalledWith(expect.objectContaining({ servings: 1.25 })));
   });
 
   it('goes back once the entry is written, and raises nothing', async () => {
@@ -364,16 +369,20 @@ describe('favourites', () => {
     expect(getByLabelText('Save to favourites')).toBeTruthy();
   });
 
-  it('gives saved recipes their own rail on the tab', async () => {
+  // FAVOURITES, matching the heart that puts a recipe there. "Saved" was the
+  // one place in the app that called the same thing something else. Emma,
+  // build 14 regression pass.
+  it('gives favourited recipes their own rail on the tab', async () => {
     mockFetchFavs.mockResolvedValue(['r1']);
-    const { findByText } = render(<RecipesScreen />);
-    expect(await findByText('SAVED')).toBeTruthy();
+    const { findByText, queryByText } = render(<RecipesScreen />);
+    expect(await findByText('FAVOURITES')).toBeTruthy();
+    expect(queryByText('SAVED')).toBeNull();
   });
 
-  it('has no saved rail when nothing is saved', async () => {
+  it('has no favourites rail when nothing is favourited', async () => {
     const { queryByText, findAllByText } = render(<RecipesScreen />);
     await findAllByText('Mini Frittata Bites');
-    expect(queryByText('SAVED')).toBeNull();
+    expect(queryByText('FAVOURITES')).toBeNull();
   });
 });
 

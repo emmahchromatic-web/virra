@@ -29,7 +29,15 @@ export function timeLine(r: Recipe): string | null {
  * renders these itself: collections open their own screen, so the row is shared
  * between two callers.
  */
-export function RecipeRow({ recipe }: { recipe: Recipe }) {
+export function RecipeRow({ recipe, containsQuery }: {
+  recipe:         Recipe;
+  /**
+   * Set when this row matched a search on an INGREDIENT rather than its name,
+   * so the row can say why it is here. A recipe called "Mexican Tray Bake"
+   * appearing for "chipotle" looks like a bad result unless it explains itself.
+   */
+  containsQuery?: string;
+}) {
   const time = timeLine(recipe);
   return (
     <Pressable
@@ -42,6 +50,11 @@ export function RecipeRow({ recipe }: { recipe: Recipe }) {
           <VirraText variant="bodyMedium" size={15} color={colors.breath} numberOfLines={2}>
             {recipe.name}
           </VirraText>
+          {containsQuery ? (
+            <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1 }}>
+              CONTAINS {containsQuery.trim().toUpperCase()}
+            </VirraText>
+          ) : null}
           <VirraText variant="mono" size={11} color={colors.muted}>
             {macroLine(recipe)}{time ? `   ${time}` : ''}
           </VirraText>

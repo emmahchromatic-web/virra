@@ -41,6 +41,12 @@ export interface Recipe {
   protein_g:        number;
   fat_g:            number;
   fibre_g:          number | null;
+  /**
+   * Lowercased ingredient names, used only by search. Optional and empty when
+   * they failed to load: a search that cannot see ingredients should still find
+   * recipes by name, not return nothing.
+   */
+  ingredientNames?: string[];
 }
 
 export interface RecipeIngredient {
@@ -104,18 +110,45 @@ function toRecipe(row: any): Recipe {
 
 /** Every active recipe, in authored order within collection. */
 export async function fetchRecipes(): Promise<Recipe[]> {
-  const { data, error } = await supabase
-    .from('recipes')
-    .select(RECIPE_COLUMNS)
-    .eq('is_active', true)
-    .order('collection')
-    .order('sort_order');
+  // Ingredient names come back in the same round trip, in parallel, because
+  // search needs them and the list type otherwise carries none. One column over
+  // a few hundred rows: far cheaper than a detail fetch per recipe, and it lets
+  // "chipotle" find the Mexican Tray Bake as well as the Chipotle Chicken.
+  const [recipeRes, ingredientRes] = await Promise.all([
+    supabase
+      .from('recipes')
+      .select(RECIPE_COLUMNS)
+      .eq('is_active', true)
+      .order('collection')
+      .order('sort_order'),
+    supabase
+      .from('recipe_ingredients')
+      .select('recipe_id, food_name'),
+  ]);
 
-  if (error) {
-    console.warn('[recipes] fetchRecipes failed:', error.message);
+  if (recipeRes.error) {
+    console.warn('[recipes] fetchRecipes failed:', recipeRes.error.message);
     return [];
   }
-  return (data ?? []).map(toRecipe);
+
+  // A failed ingredient read degrades search to name-only rather than failing
+  // the whole tab. Worse search is a much smaller problem than no recipes.
+  const byRecipe = new Map<string, string[]>();
+  if (!ingredientRes.error) {
+    for (const row of (ingredientRes.data ?? []) as { recipe_id: string; food_name: string | null }[]) {
+      if (!row.food_name) continue;
+      const list = byRecipe.get(row.recipe_id) ?? [];
+      list.push(row.food_name.toLowerCase());
+      byRecipe.set(row.recipe_id, list);
+    }
+  } else {
+    console.warn('[recipes] ingredient names failed, search is name-only:', ingredientRes.error.message);
+  }
+
+  return (recipeRes.data ?? []).map((row) => {
+    const recipe = toRecipe(row);
+    return { ...recipe, ingredientNames: byRecipe.get(recipe.id) ?? [] };
+  });
 }
 
 /**
@@ -206,6 +239,38 @@ export function scaleServings(
  * recipe entries: nobody weighed the finished dish, and inventing a gram
  * figure would be a fiction the rest of the food log does not tell.
  */
+/**
+ * Servings move in quarters.
+ *
+ * Emma, build 14 regression pass: servings should go up in 0.25 increments.
+ * The stepper used to move in halves and rounded every result to ONE decimal,
+ * so a quarter step would not have survived its own arithmetic: 1 - 0.25 is
+ * 0.75, and `Math.round(7.5) / 10` gives 0.8. After two taps the value would
+ * have drifted off the quarter grid for good.
+ *
+ * So the step snaps to the nearest quarter rather than to a decimal place. That
+ * is also immune to float drift, since 0.1 + 0.2 style error can never
+ * accumulate across taps when every result is re-snapped to the grid.
+ */
+export const SERVINGS_STEP = 0.25;
+export const MIN_SERVINGS  = 0.25;
+export const MAX_SERVINGS  = 12;
+
+export function stepServings(current: number, direction: 1 | -1): number {
+  const next    = current + direction * SERVINGS_STEP;
+  const snapped = Math.round(next / SERVINGS_STEP) * SERVINGS_STEP;
+  return Math.min(MAX_SERVINGS, Math.max(MIN_SERVINGS, snapped));
+}
+
+/**
+ * "0.25", "0.5", "1", "1.75": as many decimals as the value needs and no more.
+ * `toFixed(1)` rendered 0.25 as "0.3" and 1.75 as "1.8", which would have shown
+ * a number the macros were not calculated for.
+ */
+export function formatServings(n: number): string {
+  return `${Math.round(n * 100) / 100}`;
+}
+
 export function recipeEntryName(name: string, servings: number): string {
   const rounded = Math.round(servings * 100) / 100;
   return `${name} (${rounded} ${rounded === 1 ? 'serving' : 'servings'})`;
@@ -363,12 +428,44 @@ export function groupByCollection(recipes: Recipe[]): { collection: string; labe
 }
 
 /** Case- and accent-insensitive name search, matching on any word prefix. */
-export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
+/** Why a recipe matched a search, so the result can say so. */
+export type RecipeMatch = 'title' | 'ingredient';
+
+/**
+ * Recipes matching a search, title matches first, then ingredient matches.
+ *
+ * Emma, build 14 regression pass: searching "chipotle" should return Chipotle
+ * Chicken because it is in the title AND the Mexican Tray Bake because chipotle
+ * is in it. Search used to read the name and the collection label only, so a
+ * recipe was invisible to a search for what was actually in it.
+ *
+ * Title matches rank first because they are almost always what someone typing
+ * a dish name means. The collection label counts as a title match: searching
+ * "breakfast" should surface the breakfast collection before a recipe that
+ * happens to list a breakfast cereal.
+ */
+export function searchRecipesRanked(
+  recipes: Recipe[],
+  query:   string,
+): { recipe: Recipe; match: RecipeMatch }[] {
   const q = query.trim().toLowerCase();
-  if (!q) return recipes;
-  return recipes.filter((r) =>
-    r.name.toLowerCase().includes(q) ||
-    r.collectionLabel.toLowerCase().includes(q));
+  if (!q) return recipes.map((recipe) => ({ recipe, match: 'title' as const }));
+
+  const titled:  { recipe: Recipe; match: RecipeMatch }[] = [];
+  const inside:  { recipe: Recipe; match: RecipeMatch }[] = [];
+  for (const recipe of recipes) {
+    if (recipe.name.toLowerCase().includes(q) || recipe.collectionLabel.toLowerCase().includes(q)) {
+      titled.push({ recipe, match: 'title' });
+    } else if ((recipe.ingredientNames ?? []).some((name) => name.includes(q))) {
+      inside.push({ recipe, match: 'ingredient' });
+    }
+  }
+  return [...titled, ...inside];
+}
+
+/** Flat form of searchRecipesRanked, for callers that only need the order. */
+export function searchRecipes(recipes: Recipe[], query: string): Recipe[] {
+  return searchRecipesRanked(recipes, query).map((m) => m.recipe);
 }
 
 // ---------------------------------------------------------------------------

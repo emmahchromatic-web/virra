@@ -17,7 +17,7 @@ import { useCycleStore } from '@/store/cycle';
 import { useProfileStore, personalMetricsFields } from '@/store/profile';
 import {
   fetchRecipes, fetchSlotTotals, fetchDietaryPrefs, saveDietaryPrefs,
-  fetchFavouriteIds, groupByCollection, searchRecipes, type Recipe,
+  fetchFavouriteIds, groupByCollection, searchRecipesRanked, type Recipe,
 } from '@/lib/recipes';
 import {
   rankRecipes, recipesForPhase, remainingForSlot, slotIsCovered, lightestFirst,
@@ -274,7 +274,7 @@ export default function RecipesScreen() {
   const ctx       = { slot, phase, load, remaining, requires: prefs };
 
   const searching = query.trim().length > 0;
-  const results   = searchRecipes(recipes, query);
+  const results   = searchRecipesRanked(recipes, query);
   const phaseRail = recipesForPhase(recipes, phase, ctx);
   const covered   = slotIsCovered(remaining);
   const fitsRail  = covered ? lightestFirst(recipes, ctx) : rankRecipes(recipes, ctx);
@@ -333,7 +333,13 @@ export default function RecipesScreen() {
         {!loading && recipes.length > 0 && searching && (
           <View style={styles.section}>
             <SectionLabel>{results.length === 1 ? '1 RECIPE' : `${results.length} RECIPES`}</SectionLabel>
-            {results.map((r) => <RecipeRow key={r.id} recipe={r} />)}
+            {results.map(({ recipe, match }) => (
+              <RecipeRow
+                key={recipe.id}
+                recipe={recipe}
+                containsQuery={match === 'ingredient' ? query : undefined}
+              />
+            ))}
             {results.length === 0 && (
               <VirraText variant="body" size={14} color={colors.muted} style={styles.hint}>
                 Nothing matches that. Try a shorter word.
@@ -346,7 +352,10 @@ export default function RecipesScreen() {
           <>
             {askDiet && <DietaryPrompt onDone={handleDietaryDone} />}
 
-            <Rail label="SAVED" recipes={favourites} />
+            {/* FAVOURITES, matching the heart that puts a recipe here and
+                every name the code uses for it. "Saved" was the one place
+                that called the same thing something else. */}
+            <Rail label="FAVOURITES" recipes={favourites} />
 
             <Rail label="FOR YOUR PHASE" recipes={phaseRail} />
 
