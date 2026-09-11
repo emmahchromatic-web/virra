@@ -105,9 +105,15 @@ jest.mock('@/lib/supabase', () => {
   const mockUpdateEq     = jest.fn().mockResolvedValue({ data: null, error: null });
   const mockUpsert       = jest.fn().mockResolvedValue({ data: null, error: null });
   const mockDeleteEq     = jest.fn().mockResolvedValue({ data: null, error: null });
-  const mockSelect = jest.fn(() => ({
-    eq: jest.fn(() => ({ single: mockSelectSingle, maybeSingle: mockMaybeSingle })),
-  }));
+  // .eq() has to be chainable: the screen filters symptom_logs on user AND
+  // date, and a mock that only supports one .eq() made a two-filter query look
+  // like a product bug.
+  const eqResult: () => Record<string, unknown> = () => ({
+    eq:          jest.fn(eqResult),
+    single:      mockSelectSingle,
+    maybeSingle: mockMaybeSingle,
+  });
+  const mockSelect = jest.fn(() => ({ eq: jest.fn(eqResult) }));
   const inserts: Record<string, unknown[]> = {};
   const from = jest.fn((table: string) => ({
     select: mockSelect,

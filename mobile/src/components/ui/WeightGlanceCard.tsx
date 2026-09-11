@@ -22,11 +22,21 @@ interface Props {
 
 // Generic phase-aware copy used when there isn't yet a reading + baseline to
 // contextualise. This replaces the standalone WHAT TO EXPECT card.
+//
+// These run in exactly the situations where we CANNOT say where the user sits:
+// no reading at all, or a reading with no baseline to measure it against. So
+// they describe the phase, and never predict her number.
+//
+// "Expect a 1-2 kg lift before your period" broke that rule, and Emma read it
+// on the build 14 regression pass while sitting BELOW her baseline. Telling
+// someone to expect a rise, and reassuring her it is only water, is worse than
+// useless when the number in front of her has gone the other way. The fact is
+// still worth teaching; it just is not a forecast about today.
 const PHASE_EXPECTATION: Record<CyclePhase, string> = {
-  menstrual:  'Bleed days often show your lowest read of the cycle as water levels reset.',
-  follicular: 'Follicular days are your steadiest baseline: energy rises and weight tends to hold.',
-  ovulatory:  'A small lift around ovulation is normal. Hormones drive a brief water rise.',
-  luteal:     'Expect a 1–2 kg lift before your period. This is water retention, not fat gain.',
+  menstrual:  'Bleed days often show the lowest read of the cycle as water levels reset.',
+  follicular: 'Follicular days are the steadiest stretch: energy rises and weight tends to hold.',
+  ovulatory:  'A small lift around ovulation is common. Hormones drive a brief water rise.',
+  luteal:     'Many women hold 1 to 2 kg of extra water in the days before a period. It is water, not fat, and it clears when bleeding starts.',
 };
 
 const IN_BAND: Record<CyclePhase, string> = {

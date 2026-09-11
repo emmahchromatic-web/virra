@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Pressable, Switch, StyleSheet, SafeAreaView } from 'react-native';
+import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { getUnitSystem, setUnitSystem, type UnitSystem } from '@/lib/units';
@@ -13,6 +13,7 @@ import {
 import { getPermissionsStatus } from '@/lib/permissionsConfig';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
+import { VirraSwitch } from '@/components/ui/VirraSwitch';
 import { VirraCard } from '@/components/ui/VirraCard';
 
 const NOTIF_ROWS: { slot: NotifSlot; label: string; sublabel: string }[] = [
@@ -78,12 +79,9 @@ export default function SettingsScreen() {
                     {item.sublabel}
                   </VirraText>
                 </View>
-                <Switch
+                <VirraSwitch
                   value={notifPrefs[item.slot]}
                   onValueChange={(v) => handleNotifToggle(item.slot, v)}
-                  trackColor={{ false: colors.border, true: `${colors.pulse}99` }}
-                  thumbColor={notifPrefs[item.slot] ? colors.pulse : 'rgba(244,237,224,0.4)'}
-                  ios_backgroundColor={colors.border}
                 />
               </View>
             </React.Fragment>

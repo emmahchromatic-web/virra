@@ -41,12 +41,19 @@ const MIN_SERVINGS = 0.5;
 const MAX_SERVINGS = 12;
 const STEP         = 0.5;
 
-function MacroTile({ label, value, unit }: { label: string; value: number | null; unit: string }) {
+function MacroTile(
+  { label, value, unit, dp = 1 }:
+  { label: string; value: number | null; unit: string; dp?: 0 | 1 },
+) {
   return (
     <View style={styles.macroTile}>
       <VirraText variant="display" size={20} color={colors.breath}>
-        {/* Null fibre is unknown, not zero, and a dash says so honestly. */}
-        {value === null ? '-' : `${Math.round(value * 10) / 10}`}
+        {/* Null fibre is unknown, not zero, and a dash says so honestly.
+            Calories are shown whole: nobody eats half a kilocalorie, and a
+            figure like 382.5 claims a precision the underlying data does not
+            have. Grams keep a decimal, where 12.5 g of protein is a real
+            difference from 12 g. */}
+        {value === null ? '-' : `${Math.round(value * 10 ** dp) / 10 ** dp}`}
       </VirraText>
       <VirraText variant="mono" size={9} color={colors.muted}>{label}</VirraText>
       <VirraText variant="mono" size={9} color={colors.muted}>{unit}</VirraText>
@@ -268,7 +275,7 @@ export default function RecipeDetailScreen() {
             </View>
 
             <View style={styles.macros}>
-              <MacroTile label="KCAL"    unit=""  value={scaled.calories} />
+              <MacroTile label="KCAL"    unit=""  value={scaled.calories} dp={0} />
               <MacroTile label="CARBS"   unit="G" value={scaled.carbs_g} />
               <MacroTile label="PROTEIN" unit="G" value={scaled.protein_g} />
               <MacroTile label="FAT"     unit="G" value={scaled.fat_g} />

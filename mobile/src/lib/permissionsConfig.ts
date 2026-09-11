@@ -1,12 +1,13 @@
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { Camera } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PERMISSIONS_GRANTED_KEY = 'permissions_granted_v1';
 
 export interface PermissionItem {
-  id:       'health' | 'location' | 'notifications' | 'camera';
+  id:       'health' | 'location' | 'notifications' | 'camera' | 'photos';
   label:    string;
   title:    string;
   headline: string;
@@ -27,8 +28,8 @@ export const PERMISSIONS: readonly PermissionItem[] = [
   },
   {
     id:       'location',
-    label:    'GPS + LOCATION',
-    title:    'GPS',
+    label:    'LOCATION',
+    title:    'Location',
     headline: 'Track every run, automatically.',
     body:     'Virra uses GPS to map routes, measure pace in real time, and log splits. The screen can lock during a run; Virra keeps recording in the background until you tap Finish.',
     why:      "We ask for When in Use only, never Always. Location is only collected during an active run.",
@@ -45,11 +46,20 @@ export const PERMISSIONS: readonly PermissionItem[] = [
   },
   {
     id:       'camera',
-    label:    'BARCODE SCANNER',
-    title:    'Barcode',
+    label:    'CAMERA',
+    title:    'Camera',
     headline: 'Log food in seconds.',
     body:     'Scan any barcode to log food instantly, with no typing and no searching.',
     why:      'You can always add this later in Settings. It only affects barcode scanning.',
+    optional: true,
+  },
+  {
+    id:       'photos',
+    label:    'PHOTOS',
+    title:    'Photos',
+    headline: 'Put a face to your profile.',
+    body:     'Virra opens your photo library so you can pick a profile picture.',
+    why:      'We only read the single image you choose. Virra never browses your library, and the photo is stored against your profile alone.',
     optional: true,
   },
 ] as const;
@@ -123,6 +133,12 @@ export async function requestPermission(id: PermissionItem['id']): Promise<void>
     case 'camera':
       await Camera.requestCameraPermissionsAsync();
       break;
+    case 'photos':
+      // Onboarding has always opened the library to pick an avatar, so the
+      // permission has always been asked for. It just was not listed here,
+      // which made the screen an incomplete answer to "what has Virra got?".
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+      break;
   }
 }
 
@@ -163,11 +179,12 @@ export interface PermissionStatusEntry {
 // We treat the AsyncStorage flag as our best signal that HK was granted; the user
 // can manage individual data types in the Health app.
 export async function getPermissionsStatus(): Promise<PermissionStatusEntry[]> {
-  const [healthFlag, locRes, notifRes, camRes] = await Promise.all([
+  const [healthFlag, locRes, notifRes, camRes, photoRes] = await Promise.all([
     hasPermissionsBeenGranted(),
     Location.getForegroundPermissionsAsync(),
     Notifications.getPermissionsAsync(),
     Camera.getCameraPermissionsAsync(),
+    ImagePicker.getMediaLibraryPermissionsAsync(),
   ]);
 
   const notifGranted =
@@ -180,5 +197,6 @@ export async function getPermissionsStatus(): Promise<PermissionStatusEntry[]> {
     { id: 'location',      status: locRes.status as PermissionStatusValue,   canAskAgain: locRes.canAskAgain ?? false },
     { id: 'notifications', status: notifGranted ? 'granted' : (notifRes.status as PermissionStatusValue), canAskAgain: notifRes.canAskAgain ?? false },
     { id: 'camera',        status: camRes.status as PermissionStatusValue,   canAskAgain: camRes.canAskAgain ?? false },
+    { id: 'photos',        status: photoRes.status as PermissionStatusValue, canAskAgain: photoRes.canAskAgain ?? false },
   ];
 }

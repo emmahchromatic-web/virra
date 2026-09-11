@@ -105,6 +105,9 @@ const DIETARY_IMPLIES: Record<string, string[]> = {
   pescatarian: ['pescatarian'],
   gf:          ['gf'],
   df:          ['df'],
+  // Nut free implies nothing and nothing implies it: a vegan recipe is not
+  // therefore nut free, which is the whole reason it needed auditing.
+  nf:          ['nf'],
 };
 
 export function satisfiesDietary(recipeDietary: string[], requires: string[]): boolean {
@@ -169,10 +172,33 @@ export function scoreRecipe(recipe: ScorableRecipe, ctx: MatchContext): number |
 }
 
 /**
+ * Is this slot's calorie share already spent?
+ *
+ * `remainingForSlot` clamps at zero, so "covered" and "overshot" are the same
+ * state here, which is the right call: both answer the user's question the
+ * same way.
+ */
+export function slotIsCovered(remaining: MacroSet): boolean {
+  return remaining.calories <= 0;
+}
+
+/** Recipes that can be eaten in this slot at all, before any ordering. */
+function eligible<T extends ScorableRecipe>(recipes: T[], ctx: MatchContext): T[] {
+  return recipes.filter((r) =>
+    r.meal_types.includes(ctx.slot) && satisfiesDietary(r.dietary, ctx.requires ?? []));
+}
+
+/**
  * Rank recipes for the "fits what's left today" rail.
  *
  * Ties break on id so the rail is stable between renders; an unstable order on
  * a screen the user is reading is worse than a slightly arbitrary one.
+ *
+ * Once the slot is covered this ordering stops meaning anything: `axisDistance`
+ * returns the same maximum for every recipe with calories in it, so the scores
+ * collapse and what is left is the phase and load bonuses breaking ties on id.
+ * The rail would still look ranked. Use `lightestFirst` there instead, and say
+ * so in the copy: see the Recipes tab.
  */
 export function rankRecipes<T extends ScorableRecipe>(recipes: T[], ctx: MatchContext): T[] {
   return recipes
@@ -180,6 +206,20 @@ export function rankRecipes<T extends ScorableRecipe>(recipes: T[], ctx: MatchCo
     .filter((r): r is { recipe: T; score: number } => r.score !== null)
     .sort((a, b) => (b.score - a.score) || a.recipe.id.localeCompare(b.recipe.id))
     .map((r) => r.recipe);
+}
+
+/**
+ * Ordering for a slot whose share is already spent: smallest first.
+ *
+ * "Closest to what is left" has no answer when nothing is left, so the rail
+ * changes the question rather than pretending to answer the old one. Someone
+ * who has covered lunch and is still hungry wants the smallest thing that will
+ * do, so that is what the rail offers and what its copy promises.
+ */
+export function lightestFirst<T extends ScorableRecipe>(recipes: T[], ctx: MatchContext): T[] {
+  return eligible(recipes, ctx)
+    .slice()
+    .sort((a, b) => (a.calories - b.calories) || a.id.localeCompare(b.id));
 }
 
 /**

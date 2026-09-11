@@ -1,0 +1,29 @@
+-- Drop public.insight_cache, the older SINGULAR insight-cache table.
+--
+-- Not to be confused with public.insights_cache (plural, migration 009), which
+-- is live: it is what generate-insights reads and writes, and it stays.
+--
+-- The singular table was created directly in the dashboard for the original
+-- `generate-insight` function from the May phase-D plan. That function was
+-- superseded by `generate-insights`, and was deleted from the repo and undeployed
+-- in card 263. It was the only reader and writer this table ever had, so nothing
+-- has touched it since.
+--
+-- Verified in production before writing this, rather than assumed:
+--   rows                        0
+--   distinct users              0
+--   newest row                  none
+--   constraints POINTING at it  none
+--   views / rules depending     none
+--   triggers                    none
+--
+-- So there is no data to lose and nothing to break. Worth recording that the
+-- caution was misplaced: this was flagged as risky because migration
+-- 20260810000000 exists precisely to fix its foreign key blocking account
+-- deletion in build 7, which made it look load-bearing. Checking showed the
+-- opposite, and dropping it removes that failure mode permanently rather than
+-- leaving a cascade rule guarding an empty table.
+--
+-- `restrict` rather than `cascade`: if anything unexpectedly does depend on this,
+-- the migration should fail loudly instead of quietly taking the dependant with it.
+drop table if exists public.insight_cache restrict;
