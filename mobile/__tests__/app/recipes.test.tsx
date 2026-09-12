@@ -187,6 +187,17 @@ describe('the Recipes tab', () => {
       expect(queryByText('Anything you do not eat?')).toBeNull();
     });
 
+    // Nut free is the newest option and the only one backed by an audit, so it
+    // is worth pinning that it is actually offered: the prompt shows once per
+    // install, which makes a missing chip easy to miss by hand.
+    it('offers nut free, and stores it in the book vocabulary', async () => {
+      const { findByText, getByLabelText } = render(<RecipesScreen />);
+      await findByText('Anything you do not eat?');
+      fireEvent.press(getByLabelText('Nut free'));
+      fireEvent.press(getByLabelText('Save'));
+      await waitFor(() => expect(mockSavePrefs).toHaveBeenCalledWith('u1', ['nf']));
+    });
+
     it('saves what was picked', async () => {
       const { findByText, getByLabelText } = render(<RecipesScreen />);
       await findByText('Anything you do not eat?');
