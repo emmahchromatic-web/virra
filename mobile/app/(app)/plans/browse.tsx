@@ -9,6 +9,7 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
 import { entryCriteria } from '@/lib/runProgramme/suitability';
+import { useAuthStore } from '@/store/auth';
 
 interface PlanTemplate {
   id:             string;
@@ -42,6 +43,10 @@ export default function BrowsePlansScreen() {
   const [templates, setTemplates] = useState<PlanTemplate[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [modality,  setModality]  = useState<string | null>(null);
+  // Card 256. The switch-plan loop started here: nothing on this screen said
+  // which plan you were already on, so picking it again looked like a choice.
+  const [activeIds, setActiveIds] = useState<string[]>([]);
+  const { session } = useAuthStore();
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +65,24 @@ export default function BrowsePlansScreen() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('user_plans')
+        .select('template_id')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true);
+      if (!cancelled) {
+        setActiveIds(((data ?? []) as { template_id: string | null }[])
+          .map((r) => r.template_id)
+          .filter(Boolean) as string[]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session]);
 
   // Remembered rather than reset each visit: someone browsing strength plans is
   // usually still browsing strength plans the next time they open this.
@@ -125,7 +148,7 @@ export default function BrowsePlansScreen() {
         )}
         <View style={styles.templateList}>
           {visible.map((t) => (
-            <TemplateCard key={t.id} template={t} />
+            <TemplateCard key={t.id} template={t} isActive={activeIds.includes(t.id)} />
           ))}
           {templates.length === 0 && !loading && (
             <VirraText variant="body" color={colors.muted}>No plans available yet.</VirraText>
@@ -136,7 +159,7 @@ export default function BrowsePlansScreen() {
   );
 }
 
-function TemplateCard({ template }: { template: PlanTemplate }) {
+function TemplateCard({ template, isActive }: { template: PlanTemplate; isActive: boolean }) {
   // Card 257. A run plan says who it is for on the card, not only once you
   // have opened it: the whole problem was picking the wrong plan, and by the
   // detail screen the pick has already been made.
@@ -158,6 +181,14 @@ function TemplateCard({ template }: { template: PlanTemplate }) {
             <VirraText variant="bodyMedium" size={16} color={colors.breath} style={{ marginTop: 4 }}>
               {template.name}
             </VirraText>
+            {isActive && (
+              <View style={styles.onThisPlan}>
+                <SymbolView name="checkmark.circle.fill" size={11} tintColor={colors.pulse} />
+                <VirraText variant="mono" size={10} color={colors.pulse}>
+                  YOU ARE ON THIS PLAN
+                </VirraText>
+              </View>
+            )}
             {template.tagline && (
               <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={{ marginTop: 4, lineHeight: 18 }}>
                 {template.tagline}
@@ -197,4 +228,5 @@ const styles = StyleSheet.create({
   templateHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   templateRight:  { alignItems: 'flex-end', gap: 4 },
   forWhom:        { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: spacing.sm },
+  onThisPlan:     { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
 });
