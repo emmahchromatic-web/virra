@@ -14,6 +14,7 @@ import type { DayDetail, SessionDetail, RunSessionDetail, StrengthSessionDetail,
 import { isStrengthV2 } from '@/lib/workoutStructure';
 import { useCycleStore } from '@/store/cycle';
 import { useSessionStore } from '@/store/sessionStore';
+import { sessionLabelText, sessionLabelUpper } from '@/lib/sessionLabels';
 
 interface Props {
   visible:    boolean;
@@ -143,7 +144,7 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
   }
 
   function renderSessionCard(s: SessionDetail, i: number) {
-    const label = s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1);
+    const label = sessionLabelText(s.session_label);
     const isRun = s.kind === 'run';
     const r     = s as RunSessionDetail;
 
@@ -169,8 +170,8 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
           : r.distance_km)
       : 0;
     const workoutTypeLabel = isRun && r.modulated_structure
-      ? r.modulated_structure.workout_type.replace('_', ' ').toUpperCase()
-      : s.session_label.toUpperCase();
+      ? sessionLabelUpper(r.modulated_structure.workout_type)
+      : sessionLabelUpper(s.session_label);
 
     return (
       <View key={s.planned_session_id} style={[modal.card, i > 0 && modal.cardBorder]}>

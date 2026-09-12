@@ -4,6 +4,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
+import { sessionLabelText } from '@/lib/sessionLabels';
 
 // Soft require: existing dev builds without expo-haptics still load.
 // Haptics start firing once a fresh native build ships.
@@ -117,7 +118,7 @@ export function DraggableSessionCard({ session, onLongPress, onPanUpdate, onPanE
         <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[session.modality] }]} />
         <View style={styles.body}>
           <VirraText variant="bodyMedium" size={14} color={colors.breath} numberOfLines={1}>
-            {session.session_label}
+            {sessionLabelText(session.session_label)}
           </VirraText>
           <View style={styles.meta}>
             <SymbolView name={MODALITY_ICON[session.modality]} size={11} tintColor={colors.muted} />
@@ -142,7 +143,7 @@ export function SessionCardGhost({ modality, session_label }: GhostProps) {
       <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[modality] }]} />
       <View style={styles.body}>
         <VirraText variant="bodyMedium" size={14} color={colors.breath} numberOfLines={1}>
-          {session_label}
+          {sessionLabelText(session_label)}
         </VirraText>
         <View style={styles.meta}>
           <SymbolView name={MODALITY_ICON[modality]} size={11} tintColor={colors.muted} />
@@ -163,7 +164,7 @@ export function CompletedSessionCard({ modality, session_label }: GhostProps) {
       <View style={[styles.edge, { backgroundColor: MODALITY_COLOUR[modality] }]} />
       <View style={styles.body}>
         <VirraText variant="bodyMedium" size={14} color={colors.breath} numberOfLines={1}>
-          {session_label}
+          {sessionLabelText(session_label)}
         </VirraText>
         <View style={styles.meta}>
           <SymbolView name="checkmark.circle.fill" size={11} tintColor={colors.pulse} />

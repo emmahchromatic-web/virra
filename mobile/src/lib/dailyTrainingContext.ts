@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import type { CyclePhase } from '@/store/cycle';
 import type { TrainingLoad } from './nutritionTargets';
 import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
+import { sessionLabelText } from '@/lib/sessionLabels';
 
 export interface PlannedSessionSummary {
   id:            string;
@@ -143,7 +144,7 @@ export async function getDailyTrainingContext(
 
   const contributors: { label: string; load: TrainingLoad }[] = [
     ...sessions.map((s) => ({
-      label: `${s.session_label} ${s.modality}`,
+      label: `${sessionLabelText(s.session_label)} ${s.modality}`,
       load:  inferLoadFromLabel(s.session_label, s.modality),
     })),
     ...unplanned,

@@ -42,6 +42,7 @@ import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStr
 import { isStrengthV2 } from '@/lib/workoutStructure';
 import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/workoutDrafts';
 import { enqueueCompletion } from '@/lib/pendingCompletions';
+import { sessionLabelText } from '@/lib/sessionLabels';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -882,7 +883,7 @@ export default function WorkoutPreviewScreen() {
   }
 
   const label    = useMemo(() => sessionData
-    ? sessionData.session_label.charAt(0).toUpperCase() + sessionData.session_label.slice(1).toLowerCase()
+    ? sessionLabelText(sessionData.session_label)
     : '', [sessionData]);
   const modality = sessionData?.modality ?? 'other';
   const steps    = useMemo(() => sessionData ? buildStepLines(sessionData) : [], [sessionData]);
