@@ -49,8 +49,12 @@ export interface GeneratePlanInput {
   longRunDay:          DayIndex;
   /** Cycle-aligned back-off weeks. PR 6 supplies these; otherwise every fourth. */
   downWeeks?:          number[];
-  /** Ranks candidate days for hard work. PR 6 plugs `anchorKeySession` in here. */
-  rankHardDay?:        (day: DayIndex) => number;
+  /**
+   * Ranks candidate days for hard work, per week — the cycle phase a Tuesday
+   * falls in changes as the plan goes on, so a single week-blind ranker would
+   * put every hard session in the same place regardless.
+   */
+  rankHardDay?:        (day: DayIndex, weekIndex: number) => number;
   /** Where a returning runner joins the walk-run ladder. */
   startStage?:         number;
 }
@@ -133,7 +137,7 @@ export function generateRunPlan(input: GeneratePlanInput): GeneratedPlan {
       goal:        input.goal,
       difficulty,
       isRaceWeek:  week.kind === 'race',
-      rankHardDay: input.rankHardDay,
+      rankHardDay: input.rankHardDay ? (day) => input.rankHardDay!(day, i) : undefined,
     });
 
     // A walk-run plan is walk-run all the way through: hard sessions and long
