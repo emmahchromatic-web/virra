@@ -11,6 +11,7 @@ import {
   formatDuration,
 } from '@/lib/todaysSession';
 import { formatPace } from '@/lib/volumePlan';
+import { sessionLabelText } from '@/lib/sessionLabels';
 
 const MODALITY_ICON: Record<TodaysSession['modality'], SymbolViewProps['name']> = {
   run:      'figure.run',
@@ -27,10 +28,6 @@ const MODALITY_TINT: Record<TodaysSession['modality'], string> = {
   yoga:     colors.breath,
   other:    colors.muted as string,
 };
-
-function labelCase(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
 
 interface StatusBadgeProps { status: TodaysSession['status']; }
 
@@ -90,7 +87,7 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
       'You have more than one planned today.',
       [
         ...planned.map((s) => ({
-          text:    `${labelCase(s.session_label)} · ${s.modality.toUpperCase()}`,
+          text:    `${sessionLabelText(s.session_label)} · ${s.modality.toUpperCase()}`,
           onPress: () => onStartPress(s),
         })),
         { text: 'Cancel', style: 'cancel' as const },
@@ -114,7 +111,7 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
           </View>
           <View style={{ flex: 1 }}>
             <VirraText variant="display" size={17} color={colors.breath}>
-              {labelCase(s.session_label)}
+              {sessionLabelText(s.session_label)}
             </VirraText>
             <VirraText variant="body" size={12} color="rgba(244,237,224,0.55)" style={{ marginTop: 2 }}>
               {s.modality.toUpperCase()}

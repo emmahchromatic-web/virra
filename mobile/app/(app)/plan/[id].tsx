@@ -17,6 +17,7 @@ import { archetypeForTemplate, raceDistanceFor, type ArchetypeKey } from '@/lib/
 import { planFeasibility } from '@/lib/runProgramme/volumeCurve';
 import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
+import { sessionLabelText } from '@/lib/sessionLabels';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
@@ -83,20 +84,6 @@ function weekColor(label: string): string {
   if (/^Run \d/.test(label))  return colors.sage;
   return colors.pulse;
 }
-
-const SESSION_LABEL: Record<string, string> = {
-  easy:      'Easy',
-  tempo:     'Tempo',
-  threshold: 'Threshold',
-  long:      'Long run',
-  run_walk:  'Run/walk',
-  strength:  'Strength',
-  lower:     'Lower body',
-  upper:     'Upper body',
-  general:   'Full body',
-  rest:      'Rest',
-  race:      'Race',
-};
 
 function parseDMY(str: string): Date | null {
   const m = str.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
@@ -773,7 +760,7 @@ export default function PlanDetailScreen() {
               {currentWeek.sessions.map((s, i) => (
                 <View key={i} style={styles.chip}>
                   <VirraText variant="mono" size={11} color={colors.breath}>
-                    {SESSION_LABEL[s] ?? s}
+                    {sessionLabelText(s)}
                   </VirraText>
                 </View>
               ))}
@@ -837,7 +824,7 @@ export default function PlanDetailScreen() {
                   {w.sessions.map((s, i) => (
                     <View key={i} style={styles.chip}>
                       <VirraText variant="mono" size={11} color={colors.breath}>
-                        {SESSION_LABEL[s] ?? s}
+                        {sessionLabelText(s)}
                       </VirraText>
                     </View>
                   ))}
@@ -940,7 +927,7 @@ export default function PlanDetailScreen() {
                 {dayAssignment.map((slot) => (
                   <SchedulePickerRow
                     key={slot.key}
-                    label={SESSION_LABEL[slot.label] ?? slot.label.charAt(0).toUpperCase() + slot.label.slice(1)}
+                    label={sessionLabelText(slot.label)}
                     selectedDay={slot.day}
                     takenDays={dayAssignment.filter((s) => s.key !== slot.key).map((s) => s.day)}
                     occupiedDays={occupiedDays}

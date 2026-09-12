@@ -8,6 +8,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { useTodayStore } from '@/store/today';
 import type { TodaysSession } from '@/lib/todaysSession';
+import { sessionLabelText } from '@/lib/sessionLabels';
 
 type SymbolName = React.ComponentProps<typeof SymbolView>['name'];
 
@@ -88,7 +89,7 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
                 'You have more than one planned today.',
                 [
                   ...planned.map((s) => ({
-                    text: `${s.session_label.charAt(0).toUpperCase() + s.session_label.slice(1).toLowerCase()} · ${s.modality.toUpperCase()}`,
+                    text: `${sessionLabelText(s.session_label)} · ${s.modality.toUpperCase()}`,
                     onPress: () => routeToSession(s),
                   })),
                   { text: 'Cancel', style: 'cancel' as const },

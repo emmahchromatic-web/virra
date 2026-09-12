@@ -12,6 +12,7 @@ import { getCyclePhase } from '@/lib/cycleEngine';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { CyclePhase } from '@/lib/cycleEngine';
 import { colors, spacing, radius } from '@/constants/theme';
+import { sessionLabelText } from '@/lib/sessionLabels';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -219,7 +220,7 @@ export default function WeekAheadScreen() {
                           tintColor={MODALITY_COLOR[sess.modality] ?? colors.muted}
                         />
                         <VirraText variant="body" size={12} color={colors.breath} numberOfLines={1}>
-                          {sess.session_label.charAt(0).toUpperCase() + sess.session_label.slice(1)}
+                          {sessionLabelText(sess.session_label)}
                         </VirraText>
                       </View>
                     ))

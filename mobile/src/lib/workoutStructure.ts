@@ -2,6 +2,8 @@
 // Plan-owned workout structure for Phase I.
 // See docs/superpowers/specs/2026-05-15-phase-i-active-workout-engine-design.md
 
+import { sessionLabelText } from './sessionLabels';
+
 // ---- Run ----
 
 export type RunStepKind = 'warmup' | 'work' | 'rest' | 'cooldown' | 'repeat';
@@ -142,7 +144,10 @@ export function summariseRunStructure(s: RunWorkoutStructure): string {
       }
     }
   }
-  return `${totalKm}km ${s.workout_type.replace('_', ' ')}`;
+  // sessionLabelText rather than a local underscore swap: `replace('_', ' ')`
+  // only replaces the FIRST underscore, and it cannot know that `long`
+  // should read "Long run".
+  return `${totalKm}km ${sessionLabelText(s.workout_type).toLowerCase()}`;
 }
 
 /**

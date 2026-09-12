@@ -9,6 +9,7 @@ import { useCycleStore } from '@/store/cycle';
 import { useDateRangeSessions } from '@/hooks/useDateRangeSessions';
 import { computeInsightMetrics, formatPaceMmSs, describeFuelling, type InsightMetrics } from '@/lib/insightMetrics';
 import { summariseRunStructure, summariseStrengthStructure } from '@/lib/workoutStructure';
+import { sessionLabelText } from '@/lib/sessionLabels';
 import { modulateRunStructure } from '@/lib/cycleModulation';
 import { getCycleInfo } from '@/lib/cycleEngine';
 import { colors, spacing } from '@/constants/theme';
@@ -393,7 +394,7 @@ export default function InsightsScreen() {
                     <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>
                       {item._type === 'event'
                         ? item.name
-                        : `${item.session_label.charAt(0).toUpperCase() + item.session_label.slice(1)} ${item.modality}`
+                        : `${sessionLabelText(item.session_label)} ${item.modality}`
                       }
                     </VirraText>
                   </View>
