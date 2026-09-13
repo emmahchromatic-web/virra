@@ -3,9 +3,10 @@
  *
  * Card 281. A plan used to start "now", and `generateSchedule` anchors week 1
  * to the Monday of the week containing the start date. Start on a Saturday and
- * Monday's and Wednesday's sessions were written into the past, already missed,
- * and the current-week card then showed a red BEHIND on day one for sessions
- * the runner could not have done.
+ * Monday's and Wednesday's sessions were written into the past, already missed.
+ * (The red BEHIND badge on a plan's first day looked related but was not: it
+ * came from pro-rating the week's distance per day, and is fixed separately in
+ * weekProgress.ts.)
  *
  * Emma's call was not to pick a rule but to ask: today, tomorrow, or Monday.
  * Both wants are legitimate — begin now and accept a short week, or wait and
@@ -118,4 +119,22 @@ export function describeFirstWeek(opt: PlanStartOption): string {
   if (opt.sessionsInFirstWeek === 0) return 'No sessions this week';
   if (opt.sessionsInFirstWeek === 1) return '1 session this week';
   return `${opt.sessionsInFirstWeek} sessions this week`;
+}
+
+/**
+ * A local calendar date plus some days, as YYYY-MM-DD.
+ *
+ * Card 281, second pass. The plan's end date was worked out from the moment
+ * Start was pressed rather than from the day the runner chose. Picking "Monday"
+ * on a Tuesday left the end date six days before the plan actually finished,
+ * and a block whose end date has passed drops out of getActiveBlocks: a Path to
+ * parkrun plan would have disappeared from the training tab three days before
+ * its parkrun. So the end date is counted from the chosen start.
+ *
+ * Built from local date parts so a timezone offset cannot shift the result by a
+ * day.
+ */
+export function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return localISO(new Date(y, m - 1, d + days));
 }

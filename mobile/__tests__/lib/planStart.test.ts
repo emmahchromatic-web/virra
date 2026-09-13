@@ -3,6 +3,7 @@ import {
   sessionsInFirstWeek,
   describeFirstWeek,
   localISO,
+  addDaysISO,
 } from '@/lib/planStart';
 
 // Weekdays verified against the real calendar, not assumed:
@@ -106,5 +107,32 @@ describe('describeFirstWeek', () => {
     expect(describeFirstWeek(opt(0))).toBe('No sessions this week');
     expect(describeFirstWeek(opt(1))).toBe('1 session this week');
     expect(describeFirstWeek(opt(2))).toBe('2 sessions this week');
+  });
+});
+
+describe('addDaysISO', () => {
+  // Expected values computed with Python's datetime, not by hand.
+  it('adds a plan\'s length to its start', () => {
+    expect(addDaysISO('2026-09-14', 63)).toBe('2026-11-16');
+  });
+
+  it('crosses a month and a year', () => {
+    expect(addDaysISO('2026-09-28', 7)).toBe('2026-10-05');
+    expect(addDaysISO('2026-12-29', 7)).toBe('2027-01-05');
+  });
+
+  it('ends the plan after its final race, not before it', () => {
+    // The regression: on Tuesday 15 Sep the runner picks next Monday, 21 Sep.
+    // Counted from "now" the plan ended Tue 17 Nov; week 9's parkrun is Sat
+    // 21 Nov, so the plan vanished from active blocks four days before it.
+    const chosenStart = '2026-09-21';
+    const raceDay     = addDaysISO(chosenStart, 8 * 7 + 5);  // week 9, Saturday
+    const planEnd     = addDaysISO(chosenStart, 9 * 7);
+    expect(raceDay).toBe('2026-11-21');
+    expect(planEnd).toBe('2026-11-23');
+    expect(planEnd >= raceDay).toBe(true);
+
+    const oldEnd = addDaysISO('2026-09-15', 9 * 7);  // counted from the Tuesday
+    expect(oldEnd < raceDay).toBe(true);
   });
 });

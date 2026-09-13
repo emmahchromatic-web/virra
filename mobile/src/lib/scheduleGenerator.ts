@@ -158,8 +158,8 @@ export function generateSchedule(
       // Monday-start, and moving the plan's week off Monday would put "week 1"
       // and "this week" out of step again (card 260). But a plan started on a
       // Saturday used to write Monday's and Wednesday's sessions into the past,
-      // already missed, and the current-week card then called the runner BEHIND
-      // on day one for sessions they could never have done.
+      // already missed. (The day-one BEHIND badge was a separate bug in how the
+      // week's progress was pro-rated; see weekProgress.ts.)
       //
       // So they are not written. A mid-week start gives a short first week,
       // which the runner chose on the start picker rather than discovered.

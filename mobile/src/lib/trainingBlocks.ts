@@ -89,6 +89,30 @@ export async function getActiveBlocks(userId: string): Promise<TrainingBlock[]> 
  * swim, yoga and 'other' share the support slot deliberately — they are the
  * "and some mobility work" of a week, not three separate commitments.
  */
+/**
+ * Blocks that are open now or have not started yet: exactly the set clearSlot
+ * would displace when a new plan takes the slot.
+ *
+ * getActiveBlocks deliberately hides a block until its start date, because the
+ * screens that use it (load, today's context, the training stack) should not
+ * count a plan before its sessions exist. But the plan detail button has to name
+ * what pressing it will replace, and card 281's start picker made "starts
+ * tomorrow" an everyday state. Reading active blocks, the button said "Start
+ * this plan" for a runner whose current plan began tomorrow, while clearSlot
+ * went on to replace it anyway. The label and the action have to read the same
+ * set, so this mirrors clearSlot's filter rather than getActiveBlocks'.
+ */
+export async function getOpenBlocks(userId: string): Promise<TrainingBlock[]> {
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await supabase
+    .from('training_blocks')
+    .select('id, user_id, template_id, starts_on, ends_on, load_modifier, modality, is_primary, event_id, template:plan_templates(name, duration_weeks, distance_goal, sport_type)')
+    .eq('user_id', userId)
+    .or(`ends_on.is.null,ends_on.gte.${today}`)
+    .order('is_primary', { ascending: false });
+  return (data ?? []) as unknown as TrainingBlock[];
+}
+
 export type PlanSlot = 'run' | 'strength' | 'support';
 
 /**
