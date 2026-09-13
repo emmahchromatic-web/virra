@@ -17,6 +17,11 @@
 -- library, and Emma can write a move that does not exist yet without a row
 -- being created for it first.
 
+-- Wrapped, because the constraint changes below are drop-then-add: a failed add
+-- would otherwise leave those three tables with no modality constraint at all,
+-- which is worse than the state this migration is fixing.
+begin;
+
 create table if not exists mobility_sessions (
   id          text primary key,                -- slug, e.g. 'hips-and-lower-back'
   name        text not null,
@@ -100,3 +105,5 @@ alter table public.activities
 alter table public.activities
   add  constraint activities_activity_type_check
        check (activity_type in ('run','strength','swim','yoga','cycle','hike','mobility','other'));
+
+commit;
