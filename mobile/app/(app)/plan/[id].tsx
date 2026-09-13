@@ -9,7 +9,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { getActiveBlocks, addBlock, clearSlot, planSlot, inferModality, SLOT_LOAD, type TrainingBlock } from '@/lib/trainingBlocks';
+import { getActiveBlocks, getOpenBlocks, addBlock, clearSlot, planSlot, inferModality, SLOT_LOAD, type TrainingBlock } from '@/lib/trainingBlocks';
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 import { loadRunnerModel, type RunnerModel } from '@/lib/runProgramme/runnerModel';
 import { generateRunPlan } from '@/lib/runProgramme/generatePlan';
@@ -18,7 +18,8 @@ import { planFeasibility } from '@/lib/runProgramme/volumeCurve';
 import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
 import { sessionLabelText } from '@/lib/sessionLabels';
-import { planStartOptions, describeFirstWeek } from '@/lib/planStart';
+import { planStartOptions, describeFirstWeek, localISO, addDaysISO } from '@/lib/planStart';
+import { weekStatus, expectedKmByNow } from '@/lib/weekProgress';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
@@ -196,6 +197,9 @@ export default function PlanDetailScreen() {
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
   const [existingBlocks, setExistingBlocks] = useState<TrainingBlock[]>([]);
+  // Includes blocks that have not started yet, so the button can name what it
+  // will replace. See getOpenBlocks.
+  const [openBlocks,     setOpenBlocks]     = useState<TrainingBlock[]>([]);
   const [raceOpen,             setRaceOpen]             = useState(false);
   // Card 281. The date the runner chose to begin, as a local YYYY-MM-DD.
   // Null means the first option, which is Today.
@@ -235,7 +239,9 @@ export default function PlanDetailScreen() {
         .select('id, name, distance_goal')
         .eq('sport_type', 'run')
         .eq('is_active', true),
-    ]).then(async ([templateRes, planRes, blocks, model, runRes]) => {
+      getOpenBlocks(session.user.id),
+    ]).then(async ([templateRes, planRes, blocks, model, runRes, open]) => {
+      setOpenBlocks(open);
       setRunnerModel(model);
       setRunTemplates((runRes.data ?? []) as RunTemplateRef[]);
       const t = templateRes.data as PlanTemplate;
@@ -313,7 +319,10 @@ export default function PlanDetailScreen() {
     // own start (below) by counting back from the race, and wins — two answers
     // to when a plan begins is one too many.
     let planStart    = chosenStart?.iso ?? today;
-    let goalDate: string | null = new Date(Date.now() + effectiveDuration * 7 * 86400000).toISOString().split('T')[0];
+    // Counted from the chosen start, not from now. Measured from now, "Monday"
+    // picked on a Tuesday ended the plan six days early and hid it before its
+    // final week. See addDaysISO.
+    let goalDate: string | null = addDaysISO(planStart, effectiveDuration * 7);
 
     if (raceOpen && raceTarget) {
       goalDate  = raceTarget.toISOString().split('T')[0];
@@ -495,7 +504,9 @@ export default function PlanDetailScreen() {
   // replaced — and it is named on the button, because dropping someone's
   // half-finished plan without saying so is not a thing to do quietly.
   const targetSlot = planSlot(inferModality(plan?.sport_type ?? ''));
-  const occupant   = existingBlocks.find((b) => planSlot(b.modality) === targetSlot) ?? null;
+  // Read from open blocks, the same set clearSlot replaces, so the label and
+  // the action agree even when the current plan starts tomorrow.
+  const occupant   = openBlocks.find((b) => planSlot(b.modality) === targetSlot) ?? null;
   const occupantName = occupant?.template?.name ?? null;
 
   // Card 281. Recomputed from the chosen training days, because whether "Today"
@@ -525,13 +536,26 @@ export default function PlanDetailScreen() {
   const dayInWeek      = weekStart
     ? Math.min(6, Math.floor((Date.now() - weekStart.getTime()) / 86400000))
     : 0;
-  const expectedByNow  = currentWeek ? currentWeek.km * (dayInWeek + 1) / 7 : 0;
-  const onTrackStatus  = planComplete             ? 'PLAN COMPLETE'
-    : !currentWeek                                ? null
-    : isStrength                                  ? null
-    : weekActualKm >= currentWeek.km              ? 'WEEK DONE'
-    : weekActualKm >= expectedByNow * 0.8         ? 'ON TRACK'
-    :                                               'BEHIND';
+  // What was due is worked out from this plan's own sessions that have already
+  // gone by, not from a seventh of the week per day. The old version charged a
+  // day-one runner a seventh of the week before they had any chance to run, and
+  // called them BEHIND in red. See weekProgress.ts.
+  const myBlockId       = plan ? existingBlocks.find((b) => b.template_id === plan.id)?.id ?? null : null;
+  const mySessionDates  = weekDays
+    .flatMap((d) => d.sessions)
+    .filter((s) => s.block_id === myBlockId && s.status !== 'moved' && s.status !== 'dropped')
+    .map((s) => s.scheduled_date);
+  const todayLocal      = localISO(new Date());
+  const expectedByNow   = currentWeek ? expectedKmByNow(currentWeek.km, mySessionDates, todayLocal) : 0;
+  const onTrackStatus   = weekStatus({
+    planComplete,
+    hasWeek:      Boolean(currentWeek),
+    isStrength,
+    weekKm:       currentWeek?.km ?? 0,
+    actualKm:     weekActualKm,
+    sessionDates: mySessionDates,
+    todayISO:     todayLocal,
+  });
   const onTrackColor   = onTrackStatus === 'ON TRACK' || onTrackStatus === 'WEEK DONE' ? colors.pulse
     : onTrackStatus === 'BEHIND'                                                        ? colors.heat
     :                                                                                     colors.muted;
