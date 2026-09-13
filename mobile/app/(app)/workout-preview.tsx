@@ -13,6 +13,7 @@ import { useSessionStore } from '@/store/sessionStore';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
+import { loadMobilityStructure } from '@/lib/mobilitySessions';
 import { cancelTrainingReminderToday, scheduleRestComplete, cancelRestComplete } from '@/lib/notifications';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -364,7 +365,11 @@ function buildStepLines(session: SessionData): string[] {
 }
 
 export default function WorkoutPreviewScreen() {
-  const { sessionId }  = useLocalSearchParams<{ sessionId?: string }>();
+  // Two ways in, card 264. `sessionId` is a row in planned_sessions, the week's
+  // scheduled work. `mobilitySessionId` is a one-off: no plan behind it, and
+  // none needed. Everything after loading is identical, because the finish path
+  // already writes `planned_session_id: sessionId ?? null`.
+  const { sessionId, mobilitySessionId } = useLocalSearchParams<{ sessionId?: string; mobilitySessionId?: string }>();
   const { session }    = useAuthStore();
   const { cycleInfo }  = useCycleStore();
 
@@ -435,6 +440,40 @@ export default function WorkoutPreviewScreen() {
       { logged: loggedSnapshot, sessionRpe: rpe },
     ).catch(() => {});
   }
+
+  // A one-off: load the authored mobility session and hand the screen the same
+  // structure a scheduled session would have carried.
+  useEffect(() => {
+    if (!mobilitySessionId) return;
+    let cancelled = false;
+    (async () => {
+      const loaded = await loadMobilityStructure(mobilitySessionId);
+      if (cancelled) return;
+      if (!loaded) {
+        setLoadError({
+          title:   'Could not open this session',
+          message: 'We could not reach the server, or this session has no moves in it yet.',
+        });
+        setState('idle');
+        return;
+      }
+      setSessionData({
+        id:                       mobilitySessionId,
+        session_label:            loaded.name,
+        modality:                 'mobility',
+        week_number:              null,
+        block_id:                 null,
+        run_structure:            null,
+        strength_structure:       loaded.structure,
+        cycle_reason_short:       null,
+        cycle_adjusted_pace_secs: null,
+      });
+      const exercises = toLogExercises(loaded.structure);
+      setLogged(seedLoggedSets(exercises));
+      setState('idle');
+    })();
+    return () => { cancelled = true; };
+  }, [mobilitySessionId]);
 
   useEffect(() => {
     if (!sessionId) { setState('idle'); return; }
