@@ -18,6 +18,7 @@ import { planFeasibility } from '@/lib/runProgramme/volumeCurve';
 import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
 import { sessionLabelText } from '@/lib/sessionLabels';
+import { planStartOptions, describeFirstWeek } from '@/lib/planStart';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
@@ -196,6 +197,9 @@ export default function PlanDetailScreen() {
   const [saving,        setSaving]        = useState(false);
   const [existingBlocks, setExistingBlocks] = useState<TrainingBlock[]>([]);
   const [raceOpen,             setRaceOpen]             = useState(false);
+  // Card 281. The date the runner chose to begin, as a local YYYY-MM-DD.
+  // Null means the first option, which is Today.
+  const [startChoice,          setStartChoice]          = useState<string | null>(null);
   const [raceName,             setRaceName]             = useState('');
   const [raceDateObj,          setRaceDateObj]          = useState<Date | null>(null);
   const [showRacePicker,       setShowRacePicker]       = useState(false);
@@ -305,7 +309,10 @@ export default function PlanDetailScreen() {
     setSaving(true);
     const today      = new Date().toISOString().split('T')[0];
     const effectiveDuration = durationOverride > 0 ? durationOverride : (plan.duration_weeks || 8);
-    let planStart    = today;
+    // Without a race, the runner chose when to begin. A race goal derives its
+    // own start (below) by counting back from the race, and wins — two answers
+    // to when a plan begins is one too many.
+    let planStart    = chosenStart?.iso ?? today;
     let goalDate: string | null = new Date(Date.now() + effectiveDuration * 7 * 86400000).toISOString().split('T')[0];
 
     if (raceOpen && raceTarget) {
@@ -490,6 +497,16 @@ export default function PlanDetailScreen() {
   const targetSlot = planSlot(inferModality(plan?.sport_type ?? ''));
   const occupant   = existingBlocks.find((b) => planSlot(b.modality) === targetSlot) ?? null;
   const occupantName = occupant?.template?.name ?? null;
+
+  // Card 281. Recomputed from the chosen training days, because whether "Today"
+  // gives one session or three depends on which days they are.
+  const startOptions = React.useMemo(
+    () => planStartOptions(new Date(), dayAssignment.map((d) => d.day)),
+    [dayAssignment],
+  );
+  const chosenStart = startOptions.find((o) => o.iso === startChoice) ?? startOptions[0] ?? null;
+  // Hidden once a race date is set: the race decides the start.
+  const showStartPicker = !isStrength && startOptions.length > 1 && !(raceOpen && raceDateObj);
 
   const ctaLabel = raceOpen && raceName.trim()
     ? (occupantName ? `Replace ${occupantName}` : `Start training for ${raceName.trim()}`)
@@ -938,6 +955,46 @@ export default function PlanDetailScreen() {
                 ))}
               </VirraCard>
             )}
+            {showStartPicker && (
+              <VirraCard style={{ gap: spacing.sm }}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
+                  WHEN DO YOU WANT TO START?
+                </VirraText>
+                <View style={styles.startRow}>
+                  {startOptions.map((opt) => {
+                    const on = opt.iso === chosenStart?.iso;
+                    return (
+                      <Pressable
+                        key={opt.iso}
+                        onPress={() => setStartChoice(opt.iso)}
+                        style={[styles.startOpt, on && styles.startOptOn]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={`Start ${opt.label}, ${opt.dateLabel}. ${describeFirstWeek(opt)}`}
+                      >
+                        <VirraText variant="bodyMedium" size={14} color={on ? colors.mile : colors.breath}>
+                          {opt.label}
+                        </VirraText>
+                        <VirraText variant="mono" size={10} color={on ? colors.mile : colors.muted}>
+                          {opt.dateLabel.toUpperCase()}
+                        </VirraText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {chosenStart && (
+                  // Say what the choice means, so a short first week is a
+                  // decision rather than a surprise.
+                  <VirraText variant="body" size={12} color={colors.muted} style={{ lineHeight: 18 }}>
+                    {chosenStart.fullWeek
+                      ? 'Your first week starts complete.'
+                      : chosenStart.sessionsInFirstWeek === 0
+                        ? 'Nothing left to do this week, so your first sessions are next week.'
+                        : `${describeFirstWeek(chosenStart)}, then full weeks from Monday.`}
+                  </VirraText>
+                )}
+              </VirraCard>
+            )}
             {needsEquipment && (
               <EquipmentChooser
                 onPick={(value) => session && saveProfile(session.user.id, { workoutPreference: value })}
@@ -992,6 +1049,9 @@ const styles = StyleSheet.create({
   name:        { lineHeight: 36 },
   desc:        { lineHeight: 22, marginTop: spacing.xs },
 
+  startRow:    { flexDirection: 'row', gap: spacing.sm },
+  startOpt:    { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.control, borderRadius: radius.md },
+  startOptOn:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
   statsRow:    { flexDirection: 'row', gap: spacing.sm },
   statPill:    { flex: 1, backgroundColor: colors.mist, borderRadius: radius.md, padding: spacing.md, gap: 2, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   adjRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
