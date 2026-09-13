@@ -39,6 +39,10 @@ import { configureRevenueCat } from '@/lib/revenuecat';
 import { colors } from '@/constants/theme';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
 import { VirraAlertHost } from '@/components/ui/VirraAlert';
+import { readPersistedSession } from '@/lib/persistedSession';
+
+/** How long to wait for getSession before opening on what we already have. */
+const SESSION_LOAD_TIMEOUT_MS = 4000;
 
 export default function RootLayout() {
   const { setSession, user } = useAuthStore();
@@ -57,17 +61,43 @@ export default function RootLayout() {
     SpaceMono_700Bold,
   });
 
-  // Step 1: load session, independent of fonts
+  // Step 1: load session, independent of fonts.
+  //
+  // Card 283. This used to be a bare .then() with no catch and no timeout, and
+  // `ready` is gated on initialSession leaving undefined. So when getSession
+  // rejected or hung, which it does when the stored JWT needs refreshing and
+  // there is no network, initialSession stayed undefined forever: the splash
+  // never hid and the app never opened. Emma reported exactly that.
+  //
+  // Three ways out now, and whichever arrives first wins: the real answer, the
+  // rejection, or the timeout. The fallback is the session supabase-js already
+  // persisted, NOT null, because null routes to the login screen and bouncing a
+  // signed-in woman to a login form the moment she walks into a gym is worse
+  // than the bug being fixed.
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setInitialSession(session ?? null);
-    });
+    let settled = false;
+
+    async function settle(session: Session | null, viaFallback: boolean) {
+      if (settled) return;
+      settled = true;
+      const resolved = session ?? (viaFallback ? await readPersistedSession() : null);
+      setSession(resolved);
+      setInitialSession(resolved);
+    }
+
+    // A hanging refresh must not be able to pin the splash indefinitely. Long
+    // enough not to pre-empt a slow but working network, short enough that a
+    // dead one does not read as a frozen app.
+    const timer = setTimeout(() => { void settle(null, true); }, SESSION_LOAD_TIMEOUT_MS);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => settle(session ?? null, true))
+      .catch(() => settle(null, true));
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => { setSession(session); }
     );
-    return () => subscription.unsubscribe();
+    return () => { clearTimeout(timer); subscription.unsubscribe(); };
   }, []);
 
   // Step 2: route once fonts AND session are both ready (Stack is mounted by then)
@@ -80,13 +110,21 @@ export default function RootLayout() {
     }
 
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('id')
         .eq('id', initialSession.user.id)
         .maybeSingle();
 
-      if (!data) {
+      // "The query failed" and "this user has no profile" both arrive as a null
+      // `data`, and they mean opposite things. Treating the first as the second
+      // sent an offline user with a perfectly good account into onboarding,
+      // which reads as her account having been deleted. Card 283.
+      //
+      // Only a SUCCESSFUL query that found nothing is evidence of no profile.
+      // If we could not find out, trust the session we already hold and open the
+      // app; the screens inside report their own failures honestly.
+      if (!error && !data) {
         router.replace('/(onboarding)/welcome');
         return;
       }
