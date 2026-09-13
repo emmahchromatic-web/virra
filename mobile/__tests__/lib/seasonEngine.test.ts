@@ -83,9 +83,71 @@ describe('buildSeasonChain — progressive ladder (10K → Half → Marathon)', 
 describe('buildSeasonChain — conflict (5K within marathon taper)', () => {
   const chain = buildSeasonChain({ events: maraConflict, cycle_profile: 'natural', today: TODAY });
 
-  test('5K event 7 days before marathon is downgraded to priority 3 (C)', () => {
-    expect(chain[0].priority).toBe(3);  // 5K downgraded
-    expect(chain[1].priority).toBe(1);  // Marathon remains A
+  // This used to produce two blocks, and the second was a seven-day marathon
+  // "build" starting the day after the 5K. The 5K was treated as a boundary
+  // when it sits inside the marathon's taper. It is a tune-up of that build.
+  test('the marathon gets one build, not a seven-day block after the 5K', () => {
+    expect(chain).toHaveLength(1);
+    expect(chain[0].event_id).toBe('e2');
+    expect(chain[0].priority).toBe(1);
+    expect(chain[0].ends_on).toBe('2026-10-18');
+  });
+
+  test('the 5K is still downgraded to priority 3 (C), and kept as a tune-up', () => {
+    expect(chain[0].tune_ups).toEqual([
+      { event_id: 'e1', event_date: '2026-10-11', distance_goal: '5k', priority: 3 },
+    ]);
+  });
+});
+
+describe('buildSeasonChain — a half as a training race inside a marathon build (card 265)', () => {
+  // Emma's own season, verbatim. Built as two sequential blocks, it gave the half
+  // a 12-week window and the marathon the five weeks left over, starting the day
+  // after the half. Both then got an 8-week 5K plan: the half's packed into the
+  // front with March empty, the marathon's running two weeks past race day.
+  const events: SeasonEvent[] = [
+    { id: 'sheffield', event_date: '2027-04-04', modality: 'run', distance_goal: 'half_marathon' },
+    { id: 'leeds',     event_date: '2027-05-09', modality: 'run', distance_goal: 'marathon' },
+  ];
+  const chain = buildSeasonChain({ events, cycle_profile: 'natural', today: '2026-09-13' });
+
+  test('one build, for the marathon', () => {
+    expect(chain).toHaveLength(1);
+    expect(chain[0].event_id).toBe('leeds');
+    expect(chain[0].distance_goal).toBe('marathon');
+    expect(chain[0].priority).toBe(1);
+  });
+
+  test('a full sixteen weeks of marathon preparation ending on race day', () => {
+    // 9 May 2027 minus 16 weeks. Not 5 April, the day after the half.
+    expect(chain[0].starts_on).toBe('2027-01-17');
+    expect(chain[0].ends_on).toBe('2027-05-09');
+    // A first block gets a real base phase, not a recovery phase from the half.
+    expect(chain[0].phase_segments[0].phase).toBe('base');
+  });
+
+  test('Sheffield is a tune-up inside it', () => {
+    expect(chain[0].tune_ups).toEqual([
+      { event_id: 'sheffield', event_date: '2027-04-04', distance_goal: 'half_marathon', priority: 2 },
+    ]);
+  });
+});
+
+describe('buildSeasonChain — what does NOT fold', () => {
+  test('a stepping stone before the A-race window keeps its own build', () => {
+    // The progressive ladder above depends on this: June is before the October
+    // marathon's sixteen-week window opens, so the half is its own goal.
+    const chain = buildSeasonChain({ events: tenHalfMara, cycle_profile: 'natural', today: TODAY });
+    expect(chain.map((b) => b.event_id)).toEqual(['e1', 'e2', 'e3']);
+    expect(chain.every((b) => b.tune_ups.length === 0)).toBe(true);
+  });
+
+  test('an A-race never folds into another, however close', () => {
+    // Two marathons are two goals. Brighton sits inside Leeds's window by date,
+    // and must still get its own block.
+    const chain = buildSeasonChain({ events: brightonLeeds, cycle_profile: 'natural', today: TODAY });
+    expect(chain).toHaveLength(2);
+    expect(chain.every((b) => b.tune_ups.length === 0)).toBe(true);
   });
 });
 
@@ -159,5 +221,46 @@ describe('buildSeasonChain — empty and unsorted inputs', () => {
     const chain = buildSeasonChain({ events: reversed, cycle_profile: 'natural', today: TODAY });
     expect(chain[0].ends_on).toBe('2026-04-12'); // Brighton first by date
     expect(chain[1].ends_on).toBe('2026-05-17'); // Leeds second
+  });
+});
+
+import { generationWindow, seasonTrainingDays, dayIndexOf } from '@/lib/seasonEngine';
+
+describe('laying a build so it finishes on race day (card 265)', () => {
+  test("both of Emma's races are Sundays", () => {
+    expect(dayIndexOf('2027-04-04')).toBe(6);
+    expect(dayIndexOf('2027-05-09')).toBe(6);
+  });
+
+  test('the Leeds build is sixteen weeks, starting on a Monday, ending in race week', () => {
+    // The block starts Sunday 17 Jan. Generating from that date used to snap
+    // back to Monday 11 Jan and leak sessions before the block began.
+    expect(generationWindow('2027-01-17', '2027-05-09')).toEqual({ start: '2027-01-18', weeks: 16 });
+  });
+
+  test('a block starting on a Monday starts there', () => {
+    expect(generationWindow('2027-01-18', '2027-05-09')).toEqual({ start: '2027-01-18', weeks: 16 });
+  });
+
+  test('a block shorter than a week still gets its race week', () => {
+    expect(generationWindow('2027-05-08', '2027-05-09')).toEqual({ start: '2027-05-03', weeks: 1 });
+  });
+});
+
+describe('training days for a season build', () => {
+  test("the long run is on the race's weekday, so there is a run to turn into the race", () => {
+    const { days, longRunDay } = seasonTrainingDays('marathon', '2027-05-09');
+    expect(longRunDay).toBe(6);
+    expect(days).toContain(6);
+  });
+
+  test('a marathon build trains four days, a half three', () => {
+    expect(seasonTrainingDays('marathon', '2027-05-09').days).toEqual([1, 2, 4, 6]);
+    expect(seasonTrainingDays('half_marathon', '2027-04-04').days).toEqual([1, 3, 6]);
+  });
+
+  test('a race on a fixed training day is not double counted', () => {
+    // Tuesday race: Tuesday is already a base day.
+    expect(seasonTrainingDays('10k', '2027-03-02').days).toEqual([1, 3]);
   });
 });

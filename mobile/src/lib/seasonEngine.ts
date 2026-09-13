@@ -1,6 +1,10 @@
 import type { CycleProfile } from '@/store/cycle';
 import { supabase } from './supabase';
 import { generateAndSaveSchedule, type WeekSession, type GenerateContext } from './scheduleGenerator';
+import { applyRaceToSchedule } from './raceSchedule';
+import { loadRunnerModel } from './runProgramme/runnerModel';
+import { generateRunPlan, phaseForWeek } from './runProgramme/generatePlan';
+import { archetypeForTemplate, raceDistanceFor } from './runProgramme/archetypes';
 
 export type BlockPhase = 'recovery' | 'base' | 'build' | 'peak' | 'taper' | 'race';
 export type Priority   = 1 | 2 | 3;
@@ -19,13 +23,29 @@ export interface PhaseSegment {
   weeks:     number;
 }
 
+/**
+ * A lower-priority race run INSIDE another race's build rather than given one
+ * of its own. A half five weeks before a marathon is a rehearsal for the
+ * marathon, not a second goal: raced all-out it costs recovery the marathon
+ * cannot spare, run as a controlled effort it is simply that week's long run.
+ */
+export interface TuneUp {
+  event_id:      string;
+  event_date:    string;
+  distance_goal: string | null;
+  priority:      Priority;
+}
+
 export interface ChainBlock {
   event_id:        string;
   modality:        string;
+  /** The goal race's distance. Chooses the plan, which the engine used to ignore. */
+  distance_goal:   string | null;
   starts_on:       string;
   ends_on:         string;
   priority:        Priority;
   phase_segments:  PhaseSegment[];
+  tune_ups:        TuneUp[];
 }
 
 // Reserved for Task 5: per-phase modulation will hook in here
@@ -55,6 +75,60 @@ function addDays(iso: string, n: number): string {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().split('T')[0];
+}
+
+/** 0 = Monday … 6 = Sunday, matching planned_sessions.day_of_week. */
+export function dayIndexOf(iso: string): number {
+  return (new Date(`${iso}T00:00:00Z`).getUTCDay() + 6) % 7;
+}
+
+function mondayOf(iso: string): string {
+  return addDays(iso, -dayIndexOf(iso));
+}
+
+function mondayOnOrAfter(iso: string): string {
+  const dow = dayIndexOf(iso);
+  return dow === 0 ? iso : addDays(iso, 7 - dow);
+}
+
+/**
+ * Where a block's generated sessions start, and how many weeks they span, so
+ * that the LAST week is race week.
+ *
+ * The schedule generator lays week N at `mondayOf(start) + 7N`. Passing the
+ * block's own start meant a Sunday start snapped back to the previous Monday
+ * and leaked sessions before the block began. Starting on the Monday on or after
+ * it keeps every session inside the block, and counting through the Monday of
+ * race week makes the plan end on the race rather than wherever its template
+ * happened to stop.
+ */
+export function generationWindow(startsOn: string, raceDate: string): { start: string; weeks: number } {
+  const start = mondayOnOrAfter(startsOn);
+  const raceWeek = mondayOf(raceDate);
+  const weeks = Math.round(diffDays(start, raceWeek) / 7) + 1;
+  // A block shorter than a week still has a race in it.
+  if (weeks < 1) return { start: raceWeek, weeks: 1 };
+  return { start, weeks };
+}
+
+/**
+ * Training days for a season build, with the long run on the race's weekday.
+ *
+ * A season has no day picker: the user added races, not a schedule. So these
+ * are defaults, and they are no less personal than what they replace, which was
+ * the template's own ordering.
+ *
+ * The one thing that is NOT a default is the long-run day. It is the weekday the
+ * race falls on, because applyRaceToSchedule turns the run planned on race day
+ * into the race, and there is nothing to turn if no run is planned that day.
+ */
+export function seasonTrainingDays(distanceGoal: string | null, raceDate: string): { days: number[]; longRunDay: number } {
+  const raceDay = dayIndexOf(raceDate);
+  const base = distanceGoal === 'marathon' || distanceGoal === 'ultra'
+    ? [1, 2, 4]   // Tue, Wed, Fri
+    : [1, 3];     // Tue, Thu
+  const days = [...new Set([...base, raceDay])].sort((a, b) => a - b);
+  return { days, longRunDay: raceDay };
 }
 
 function diffDays(a: string, b: string): number {
@@ -173,50 +247,193 @@ function assignPriorities(events: SeasonEvent[]): Priority[] {
   return priorities;
 }
 
+/**
+ * The A-race whose build a lower-priority race falls inside, if any.
+ *
+ * "Inside" means within that A-race's own standard prep window, measured from
+ * its date, NOT within whatever block the sequential chain would have given it.
+ * That distinction is the whole rule. A progressive ladder (10K in April, half
+ * in June, marathon in October) keeps every stepping stone as its own build,
+ * because June is before the marathon's sixteen-week window opens. A half five
+ * weeks before a marathon sits well inside it, and folds.
+ *
+ * A-races never fold, however close together: two marathons are two goals.
+ */
+function hostAFor(
+  idx:        number,
+  future:     { event: SeasonEvent; priority: Priority }[],
+): number | null {
+  const { event, priority } = future[idx];
+  if (priority === 1) return null;
+  // Only the FIRST A-race after it can host it. Searching past that one would
+  // let a race before one marathon be claimed by a later marathon, across the
+  // first. That cannot currently happen, because every A-race shares the longest
+  // distance and so the same prep length, which keeps their windows in order.
+  // Stating the rule beats depending on that staying true.
+  const j = future.findIndex((x, k) => k > idx && x.priority === 1);
+  if (j === -1) return null;
+  const host        = future[j];
+  const prepWeeks   = STANDARD_PREP_WEEKS[host.event.distance_goal ?? 'marathon'] ?? 16;
+  const windowOpens = addDays(host.event.event_date, -prepWeeks * 7);
+  return event.event_date >= windowOpens && event.event_date < host.event.event_date ? j : null;
+}
+
 export function buildSeasonChain(input: SeasonChainInput): ChainBlock[] {
   const events = [...input.events].sort((a, b) => a.event_date.localeCompare(b.event_date));
   if (events.length < 2) return [];
 
+  // Priorities are judged across every event, past ones included, so a past
+  // marathon still counts when deciding what today's races are relative to.
   const priorities = assignPriorities(events);
+  const future = events
+    .map((event, i) => ({ event, priority: priorities[i] }))
+    .filter((x) => x.event.event_date >= input.today);
+
+  // Which races get a build of their own, and which are tune-ups inside one.
+  const hostOf = future.map((_, i) => hostAFor(i, future));
+  const tuneUpsFor = new Map<number, TuneUp[]>();
+  hostOf.forEach((host, i) => {
+    if (host == null) return;
+    const { event, priority } = future[i];
+    const list = tuneUpsFor.get(host) ?? [];
+    list.push({ event_id: event.id, event_date: event.event_date, distance_goal: event.distance_goal, priority });
+    tuneUpsFor.set(host, list);
+  });
+
   const out: ChainBlock[] = [];
+  // The previous race that got a BLOCK. A folded tune-up is not a boundary: the
+  // build it sits inside began before it and runs through it, so treating it as
+  // the end of one block and the start of the next is exactly what gave
+  // Emma's marathon a five-week "build" beginning the day after her half.
+  let priorAnchor: SeasonEvent | null = null;
 
-  // Track whether we've emitted the first future block, so past events at the
-  // start of the sorted array don't cause the first future event to be treated
-  // as a bridge with recovery phases.
-  let hasBuiltFirstBlock = false;
-
-  for (let i = 0; i < events.length; i++) {
-    const event = events[i];
-    if (event.event_date < input.today) continue;
+  for (let i = 0; i < future.length; i++) {
+    if (hostOf[i] != null) continue;
+    const { event, priority } = future[i];
 
     const prepWeeks  = STANDARD_PREP_WEEKS[event.distance_goal ?? 'marathon'] ?? 16;
-    const isFirst    = !hasBuiltFirstBlock;
-    const priorIdx   = i - 1;
-    const recoveryIn = isFirst ? 0 : (RECOVERY_WEEKS[events[priorIdx].distance_goal ?? 'marathon'] ?? 3);
+    const isFirst    = priorAnchor === null;
+    const recoveryIn = isFirst ? 0 : (RECOVERY_WEEKS[priorAnchor!.distance_goal ?? 'marathon'] ?? 3);
 
     let starts_on: string;
     if (isFirst) {
       const standardStart = addDays(event.event_date, -prepWeeks * 7);
       starts_on = standardStart < input.today ? input.today : standardStart;
     } else {
-      starts_on = addDays(events[priorIdx].event_date, 1);
+      starts_on = addDays(priorAnchor!.event_date, 1);
     }
 
-    const phase_segments = distributePhases(starts_on, event.event_date, isFirst, recoveryIn);
-
     out.push({
-      event_id:        event.id,
-      modality:        event.modality,
+      event_id:       event.id,
+      modality:       event.modality,
+      distance_goal:  event.distance_goal,
       starts_on,
-      ends_on:         event.event_date,
-      priority:        priorities[i],
-      phase_segments,
+      ends_on:        event.event_date,
+      priority,
+      phase_segments: distributePhases(starts_on, event.event_date, isFirst, recoveryIn),
+      tune_ups:       tuneUpsFor.get(i) ?? [],
     });
 
-    hasBuiltFirstBlock = true;
+    priorAnchor = event;
   }
 
   return out;
+}
+
+interface SeasonTemplate {
+  id:            string;
+  name:          string | null;
+  distance_goal: string | null;
+  sessions_json: unknown;
+}
+
+/**
+ * The template for a block: the one written for its race distance.
+ *
+ * Falls back to the first template for the modality only when no template
+ * exists for that distance at all, so a season is never left without a plan.
+ * That fallback is also exactly what the old query did for every race, which is
+ * why it is now the last resort rather than the only path.
+ */
+async function templateForBlock(block: ChainBlock): Promise<SeasonTemplate | null> {
+  if (block.distance_goal) {
+    const { data } = await supabase
+      .from('plan_templates')
+      .select('id, name, distance_goal, sessions_json')
+      .eq('sport_type', block.modality)
+      .eq('distance_goal', block.distance_goal)
+      .order('sort_order', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (data) return data as SeasonTemplate;
+  }
+  const { data } = await supabase
+    .from('plan_templates')
+    .select('id, name, distance_goal, sessions_json')
+    .eq('sport_type', block.modality)
+    .order('sort_order', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (data as SeasonTemplate | null) ?? null;
+}
+
+/**
+ * The run plan for a season block, built the same way single-plan enrolment
+ * builds one in trainingBlocks: the runner model, the archetype for the race,
+ * and the generator, sized to the weeks the block actually holds.
+ *
+ * Deliberately mirrors that path rather than refactoring it into a shared
+ * helper. trainingBlocks and the generator are both mid-change in open stacked
+ * PRs (#52, #55), and pulling shared code out from under them would turn a
+ * season fix into a merge conflict for someone else's work.
+ */
+async function generateSeasonRunPlan(
+  userId: string,
+  block:  ChainBlock,
+  tmpl:   SeasonTemplate,
+  weeks:  number,
+) {
+  try {
+    const model     = await loadRunnerModel(userId);
+    const goal      = raceDistanceFor(block.distance_goal);
+    const archetype = archetypeForTemplate({
+      distanceGoal: block.distance_goal ?? tmpl.distance_goal,
+      name:         tmpl.name,
+      hasEventDate: true,
+    });
+    const { days, longRunDay } = seasonTrainingDays(block.distance_goal, block.ends_on);
+
+    const plan = generateRunPlan({
+      archetype,
+      goal,
+      weeks,
+      tier:                model.tier,
+      preset:              model.preset,
+      difficulty:          model.difficulty,
+      currentWeeklyKm:     model.currentWeeklyKm,
+      currentLongestRunKm: model.currentLongestRunKm,
+      days,
+      longRunDay,
+    });
+    if (!plan.weeks.length) return null;
+
+    const buildOrDown = plan.curve.filter((x) => x.kind === 'build' || x.kind === 'down').length;
+    const context: GenerateContext = {
+      baseline_pace_secs: model.thresholdSecs,
+      runPlan: {
+        goal,
+        intensity: archetype.forceDifficulty ?? model.difficulty,
+        phases:    plan.curve.map((w, i) => phaseForWeek(w, i, buildOrDown)),
+        longRunKm: plan.curve.map((w) => w.longRunKm),
+        walkRun:   plan.walkRun,
+      },
+    };
+
+    return { weeks: plan.weeks, weekSlots: plan.weekSlots, context };
+  } catch (e) {
+    console.warn('[seasonEngine] run plan generation failed, using template', e);
+    return null;
+  }
 }
 
 /**
@@ -262,14 +479,18 @@ export async function applySeasonChain(
   // 2. Update user_events: link to season + write priority + sequence_position
   for (let i = 0; i < events.length; i++) {
     const event = events[i];
-    const block = chain.find((b) => b.event_id === event.id);
-    if (!block) continue;
+    // A tune-up has no block of its own but is still part of the season, and
+    // still has a priority worth recording.
+    const block  = chain.find((b) => b.event_id === event.id);
+    const tuneUp = chain.flatMap((b) => b.tune_ups).find((t) => t.event_id === event.id);
+    const priority = block?.priority ?? tuneUp?.priority;
+    if (priority == null) continue;
     await supabase
       .from('user_events')
       .update({
         season_id,
         sequence_position: i + 1,
-        priority:          block.priority,  // integer 1|2|3
+        priority,  // integer 1|2|3
       })
       .eq('id', event.id);
   }
@@ -284,17 +505,25 @@ export async function applySeasonChain(
     baseline_pace_secs: profileRow?.baseline_pace_seconds_per_km ?? 360,
   };
 
-  // 4. For each block, find a matching plan_template + create training_block + generate sessions
+  // 4. Each block gets a plan for ITS race, generated for this runner and laid
+  //    out to finish on race day.
+  //
+  //    Card 265. This used to take `.eq('sport_type', modality).order('sort_order')
+  //    .limit(1)`: the first run template by sort order, which was Beginner 5K,
+  //    for every race of every season. It never read the distance. Three lines
+  //    up it did use the distance to size the block, so a half got a correct
+  //    twelve-week window and then a 5K plan inside it.
+  //
+  //    It also passed no week limit, so the template was laid forward from the
+  //    block's START regardless of its END: an eight-week plan front-loaded a
+  //    twelve-week window and left the weeks before the race empty, and overran
+  //    a five-week window by three weeks. And it read sessions straight off the
+  //    template, bypassing the run generator entirely, so seasons never got what
+  //    PR #50 gave single plans.
   for (const block of chain) {
-    const { data: tmpl } = await supabase
-      .from('plan_templates')
-      .select('id, sessions_json')
-      .eq('sport_type', block.modality)
-      .order('sort_order', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    const tmpl = await templateForBlock(block);
     if (!tmpl) {
-      console.warn('[seasonEngine] no plan_template for modality', block.modality);
+      console.warn('[seasonEngine] no plan_template for', block.modality, block.distance_goal);
       continue;
     }
 
@@ -317,17 +546,50 @@ export async function applySeasonChain(
       continue;
     }
 
-    await generateAndSaveSchedule(
-      userId,
-      blockRow.id,
-      block.modality,
-      block.starts_on,
-      tmpl.sessions_json as WeekSession[],
-      /* slotAssignments */ undefined,
-      /* maxWeeks */         undefined,
-      block.phase_segments,
-      generateContext,
-    );
+    const { start, weeks } = generationWindow(block.starts_on, block.ends_on);
+
+    const generated = block.modality === 'run'
+      ? await generateSeasonRunPlan(userId, block, tmpl, weeks)
+      : null;
+
+    if (generated) {
+      await generateAndSaveSchedule(
+        userId,
+        blockRow.id,
+        block.modality,
+        start,
+        generated.weeks,
+        /* slotAssignments */ undefined,
+        generated.weeks.length,
+        block.phase_segments,
+        generated.context,
+        generated.weekSlots,
+      );
+    } else {
+      // No generated plan (a non-run block, or a goal the generator does not
+      // cover). Still never lay more weeks than the block holds.
+      await generateAndSaveSchedule(
+        userId,
+        blockRow.id,
+        block.modality,
+        start,
+        (tmpl.sessions_json ?? []) as WeekSession[],
+        /* slotAssignments */ undefined,
+        weeks,
+        block.phase_segments,
+        generateContext,
+      );
+    }
+
+    // Make the plan agree with the calendar: the goal race, and any tune-up run
+    // inside this build, become race sessions on their dates. The long-run day
+    // was anchored to the race weekday so there is a run to convert.
+    if (block.modality === 'run') {
+      await applyRaceToSchedule(userId, { event_date: block.ends_on, distance_goal: block.distance_goal });
+      for (const t of block.tune_ups) {
+        await applyRaceToSchedule(userId, { event_date: t.event_date, distance_goal: t.distance_goal });
+      }
+    }
   }
 
   return season_id;
