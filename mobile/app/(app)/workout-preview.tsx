@@ -135,6 +135,15 @@ interface LoggedSet {
   actualReps: string;  // free text while editing; parsed on save
   weightKg:   string;
   done:       boolean;
+  /**
+   * A set the user added beyond what the plan prescribed. Card 285.
+   *
+   * Kept distinct rather than just appended, because "did 4 sets when asked for
+   * 3" and "was asked for 4" are different facts. The first is a signal the
+   * progression engine can use; flattening them would throw it away, and would
+   * also invent a target the plan never set.
+   */
+  extra?:     boolean;
 }
 
 // Normalised, render-ready view of one exercise; flattens both v1 (generated,
@@ -659,7 +668,10 @@ export default function WorkoutPreviewScreen() {
     if (!sets[setIdx]) return;
     // On completing a set, default empty reps to the target so a quick tap
     // records a "did as prescribed" set. Carry the weight to the next set.
-    const actualReps = nextDone && sets[setIdx].actualReps === ''
+    // Ticking a set with no reps typed records "did as prescribed". An EXTRA
+    // set has nothing prescribed, so the same default would write 0 reps and
+    // claim she did none. Leave it empty and let it save as null. Card 285.
+    const actualReps = nextDone && sets[setIdx].actualReps === '' && !sets[setIdx].extra
       ? String(sets[setIdx].targetReps)
       : sets[setIdx].actualReps;
     sets[setIdx] = { ...sets[setIdx], done: nextDone, actualReps };
@@ -702,6 +714,46 @@ export default function WorkoutPreviewScreen() {
     const next = { ...logged, [current.exId]: sets };
     setLogged(next);
     persistDraft(next, sessionRpe);
+  }
+
+  /**
+   * One more set of a movement, logged like any other.
+   *
+   * The save path already iterates whatever is in `logged[ex.id]` and uses the
+   * array index as set_index, so an appended entry persists with no change
+   * there. The draft carries the same structure, so an extra set survives
+   * backgrounding the app mid-workout.
+   */
+  function addExtraSet(ex: LogExercise) {
+    setLogged((prev) => {
+      const sets = prev[ex.id] ?? [];
+      // Carry the weight down, as ticking a set already does: someone adding a
+      // fourth set is almost always doing it at the weight they just used.
+      const last = sets[sets.length - 1];
+      const next = {
+        ...prev,
+        [ex.id]: [...sets, {
+          targetReps: 0,
+          actualReps: '',
+          weightKg:   last?.weightKg ?? '',
+          done:       false,
+          extra:      true,
+        }],
+      };
+      persistDraft(next, sessionRpe);
+      return next;
+    });
+  }
+
+  /** Undo an extra set. Only ever offered for sets the user added. */
+  function removeExtraSet(ex: LogExercise, setIdx: number) {
+    setLogged((prev) => {
+      const sets = prev[ex.id] ?? [];
+      if (!sets[setIdx]?.extra) return prev;
+      const next = { ...prev, [ex.id]: sets.filter((_, i) => i !== setIdx) };
+      persistDraft(next, sessionRpe);
+      return next;
+    });
   }
 
   function restoreSetAside(id: string) {
@@ -789,7 +841,10 @@ export default function WorkoutPreviewScreen() {
           exercise_id:        ex.id,
           exercise_name:      ex.name,
           set_index:          i,
-          target_reps:        s.targetReps,
+          // Null, not 0: nothing was prescribed for a set the user added, and
+          // writing 0 would claim the plan asked for zero reps. The column is
+          // nullable precisely so "not prescribed" can be said.
+          target_reps:        s.extra ? null : s.targetReps,
           actual_reps:        Number.isFinite(reps)   ? reps   : null,
           weight_kg:          Number.isFinite(weight) ? weight : null,
           // A 30 second plank must not read as 30 reps later on.
@@ -802,7 +857,10 @@ export default function WorkoutPreviewScreen() {
           const reps   = parseInt(s.actualReps, 10);
           const weight = parseFloat(s.weightKg);
           return {
-            reps:      Number.isFinite(reps)   ? reps   : s.targetReps,
+            // Same reason as target_reps above: an extra set has no prescribed
+            // count to fall back on, so an untyped one reports 0 rather than
+            // borrowing a target that does not exist.
+            reps:      Number.isFinite(reps)   ? reps   : (s.extra ? 0 : s.targetReps),
             weight_kg: Number.isFinite(weight) ? weight : 0,
           };
         }),
@@ -1272,7 +1330,7 @@ export default function WorkoutPreviewScreen() {
                         style={[s.setInput, s.colInput, st.done && s.setInputDone]}
                         value={st.actualReps}
                         onChangeText={(v) => updateLoggedSet(ex.id, i, 'actualReps', v)}
-                        placeholder={String(st.targetReps)}
+                        placeholder={st.extra ? 'reps' : String(st.targetReps)}
                         placeholderTextColor="rgba(244,237,224,0.3)"
                         keyboardType="number-pad"
                         maxLength={3}
@@ -1292,8 +1350,33 @@ export default function WorkoutPreviewScreen() {
                       <Pressable style={s.colDone} onPress={() => toggleSetDone(ex, i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Complete ${ex.name} set ${i + 1}`}>
                         <SymbolView name={st.done ? 'checkmark.circle.fill' : 'circle'} size={24} tintColor={st.done ? colors.pulse : colors.muted} />
                       </Pressable>
+                      {/* Only an added set can be removed. An authored one is
+                          part of the plan and is dropped by not logging it. */}
+                      {st.extra && (
+                        <Pressable
+                          onPress={() => removeExtraSet(ex, i)}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove extra set ${i + 1} of ${ex.name}`}
+                        >
+                          <SymbolView name="minus.circle" size={18} tintColor={colors.muted} />
+                        </Pressable>
+                      )}
                     </View>
                   ))}
+
+                  <Pressable
+                    onPress={() => addExtraSet(ex)}
+                    hitSlop={8}
+                    style={s.addWeightBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add another set of ${ex.name}`}
+                  >
+                    <SymbolView name="plus" size={11} tintColor={colors.muted} />
+                    <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
+                      ADD SET
+                    </VirraText>
+                  </Pressable>
 
                   {canAddWeight && (
                     <Pressable
