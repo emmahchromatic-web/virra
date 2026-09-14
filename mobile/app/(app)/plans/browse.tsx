@@ -19,6 +19,8 @@ interface PlanTemplate {
   duration_weeks: number;
   description:    string | null;
   tagline:        string | null;
+  /** Card 266. Null falls back to reading the archetype out of the name. */
+  archetype_key:  string | null;
 }
 
 /**
@@ -55,7 +57,7 @@ export default function BrowsePlansScreen() {
       // strength template) from the picker without deleting the row.
       const { data } = await supabase
         .from('plan_templates')
-        .select('id, name, sport_type, distance_goal, duration_weeks, description, tagline')
+        .select('id, name, sport_type, distance_goal, duration_weeks, description, tagline, archetype_key')
         .eq('is_active', true)
         .order('sort_order');
       if (!cancelled) {
@@ -165,7 +167,11 @@ function TemplateCard({ template, isActive }: { template: PlanTemplate; isActive
   // detail screen the pick has already been made.
   const cardLine = template.sport_type === 'run'
     ? entryCriteria(
-        archetypeForTemplate({ distanceGoal: template.distance_goal, name: template.name }),
+        archetypeForTemplate({
+          archetypeKey: template.archetype_key,
+          distanceGoal: template.distance_goal,
+          name:         template.name,
+        }),
         raceDistanceFor(template.distance_goal),
       ).cardLine
     : null;
