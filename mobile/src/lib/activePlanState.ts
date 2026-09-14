@@ -32,10 +32,10 @@ export function isLiveSession(s: ScheduledSession): boolean {
 }
 
 /** The runner's live sessions this week for one training block. */
-export function sessionsForBlock(
-  sessions: ScheduledSession[],
+export function sessionsForBlock<T extends ScheduledSession>(
+  sessions: T[],
   blockId:  string | null,
-): ScheduledSession[] {
+): T[] {
   if (!blockId) return [];
   return sessions.filter((s) => s.block_id === blockId && isLiveSession(s));
 }
@@ -112,4 +112,32 @@ export function remainingWeeks(
 ): number | null {
   if (durationWeeks == null) return null;
   return Math.max(1, durationWeeks - Math.max(0, weekIndex));
+}
+
+/**
+ * Days of the week that already hold a session from some OTHER plan.
+ *
+ * Card 282. The day picker marks these with an orange dot, captioned "days with
+ * other plan sessions". That was true while the picker only appeared before a
+ * plan was started, when every session in the week belonged to something else.
+ * Card 256's Adjust mode shows the same picker on a plan you are already on, and
+ * the dots then flagged that plan's own sessions as somebody else's — adjusting
+ * Beginner 5K marked its own long run and tempo as clashes.
+ *
+ * So the plan being viewed is excluded. On a plan you are not on, `ownBlockId`
+ * is null and nothing changes.
+ */
+export function occupiedDaysExcept(
+  week:       Array<{ sessions: Array<ScheduledSession> }>,
+  ownBlockId: string | null,
+): number[] {
+  const days = new Set<number>();
+  for (const day of week) {
+    for (const s of day.sessions) {
+      if (!isLiveSession(s)) continue;
+      if (ownBlockId && s.block_id === ownBlockId) continue;
+      days.add(s.day_of_week);
+    }
+  }
+  return [...days].sort((a, b) => a - b);
 }

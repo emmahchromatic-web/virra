@@ -456,7 +456,7 @@ export default function TrainingScreen() {
               {recentActivities.map((a, i) => (
                 <View key={a.id}>
                   {i > 0 && <View style={styles.divider} />}
-                  <ActivityRow activity={a} />
+                  <ActivityRow activity={a} onPress={() => router.push(`/(app)/activity/${a.id}` as any)} />
                 </View>
               ))}
             </VirraCard>

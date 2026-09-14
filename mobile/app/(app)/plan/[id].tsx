@@ -9,7 +9,7 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
-import { getActiveBlocks, addBlock, clearSlot, planSlot, inferModality, SLOT_LOAD, type TrainingBlock } from '@/lib/trainingBlocks';
+import { getActiveBlocks, getOpenBlocks, addBlock, clearSlot, planSlot, inferModality, SLOT_LOAD, type TrainingBlock } from '@/lib/trainingBlocks';
 import { computeDefaultDayAssignment, type SessionSlot } from '@/lib/scheduleGenerator';
 import { loadRunnerModel, type RunnerModel } from '@/lib/runProgramme/runnerModel';
 import { generateRunPlan } from '@/lib/runProgramme/generatePlan';
@@ -17,10 +17,14 @@ import { archetypeForTemplate, raceDistanceFor, type ArchetypeKey } from '@/lib/
 import { planFeasibility } from '@/lib/runProgramme/volumeCurve';
 import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
-import { sessionsForBlock, currentWeekIndex, planDurationWeeks, seedDaysFromSchedule, remainingWeeks } from '@/lib/activePlanState';
+import { sessionsForBlock, currentWeekIndex, planDurationWeeks, seedDaysFromSchedule, remainingWeeks, occupiedDaysExcept } from '@/lib/activePlanState';
+import { sessionLabelText } from '@/lib/sessionLabels';
+import { planStartOptions, describeFirstWeek, localISO, addDaysISO } from '@/lib/planStart';
+import { weekStatus, expectedKmByNow } from '@/lib/weekProgress';
+import { weekStartLocal } from '@/lib/insightMetrics';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
-import { WORKOUT_PREFERENCE_OPTIONS } from '@/lib/workoutPreference';
+import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
@@ -84,20 +88,6 @@ function weekColor(label: string): string {
   if (/^Run \d/.test(label))  return colors.sage;
   return colors.pulse;
 }
-
-const SESSION_LABEL: Record<string, string> = {
-  easy:      'Easy',
-  tempo:     'Tempo',
-  threshold: 'Threshold',
-  long:      'Long run',
-  run_walk:  'Run/walk',
-  strength:  'Strength',
-  lower:     'Lower body',
-  upper:     'Upper body',
-  general:   'Full body',
-  rest:      'Rest',
-  race:      'Race',
-};
 
 function parseDMY(str: string): Date | null {
   const m = str.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
@@ -209,14 +199,19 @@ export default function PlanDetailScreen() {
   const [loading,       setLoading]       = useState(true);
   const [saving,        setSaving]        = useState(false);
   const [existingBlocks, setExistingBlocks] = useState<TrainingBlock[]>([]);
+  // Includes blocks that have not started yet, so the button can name what it
+  // will replace. See getOpenBlocks.
+  const [openBlocks,     setOpenBlocks]     = useState<TrainingBlock[]>([]);
   const [raceOpen,             setRaceOpen]             = useState(false);
+  // Card 281. The date the runner chose to begin, as a local YYYY-MM-DD.
+  // Null means the first option, which is Today.
+  const [startChoice,          setStartChoice]          = useState<string | null>(null);
   const [raceName,             setRaceName]             = useState('');
   const [raceDateObj,          setRaceDateObj]          = useState<Date | null>(null);
   const [showRacePicker,       setShowRacePicker]       = useState(false);
   const [dayAssignment,        setDayAssignment]        = useState<SessionSlot[]>([]);
   const [sessionCountOverride, setSessionCountOverride] = useState(0);
   const [durationOverride,     setDurationOverride]     = useState(0);
-  const [occupiedDays,         setOccupiedDays]         = useState<number[]>([]);
   const [runnerModel,          setRunnerModel]          = useState<RunnerModel | null>(null);
   // The rest of the run catalogue, purely so a plan that is wrong for someone
   // can point at a real row rather than naming a plan they then have to find.
@@ -249,7 +244,9 @@ export default function PlanDetailScreen() {
         .select('id, name, distance_goal')
         .eq('sport_type', 'run')
         .eq('is_active', true),
-    ]).then(async ([templateRes, planRes, blocks, model, runRes]) => {
+      getOpenBlocks(session.user.id),
+    ]).then(async ([templateRes, planRes, blocks, model, runRes, open]) => {
+      setOpenBlocks(open);
       setRunnerModel(model);
       setRunTemplates((runRes.data ?? []) as RunTemplateRef[]);
       const t = templateRes.data as PlanTemplate;
@@ -265,10 +262,14 @@ export default function PlanDetailScreen() {
       setExistingBlocks(blocks);
 
       if (p) {
-        const planStart  = new Date(p.start_date);
-        const weekIdx    = Math.max(0, Math.floor((Date.now() - planStart.getTime()) / (7 * 86400000)));
-        const weekStart  = new Date(planStart.getTime() + weekIdx * 7 * 86400000).toISOString();
-        const weekEnd    = new Date(planStart.getTime() + (weekIdx + 1) * 7 * 86400000).toISOString();
+        // The runner's Monday-start week, the same week every other screen uses
+        // (card 260). Counting sevens from start_date put the window on the
+        // wrong days once card 281 let a plan start mid-week: a Sunday start
+        // measured Sunday to Saturday while the plan's week ran Monday to Sunday,
+        // and the on-track badge was then judged against the wrong runs.
+        const monday     = weekStartLocal(new Date());
+        const weekStart  = monday.toISOString();
+        const weekEnd    = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7).toISOString();
         const { data: acts } = await supabase
           .from('activities')
           .select('distance_meters')
@@ -293,15 +294,6 @@ export default function PlanDetailScreen() {
     return monday.toISOString().split('T')[0];
   })();
   const { days: weekDays } = useWeekSessions(mondayISO);
-  useEffect(() => {
-    const dows = new Set<number>();
-    for (const d of weekDays) {
-      for (const s of d.sessions) {
-        if (s.status !== 'moved' && s.status !== 'dropped') dows.add(s.day_of_week);
-      }
-    }
-    setOccupiedDays([...dows]);
-  }, [weekDays]);
 
   const raceTarget  = raceDateObj;
   const startDate   = raceTarget && plan?.duration_weeks
@@ -333,8 +325,14 @@ export default function PlanDetailScreen() {
     setSaving(true);
     const today      = new Date().toISOString().split('T')[0];
     const effectiveDuration = durationOverride > 0 ? durationOverride : (plan.duration_weeks || 8);
-    let planStart    = today;
-    let goalDate: string | null = new Date(Date.now() + effectiveDuration * 7 * 86400000).toISOString().split('T')[0];
+    // Without a race, the runner chose when to begin. A race goal derives its
+    // own start (below) by counting back from the race, and wins — two answers
+    // to when a plan begins is one too many.
+    let planStart    = chosenStart?.iso ?? today;
+    // Counted from the chosen start, not from now. Measured from now, "Monday"
+    // picked on a Tuesday ended the plan six days early and hid it before its
+    // final week. See addDaysISO.
+    let goalDate: string | null = addDaysISO(planStart, effectiveDuration * 7);
 
     if (raceOpen && raceTarget) {
       goalDate  = raceTarget.toISOString().split('T')[0];
@@ -584,8 +582,20 @@ export default function PlanDetailScreen() {
   // replaced — and it is named on the button, because dropping someone's
   // half-finished plan without saying so is not a thing to do quietly.
   const targetSlot = planSlot(inferModality(plan?.sport_type ?? ''));
-  const occupant   = existingBlocks.find((b) => planSlot(b.modality) === targetSlot) ?? null;
+  // Read from open blocks, the same set clearSlot replaces, so the label and
+  // the action agree even when the current plan starts tomorrow.
+  const occupant   = openBlocks.find((b) => planSlot(b.modality) === targetSlot) ?? null;
   const occupantName = occupant?.template?.name ?? null;
+
+  // Card 281. Recomputed from the chosen training days, because whether "Today"
+  // gives one session or three depends on which days they are.
+  const startOptions = React.useMemo(
+    () => planStartOptions(new Date(), dayAssignment.map((d) => d.day)),
+    [dayAssignment],
+  );
+  const chosenStart = startOptions.find((o) => o.iso === startChoice) ?? startOptions[0] ?? null;
+  // Hidden once a race date is set: the race decides the start.
+  const showStartPicker = !isStrength && startOptions.length > 1 && !(raceOpen && raceDateObj);
 
   const ctaLabel = raceOpen && raceName.trim()
     ? (occupantName ? `Replace ${occupantName}` : `Start training for ${raceName.trim()}`)
@@ -608,6 +618,14 @@ export default function PlanDetailScreen() {
   );
 
   const mySessionsPerWk = myWeekSessions.length;
+
+  // Card 282. Derived here rather than in an effect near the top, because it
+  // needs `myBlock`: the plan being adjusted must not show its own sessions as
+  // clashes. See occupiedDaysExcept.
+  const occupiedDays = React.useMemo(
+    () => occupiedDaysExcept(weekDays, myBlock?.id ?? null),
+    [weekDays, myBlock],
+  );
   const myDurationWeeks = planDurationWeeks(userPlan?.start_date, userPlan?.goal_date);
 
   // The steppers and the day picker are live when choosing a plan, and again
@@ -615,25 +633,31 @@ export default function PlanDetailScreen() {
   const editable = !userPlan || adjusting;
 
   // Active plan context
-  const planStartDate  = userPlan ? new Date(userPlan.start_date) : null;
   const weekIndex      = currentWeekIndex(myWeekSessions, userPlan?.start_date ?? null);
   // Indexed into the weeks actually being shown. `weeks` is the template's
   // authored list, which a generated plan does not follow.
   const currentWeek    = weekIndex >= 0 && weekIndex < displayWeeks.length ? displayWeeks[weekIndex] : null;
   const planComplete   = displayWeeks.length > 0 && weekIndex >= displayWeeks.length;
-  const weekStart      = planStartDate
-    ? new Date(planStartDate.getTime() + weekIndex * 7 * 86400000)
-    : null;
-  const dayInWeek      = weekStart
-    ? Math.min(6, Math.floor((Date.now() - weekStart.getTime()) / 86400000))
-    : 0;
-  const expectedByNow  = currentWeek ? currentWeek.km * (dayInWeek + 1) / 7 : 0;
-  const onTrackStatus  = planComplete             ? 'PLAN COMPLETE'
-    : !currentWeek                                ? null
-    : isStrength                                  ? null
-    : weekActualKm >= currentWeek.km              ? 'WEEK DONE'
-    : weekActualKm >= expectedByNow * 0.8         ? 'ON TRACK'
-    :                                               'BEHIND';
+  // Day of the runner's Monday-start week, matching the km window above.
+  const dayInWeek      = (new Date().getDay() + 6) % 7;
+  // What was due is worked out from this plan's own sessions that have already
+  // gone by, not from a seventh of the week per day. The old version charged a
+  // day-one runner a seventh of the week before they had any chance to run, and
+  // called them BEHIND in red. See weekProgress.ts.
+  // Card 256 already worked out this plan's block and its live sessions this
+  // week; read them rather than deriving the same set a second time.
+  const mySessionDates  = myWeekSessions.map((s) => s.scheduled_date);
+  const todayLocal      = localISO(new Date());
+  const expectedByNow   = currentWeek ? expectedKmByNow(currentWeek.km, mySessionDates, todayLocal) : 0;
+  const onTrackStatus   = weekStatus({
+    planComplete,
+    hasWeek:      Boolean(currentWeek),
+    isStrength,
+    weekKm:       currentWeek?.km ?? 0,
+    actualKm:     weekActualKm,
+    sessionDates: mySessionDates,
+    todayISO:     todayLocal,
+  });
   const onTrackColor   = onTrackStatus === 'ON TRACK' || onTrackStatus === 'WEEK DONE' ? colors.pulse
     : onTrackStatus === 'BEHIND'                                                        ? colors.heat
     :                                                                                     colors.muted;
@@ -881,7 +905,7 @@ export default function PlanDetailScreen() {
               {currentWeek.sessions.map((s, i) => (
                 <View key={i} style={styles.chip}>
                   <VirraText variant="mono" size={11} color={colors.breath}>
-                    {SESSION_LABEL[s] ?? s}
+                    {sessionLabelText(s)}
                   </VirraText>
                 </View>
               ))}
@@ -945,7 +969,7 @@ export default function PlanDetailScreen() {
                   {w.sessions.map((s, i) => (
                     <View key={i} style={styles.chip}>
                       <VirraText variant="mono" size={11} color={colors.breath}>
-                        {SESSION_LABEL[s] ?? s}
+                        {sessionLabelText(s)}
                       </VirraText>
                     </View>
                   ))}
@@ -1081,7 +1105,7 @@ export default function PlanDetailScreen() {
                 {dayAssignment.map((slot) => (
                   <SchedulePickerRow
                     key={slot.key}
-                    label={SESSION_LABEL[slot.label] ?? slot.label.charAt(0).toUpperCase() + slot.label.slice(1)}
+                    label={sessionLabelText(slot.label)}
                     selectedDay={slot.day}
                     takenDays={dayAssignment.filter((s) => s.key !== slot.key).map((s) => s.day)}
                     occupiedDays={occupiedDays}
@@ -1092,31 +1116,56 @@ export default function PlanDetailScreen() {
                 ))}
               </VirraCard>
             )}
-            {needsEquipment && (
-              <VirraCard style={styles.equipCard}>
-                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.equipLabel}>
-                  WHERE ARE YOU TRAINING?
+            {showStartPicker && (
+              <VirraCard style={{ gap: spacing.sm }}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
+                  WHEN DO YOU WANT TO START?
                 </VirraText>
-                <VirraText variant="body" size={13} color="rgba(244,237,224,0.6)" style={styles.equipSub}>
-                  This programme comes in three versions. Pick the one that matches your kit and we will use it from here on. You can change it in your profile at any time.
-                </VirraText>
-                {WORKOUT_PREFERENCE_OPTIONS.map((opt) => (
-                  <Pressable
-                    key={opt.value}
-                    style={styles.equipOption}
-                    onPress={() => session && saveProfile(session.user.id, { workoutPreference: opt.value })}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${opt.label}. ${opt.sub}`}
-                  >
-                    <VirraText variant="mono" size={13} color={colors.breath}>{opt.label.toUpperCase()}</VirraText>
-                    <VirraText variant="body" size={12} color="rgba(244,237,224,0.45)">{opt.sub}</VirraText>
-                  </Pressable>
-                ))}
+                <View style={styles.startRow}>
+                  {startOptions.map((opt) => {
+                    const on = opt.iso === chosenStart?.iso;
+                    return (
+                      <Pressable
+                        key={opt.iso}
+                        onPress={() => setStartChoice(opt.iso)}
+                        style={[styles.startOpt, on && styles.startOptOn]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        accessibilityLabel={`Start ${opt.label}, ${opt.dateLabel}. ${describeFirstWeek(opt)}`}
+                      >
+                        <VirraText variant="bodyMedium" size={14} color={on ? colors.mile : colors.breath}>
+                          {opt.label}
+                        </VirraText>
+                        <VirraText variant="mono" size={10} color={on ? colors.mile : colors.muted}>
+                          {opt.dateLabel.toUpperCase()}
+                        </VirraText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {chosenStart && (
+                  // Say what the choice means, so a short first week is a
+                  // decision rather than a surprise.
+                  <VirraText variant="body" size={12} color={colors.muted} style={{ lineHeight: 18 }}>
+                    {chosenStart.fullWeek
+                      ? 'Your first week starts complete.'
+                      : chosenStart.sessionsInFirstWeek === 0
+                        ? 'Nothing left to do this week, so your first sessions are next week.'
+                        : `${describeFirstWeek(chosenStart)}, then full weeks from Monday.`}
+                  </VirraText>
+                )}
               </VirraCard>
             )}
+            {needsEquipment && (
+              <EquipmentChooser
+                onPick={(value) => session && saveProfile(session.user.id, { workoutPreference: value })}
+              />
+            )}
             {adjusting && (
+              // Not "from today": since card 281 the start picker above also
+              // applies when adjusting, so the rebuild begins on the day chosen.
               <VirraText variant="body" size={12} color={colors.muted} style={{ textAlign: 'center', lineHeight: 18 }}>
-                Saving rebuilds the rest of your plan from today. Sessions you have already done stay in your history.
+                Saving rebuilds the rest of your plan from the start you pick. Sessions you have already done stay in your history.
               </VirraText>
             )}
             <VirraButton
@@ -1174,6 +1223,9 @@ const styles = StyleSheet.create({
   actions:     { gap: spacing.sm },
   actionRow:   { flexDirection: 'row', gap: spacing.sm },
   actionLink:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.control, borderRadius: radius.md },
+  startRow:    { flexDirection: 'row', gap: spacing.sm },
+  startOpt:    { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.control, borderRadius: radius.md },
+  startOptOn:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
   statsRow:    { flexDirection: 'row', gap: spacing.sm },
   statPill:    { flex: 1, backgroundColor: colors.mist, borderRadius: radius.md, padding: spacing.md, gap: 2, alignItems: 'center', borderWidth: 1, borderColor: colors.border },
   adjRow:      { flexDirection: 'row', alignItems: 'center', gap: 8 },
