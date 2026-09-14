@@ -12,6 +12,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { appAlert } from '@/components/ui/VirraAlert';
 import {
   fetchRecipeDetail, scaleServings, scaleIngredientQuantity, logRecipe,
+  stepServings, formatServings, MIN_SERVINGS, MAX_SERVINGS,
   fetchFavouriteIds, toggleFavourite, noteStatesAnAmount, type RecipeDetail,
 } from '@/lib/recipes';
 import { formatQuantity } from '@/lib/foodUnits';
@@ -37,9 +38,6 @@ import { cancelNutritionReminderForMeal } from '@/lib/notifications';
 
 const MEALS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
-const MIN_SERVINGS = 0.5;
-const MAX_SERVINGS = 12;
-const STEP         = 0.5;
 
 function MacroTile(
   { label, value, unit, dp = 1 }:
@@ -61,10 +59,9 @@ function MacroTile(
   );
 }
 
-/** "1 serving" / "1.5 servings", matching the stepper's own formatting. */
+/** "1 serving" / "1.25 servings", matching the stepper's own formatting. */
 function servingsLabel(n: number): string {
-  const num = n % 1 === 0 ? `${n}` : n.toFixed(1);
-  return `${num} ${n === 1 ? 'serving' : 'servings'}`;
+  return `${formatServings(n)} ${n === 1 ? 'serving' : 'servings'}`;
 }
 
 export default function RecipeDetailScreen() {
@@ -249,7 +246,7 @@ export default function RecipeDetailScreen() {
               <SectionLabel>SERVINGS</SectionLabel>
               <View style={styles.stepper}>
                 <Pressable
-                  onPress={() => setServings((s) => Math.max(MIN_SERVINGS, Math.round((s - STEP) * 10) / 10))}
+                  onPress={() => setServings((s) => stepServings(s, -1))}
                   disabled={servings <= MIN_SERVINGS}
                   hitSlop={8}
                   accessibilityRole="button"
@@ -259,10 +256,10 @@ export default function RecipeDetailScreen() {
                   <SymbolView name="minus" size={14} tintColor={colors.breath} />
                 </Pressable>
                 <VirraText variant="display" size={20} color={colors.breath} style={styles.servingsValue}>
-                  {servings % 1 === 0 ? `${servings}` : servings.toFixed(1)}
+                  {formatServings(servings)}
                 </VirraText>
                 <Pressable
-                  onPress={() => setServings((s) => Math.min(MAX_SERVINGS, Math.round((s + STEP) * 10) / 10))}
+                  onPress={() => setServings((s) => stepServings(s, 1))}
                   disabled={servings >= MAX_SERVINGS}
                   hitSlop={8}
                   accessibilityRole="button"

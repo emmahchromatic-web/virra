@@ -5,6 +5,7 @@ import {
   planDurationWeeks,
   seedDaysFromSchedule,
   remainingWeeks,
+  occupiedDaysExcept,
   type ScheduledSession,
 } from '@/lib/activePlanState';
 
@@ -149,5 +150,31 @@ describe('remainingWeeks', () => {
 
   it('has nothing to offer for an ongoing plan', () => {
     expect(remainingWeeks(null, 3)).toBeNull();
+  });
+});
+
+describe('occupiedDaysExcept (card 282)', () => {
+  const week = [
+    { sessions: [sess({ block_id: 'mine',  day_of_week: 0 })] },
+    { sessions: [sess({ block_id: 'other', day_of_week: 1 })] },
+    { sessions: [sess({ block_id: 'mine',  day_of_week: 2 }), sess({ block_id: 'other', day_of_week: 2 })] },
+    { sessions: [sess({ block_id: 'other', day_of_week: 4, status: 'dropped' })] },
+  ];
+
+  it('does not flag the adjusted plan\'s own sessions as clashes', () => {
+    expect(occupiedDaysExcept(week, 'mine')).toEqual([1, 2]);
+  });
+
+  it('still flags a day the plan shares with another plan', () => {
+    // Wednesday holds one of mine and one of theirs: it is still a clash.
+    expect(occupiedDaysExcept(week, 'mine')).toContain(2);
+  });
+
+  it('flags everything on a plan you are not on', () => {
+    expect(occupiedDaysExcept(week, null)).toEqual([0, 1, 2]);
+  });
+
+  it('ignores dropped and moved sessions, as before', () => {
+    expect(occupiedDaysExcept(week, null)).not.toContain(4);
   });
 });

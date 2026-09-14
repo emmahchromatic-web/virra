@@ -10,6 +10,10 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useSessionStore } from '@/store/sessionStore';
+import { useProfileStore } from '@/store/profile';
+import { hasEquipmentPreference } from '@/lib/getStrongSession';
+import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
+import { loadMobilityStructure } from '@/lib/mobilitySessions';
 import { cancelTrainingReminderToday, scheduleRestComplete, cancelRestComplete } from '@/lib/notifications';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -39,6 +43,7 @@ import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStr
 import { isStrengthV2 } from '@/lib/workoutStructure';
 import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/workoutDrafts';
 import { enqueueCompletion } from '@/lib/pendingCompletions';
+import { sessionLabelText } from '@/lib/sessionLabels';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -130,6 +135,15 @@ interface LoggedSet {
   actualReps: string;  // free text while editing; parsed on save
   weightKg:   string;
   done:       boolean;
+  /**
+   * A set the user added beyond what the plan prescribed. Card 285.
+   *
+   * Kept distinct rather than just appended, because "did 4 sets when asked for
+   * 3" and "was asked for 4" are different facts. The first is a signal the
+   * progression engine can use; flattening them would throw it away, and would
+   * also invent a target the plan never set.
+   */
+  extra?:     boolean;
 }
 
 // Normalised, render-ready view of one exercise; flattens both v1 (generated,
@@ -360,7 +374,11 @@ function buildStepLines(session: SessionData): string[] {
 }
 
 export default function WorkoutPreviewScreen() {
-  const { sessionId }  = useLocalSearchParams<{ sessionId?: string }>();
+  // Two ways in, card 264. `sessionId` is a row in planned_sessions, the week's
+  // scheduled work. `mobilitySessionId` is a one-off: no plan behind it, and
+  // none needed. Everything after loading is identical, because the finish path
+  // already writes `planned_session_id: sessionId ?? null`.
+  const { sessionId, mobilitySessionId } = useLocalSearchParams<{ sessionId?: string; mobilitySessionId?: string }>();
   const { session }    = useAuthStore();
   const { cycleInfo }  = useCycleStore();
 
@@ -389,6 +407,9 @@ export default function WorkoutPreviewScreen() {
   // Card 258. Loading this screen used to have no failure branch at all.
   const [loadError, setLoadError] = useState<{ title: string; message: string } | null>(null);
   const [loadedFromCache, setLoadedFromCache] = useState(false);
+  // Bumped when the equipment answer arrives, so the session is re-read and the
+  // authored variant can be recovered instead of the generic fallback.
+  const [reloadKey, setReloadKey] = useState(0);
   const [rest,         setRest]         = useState<RestState | null>(null);
   const [restNow,      setRestNow]      = useState(0);
   const [settings,     setSettings]     = useState<Record<string, ExerciseSettings>>({});
@@ -428,6 +449,40 @@ export default function WorkoutPreviewScreen() {
       { logged: loggedSnapshot, sessionRpe: rpe },
     ).catch(() => {});
   }
+
+  // A one-off: load the authored mobility session and hand the screen the same
+  // structure a scheduled session would have carried.
+  useEffect(() => {
+    if (!mobilitySessionId) return;
+    let cancelled = false;
+    (async () => {
+      const loaded = await loadMobilityStructure(mobilitySessionId);
+      if (cancelled) return;
+      if (!loaded) {
+        setLoadError({
+          title:   'Could not open this session',
+          message: 'We could not reach the server, or this session has no moves in it yet.',
+        });
+        setState('idle');
+        return;
+      }
+      setSessionData({
+        id:                       mobilitySessionId,
+        session_label:            loaded.name,
+        modality:                 'mobility',
+        week_number:              null,
+        block_id:                 null,
+        run_structure:            null,
+        strength_structure:       loaded.structure,
+        cycle_reason_short:       null,
+        cycle_adjusted_pace_secs: null,
+      });
+      const exercises = toLogExercises(loaded.structure);
+      setLogged(seedLoggedSets(exercises));
+      setState('idle');
+    })();
+    return () => { cancelled = true; };
+  }, [mobilitySessionId]);
 
   useEffect(() => {
     if (!sessionId) { setState('idle'); return; }
@@ -512,7 +567,7 @@ export default function WorkoutPreviewScreen() {
         setState('idle');
     })();
     return () => { cancelled = true; };
-  }, [sessionId]);
+  }, [sessionId, reloadKey]);
 
   useEffect(() => {
     if (!session) return;
@@ -613,7 +668,10 @@ export default function WorkoutPreviewScreen() {
     if (!sets[setIdx]) return;
     // On completing a set, default empty reps to the target so a quick tap
     // records a "did as prescribed" set. Carry the weight to the next set.
-    const actualReps = nextDone && sets[setIdx].actualReps === ''
+    // Ticking a set with no reps typed records "did as prescribed". An EXTRA
+    // set has nothing prescribed, so the same default would write 0 reps and
+    // claim she did none. Leave it empty and let it save as null. Card 285.
+    const actualReps = nextDone && sets[setIdx].actualReps === '' && !sets[setIdx].extra
       ? String(sets[setIdx].targetReps)
       : sets[setIdx].actualReps;
     sets[setIdx] = { ...sets[setIdx], done: nextDone, actualReps };
@@ -656,6 +714,46 @@ export default function WorkoutPreviewScreen() {
     const next = { ...logged, [current.exId]: sets };
     setLogged(next);
     persistDraft(next, sessionRpe);
+  }
+
+  /**
+   * One more set of a movement, logged like any other.
+   *
+   * The save path already iterates whatever is in `logged[ex.id]` and uses the
+   * array index as set_index, so an appended entry persists with no change
+   * there. The draft carries the same structure, so an extra set survives
+   * backgrounding the app mid-workout.
+   */
+  function addExtraSet(ex: LogExercise) {
+    setLogged((prev) => {
+      const sets = prev[ex.id] ?? [];
+      // Carry the weight down, as ticking a set already does: someone adding a
+      // fourth set is almost always doing it at the weight they just used.
+      const last = sets[sets.length - 1];
+      const next = {
+        ...prev,
+        [ex.id]: [...sets, {
+          targetReps: 0,
+          actualReps: '',
+          weightKg:   last?.weightKg ?? '',
+          done:       false,
+          extra:      true,
+        }],
+      };
+      persistDraft(next, sessionRpe);
+      return next;
+    });
+  }
+
+  /** Undo an extra set. Only ever offered for sets the user added. */
+  function removeExtraSet(ex: LogExercise, setIdx: number) {
+    setLogged((prev) => {
+      const sets = prev[ex.id] ?? [];
+      if (!sets[setIdx]?.extra) return prev;
+      const next = { ...prev, [ex.id]: sets.filter((_, i) => i !== setIdx) };
+      persistDraft(next, sessionRpe);
+      return next;
+    });
   }
 
   function restoreSetAside(id: string) {
@@ -743,7 +841,10 @@ export default function WorkoutPreviewScreen() {
           exercise_id:        ex.id,
           exercise_name:      ex.name,
           set_index:          i,
-          target_reps:        s.targetReps,
+          // Null, not 0: nothing was prescribed for a set the user added, and
+          // writing 0 would claim the plan asked for zero reps. The column is
+          // nullable precisely so "not prescribed" can be said.
+          target_reps:        s.extra ? null : s.targetReps,
           actual_reps:        Number.isFinite(reps)   ? reps   : null,
           weight_kg:          Number.isFinite(weight) ? weight : null,
           // A 30 second plank must not read as 30 reps later on.
@@ -756,7 +857,10 @@ export default function WorkoutPreviewScreen() {
           const reps   = parseInt(s.actualReps, 10);
           const weight = parseFloat(s.weightKg);
           return {
-            reps:      Number.isFinite(reps)   ? reps   : s.targetReps,
+            // Same reason as target_reps above: an extra set has no prescribed
+            // count to fall back on, so an untyped one reports 0 rather than
+            // borrowing a target that does not exist.
+            reps:      Number.isFinite(reps)   ? reps   : (s.extra ? 0 : s.targetReps),
             weight_kg: Number.isFinite(weight) ? weight : 0,
           };
         }),
@@ -876,11 +980,20 @@ export default function WorkoutPreviewScreen() {
   }
 
   const label    = useMemo(() => sessionData
-    ? sessionData.session_label.charAt(0).toUpperCase() + sessionData.session_label.slice(1).toLowerCase()
+    ? sessionLabelText(sessionData.session_label)
     : '', [sessionData]);
   const modality = sessionData?.modality ?? 'other';
   const steps    = useMemo(() => sessionData ? buildStepLines(sessionData) : [], [sessionData]);
   const strengthStructure = sessionData?.strength_structure ?? null;
+  // Card 261. With the gym default gone, an unset user reaching a strength
+  // session has no variant to build from: `recoverProgrammeStructure` returns
+  // null rather than guessing, and the generic generator's pool still leans on
+  // gym machines. So ask, here, at the moment the answer changes what is on
+  // screen. Same question and wording as the enrolment screen, one component.
+  const workoutPreference = useProfileStore((st) => st.workoutPreference);
+  const profileLoaded     = useProfileStore((st) => st.isLoaded);
+  const saveProfile       = useProfileStore((st) => st.save);
+  const needsEquipment    = modality === 'strength' && profileLoaded && !hasEquipmentPreference(workoutPreference);
   const allLogExercises = useMemo(
     () => strengthStructure ? toLogExercises(strengthStructure) : [],
     [strengthStructure],
@@ -1003,7 +1116,23 @@ export default function WorkoutPreviewScreen() {
         </View>
       )}
 
-      {state === 'idle' && (
+      {/* Asked before anything is drawn, because the answer decides what would
+          be drawn. Reloads the session once saved, so the authored variant can
+          be recovered rather than the generic pool. */}
+      {needsEquipment && state !== 'loading' && (
+        <ScrollView contentContainerStyle={s.scroll}>
+          <EquipmentChooser
+            intro="This session comes in three versions. Pick the one that matches your kit and we will use it from here on. You can change it in your profile at any time."
+            onPick={async (value) => {
+              if (!session) return;
+              await saveProfile(session.user.id, { workoutPreference: value });
+              setReloadKey((k) => k + 1);
+            }}
+          />
+        </ScrollView>
+      )}
+
+      {!needsEquipment && state === 'idle' && (
         <ScrollView contentContainerStyle={s.scroll}>
           <VirraCard style={{ gap: spacing.sm }}>
             <View style={s.sessionRow}>
@@ -1201,7 +1330,7 @@ export default function WorkoutPreviewScreen() {
                         style={[s.setInput, s.colInput, st.done && s.setInputDone]}
                         value={st.actualReps}
                         onChangeText={(v) => updateLoggedSet(ex.id, i, 'actualReps', v)}
-                        placeholder={String(st.targetReps)}
+                        placeholder={st.extra ? 'reps' : String(st.targetReps)}
                         placeholderTextColor="rgba(244,237,224,0.3)"
                         keyboardType="number-pad"
                         maxLength={3}
@@ -1221,8 +1350,33 @@ export default function WorkoutPreviewScreen() {
                       <Pressable style={s.colDone} onPress={() => toggleSetDone(ex, i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Complete ${ex.name} set ${i + 1}`}>
                         <SymbolView name={st.done ? 'checkmark.circle.fill' : 'circle'} size={24} tintColor={st.done ? colors.pulse : colors.muted} />
                       </Pressable>
+                      {/* Only an added set can be removed. An authored one is
+                          part of the plan and is dropped by not logging it. */}
+                      {st.extra && (
+                        <Pressable
+                          onPress={() => removeExtraSet(ex, i)}
+                          hitSlop={8}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove extra set ${i + 1} of ${ex.name}`}
+                        >
+                          <SymbolView name="minus.circle" size={18} tintColor={colors.muted} />
+                        </Pressable>
+                      )}
                     </View>
                   ))}
+
+                  <Pressable
+                    onPress={() => addExtraSet(ex)}
+                    hitSlop={8}
+                    style={s.addWeightBtn}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add another set of ${ex.name}`}
+                  >
+                    <SymbolView name="plus" size={11} tintColor={colors.muted} />
+                    <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
+                      ADD SET
+                    </VirraText>
+                  </Pressable>
 
                   {canAddWeight && (
                     <Pressable

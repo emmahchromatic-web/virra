@@ -151,10 +151,25 @@ export function generateSchedule(
 
     if (slots.length === 0) return;
     slots.forEach((slot) => {
+      const scheduledDate = toISO(addDays(origin, weekIndex * 7 + slot.day));
+
+      // Card 281. Week 1 is anchored to the Monday of the start date's week,
+      // and that anchor stays: every surface in the app agrees a week is
+      // Monday-start, and moving the plan's week off Monday would put "week 1"
+      // and "this week" out of step again (card 260). But a plan started on a
+      // Saturday used to write Monday's and Wednesday's sessions into the past,
+      // already missed. (The day-one BEHIND badge was a separate bug in how the
+      // week's progress was pro-rated; see weekProgress.ts.)
+      //
+      // So they are not written. A mid-week start gives a short first week,
+      // which the runner chose on the start picker rather than discovered.
+      // ISO date strings compare correctly as strings.
+      if (scheduledDate < startsOn) return;
+
       const row: PlannedSessionInsert = {
         user_id:        userId,
         block_id:       blockId,
-        scheduled_date: toISO(addDays(origin, weekIndex * 7 + slot.day)),
+        scheduled_date: scheduledDate,
         week_number:    week.week,
         day_of_week:    slot.day,
         modality,

@@ -32,11 +32,29 @@ const UNCOMFORTABLE = ['cramps', 'back pain', 'bloating'];
 const LOW_ENERGY = 2;
 
 /**
- * Conventionally the heaviest days, and the fallback when a user has logged no
- * check-in at all. Deliberately 2 rather than the full 5-day menstrual phase:
- * Emma asked for the heaviest days, not the whole bleed.
+ * The heaviest days, and the fallback when a user has logged no check-in at all.
+ *
+ * Three, not the full 5-day menstrual phase: Emma asked for the heaviest days,
+ * not the whole bleed. Roughly 90% of total menstrual blood loss falls in the
+ * first three days, day 2 is usually the single heaviest, and cramping peaks in
+ * the first 24 to 48 hours and mostly settles by day 2 or 3. So flow and pain
+ * peak together and one window covers both.
+ *
+ * It was 2 on the first pass, which is also defensible. Three wins on the
+ * asymmetry of the two mistakes rather than on the physiology: setting aside a
+ * plank someone could have done costs them one tap on ADD BACK, while failing
+ * to set aside a box jump on a day someone is doubled over costs them the
+ * session. The cheap error is hiding too much.
+ *
+ * The counterweight is real and worth watching in UAT: hide too often and
+ * people stop reading the reason and start ignoring the feature.
+ *
+ * How narrow this is matters. It applies ONLY when nothing has been logged. A
+ * symptom or low energy overrides it on any menstrual day, in both directions,
+ * so a woman who is rough on day 4 is already covered and one who is fine on
+ * day 1 adds everything straight back.
  */
-const HEAVIEST_DAYS = 2;
+const HEAVIEST_DAYS = 3;
 
 /**
  * Core-LED, not merely core-involving.
