@@ -1,4 +1,5 @@
 import type { CyclePhase } from '@/store/cycle';
+import { sessionLabelText } from '@/lib/sessionLabels';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 
 interface SessionStub {
@@ -39,8 +40,11 @@ function cueFor(phase: CyclePhase | null, load: TrainingLoad): string {
 
 function sessionLabel(sessions: SessionStub[]): string | null {
   if (sessions.length === 0) return null;
-  const raw = sessions[0].session_label;
-  return raw.charAt(0).toUpperCase() + raw.slice(1);
+  // Written, not capitalised. Capitalising the raw label turned run_walk into
+  // "Run_walk today" on the dashboard; #96 moved every other surface onto
+  // sessionLabelText and missed this one, because it read the label into a
+  // local first and the search was for `session_label.charAt`.
+  return sessionLabelText(sessions[0].session_label);
 }
 
 export function buildNarrative(
