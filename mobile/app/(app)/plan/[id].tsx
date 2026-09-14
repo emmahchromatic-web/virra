@@ -17,9 +17,11 @@ import { archetypeForTemplate, raceDistanceFor, type ArchetypeKey } from '@/lib/
 import { planFeasibility } from '@/lib/runProgramme/volumeCurve';
 import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
+import { sessionsForBlock, currentWeekIndex, planDurationWeeks, seedDaysFromSchedule, remainingWeeks, occupiedDaysExcept } from '@/lib/activePlanState';
 import { sessionLabelText } from '@/lib/sessionLabels';
 import { planStartOptions, describeFirstWeek, localISO, addDaysISO } from '@/lib/planStart';
 import { weekStatus, expectedKmByNow } from '@/lib/weekProgress';
+import { weekStartLocal } from '@/lib/insightMetrics';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
@@ -210,11 +212,14 @@ export default function PlanDetailScreen() {
   const [dayAssignment,        setDayAssignment]        = useState<SessionSlot[]>([]);
   const [sessionCountOverride, setSessionCountOverride] = useState(0);
   const [durationOverride,     setDurationOverride]     = useState(0);
-  const [occupiedDays,         setOccupiedDays]         = useState<number[]>([]);
   const [runnerModel,          setRunnerModel]          = useState<RunnerModel | null>(null);
   // The rest of the run catalogue, purely so a plan that is wrong for someone
   // can point at a real row rather than naming a plan they then have to find.
   const [runTemplates,         setRunTemplates]         = useState<RunTemplateRef[]>([]);
+  // Card 256. On a plan you are already on, the controls were replaced by
+  // static pills and the only action was "Switch plan". Adjusting is now a
+  // mode: the same controls, unfrozen, seeded with what you actually have.
+  const [adjusting,            setAdjusting]            = useState(false);
 
   useEffect(() => {
     if (!id || !session) return;
@@ -257,10 +262,14 @@ export default function PlanDetailScreen() {
       setExistingBlocks(blocks);
 
       if (p) {
-        const planStart  = new Date(p.start_date);
-        const weekIdx    = Math.max(0, Math.floor((Date.now() - planStart.getTime()) / (7 * 86400000)));
-        const weekStart  = new Date(planStart.getTime() + weekIdx * 7 * 86400000).toISOString();
-        const weekEnd    = new Date(planStart.getTime() + (weekIdx + 1) * 7 * 86400000).toISOString();
+        // The runner's Monday-start week, the same week every other screen uses
+        // (card 260). Counting sevens from start_date put the window on the
+        // wrong days once card 281 let a plan start mid-week: a Sunday start
+        // measured Sunday to Saturday while the plan's week ran Monday to Sunday,
+        // and the on-track badge was then judged against the wrong runs.
+        const monday     = weekStartLocal(new Date());
+        const weekStart  = monday.toISOString();
+        const weekEnd    = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7).toISOString();
         const { data: acts } = await supabase
           .from('activities')
           .select('distance_meters')
@@ -285,15 +294,6 @@ export default function PlanDetailScreen() {
     return monday.toISOString().split('T')[0];
   })();
   const { days: weekDays } = useWeekSessions(mondayISO);
-  useEffect(() => {
-    const dows = new Set<number>();
-    for (const d of weekDays) {
-      for (const s of d.sessions) {
-        if (s.status !== 'moved' && s.status !== 'dropped') dows.add(s.day_of_week);
-      }
-    }
-    setOccupiedDays([...dows]);
-  }, [weekDays]);
 
   const raceTarget  = raceDateObj;
   const startDate   = raceTarget && plan?.duration_weeks
@@ -310,6 +310,16 @@ export default function PlanDetailScreen() {
       : `Plan starts ${startDate!.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}`
     : null;
 
+  /**
+   * Starts, adjusts or restarts this plan. All three are the same write: clear
+   * the slot, insert the user_plans row, build the block.
+   *
+   * It builds from the start the runner picked (today by default, or the date
+   * a race goal implies), never from the plan's original start date.
+   * Regenerating weeks already in the past would leave two sets of them in the
+   * calendar, because clearSlot only drops sessions from today forward.
+   * Adjusting changes the plan from here; it does not rewrite what happened.
+   */
   async function handleStart() {
     if (!session || !plan) return;
     setSaving(true);
@@ -355,7 +365,75 @@ export default function PlanDetailScreen() {
       maxWeeks:        effectiveDuration,
     });
     if (!blockId) console.warn('training_block creation failed — plan started but stack not updated');
+    setAdjusting(false);
     router.replace('/(app)/(tabs)/training');
+  }
+
+  /**
+   * Adjusting starts from what the runner actually has, not from the
+   * template's defaults — otherwise opening the controls silently proposes a
+   * different plan from the one they are on.
+   */
+  function beginAdjust() {
+    if (mySessionsPerWk > 0 && plan?.sessions_json) {
+      setSessionCountOverride(mySessionsPerWk);
+      setDayAssignment(seedDaysFromSchedule(
+        computeDefaultDayAssignment(plan.sessions_json as any, mySessionsPerWk),
+        myWeekSessions,
+      ));
+    }
+    const left = remainingWeeks(myDurationWeeks, weekIndex);
+    if (left) setDurationOverride(Math.max(4, left));
+    setAdjusting(true);
+  }
+
+  function cancelAdjust() {
+    setAdjusting(false);
+    setRaceOpen(false);
+    // Put the controls back where the initial load left them. Without this a
+    // cancelled adjust leaves `durationOverride` holding the remaining-weeks
+    // figure it was seeded with, and Restart then quietly rebuilds a shorter
+    // plan than the one being restarted.
+    if (plan?.sessions_json?.length) {
+      const defaultCount = (plan.sessions_json as WeekSession[])[0]?.sessions?.length ?? 1;
+      setSessionCountOverride(defaultCount);
+      setDayAssignment(computeDefaultDayAssignment(plan.sessions_json as any, defaultCount));
+    }
+    setDurationOverride(plan && plan.duration_weeks > 0 ? plan.duration_weeks : 8);
+  }
+
+  function confirmRestart() {
+    appAlert(
+      'Restart from week 1?',
+      'Your remaining sessions are cleared and the plan is rebuilt from today. Sessions you have already done stay in your history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Restart', style: 'destructive', onPress: () => { void handleStart(); } },
+      ],
+    );
+  }
+
+  function confirmLeave() {
+    appAlert(
+      'Leave this plan?',
+      'Your remaining sessions are cleared and the slot is freed. Sessions you have already done stay in your history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave plan',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              if (!session) return;
+              setSaving(true);
+              await clearSlot(session.user.id, targetSlot);
+              setSaving(false);
+              router.replace('/(app)/(tabs)/training');
+            })();
+          },
+        },
+      ],
+    );
   }
 
   const weeks      = (plan?.sessions_json ?? []) as WeekSession[];
@@ -523,28 +601,52 @@ export default function PlanDetailScreen() {
     ? (occupantName ? `Replace ${occupantName}` : `Start training for ${raceName.trim()}`)
     : occupantName ? `Replace ${occupantName}` : 'Start this plan';
 
+  // ---- Card 256: the plan you are ON, described from your own schedule ----
+  //
+  // `occupant` above is whoever holds this slot, which on a plan you have not
+  // started is a different plan entirely. This is specifically the block that
+  // THIS template created for you.
+  const myBlock = plan ? existingBlocks.find((b) => b.template_id === plan.id) ?? null : null;
+
+  // What you actually have this week. The old code read
+  // `sessions_json[0].sessions.length` off the template, and for a generated
+  // plan that is not the plan you were given: Emma saw a fixed 3/wk that had
+  // never been hers.
+  const myWeekSessions = React.useMemo(
+    () => sessionsForBlock(weekDays.flatMap((d) => d.sessions), myBlock?.id ?? null),
+    [weekDays, myBlock],
+  );
+
+  const mySessionsPerWk = myWeekSessions.length;
+
+  // Card 282. Derived here rather than in an effect near the top, because it
+  // needs `myBlock`: the plan being adjusted must not show its own sessions as
+  // clashes. See occupiedDaysExcept.
+  const occupiedDays = React.useMemo(
+    () => occupiedDaysExcept(weekDays, myBlock?.id ?? null),
+    [weekDays, myBlock],
+  );
+  const myDurationWeeks = planDurationWeeks(userPlan?.start_date, userPlan?.goal_date);
+
+  // The steppers and the day picker are live when choosing a plan, and again
+  // when deliberately adjusting one. They are read-only in between.
+  const editable = !userPlan || adjusting;
+
   // Active plan context
-  const planStartDate  = userPlan ? new Date(userPlan.start_date) : null;
-  const weekIndex      = planStartDate
-    ? Math.max(0, Math.floor((Date.now() - planStartDate.getTime()) / (7 * 86400000)))
-    : -1;
-  const currentWeek    = weekIndex >= 0 && weekIndex < weeks.length ? weeks[weekIndex] : null;
-  const planComplete   = weeks.length > 0 && weekIndex >= weeks.length;
-  const weekStart      = planStartDate
-    ? new Date(planStartDate.getTime() + weekIndex * 7 * 86400000)
-    : null;
-  const dayInWeek      = weekStart
-    ? Math.min(6, Math.floor((Date.now() - weekStart.getTime()) / 86400000))
-    : 0;
+  const weekIndex      = currentWeekIndex(myWeekSessions, userPlan?.start_date ?? null);
+  // Indexed into the weeks actually being shown. `weeks` is the template's
+  // authored list, which a generated plan does not follow.
+  const currentWeek    = weekIndex >= 0 && weekIndex < displayWeeks.length ? displayWeeks[weekIndex] : null;
+  const planComplete   = displayWeeks.length > 0 && weekIndex >= displayWeeks.length;
+  // Day of the runner's Monday-start week, matching the km window above.
+  const dayInWeek      = (new Date().getDay() + 6) % 7;
   // What was due is worked out from this plan's own sessions that have already
   // gone by, not from a seventh of the week per day. The old version charged a
   // day-one runner a seventh of the week before they had any chance to run, and
   // called them BEHIND in red. See weekProgress.ts.
-  const myBlockId       = plan ? existingBlocks.find((b) => b.template_id === plan.id)?.id ?? null : null;
-  const mySessionDates  = weekDays
-    .flatMap((d) => d.sessions)
-    .filter((s) => s.block_id === myBlockId && s.status !== 'moved' && s.status !== 'dropped')
-    .map((s) => s.scheduled_date);
+  // Card 256 already worked out this plan's block and its live sessions this
+  // week; read them rather than deriving the same set a second time.
+  const mySessionDates  = myWeekSessions.map((s) => s.scheduled_date);
   const todayLocal      = localISO(new Date());
   const expectedByNow   = currentWeek ? expectedKmByNow(currentWeek.km, mySessionDates, todayLocal) : 0;
   const onTrackStatus   = weekStatus({
@@ -625,8 +727,8 @@ export default function PlanDetailScreen() {
         {/* Stats row */}
         {displayWeeks.length > 0 && (
           <View style={styles.statsRow}>
-            {userPlan ? (
-              <StatPill label="DURATION" value={`${plan.duration_weeks > 0 ? plan.duration_weeks : durationOverride}w`} />
+            {!editable ? (
+              <StatPill label="DURATION" value={`${myDurationWeeks ?? (plan.duration_weeks > 0 ? plan.duration_weeks : durationOverride)}w`} />
             ) : (
               <View style={styles.statPill}>
                 <VirraText variant="mono" size={11} color={colors.muted}>DURATION</VirraText>
@@ -643,8 +745,10 @@ export default function PlanDetailScreen() {
                 </View>
               </View>
             )}
-            {userPlan ? (
-              <StatPill label="SESSIONS" value={`${sessionsPerWk}/wk`} />
+            {!editable ? (
+              // The runner's own count, from their own schedule. Falls back to
+              // the template's only when there is no schedule to read.
+              <StatPill label="SESSIONS" value={`${mySessionsPerWk || sessionsPerWk}/wk`} />
             ) : (
               <View style={styles.statPill}>
                 <VirraText variant="mono" size={11} color={colors.muted}>SESSIONS</VirraText>
@@ -753,7 +857,7 @@ export default function PlanDetailScreen() {
             <View style={styles.currentWeekHeader}>
               <View style={styles.currentWeekLeft}>
                 <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
-                  CURRENT WEEK · WEEK {weekIndex + 1} OF {weeks.length}
+                  CURRENT WEEK · WEEK {weekIndex + 1} OF {displayWeeks.length}
                 </VirraText>
                 <VirraText variant="bodyMedium" size={18} color={weekColor(currentWeek.label)}>
                   {currentWeek.label}
@@ -876,13 +980,46 @@ export default function PlanDetailScreen() {
           </View>
         )}
 
-        {userPlan ? (
-          <VirraButton
-            label="Switch plan"
-            variant="ghost"
-            onPress={() => router.push('/(app)/plans/browse' as any)}
-            style={styles.cta}
-          />
+        {userPlan && !adjusting ? (
+          // Card 256. "Switch plan" was the only action here, and it led to
+          // browse, where picking this plan again landed back on this screen.
+          // A plan you are on needs to be adjustable, restartable and
+          // leaveable; browsing is one option among those, not the only door.
+          <View style={styles.actions}>
+            <VirraButton label="Adjust this plan" onPress={beginAdjust} style={styles.cta} />
+            <VirraText variant="body" size={12} color={colors.muted} style={{ textAlign: 'center', lineHeight: 18 }}>
+              Change your days, sessions per week, how long the plan runs or when it restarts. Sessions you have already done stay in your history.
+            </VirraText>
+            <View style={styles.actionRow}>
+              <Pressable
+                style={styles.actionLink}
+                onPress={confirmRestart}
+                accessibilityRole="button"
+                accessibilityLabel="Restart from week 1"
+              >
+                <SymbolView name="arrow.counterclockwise" size={13} tintColor={colors.breath} />
+                <VirraText variant="mono" size={11} color={colors.breath}>RESTART</VirraText>
+              </Pressable>
+              <Pressable
+                style={styles.actionLink}
+                onPress={() => router.push('/(app)/plans/browse' as any)}
+                accessibilityRole="button"
+                accessibilityLabel="Browse other plans"
+              >
+                <SymbolView name="square.grid.2x2" size={13} tintColor={colors.breath} />
+                <VirraText variant="mono" size={11} color={colors.breath}>BROWSE</VirraText>
+              </Pressable>
+              <Pressable
+                style={styles.actionLink}
+                onPress={confirmLeave}
+                accessibilityRole="button"
+                accessibilityLabel="Leave this plan"
+              >
+                <SymbolView name="xmark" size={13} tintColor={colors.heat} />
+                <VirraText variant="mono" size={11} color={colors.heat}>LEAVE</VirraText>
+              </Pressable>
+            </View>
+          </View>
         ) : (
           <>
             {plan.duration_weeks > 0 && !isStrength && (
@@ -1024,13 +1161,23 @@ export default function PlanDetailScreen() {
                 onPick={(value) => session && saveProfile(session.user.id, { workoutPreference: value })}
               />
             )}
+            {adjusting && (
+              // Not "from today": since card 281 the start picker above also
+              // applies when adjusting, so the rebuild begins on the day chosen.
+              <VirraText variant="body" size={12} color={colors.muted} style={{ textAlign: 'center', lineHeight: 18 }}>
+                Saving rebuilds the rest of your plan from the start you pick. Sessions you have already done stay in your history.
+              </VirraText>
+            )}
             <VirraButton
-              label={ctaLabel}
+              label={adjusting ? 'Save changes' : ctaLabel}
               onPress={handleStart}
               loading={saving}
               disabled={needsEquipment}
               style={styles.cta}
             />
+            {adjusting && (
+              <VirraButton label="Cancel" variant="ghost" onPress={cancelAdjust} />
+            )}
           </>
         )}
 
@@ -1073,6 +1220,9 @@ const styles = StyleSheet.create({
   name:        { lineHeight: 36 },
   desc:        { lineHeight: 22, marginTop: spacing.xs },
 
+  actions:     { gap: spacing.sm },
+  actionRow:   { flexDirection: 'row', gap: spacing.sm },
+  actionLink:  { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.control, borderRadius: radius.md },
   startRow:    { flexDirection: 'row', gap: spacing.sm },
   startOpt:    { flex: 1, alignItems: 'center', gap: 2, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.control, borderRadius: radius.md },
   startOptOn:  { backgroundColor: colors.pulse, borderColor: colors.pulse },
