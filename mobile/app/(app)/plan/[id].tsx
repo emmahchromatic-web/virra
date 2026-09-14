@@ -314,11 +314,11 @@ export default function PlanDetailScreen() {
    * Starts, adjusts or restarts this plan. All three are the same write: clear
    * the slot, insert the user_plans row, build the block.
    *
-   * It always builds from today (or from the date a race goal implies), never
-   * from the original start date. Regenerating weeks that are already in the
-   * past would leave two sets of them in the calendar, because clearSlot only
-   * drops sessions from today forward. Adjusting changes the plan from here;
-   * it does not rewrite what already happened.
+   * It builds from the start the runner picked (today by default, or the date
+   * a race goal implies), never from the plan's original start date.
+   * Regenerating weeks already in the past would leave two sets of them in the
+   * calendar, because clearSlot only drops sessions from today forward.
+   * Adjusting changes the plan from here; it does not rewrite what happened.
    */
   async function handleStart() {
     if (!session || !plan) return;
@@ -988,7 +988,7 @@ export default function PlanDetailScreen() {
           <View style={styles.actions}>
             <VirraButton label="Adjust this plan" onPress={beginAdjust} style={styles.cta} />
             <VirraText variant="body" size={12} color={colors.muted} style={{ textAlign: 'center', lineHeight: 18 }}>
-              Change your days, sessions per week or how long the plan runs. The rest of the plan is rebuilt from today.
+              Change your days, sessions per week, how long the plan runs or when it restarts. Sessions you have already done stay in your history.
             </VirraText>
             <View style={styles.actionRow}>
               <Pressable
