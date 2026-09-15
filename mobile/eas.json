@@ -55,6 +55,12 @@
     }
   },
   "submit": {
+    "testflight": {
+      "ios": {
+        "appleId": "dickenson.ps@gmail.com",
+        "ascAppId": "6768433819"
+      }
+    },
     "production": {
       "ios": {
         "appleId": "dickenson.ps@gmail.com",

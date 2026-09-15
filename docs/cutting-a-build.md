@@ -1,15 +1,43 @@
 # Cutting a build
 
-Builds are cut **locally** — pulled from git, archived from Xcode, uploaded to
-App Store Connect. Not on EAS cloud. That one fact is why step 3 exists and why
-skipping it silently breaks things.
+## The default: EAS cloud build (builds 1–13, 15 onward)
 
-**Build 14 shipped with a bug caused by missing step 3.** The instructions given
-at the time did not mention it. This file exists so that cannot happen again.
+Builds are cut on **EAS**, from the committed `main`. EAS runs a fresh prebuild
+every time, so the step-3 problem below cannot happen there. Credentials
+(distribution certificate, provisioning profile, App Store Connect access) are
+stored on EAS under `@paul-dickenson/virra`, set up 2026-05.
+
+```bash
+cd mobile
+git checkout main && git pull
+# bump expo.ios.buildNumber in app.json and commit it first (see step 2 below)
+eas build --platform ios --profile testflight --auto-submit --no-wait
+```
+
+`--auto-submit` uses the `testflight` submit profile in `eas.json`. If the
+build was started without it, submit afterwards:
+
+```bash
+eas submit --platform ios --profile testflight --id <build id>
+```
+
+Build 15 (2026-09-15) was cut this way after a local attempt stalled on a poor
+connection: the EAS upload is a 19 MB source archive, and Expo's servers do the
+transfer to Apple.
+
+Still true for EAS builds: step 6 (edge functions and migrations ship
+separately) and step 7 (post the build number and commit).
+
+## The exception: a local build
+
+Build 14 was cut **locally** — archived from Xcode, uploaded to App Store
+Connect — and shipped with a bug caused by missing step 3 below. The rest of
+this file is the local sequence, kept so that cannot happen again if a local
+cut is ever needed. Prefer EAS.
 
 ---
 
-## The whole sequence
+## The whole sequence (local)
 
 ### 1. Get the code you intend to ship
 
