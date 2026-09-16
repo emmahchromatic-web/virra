@@ -43,8 +43,15 @@ function humanise(label: string): string {
 
 /** Sentence case, for headings and body text: "Run/walk", "Long run". */
 export function sessionLabelText(label: string | null | undefined): string {
-  if (!label) return '';
-  return SESSION_TEXT[label] ?? humanise(label);
+  const trimmed = (label ?? '').trim();
+  if (!trimmed) return '';
+  // A mobility session's label is its authored name ("Deep Release", card
+  // 264), already written for a reader. Lower-casing it to "Deep release"
+  // would be the fallback getting in the way of content that is right.
+  // Written for a reader means a space or mixed case ("Deep Release", "Pigeon");
+  // an all-caps key like EASY is still a key, and still gets the map.
+  if (trimmed.includes(' ') || /[A-Z][a-z]|[a-z][A-Z]/.test(trimmed)) return trimmed;
+  return SESSION_TEXT[trimmed] ?? humanise(trimmed);
 }
 
 /** Upper case, for the mono labels this app uses as eyebrows: "RUN/WALK". */

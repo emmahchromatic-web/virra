@@ -19,7 +19,7 @@ const PHASE_MULTIPLIER: Record<string, number> = {
 const MAX_TOTAL_LOAD = 1.8; // ceiling for combined block load (relative to one full plan)
 const MIN_RUN_LOAD   = 0.5; // run block never drops below 50%; plan remains meaningful
 
-export type BlockModality = 'run' | 'strength' | 'swim' | 'yoga' | 'other';
+export type BlockModality = 'run' | 'strength' | 'swim' | 'yoga' | 'mobility' | 'other';
 
 export interface TrainingBlock {
   id:            string;
@@ -32,6 +32,8 @@ export interface TrainingBlock {
   is_primary:    boolean;
   event_id:      string | null;
   template?:     { name: string; duration_weeks: number; distance_goal: string | null; sport_type: string } | null;
+  /** For a block with no template (a mobility habit, card 264): what is in it. Attached by attachMobilityLabels. */
+  label?:        string | null;
 }
 
 export interface ComputedBlock extends TrainingBlock {
@@ -66,6 +68,7 @@ export function inferModality(sportType: string): BlockModality {
   if (s.includes('strength') || s === 'gym') return 'strength';
   if (s === 'swim' || s === 'swimming') return 'swim';
   if (s === 'yoga') return 'yoga';
+  if (s === 'mobility') return 'mobility';
   return 'other';
 }
 
@@ -181,7 +184,7 @@ export const SLOT_LOAD: Record<PlanSlot, number> = {
 export async function clearSlot(userId: string, slot: PlanSlot): Promise<string[]> {
   const today      = new Date().toISOString().split('T')[0];
   const closedOn   = blockCloseDate();
-  const modalities = (['run', 'strength', 'swim', 'yoga', 'other'] as BlockModality[])
+  const modalities = (['run', 'strength', 'swim', 'yoga', 'mobility', 'other'] as BlockModality[])
     .filter((m) => planSlot(m) === slot);
 
   const { data: open } = await supabase
