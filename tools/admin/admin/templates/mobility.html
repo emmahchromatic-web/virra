@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set nav = 'mobility' %}
+{% block title %}Mobility sessions — VIRRA Admin{% endblock %}
+{% block body %}
+  <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+    <h1>Mobility sessions</h1>
+    <span class="mono">{{ total }} total</span>
+    <a class="btn primary" style="margin-left:auto" href="/mobility/new">New session</a>
+  </div>
+  <p class="sub">
+    Pilates-style range-of-movement sessions (card 264). One library: the app offers them as one-offs from the
+    training tab, ranked for the phase she is in. Inactive sessions are staged — they exist but the app does not show them.
+  </p>
+
+  {% if warnings %}
+    <div class="notice" style="margin-bottom:1.5rem">
+      <span class="t">Coverage</span>
+      <ul>{% for warning in warnings %}<li>{{ warning }}</li>{% endfor %}</ul>
+      <p style="margin:0.5rem 0 0;font-size:0.86rem;color:var(--muted)">Every phase needs at least one active session at every length, or a woman in that phase finds nothing she can do in the time she has.</p>
+    </div>
+  {% endif %}
+
+  {% for minutes, rows in by_length.items() %}
+    <h2>{{ minutes }} min</h2>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Focus</th><th>Intensity</th><th>Phases</th><th class="num">Moves</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr class="{{ '' if row.is_active else 'off' }}">
+              <td><a href="/mobility/{{ row.id }}">{{ row.name }}</a><br><code>{{ row.id }}</code></td>
+              <td style="max-width:24rem">{{ row.focus or '' }}</td>
+              <td>{{ row.intensity }}</td>
+              <td>{{ (row.phases or []) | join(', ') }}</td>
+              <td class="num">{{ row.move_count }}</td>
+              <td><span class="pill {{ 'live' if row.is_active }}">{{ 'live' if row.is_active else 'staged' }}</span></td>
+              <td>
+                <form class="inline" method="post" action="/mobility/{{ row.id }}/active">
+                  <input type="hidden" name="active" value="{{ '0' if row.is_active else '1' }}">
+                  <button class="btn small" {{ 'disabled' if readonly }}>{{ 'Deactivate' if row.is_active else 'Activate' }}</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="sub">Nothing here yet. The first load comes from <code>mobile/supabase/seeds/content/mobility.sql</code>; after that, edit here and export.</p>
+  {% endfor %}
+{% endblock %}

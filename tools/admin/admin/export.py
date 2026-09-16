@@ -137,6 +137,22 @@ def export_programmes() -> Path:
     return _write("programmes.sql", body)
 
 
+def export_mobility() -> Path:
+    sessions = db.select("mobility_sessions", order="minutes,position,id")
+    moves = db.select("mobility_session_moves", order="session_id,position")
+
+    session_columns = ["id", "name", "focus", "minutes", "intensity", "phases", "is_active", "position"]
+    move_columns = ["session_id", "position", "name", "description", "reps", "sets", "cue"]
+
+    body = _header("VIRRA mobility sessions: content snapshot")
+    body += "delete from mobility_sessions;\n\n"  # moves cascade
+    body += insert_statements("mobility_sessions", sessions, session_columns) + "\n"
+    body += insert_statements("mobility_session_moves", moves, move_columns) + "\n"
+    body += "commit;\n\nnotify pgrst, 'reload schema';\n"
+
+    return _write("mobility.sql", body)
+
+
 def _write(filename: str, body: str) -> Path:
     SEED_DIR.mkdir(parents=True, exist_ok=True)
     path = SEED_DIR / filename

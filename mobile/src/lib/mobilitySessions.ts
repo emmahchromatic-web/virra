@@ -70,6 +70,48 @@ export function rankForPhase(
   return [...matching].sort((a, b) => a.phases.length - b.phases.length);
 }
 
+export interface MobilityLengthGroup {
+  minutes:  number;
+  sessions: MobilitySessionSummary[];
+}
+
+/**
+ * The list screen's shape: sessions bucketed by length, shortest first, and
+ * ranked for the phase inside each bucket. Length is the question someone with
+ * a spare ten minutes is actually asking, so it is the outer grouping; phase
+ * only reorders within it and never removes anything.
+ */
+export function groupByLength(
+  sessions: MobilitySessionSummary[],
+  phase:    CyclePhase | null,
+): MobilityLengthGroup[] {
+  const byMinutes = new Map<number, MobilitySessionSummary[]>();
+  for (const s of sessions) {
+    const bucket = byMinutes.get(s.minutes) ?? [];
+    bucket.push(s);
+    byMinutes.set(s.minutes, bucket);
+  }
+  return [...byMinutes.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([minutes, bucket]) => ({ minutes, sessions: rankWithinLength(bucket, phase) }));
+}
+
+/**
+ * Within one length, sessions that suit the phase come first (narrowest tagging
+ * first, as rankForPhase does), and the rest follow in their authored order.
+ * Unlike rankForPhase this never drops the non-matching ones: the bucket is
+ * small enough to show whole, and a session you can do is better than a gap.
+ */
+function rankWithinLength(
+  bucket: MobilitySessionSummary[],
+  phase:  CyclePhase | null,
+): MobilitySessionSummary[] {
+  if (!phase) return bucket;
+  const suits = bucket.filter((s) => s.phases.includes(phase));
+  const rest  = bucket.filter((s) => !s.phases.includes(phase));
+  return [...rankForPhase(suits, phase), ...rest];
+}
+
 /**
  * One session, as the structure the workout screen already knows how to run.
  *

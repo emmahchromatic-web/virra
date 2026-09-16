@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import audit, db, export, foods, programmes, recipes, validators
+from . import audit, db, export, foods, mobility, programmes, recipes, validators
 from .config import ALLOWLIST, config
 from .validators import ValidationError
 
@@ -45,6 +45,7 @@ def problem_page(request: Request, title: str, problems: list[str], back: str) -
 def dashboard(request: Request) -> HTMLResponse:
     all_recipes = recipes.list_all()
     all_programmes = programmes.list_all()
+    all_mobility = mobility.list_all()
     programme_warnings: list[str] = []
     for programme in all_programmes:
         if programme["is_active"]:
@@ -58,6 +59,8 @@ def dashboard(request: Request) -> HTMLResponse:
         programmes=all_programmes,
         recipe_warnings=validators.recipe_coverage_warnings(all_recipes),
         programme_warnings=programme_warnings,
+        mobility=all_mobility,
+        mobility_warnings=mobility.coverage_warnings(all_mobility),
         exercise_count=db.count("exercises"),
         changes=audit.recent(12),
         allowlist=sorted(ALLOWLIST),
@@ -302,6 +305,109 @@ async def programme_day_save(request: Request, programme_id: str, day_index: int
     )
 
 
+# --- mobility sessions -----------------------------------------------------
+
+
+@app.get("/mobility", response_class=HTMLResponse)
+def mobility_list(request: Request) -> HTMLResponse:
+    rows = mobility.list_all()
+    by_length: dict[int, list[dict[str, Any]]] = {}
+    for row in rows:
+        by_length.setdefault(row["minutes"], []).append(row)
+    return render(
+        request,
+        "mobility.html",
+        by_length=dict(sorted(by_length.items())),
+        warnings=mobility.coverage_warnings(rows),
+        total=len(rows),
+    )
+
+
+@app.get("/mobility/new", response_class=HTMLResponse)
+def mobility_new(request: Request) -> HTMLResponse:
+    return render(request, "mobility_edit.html", session=mobility.blank(), is_new=True,
+                  estimates=None, timing=[], catalogue=programmes.all_exercises())
+
+
+@app.get("/mobility/{session_id}", response_class=HTMLResponse)
+def mobility_edit(request: Request, session_id: str) -> HTMLResponse:
+    session = mobility.load(session_id)
+    if session is None:
+        return problem_page(request, "No such session", [f"'{session_id}' was not found."], "/mobility")
+    return render(
+        request,
+        "mobility_edit.html",
+        session=session,
+        is_new=False,
+        estimates=mobility.estimates(session["moves"]),
+        timing=mobility.timing_warnings(session, session["moves"]),
+        catalogue=programmes.all_exercises(),
+    )
+
+
+@app.post("/mobility/new")
+async def mobility_create(request: Request) -> Any:
+    return await _mobility_save(request, None)
+
+
+@app.post("/mobility/{session_id}")
+async def mobility_update(request: Request, session_id: str) -> Any:
+    return await _mobility_save(request, session_id)
+
+
+async def _mobility_save(request: Request, session_id: str | None) -> Any:
+    form = await request.form()
+    before = mobility.load(session_id) if session_id else None
+    try:
+        parsed = mobility.parse(form, existing_id=session_id)
+        stored = mobility.save(parsed, before=before)
+    except (ValidationError, db.DbError, db.NotAllowed) as error:
+        problems = getattr(error, "problems", None) or [str(error)]
+        return problem_page(
+            request,
+            "That session was not saved",
+            problems,
+            f"/mobility/{session_id}" if session_id else "/mobility/new",
+        )
+    return RedirectResponse(f"/mobility/{stored['id']}?saved=1", status_code=303)
+
+
+@app.post("/mobility/{session_id}/active")
+async def mobility_active(request: Request, session_id: str) -> Any:
+    form = await request.form()
+    try:
+        mobility.set_active(session_id, str(form.get("active", "")) == "1")
+    except (ValidationError, db.DbError, db.NotAllowed) as error:
+        problems = getattr(error, "problems", None) or [str(error)]
+        return problem_page(request, "Could not change that", problems, f"/mobility/{session_id}")
+    return RedirectResponse("/mobility", status_code=303)
+
+
+@app.get("/mobility/{session_id}/delete", response_class=HTMLResponse)
+def mobility_delete_confirm(request: Request, session_id: str) -> HTMLResponse:
+    session = mobility.load(session_id)
+    if session is None:
+        return problem_page(request, "No such session", [f"'{session_id}' was not found."], "/mobility")
+    return render(request, "mobility_delete.html", session=session)
+
+
+@app.post("/mobility/{session_id}/delete")
+async def mobility_delete(request: Request, session_id: str) -> Any:
+    form = await request.form()
+    if str(form.get("confirm_id", "")).strip() != session_id:
+        return problem_page(
+            request,
+            "Not deleted",
+            ["The id you typed did not match. Nothing was changed."],
+            f"/mobility/{session_id}/delete",
+        )
+    try:
+        mobility.hard_delete(session_id)
+    except (db.DbError, db.NotAllowed) as error:
+        return problem_page(request, "Could not delete that", [str(error)], f"/mobility/{session_id}")
+    return RedirectResponse("/mobility", status_code=303)
+
+
 # --- exercise catalogue ----------------------------------------------------
 
 
@@ -345,7 +451,14 @@ async def exercise_save(request: Request) -> Any:
 @app.post("/export/{domain}")
 def export_domain(request: Request, domain: str) -> Any:
     try:
-        path = export.export_recipes() if domain == "recipes" else export.export_programmes()
+        exporters = {
+            "recipes": export.export_recipes,
+            "programmes": export.export_programmes,
+            "mobility": export.export_mobility,
+        }
+        if domain not in exporters:
+            return problem_page(request, "Export failed", [f"Nothing called '{domain}' to export."], "/")
+        path = exporters[domain]()
     except (db.DbError, db.NotAllowed) as error:
         return problem_page(request, "Export failed", [str(error)], "/")
     return RedirectResponse(f"/?exported={path.name}", status_code=303)

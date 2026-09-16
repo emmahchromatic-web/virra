@@ -15,6 +15,8 @@ from typing import Any, Iterable
 # recipes_meal_types_check / _phases_check / _loads_check / _dietary_check
 MEAL_TYPES = ("breakfast", "lunch", "dinner", "snack")
 PHASES = ("menstrual", "follicular", "ovulatory", "luteal")
+# mobility_sessions.intensity
+INTENSITIES = ("gentle", "moderate", "strong")
 LOADS = ("rest", "easy", "moderate", "hard")
 DIETARY = ("vegan", "vegetarian", "pescatarian", "gf", "df")
 # recipe_ingredients_unit_check

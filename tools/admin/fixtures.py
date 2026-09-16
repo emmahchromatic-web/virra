@@ -65,6 +65,9 @@ def _seed() -> dict[str, list[dict[str, Any]]]:
                  load_type="none", default_tempo=None),
             dict(id="hollow-hold", name="Hollow Hold", description="Press the low back down.",
                  load_type="none", default_tempo=None),
+            dict(id="world-s-greatest-stretch", name="World's Greatest Stretch",
+                 description="Lunge forward, drop the opposite elbow to your instep, then rotate the chest open.",
+                 load_type="none", default_tempo=None),
         ],
         "programmes": [
             dict(id="get-strong-ppl", family="get_strong", family_label="Get Strong",
@@ -89,6 +92,24 @@ def _seed() -> dict[str, list[dict[str, Any]]]:
             dict(id=3, programme_day_id="get-strong-ppl-d1", variant="dumbbells", block=1,
                  section="strength", position=1, exercise_id="push-up", sets=4, reps="8",
                  tempo=None, rest="120s"),
+        ],
+        "mobility_sessions": [
+            {"id": "wake-up", "name": "Wake Up", "focus": "Ten minutes to start the day.",
+             "minutes": 10, "intensity": "gentle",
+             "phases": ["menstrual", "follicular", "ovulatory", "luteal"], "is_active": True, "position": 1},
+            {"id": "deep-release", "name": "Deep Release", "focus": None, "minutes": 30,
+             "intensity": "gentle", "phases": ["menstrual", "luteal"], "is_active": True, "position": 1},
+            {"id": "empty-draft", "name": "Empty Draft", "focus": None, "minutes": 20,
+             "intensity": "moderate", "phases": ["luteal"], "is_active": False, "position": 9},
+        ],
+        "mobility_session_moves": [
+            {"id": 1, "session_id": "wake-up", "position": 1, "name": "Cat Cow",
+             "description": "Round and arch the spine.", "reps": "8 slow", "sets": None, "cue": None},
+            {"id": 2, "session_id": "wake-up", "position": 2, "name": "Supine Twist",
+             "description": "Knees drop to one side.", "reps": "30s each side", "sets": None,
+             "cue": "Let the legs be heavy."},
+            {"id": 3, "session_id": "deep-release", "position": 1, "name": "Pigeon",
+             "description": "Fold over the front shin.", "reps": "45s each side", "sets": None, "cue": None},
         ],
         "plan_templates": [
             dict(id="tmpl-1", name="Push / Pull / Legs (3-Day)", sport_type="strength",
@@ -193,6 +214,10 @@ def install() -> dict[str, list[dict[str, Any]]]:
                 store["programme_exercises"] = [
                     c for c in store["programme_exercises"]
                     if c["programme_day_id"] != row["id"]
+                ]
+            elif table == "mobility_sessions":
+                store["mobility_session_moves"] = [
+                    c for c in store["mobility_session_moves"] if c["session_id"] != row["id"]
                 ]
 
     def replace_children(table, parent_column, parent_id, rows):

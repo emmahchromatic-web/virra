@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% set nav = 'mobility' %}
+{% block body %}
+  <h1>Delete {{ session.name }}?</h1>
+  <div class="notice bad">
+    <span class="t">This cannot be undone</span>
+    <p style="margin:0;font-size:0.9rem;color:var(--muted)">
+      Deleting removes the session and cascades to its {{ session.moves | length }} move(s).
+      Completed workouts that ran it keep their activity, but lose the link back to the session.
+      <b>Deactivating instead</b> hides it from the app and keeps everything.
+    </p>
+  </div>
+  <form class="stack" method="post" action="/mobility/{{ session.id }}/delete" style="margin-top:1.4rem;max-width:28rem">
+    <div class="field">
+      <label>Type <code>{{ session.id }}</code> to confirm</label>
+      <input type="text" name="confirm_id" autocomplete="off" spellcheck="false">
+    </div>
+    <div class="actions">
+      <button class="btn danger" {{ 'disabled' if readonly }}>Delete permanently</button>
+      <a class="btn" href="/mobility/{{ session.id }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

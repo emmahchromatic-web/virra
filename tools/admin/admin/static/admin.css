@@ -182,17 +182,19 @@ code, .mono { font-family: var(--mono); font-size: 0.84em; color: var(--muted); 
 .row.ingredient { grid-template-columns: 1.3fr 3.6rem 3.4rem 1fr 1.3fr repeat(5, 4.4rem) 2rem; }
 .row.step { grid-template-columns: 1fr 6rem 2rem; }
 .row.exercise { grid-template-columns: 1.6fr 3.2rem 7.5rem 3.6rem 5rem 6rem 5rem 2rem; }
+.row.move { grid-template-columns: 1.4fr 7rem 3.4rem 1.4fr 2.2fr 2rem; }
 .row .head { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
 .rowhead { display: grid; gap: 0.5rem; padding: 0 0.55rem; }
 .rowhead.ingredient { grid-template-columns: 1.3fr 3.6rem 3.4rem 1fr 1.3fr repeat(5, 4.4rem) 2rem; }
 .rowhead.step { grid-template-columns: 1fr 6rem 2rem; }
 .rowhead.exercise { grid-template-columns: 1.6fr 3.2rem 7.5rem 3.6rem 5rem 6rem 5rem 2rem; }
+.rowhead.move { grid-template-columns: 1.4fr 7rem 3.4rem 1.4fr 2.2fr 2rem; }
 .rowhead span { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); }
 .drop { background: none; border: 0; color: var(--faint); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0.35rem 0; }
 .drop:hover { color: var(--heat); }
 
 @media (max-width: 900px) {
-  .row.ingredient, .row.exercise, .rowhead { grid-template-columns: 1fr 1fr; }
+  .row.ingredient, .row.exercise, .row.move, .rowhead { grid-template-columns: 1fr 1fr; }
   .rowhead { display: none; }
 }
 

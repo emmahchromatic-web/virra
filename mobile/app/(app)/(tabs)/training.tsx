@@ -396,6 +396,25 @@ export default function TrainingScreen() {
           </VirraCard>
         )}
 
+        {/* Card 264. A one-off mobility session needs no plan behind it, so it
+            sits outside the block stack rather than pretending to be one. */}
+        <Pressable
+          onPress={() => router.push('/(app)/mobility' as any)}
+          accessibilityRole="button"
+          accessibilityLabel="Mobility sessions"
+        >
+          <VirraCard style={styles.mobilityCard}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5 }}>MOBILITY</VirraText>
+              <VirraText variant="bodyMedium" size={15} color={colors.breath}>Ten, twenty or thirty minutes on the mat</VirraText>
+              <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={{ lineHeight: 18 }}>
+                Pilates-style range of movement, picked for where you are in your cycle. No plan needed.
+              </VirraText>
+            </View>
+            <SymbolView name="chevron.right" size={14} tintColor={colors.muted} />
+          </VirraCard>
+        </Pressable>
+
         {/* Monthly training calendar */}
         {activeBlocks.length > 0 && session && (
           <VirraCard style={{ gap: spacing.sm }}>
@@ -747,6 +766,7 @@ const styles = StyleSheet.create({
   phaseLabel:      { letterSpacing: 1.5 },
   phaseNote:       { lineHeight: 20 },
   emptyCard:       { gap: spacing.sm },
+  mobilityCard:    { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   activePlanCard:  { gap: spacing.xs },
   progressWrap:    { gap: spacing.xs, marginTop: spacing.sm },
   progressTrack:   { height: 3, backgroundColor: colors.border, borderRadius: radius.full, overflow: 'hidden' },
