@@ -52,6 +52,9 @@ export interface EntitlementInfo {
   isTrial:       boolean;
   trialEnd:      Date | null;
   managementURL: string | null;
+  /** Card 298. Held the entitlement at some point, active or not. Separates
+   *  a lapsed subscriber (expired) from someone on the free tier (free). */
+  everSubscribed: boolean;
 }
 
 export async function getEntitlementInfo(): Promise<EntitlementInfo> {
@@ -59,13 +62,14 @@ export async function getEntitlementInfo(): Promise<EntitlementInfo> {
     const customerInfo = await Purchases.getCustomerInfo();
     const ent = customerInfo.entitlements.active[ENTITLEMENT_ID];
     return {
-      isActive:      !!ent,
-      isTrial:       (ent?.periodType as string | undefined)?.toUpperCase() === 'TRIAL',
-      trialEnd:      ent?.expirationDate ? new Date(ent.expirationDate) : null,
-      managementURL: customerInfo.managementURL ?? null,
+      isActive:       !!ent,
+      isTrial:        (ent?.periodType as string | undefined)?.toUpperCase() === 'TRIAL',
+      trialEnd:       ent?.expirationDate ? new Date(ent.expirationDate) : null,
+      managementURL:  customerInfo.managementURL ?? null,
+      everSubscribed: !!customerInfo.entitlements.all[ENTITLEMENT_ID],
     };
   } catch {
-    return { isActive: false, isTrial: false, trialEnd: null, managementURL: null };
+    return { isActive: false, isTrial: false, trialEnd: null, managementURL: null, everSubscribed: false };
   }
 }
 

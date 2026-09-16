@@ -13,6 +13,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert } from '@/components/ui/VirraAlert';
 
 const STATUS_COLOR: Record<string, string> = {
+  free:      colors.muted,
   trial:     colors.dawn,
   active:    colors.pulse,
   expired:   colors.heat,
@@ -20,11 +21,21 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
+  free:      'FREE VERSION',
   trial:     'FREE TRIAL',
   active:    'ACTIVE',
   expired:   'EXPIRED',
   cancelled: 'CANCELLED',
   unknown:   '—',
+};
+
+// Card 298. Free and lapsed users are offered Pro from here; a lapsed
+// subscriber has used her intro offer, so the label cannot promise a trial.
+const UPGRADE_LABEL: Record<string, string> = {
+  free:      'Start 14-day free trial',
+  trial:     'Upgrade to Virra Pro',
+  expired:   'Subscribe to Virra Pro',
+  cancelled: 'Subscribe to Virra Pro',
 };
 
 export default function SubscriptionScreen() {
@@ -109,10 +120,17 @@ export default function SubscriptionScreen() {
               </VirraText>
             )}
 
-            {status === 'trial' && (
+            {status === 'free' && (
+              <VirraText variant="body" size={14} color={colors.breath} style={{ marginTop: spacing.xs }}>
+                Logging is free for as long as you like. Virra Pro adds the plans, targets and
+                programmes built around your cycle.
+              </VirraText>
+            )}
+
+            {UPGRADE_LABEL[status] && (
               <VirraButton
-                label="Upgrade to Virra Pro"
-                onPress={() => router.push('/(auth)/paywall')}
+                label={UPGRADE_LABEL[status]}
+                onPress={() => router.push('/(auth)/paywall?from=app' as never)}
                 style={{ marginTop: spacing.md }}
               />
             )}

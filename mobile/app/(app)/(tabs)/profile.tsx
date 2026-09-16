@@ -399,6 +399,7 @@ export default function ProfileScreen() {
   }
 
   const subLabel: Record<string, string> = {
+    free:      'Free version',
     trial:     'Free trial active',
     active:    'Subscribed',
     expired:   'Subscription expired',

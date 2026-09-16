@@ -12,6 +12,7 @@ import {
   type MobilitySessionSummary,
 } from '@/lib/mobilitySessions';
 import type { CyclePhase } from '@/lib/cycleEngine';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 /**
  * Card 264, the entry point for a one-off.
@@ -39,7 +40,7 @@ const INTENSITY_LABEL: Record<MobilitySessionSummary['intensity'], string> = {
   strong:   'Strong',
 };
 
-export default function MobilityScreen() {
+function MobilityScreen() {
   const [sessions, setSessions] = useState<MobilitySessionSummary[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [failed,   setFailed]   = useState(false);
@@ -164,3 +165,15 @@ const styles = StyleSheet.create({
   cardRight: { alignItems: 'flex-end', gap: 6 },
   emptyCard: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.md },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedMobilityScreen() {
+  return (
+    <ProScreen feature="mobility">
+      <MobilityScreen />
+    </ProScreen>
+  );
+}

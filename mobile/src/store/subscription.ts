@@ -1,7 +1,10 @@
 // mobile/src/store/subscription.ts
 import { create } from 'zustand';
 
-type SubscriptionStatus = 'unknown' | 'trial' | 'active' | 'expired' | 'cancelled';
+// Card 298. `free` is a woman who has never subscribed and is using the free
+// tier; `expired`/`cancelled` are lapsed subscribers. None of the three hold
+// the entitlement, and `isActive` is the single "is Pro" answer the app reads.
+type SubscriptionStatus = 'unknown' | 'free' | 'trial' | 'active' | 'expired' | 'cancelled';
 
 interface SubscriptionState {
   status:    SubscriptionStatus;

@@ -42,6 +42,8 @@ import { appAlert } from '@/components/ui/VirraAlert';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
 import { tracksCycle } from '@/lib/cycleEngine';
+import { useIsPro, paywallRoute } from '@/lib/pro';
+import { ProLockedCard } from '@/components/ui/ProLockedCard';
 
 const EXERCISE_MINS_TARGET: Record<TrainingLoad, number> = {
   rest: 15, easy: 30, moderate: 45, hard: 60,
@@ -54,6 +56,7 @@ export default function DashboardScreen() {
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
   const refreshReadiness = useReadinessStore((s) => s.refresh);
+  const isPro = useIsPro();
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const meta     = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
@@ -97,7 +100,7 @@ export default function DashboardScreen() {
       const metrics = buildPersonalMetrics(personalMetricsFields(useProfileStore.getState()));
       const [monthly, nutr, ci] = await Promise.all([
         getMonthlyStats(session.user.id, today),
-        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, resolvedLoad, metrics),
+        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, resolvedLoad, metrics, isPro),
         getTodayCheckin(session.user.id, today),
       ]);
       setMonthlyStats(monthly);
@@ -106,7 +109,7 @@ export default function DashboardScreen() {
       // Readiness refresh runs after check-in resolves so it can include today's subjective score
       refreshReadiness(cycleInfo?.phase ?? null, ci).catch(() => {});
     } catch { /* no-op */ }
-  }, [session, today, cycleInfo?.phase]); // inferredLoad removed from deps
+  }, [session, today, cycleInfo?.phase, isPro]); // inferredLoad removed from deps
 
   // The dashboard is a tab, so it stays mounted while a workout is logged on a
   // pushed screen. Without a refetch on focus, returning from a finished session
@@ -137,6 +140,7 @@ export default function DashboardScreen() {
       load:         inferredLoad,
       metrics,
       inferredLoad,
+      isPro,
     });
     if (!logId) { appAlert('Could not open food log', 'Please check your connection and try again.'); return; }
     router.push(`/(app)/food-search?logId=${logId}&mealType=${defaultMealSlot()}` as any);
@@ -232,19 +236,25 @@ export default function DashboardScreen() {
         {/* 3. Readiness */}
         <ReadinessRow />
 
-        {/* 4. Today session + rings */}
+        {/* 4. Today session + rings. Card 298: the planned session is Pro;
+            a free user gets the locked tile in the same slot, never an
+            empty "no session planned" that reads as a bug. */}
         <View style={styles.heroRow}>
-          <TodaysSessionHero
-            sessions={todaySessions}
-            onStartPress={(session) => {
-              if (session.modality === 'run') {
-                router.push(`/(app)/run?sessionId=${session.id}` as any);
-              } else {
-                router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
-              }
-            }}
-            style={styles.sessionHero}
-          />
+          {isPro ? (
+            <TodaysSessionHero
+              sessions={todaySessions}
+              onStartPress={(session) => {
+                if (session.modality === 'run') {
+                  router.push(`/(app)/run?sessionId=${session.id}` as any);
+                } else {
+                  router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
+                }
+              }}
+              style={styles.sessionHero}
+            />
+          ) : (
+            <ProLockedCard feature="plans" compact style={styles.sessionHero} />
+          )}
           <VirraCard style={styles.ringsCard}>
             <ActivityRings
               steps={steps}
@@ -301,20 +311,23 @@ export default function DashboardScreen() {
         <View style={styles.actionRow}>
           <Pressable
             style={[styles.actionTile, { borderColor: colors.pulse }]}
-            onPress={() => router.push('/(app)/insights' as any)}
+            onPress={() => router.push((isPro ? '/(app)/insights' : paywallRoute('insights')) as any)}
             accessibilityRole="button"
+            accessibilityLabel={isPro ? 'Insights' : 'Insights, part of Virra Pro'}
           >
-            <SymbolView name="chart.line.uptrend.xyaxis" size={28} tintColor={colors.pulse} />
+            <SymbolView name={isPro ? 'chart.line.uptrend.xyaxis' : 'lock.fill'} size={28} tintColor={colors.pulse} />
             <View>
               <VirraText variant="mono" size={10} color={colors.pulse} style={styles.actionLabel}>INSIGHTS</VirraText>
-              <VirraText variant="body" size={11} color={colors.muted} style={styles.actionSub}>Your week, narrated</VirraText>
+              <VirraText variant="body" size={11} color={colors.muted} style={styles.actionSub}>
+                {isPro ? 'Your week, narrated' : 'Virra Pro'}
+              </VirraText>
             </View>
           </Pressable>
 
           {checkin.done ? (
             <Pressable
               style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }]}
-              onPress={() => router.push('/(app)/checkin-trends' as any)}
+              onPress={() => router.push((isPro ? '/(app)/checkin-trends' : paywallRoute('trends')) as any)}
               accessibilityRole="button"
             >
               <SymbolView name="checkmark.circle.fill" size={28} tintColor={colors.pulse} />

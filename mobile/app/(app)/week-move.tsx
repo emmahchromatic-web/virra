@@ -14,6 +14,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { DayRow } from '@/components/ui/DayRow';
 import { DraggableSessionCard, CompletedSessionCard, SessionCardGhost, hapticImpact, type DraggableSession } from '@/components/ui/DraggableSessionCard';
 import { appAlert } from '@/components/ui/VirraAlert';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 interface PlannedRow {
   id:                 string;
@@ -50,7 +51,7 @@ function fullDayLabel(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'long' });
 }
 
-export default function WeekMoveScreen() {
+function WeekMoveScreen() {
   const { session: focusedSessionId, date: focusedDate } = useLocalSearchParams<{ session: string; date: string }>();
 
   const today  = new Date().toLocaleDateString('en-CA');
@@ -295,3 +296,15 @@ const styles = StyleSheet.create({
   dropBtn:   { flex: 1, backgroundColor: colors.heat, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center' },
   disabled:  { opacity: 0.45 },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedWeekMoveScreen() {
+  return (
+    <ProScreen feature="plans">
+      <WeekMoveScreen />
+    </ProScreen>
+  );
+}

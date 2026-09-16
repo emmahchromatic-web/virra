@@ -9,6 +9,7 @@ import { useCycleStore } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { useNotificationsStore } from '@/store/notifications';
 import { getEntitlementInfo } from '@/lib/revenuecat';
+import { isProStatus } from '@/lib/pro';
 import { importNewWorkouts } from '@/lib/healthKitImport';
 import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
@@ -32,6 +33,10 @@ async function maybeShowWeekAhead(): Promise<void> {
 
   // Only prompt from Sunday 18:00 onwards (Mon–Sat counts as "past Sunday")
   if (dow === 0 && hour < 18) return;
+
+  // Card 298. The week ahead plans around a plan she does not have on the
+  // free tier; pushing her at a locked screen on a Sunday evening is a nag.
+  if (!isProStatus(useSubscriptionStore.getState().status, useSubscriptionStore.getState().isActive)) return;
 
   const prefs = await loadNotificationPreferences();
   if (!prefs.weeklyPlan) return;
@@ -68,8 +73,10 @@ export default function AppLayout() {
       } else if (info.isActive) {
         setStatus('active');
       } else {
-        setStatus('expired');
-        router.replace('/(auth)/paywall');
+        // Card 298. No entitlement no longer means no app. She goes in on
+        // the free tier and meets Virra Pro where it prescribes something:
+        // the locked tiles and ProScreen do the gating from here.
+        setStatus(info.everSubscribed ? 'expired' : 'free');
       }
     });
   }, [session, isActive]);

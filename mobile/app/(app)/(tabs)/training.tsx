@@ -28,6 +28,8 @@ import { AddEventModal } from '@/components/ui/AddEventModal';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EQUIPMENT_ASKED_KEY } from '@/lib/workoutPreference';
+import { useIsPro, paywallRoute } from '@/lib/pro';
+import { ProLockedCard } from '@/components/ui/ProLockedCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PlanTemplate {
@@ -111,6 +113,8 @@ const why = StyleSheet.create({
 export default function TrainingScreen() {
   const { session }    = useAuthStore();
   const { cycleInfo, periodStart, cycleLength, cycleMode, currentPackStart } = useCycleStore();
+  // Card 298. Plans, strength and mobility prescribe; logging a run does not.
+  const isPro          = useIsPro();
 
   const [activePlan,        setActivePlan]        = useState<UserPlan | null>(null);
   const [recentActivities,  setRecentActivities]   = useState<Activity[]>([]);
@@ -373,12 +377,21 @@ export default function TrainingScreen() {
         </Pressable>
 
         {/* Today's planned session hero */}
-        {(activeBlocks.length > 0 || activePlan) && (
+        {isPro && (activeBlocks.length > 0 || activePlan) && (
           <TodaysSessionHero sessions={enrichedToday} />
         )}
 
-        {/* Active plan / block stack */}
-        {activeBlocks.length > 0 ? (
+        {/* Active plan / block stack. Card 298: a free user sees what a plan
+            is and the one way to get one. A lapsed subscriber's blocks are
+            untouched in the database, and the note says so. */}
+        {!isPro ? (
+          <ProLockedCard
+            feature="plans"
+            note={activeBlocks.length > 0 || activePlan
+              ? 'Your plan is saved. Pick up where you left off.'
+              : undefined}
+          />
+        ) : activeBlocks.length > 0 ? (
           <BlockStack
             blocks={activeBlocks}
             cyclePhase={cycleInfo?.phase ?? null}
@@ -399,13 +412,18 @@ export default function TrainingScreen() {
         {/* Card 264. A one-off mobility session needs no plan behind it, so it
             sits outside the block stack rather than pretending to be one. */}
         <Pressable
-          onPress={() => router.push('/(app)/mobility' as any)}
+          onPress={() => router.push((isPro ? '/(app)/mobility' : paywallRoute('mobility')) as any)}
           accessibilityRole="button"
-          accessibilityLabel="Mobility sessions"
+          accessibilityLabel={isPro ? 'Mobility sessions' : 'Mobility sessions, part of Virra Pro'}
         >
           <VirraCard style={styles.mobilityCard}>
             <View style={{ flex: 1, gap: 4 }}>
-              <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5 }}>MOBILITY</VirraText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {!isPro && <SymbolView name="lock.fill" size={11} tintColor={colors.dawn} />}
+                <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5 }}>
+                  {isPro ? 'MOBILITY' : 'MOBILITY · VIRRA PRO'}
+                </VirraText>
+              </View>
               <VirraText variant="bodyMedium" size={15} color={colors.breath}>Ten, twenty or thirty minutes on the mat</VirraText>
               <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={{ lineHeight: 18 }}>
                 Pilates-style range of movement, picked for where you are in your cycle. No plan needed.
@@ -416,7 +434,7 @@ export default function TrainingScreen() {
         </Pressable>
 
         {/* Monthly training calendar */}
-        {activeBlocks.length > 0 && session && (
+        {isPro && activeBlocks.length > 0 && session && (
           <VirraCard style={{ gap: spacing.sm }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
@@ -498,15 +516,17 @@ export default function TrainingScreen() {
         </Pressable>
 
         {/* Browse plans footer link */}
-        <Pressable
-          onPress={() => router.push('/(app)/plans/browse' as any)}
-          style={styles.browseLink}
-          accessibilityRole="button"
-        >
-          <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-            BROWSE ALL PLANS →
-          </VirraText>
-        </Pressable>
+        {isPro && (
+          <Pressable
+            onPress={() => router.push('/(app)/plans/browse' as any)}
+            style={styles.browseLink}
+            accessibilityRole="button"
+          >
+            <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+              BROWSE ALL PLANS →
+            </VirraText>
+          </Pressable>
+        )}
       </ScrollView>
       <EquipmentPreferenceModal visible={askEquipment} onDone={handleEquipmentDone} />
       {session && (

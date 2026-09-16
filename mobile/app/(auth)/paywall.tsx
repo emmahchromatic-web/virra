@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, SafeAreaView, ScrollView, Pressable, Linking } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
 import { useSubscriptionStore } from '@/store/subscription';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
+import { PRO_FEATURES, isProFeature, proCtaLabel, trialEligible } from '@/lib/pro';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
@@ -28,7 +29,14 @@ const FEATURES = [
 ];
 
 export default function PaywallScreen() {
-  const { setStatus } = useSubscriptionStore();
+  const { setStatus, status } = useSubscriptionStore();
+  // Card 298. Two ways in. From onboarding (no params) the way out is into
+  // the app. From a locked tile inside the app (`from=app`) the way out is
+  // Back, to the screen she was on, and the kicker names what she tapped.
+  const params      = useLocalSearchParams<{ from?: string; feature?: string }>();
+  const fromApp     = params.from === 'app';
+  const featureCopy = isProFeature(params.feature) ? PRO_FEATURES[params.feature] : null;
+  const canTrial    = trialEligible(status);
   const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
   const [selected, setSelected]   = useState<PurchasesPackage | null>(null);
   const [loading,  setLoading]    = useState(false);
@@ -49,9 +57,17 @@ export default function PaywallScreen() {
   }, []);
 
   async function routePostPaywall() {
+    if (fromApp && router.canGoBack()) { router.back(); return; }
     const route = await getPostAuthRoute();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.replace(route as any);
+  }
+
+  // The free tier is the default, not a consolation: she keeps everything she
+  // can log, and meets Pro again where it prescribes something.
+  async function handleContinueFree() {
+    if (!fromApp) setStatus('free');
+    await routePostPaywall();
   }
 
   async function handlePurchase() {
@@ -92,11 +108,18 @@ export default function PaywallScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <VirraText variant="display" size={48} color={colors.pulse} style={styles.title}>
-          Start your free trial
+        {featureCopy && (
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
+            {featureCopy.kicker.toUpperCase()} IS PART OF VIRRA PRO
+          </VirraText>
+        )}
+        <VirraText variant="display" size={48} color={colors.pulse} style={featureCopy ? undefined : styles.title}>
+          {canTrial ? 'Start your free trial' : 'Come back to Virra Pro'}
         </VirraText>
         <VirraText variant="serif" color={colors.breath} style={styles.sub}>
-          14 days free. Cancel any time. No charge until your trial ends.
+          {canTrial
+            ? '14 days free. Cancel any time. No charge until your trial ends.'
+            : 'Your plans and your history are still here. Pick up where you left off.'}
         </VirraText>
 
         <VirraCard style={styles.features}>
@@ -137,7 +160,7 @@ export default function PaywallScreen() {
         )}
 
         <VirraButton
-          label="Start 14-day free trial"
+          label={proCtaLabel(status)}
           onPress={handlePurchase}
           loading={loading}
           style={styles.cta}
@@ -150,7 +173,9 @@ export default function PaywallScreen() {
           <VirraText variant="body" size={11} color={colors.muted} style={styles.legalBody}>
             Virra Pro is an auto-renewing subscription
             {selected ? ` (${selected.product.title} at ${selected.product.priceString})` : ''}.
-            Payment is charged to your Apple ID account at the end of the 14-day free trial.
+            {canTrial
+              ? 'Payment is charged to your Apple ID account at the end of the 14-day free trial. '
+              : 'Payment is charged to your Apple ID account at confirmation of purchase. '}
             The subscription renews automatically at the same price for the same period unless
             auto-renew is turned off at least 24 hours before the end of the current period.
             Your account is charged for renewal within 24 hours prior to the end of the current
@@ -179,6 +204,12 @@ export default function PaywallScreen() {
           onPress={handleRestore}
         />
 
+        <VirraButton
+          label={fromApp ? 'Not now' : 'Continue with the free version'}
+          variant="ghost"
+          onPress={handleContinueFree}
+        />
+
         {(__DEV__ || process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') && (
           <VirraButton
             label="Skip (internal build)"
@@ -196,6 +227,7 @@ const styles = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: colors.mile },
   scroll:      { padding: spacing.lg, gap: spacing.md },
   title:       { marginTop: spacing.lg },
+  kicker:      { letterSpacing: 1.5, marginTop: spacing.lg },
   sub:         { marginTop: spacing.sm, marginBottom: spacing.md },
   features:    { gap: spacing.md },
   // The gutter after the tick was two hardcoded spaces inside the Text, which
