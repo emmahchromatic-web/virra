@@ -1,6 +1,6 @@
 # VIRRA Mobility Sessions — Drafting Brief
 
-**Version 1.0 · 2026-09-13 · the working spec for writing the mobility content**
+**Version 1.1 · 2026-09-16 · the working spec for writing the mobility content**
 
 Companion to Trello card 264. That card settled what mobility is; this is the shape to
 write against, so that what you write drops into the app without being reshaped.
@@ -61,18 +61,22 @@ One tab per session, or one row per move with a session column. Either is fine.
 
 ## 3. Length, and why the number matters
 
-The app estimates session length itself, at **30 seconds per move** for anything without a
-set count. So:
+The `minutes` you write is what the card promises and what the workout screen shows, so
+it has to be honest against the clock. Add the moves up the way you would do them:
 
-- a 10-minute session is roughly **16–20 moves**
-- a 20-minute session is roughly **34–40 moves**
-- a 30-minute session is roughly **50–60 moves**
+- a hold at its length, and **twice** for "each side" — `45s each side` is 90 seconds
+- breaths at about five seconds each
+- reps at three or four seconds each, doubled for "each side" or "each way"
+- a few seconds between moves to get into position
 
-Count both sides as one move where a move is "each side" — the 45s is the move.
+On that arithmetic a 10-minute session is roughly **10–15 moves**, a 20-minute one
+**24–30**, and a 30-minute one **30–40**, depending on how many long holds it carries.
 
-If your `minutes` and the app's estimate disagree by more than a couple of minutes, the
-session card will say one thing and the timer another. Easier to fix while writing than
-after.
+**Ignore the app's own 30-seconds-a-move rule for this.** That is a fallback the strength
+programmes use for a move with no set count, and for mat work it undercounts by half or
+worse: the first draft of a 30-minute session sized to it ran to nearly an hour. The seed
+builder and the admin console both check your minutes against the clock and say so when
+they are more than a couple of minutes apart.
 
 ---
 
