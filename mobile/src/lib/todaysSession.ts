@@ -6,7 +6,7 @@ import { hydratePlannedSessionStructures, persistHydratedRows } from './hydrateP
 
 export interface TodaysSession {
   id:             string;
-  modality:       'run' | 'strength' | 'swim' | 'yoga' | 'other';
+  modality:       'run' | 'strength' | 'swim' | 'yoga' | 'mobility' | 'other';
   session_label:  string;
   status:         'planned' | 'completed' | 'dropped' | 'moved';
   activity_id:    string | null;
@@ -200,6 +200,9 @@ export async function enrichTodaysSessions(
       structure_summary = summariseRunStructure(modulated);
     } else if (r.modality === 'strength' && hydratedStrength) {
       structure_summary = summariseStrengthStructure(hydratedStrength);
+    } else if (r.modality === 'mobility' && hydratedStrength) {
+      // A mobility session's label is its name; the useful extra is how long it takes.
+      structure_summary = `~${hydratedStrength.estimated_minutes} min on the mat`;
     }
 
     return {

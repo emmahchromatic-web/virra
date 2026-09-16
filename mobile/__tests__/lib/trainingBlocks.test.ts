@@ -72,6 +72,8 @@ describe('plan slots', () => {
     // each of five modalities. If this ever splits, someone can hold three
     // support plans at once and the load ceiling stops meaning anything.
     expect((['swim', 'yoga', 'other'] as const).map(planSlot)).toEqual(['support', 'support', 'support']);
+    // A mobility habit (card 264) is the support slot's natural occupant.
+    expect(planSlot('mobility')).toBe('support');
   });
 
   it('labels every slot', () => {

@@ -101,6 +101,7 @@ const MODALITY_COLOR: Record<string, string> = {
   yoga:     colors.breath,
   cycle:    colors.peach,
   hike:     colors.sage,
+  mobility: colors.sage,
   other:    colors.muted,
 };
 

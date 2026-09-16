@@ -12,6 +12,7 @@ const MODALITY_ICON: Record<Modality, React.ComponentProps<typeof SymbolView>['n
   yoga:     'figure.mind.and.body',
   cycle:    'figure.outdoor.cycle',
   hike:     'figure.hiking',
+  mobility: 'figure.flexibility',
   other:    'figure.mixed.cardio',
 };
 
@@ -22,6 +23,7 @@ const MODALITY_COLOR: Record<Modality, string> = {
   yoga:     colors.breath,
   cycle:    colors.peach,
   hike:     colors.sage,
+  mobility: colors.sage,
   other:    colors.muted,
 };
 

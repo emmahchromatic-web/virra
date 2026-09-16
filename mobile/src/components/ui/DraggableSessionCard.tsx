@@ -28,7 +28,7 @@ export function hapticImpact(style: 'light' | 'medium' = 'medium'): void {
 
 export interface DraggableSession {
   id:                string;
-  modality:          'run' | 'strength' | 'swim' | 'yoga' | 'other';
+  modality:          'run' | 'strength' | 'swim' | 'yoga' | 'mobility' | 'other';
   session_label:     string;
   estimated_minutes: number;
   isFocused:         boolean;
@@ -48,6 +48,7 @@ const MODALITY_COLOUR: Record<DraggableSession['modality'], string> = {
   strength: colors.dawn,
   swim:     colors.breath,
   yoga:     colors.breath,
+  mobility: colors.sage,
   other:    colors.muted,
 };
 
@@ -56,6 +57,7 @@ const MODALITY_ICON: Record<DraggableSession['modality'], SFSymbol> = {
   strength: 'dumbbell',
   swim:     'figure.pool.swim',
   yoga:     'figure.mind.and.body',
+  mobility: 'figure.flexibility',
   other:    'circle',
 };
 

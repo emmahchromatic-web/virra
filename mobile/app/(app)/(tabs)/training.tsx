@@ -15,6 +15,7 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
 import { getActiveBlocks, computeBlockLoad, endTrainingBlock, planSlot, SLOT_LABEL,
          type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
+import { attachMobilityLabels, topUpMobilitySchedule } from '@/lib/mobilitySchedule';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
@@ -67,6 +68,7 @@ const MODALITY_ICON: Record<string, string> = {
   strength: 'dumbbell',
   swim:     'figure.pool.swim',
   yoga:     'figure.yoga',
+  mobility: 'figure.flexibility',
   other:    'figure.walk',
 };
 
@@ -75,6 +77,7 @@ const MODALITY_COLOR: Record<string, string> = {
   strength: colors.dawn,
   swim:     colors.breath,
   yoga:     colors.breath,
+  mobility: colors.sage,
   other:    colors.muted,
 };
 
@@ -292,6 +295,9 @@ export default function TrainingScreen() {
 
   async function loadData() {
     setLoading(true);
+    // A weekly mobility session is written eight weeks ahead and topped up here,
+    // so the habit never quietly runs out (card 264).
+    await topUpMobilitySchedule(session!.user.id).catch(() => 0);
     const [blocks, planRes, activityRes, season] = await Promise.all([
       getActiveBlocks(session!.user.id),
       supabase
@@ -308,7 +314,7 @@ export default function TrainingScreen() {
         .limit(5),
       loadSeasonSummary(session!.user.id, cycleInfo?.phase ?? null),
     ]);
-    setActiveBlocks(blocks);
+    setActiveBlocks(await attachMobilityLabels(blocks));
     setActivePlan(planRes.data as UserPlan | null);
     setRecentActivities((activityRes.data ?? []) as Activity[]);
     setSeasonSummary(season);
@@ -529,7 +535,7 @@ function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void })
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const label = b.template?.name ?? b.modality;
+  const label = b.template?.name ?? b.label ?? b.modality;
 
   function openConfirm() {
     swipeRef.current?.close();
@@ -596,7 +602,14 @@ function BlockRow({ b, onDropped }: { b: ComputedBlock; onDropped: () => void })
         rightThreshold={40}
         overshootRight={false}
       >
-        <Pressable onPress={() => b.template_id && router.push(`/(app)/plan/${b.template_id}` as any)} accessibilityRole="button">
+        <Pressable
+          onPress={() => {
+            if (b.template_id) router.push(`/(app)/plan/${b.template_id}` as any);
+            // A mobility habit has no template; its home is the mobility list, where it is edited.
+            else if (b.modality === 'mobility') router.push('/(app)/mobility' as any);
+          }}
+          accessibilityRole="button"
+        >
           <VirraCard style={stack.blockRow}>
             <View style={stack.iconWrap}>
               <SymbolView name={(MODALITY_ICON[b.modality] ?? 'figure.walk') as any} size={18} tintColor={MODALITY_COLOR[b.modality] ?? colors.muted} />

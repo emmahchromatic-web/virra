@@ -30,6 +30,7 @@ const MODALITY_COLOR: Record<string, string> = {
   strength: colors.dawn,
   swim:     colors.breath,
   yoga:     colors.breath,
+  mobility: colors.sage,
   other:    colors.muted,
 };
 
