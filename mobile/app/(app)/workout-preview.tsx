@@ -295,6 +295,8 @@ function applyPrefillWeights(
   for (const ex of exercises) {
     // Never carry a weight into a movement that cannot take one.
     if (settings[ex.name]?.loadType === 'none') continue;
+    // An inline mobility move has no catalogue row to say so; it never takes one either.
+    if (!settings[ex.name] && ex.section === 'mobility') continue;
     const w = weights[ex.name];
     if (w == null) continue;
     next[ex.id] = (next[ex.id] ?? []).map((s) =>
@@ -1268,7 +1270,9 @@ export default function WorkoutPreviewScreen() {
               // always show one; bodyweight movements people sometimes load
               // offer one on request; the rest have none at all.
               const exSettings   = settings[ex.name];
-              const loadType     = exSettings?.loadType ?? DEFAULT_LOAD_TYPE;
+              // A mobility move authored inline (card 264) has no catalogue row,
+              // and a stretch defaulting to 'weighted' would grow a kg field.
+              const loadType     = exSettings?.loadType ?? (ex.section === 'mobility' ? 'none' : DEFAULT_LOAD_TYPE);
               const showWeight   = loadType === 'weighted' || (loadType === 'optional' && !!weightShown[ex.id]);
               const canAddWeight = loadType === 'optional' && !weightShown[ex.id];
               // The exercise-level tempo is the editable one; the tempo authored

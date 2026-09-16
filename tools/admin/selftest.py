@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from admin import derive, export, forms, validators  # noqa: E402
+from admin import derive, export, forms, mobility, validators  # noqa: E402
 from admin.validators import ValidationError  # noqa: E402
 
 failures: list[str] = []
@@ -36,6 +36,31 @@ def raises(name: str, fn) -> None:
     print(f"  FAIL {name} (no ValidationError)")
     failures.append(name)
 
+
+print("\nmobility timing and coverage")
+check("a 45s each-side hold is about 95s on the clock", mobility.clock_seconds("45s each side") == 95,
+      f"got {mobility.clock_seconds('45s each side')}")
+check("1 min is 65s", mobility.clock_seconds("1 min") == 65)
+check("5 breaths is 30s", mobility.clock_seconds("5 breaths") == 30)
+check("8 slow reps is 37s", mobility.clock_seconds("8 slow") == 37)
+check("6 each way, each side is 77s", mobility.clock_seconds("6 each way, each side") == 77)
+check("blank reps fall back to the app's 30s", mobility.clock_seconds(None) == 30)
+est = mobility.estimates([{"reps": "45s each side"}, {"reps": "45s each side"}, {"reps": "5 breaths"}])
+check("estimates report clock and app minutes separately", est == {"clock_minutes": 4, "app_minutes": 2}, f"got {est}")
+check("a session whose card is honest gets no warning",
+      mobility.timing_warnings({"minutes": 4}, [{"reps": "45s each side"}, {"reps": "45s each side"}, {"reps": "5 breaths"}]) == [])
+check("a session whose card lies is warned",
+      any("on the clock" in w for w in mobility.timing_warnings({"minutes": 10}, [{"reps": "30s"}])))
+sessions = [
+    {"minutes": 10, "phases": ["menstrual", "follicular", "ovulatory", "luteal"], "is_active": True},
+    {"minutes": 20, "phases": ["luteal"], "is_active": True},
+    {"minutes": 20, "phases": ["follicular", "ovulatory", "menstrual"], "is_active": False},
+]
+gaps = mobility.coverage_warnings(sessions)
+check("every phase at every length, counting active only",
+      gaps == [f"No active 20-minute session suits the {p} phase." for p in ("menstrual", "follicular", "ovulatory")],
+      f"got {gaps}")
+check("no sessions at all is its own warning", mobility.coverage_warnings([]) == ["No active mobility sessions. The mobility list in the app is empty."])
 
 print("\nvalidators")
 check("slugify matches the seeded id style", validators.slugify("World's Greatest Stretch!") == "world-s-greatest-stretch")
@@ -165,7 +190,7 @@ from admin import config as config_module  # noqa: E402
 
 for table in ("activities", "cycle_logs", "user_profiles", "food_entries", "strength_set_logs", "subscriptions"):
     check(f"{table} is NOT reachable", table not in config_module.ALLOWLIST)
-check("8 content tables are allowed", len(config_module.ALLOWLIST) == 8, f"got {len(config_module.ALLOWLIST)}")
+check("10 content tables are allowed", len(config_module.ALLOWLIST) == 10, f"got {len(config_module.ALLOWLIST)}")
 
 print()
 if failures:

@@ -85,10 +85,16 @@ Neither needs a key or a network, and neither can touch production.
   editing a programme by hand leaves the plan picker showing the old name.
 - **Validates before writing** — tempo shape, slug shape, block and section values,
   tag membership — so you get a sentence, not a PostgREST 400.
+- **Checks a mobility session against the clock.** The card and the workout screen
+  both show the minutes you type, so the moves have to add up to them: holds at
+  their length and twice for "each side", breaths at five seconds, reps at three
+  or four. The edit page shows the total and refuses to stay quiet when it is
+  more than two minutes off. It also warns when a phase has no active session at
+  some length, which is the one hard rule in the drafting brief.
 
 ## Safety
 
-- **Table allowlist, hard-coded** in `admin/config.py`: eight content tables.
+- **Table allowlist, hard-coded** in `admin/config.py`: ten content tables.
   Nothing user-owned — activities, cycle logs, profiles, food entries — is
   reachable from this tool at all.
 - **Localhost only.**
@@ -109,6 +115,8 @@ and the invariant checks exist.
 **The seed migrations must not be re-run.** `20260826010000_seed_recipes_teamfit`,
 `20260827030000_seed_recipes_authored` and `20260819000000_get_strong_programmes`
 all `delete` before they insert, so re-running one wipes anything edited here.
+The mobility first load, `seeds/content/mobility.sql`, upserts its eight sessions
+and replaces their moves, so it too overwrites console edits to those eight.
 Once content is edited in this console, the database is the source of truth and
 the repo keeps a generated snapshot instead — press **Export** on the dashboard,
 then commit `mobile/supabase/seeds/content/`.

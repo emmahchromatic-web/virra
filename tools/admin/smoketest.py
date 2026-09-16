@@ -58,6 +58,11 @@ get("/recipes/new", "New recipe", "blank = end of collection")
 get("/recipes/biscoff-overnight-oats/delete", "cannot be undone")
 get("/recipes/nope", "was not found")
 get("/programmes", "Push / Pull / Legs", "Run programmes are not here")
+get("/mobility", "Wake Up", "Deep Release", "10 min", "30 min")
+get("/mobility/wake-up", "Cat Cow", "Supine Twist", "on the clock")
+get("/mobility/new", "New session")
+get("/mobility/wake-up/delete", "cannot be undone")
+get("/mobility/nope", "was not found")
 get("/programmes/get-strong-ppl", "Push", "Pull", "Variant gaps")
 get("/programmes/get-strong-ppl/days/1", "barbell-box-squat", "bodyweight")
 get("/exercises", "Barbell Box Squat", "Used by", "Push-up")
@@ -263,6 +268,47 @@ print("\na hard delete needs the exact id")
 post("/recipes/end-of-shelf/delete", {"confirm_id": "end-of-shelf"})
 check("deleted when the id matches",
       not [r for r in STORE["recipes"] if r["id"] == "end-of-shelf"])
+
+print("\nmobility sessions")
+listing = client.get("/mobility").text
+check("phase coverage gaps are flagged per length",
+      "No active 10-minute session" not in listing and "No active 30-minute session suits the follicular" in listing)
+post("/mobility/new", {
+    "name": "Hips and Lower Back", "id": "", "minutes": "20", "intensity": "moderate",
+    "phases": ["luteal", "menstrual"], "focus": "Release for the hips.", "is_active": "1",
+    "move-0-name": "Pigeon", "move-0-reps": "45s each side", "move-0-sets": "", "move-0-cue": "Hips square.",
+    "move-0-description": "Fold over the front shin.",
+    "move-1-name": "World's Greatest Stretch", "move-1-reps": "5 each side", "move-1-sets": "",
+    "move-1-cue": "", "move-1-description": "",
+})
+saved = [s for s in STORE["mobility_sessions"] if s["id"] == "hips-and-lower-back"]
+check("id slugged from the name", bool(saved))
+check("phases stored as a list", saved and saved[0]["phases"] == ["luteal", "menstrual"], f"got {saved and saved[0]['phases']}")
+moves = sorted([m for m in STORE["mobility_session_moves"] if m["session_id"] == "hips-and-lower-back"],
+               key=lambda m: m["position"])
+check("moves written in order", [m["name"] for m in moves] == ["Pigeon", "World's Greatest Stretch"])
+check("a blank description is filled from the exercise catalogue",
+      moves and moves[1]["description"] and "Lunge" in moves[1]["description"], f"got {moves and moves[1]['description']!r}")
+check("a typed description is kept", moves and moves[0]["description"] == "Fold over the front shin.")
+check("cue kept, blank cue is null", moves and moves[0]["cue"] == "Hips square." and moves[1]["cue"] is None)
+
+post("/mobility/new", {
+    "name": "Nowhere", "minutes": "10", "intensity": "gentle",
+    "move-0-name": "Made Up Move", "move-0-reps": "30s", "move-0-sets": "", "move-0-cue": "", "move-0-description": "",
+}, 200, "Tick at least one phase", "needs a description")
+post("/mobility/new", {
+    "name": "Too Strong", "minutes": "10", "intensity": "brutal", "phases": ["luteal"],
+}, 200, "Intensity must be one of")
+post("/mobility/empty-draft/active", {"active": "1"}, 200, "has no moves")
+post("/mobility/wake-up/active", {"active": "0"})
+check("deactivated", not [s for s in STORE["mobility_sessions"] if s["id"] == "wake-up"][0]["is_active"])
+post("/mobility/wake-up/active", {"active": "1"})
+edit_page = client.get("/mobility/deep-release").text
+check("the clock estimate disagrees with 30 min and says so", "Says 30 min but the moves add up to about" in edit_page)
+post("/mobility/deep-release/delete", {"confirm_id": "deep-release"})
+check("delete cascades to the moves",
+      not [s for s in STORE["mobility_sessions"] if s["id"] == "deep-release"]
+      and not [m for m in STORE["mobility_session_moves"] if m["session_id"] == "deep-release"])
 
 print("\nread-only mode blocks writes")
 config.readonly = True

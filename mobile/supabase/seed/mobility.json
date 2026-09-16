@@ -1,0 +1,951 @@
+{
+  "_about": [
+    "Mobility sessions, card 264. Source for mobile/supabase/seeds/content/mobility.sql.",
+    "Written against MOBILITY_DRAFTING_BRIEF.md (PR #97): one row per session, a list of moves under it.",
+    "Rebuild with:  node build-mobility-seed.mjs   (validates, then rewrites the SQL and prints a report).",
+    "Move descriptions live once, in `moves`, and are inlined into every session that uses them.",
+    "A move whose name is already in the exercise catalogue (get-strong.json) inherits that description instead.",
+    "Each session move is [name, reps, cue]. `cue` is optional. `sets` is never used.",
+    "Minutes are checked against the clock: a '45s each side' hold is 90 seconds, however the app's 30s fallback counts it."
+  ],
+  "moves": {
+    "Lateral Breathing": "Lie or sit tall with the hands on the ribs and breathe wide into the sides of the ribcage, letting the belly stay quiet. Exhale fully and feel the ribs knit down.",
+    "Pelvic Tilts": "On your back with knees bent, rock the pelvis to flatten the lower back into the mat, then let it release into a small arch. Keep it small and slow.",
+    "Pelvic Clocks": "On your back, picture a clock face on the pelvis and tilt slowly toward each number in turn. The ribs stay heavy the whole way round.",
+    "Cat Cow": "On hands and knees, round the spine toward the ceiling on the exhale, then let the chest and tailbone lift on the inhale. Move one vertebra at a time.",
+    "Thread the Needle": "From hands and knees, slide one arm under the other and rest that shoulder on the mat, letting the upper back rotate. Keep the hips still.",
+    "Child's Pose": "Knees wide, big toes together, sit back toward the heels and reach the arms long. Let the forehead rest and the breath slow.",
+    "Book Openings": "Lie on your side with knees bent and arms stacked in front, then lift the top arm and open it behind you like a book, following it with your eyes. Keep the knees pressed together.",
+    "Supine Twist": "On your back, drop both knees to one side and turn the head the other way. Let the weight of the legs do the work.",
+    "Knee Hugs": "On your back, hug both knees to the chest and rock gently side to side. Let the lower back soften into the mat.",
+    "Spine Stretch Forward": "Sit tall with legs straight and hip-width apart, then reach forward over the legs, peeling the spine into a long curve. Draw the belly back as you fold.",
+    "Roll Down": "Standing tall, nod the chin and roll down the spine one bone at a time until you hang, then restack from the tailbone up.",
+    "Standing Roll Down with Knee Bend": "Roll down as before, soften the knees at the bottom so the lower back can let go, then restack from the tailbone.",
+    "Saw": "Sit tall with legs wide and arms out, rotate and reach the little finger past the opposite little toe, then return. Keep both hips heavy.",
+    "Mermaid": "Sit with the legs folded to one side, reach the opposite arm overhead and lean over the folded legs, then counter-stretch the other way.",
+    "Spine Twist Seated": "Sit tall with legs together and arms out, and rotate the ribcage one way and back, growing taller as you turn. The hips stay still.",
+    "Swan Prep": "Lie face down with hands under the shoulders and lift the chest by lengthening the spine forward and up, not by pressing hard. Keep the neck long.",
+    "Sphinx": "Face down with forearms on the mat, lift the chest and let the lower back settle into a gentle arch. Breathe into the front of the body.",
+    "Shell Stretch": "Kneel and fold forward onto the thighs with the arms by your sides, palms up. Let the back round completely.",
+    "Thoracic Extension over Bolster": "Lie back over a rolled towel or bolster placed under the shoulder blades, hands behind the head, and let the upper back open. Keep the ribs soft.",
+    "Segmental Bridge": "On your back, peel the spine off the mat from the tailbone up to a bridge, then lower one vertebra at a time.",
+    "Shoulder Bridge with Leg Lift": "Hold a bridge and float one leg toward the ceiling, keeping the hips level, then lower and swap.",
+    "Rolling Like a Ball": "Sit balanced just behind the tailbone, hold the shins, and roll back to the shoulders and up again without the head touching down. Stay round.",
+    "Roll Up": "Lie long, reach the arms to the ceiling and roll up through the spine to reach for the toes, then roll back down with control.",
+    "Figure Four Stretch": "On your back, cross one ankle over the opposite knee and draw the legs toward you. Keep the tailbone down.",
+    "90/90 Hip Switch": "Sit with one leg bent in front and one behind, both at right angles, and rotate the knees from one side to the other. Stay tall.",
+    "90/90 Forward Fold": "In the 90/90 seat, hinge the chest forward over the front shin and breathe into the outer hip.",
+    "Pigeon": "From hands and knees, bring one knee forward behind the wrist with the shin angled across, and fold over it. Keep the hips square.",
+    "Half Kneeling Hip Flexor Stretch": "Kneel on one knee with the other foot forward, tuck the tailbone and shift gently forward until the front of the kneeling hip lengthens.",
+    "Frog Stretch": "On hands and knees, widen the knees and turn the feet out, then rock the hips gently back toward the heels.",
+    "Happy Baby": "On your back, hold the outside of the feet with knees wide and draw them gently toward the armpits. Keep the tailbone heavy.",
+    "Butterfly": "Sit with the soles of the feet together and knees open, and fold forward from the hips with a long spine.",
+    "Clam": "Lie on your side with knees bent and feet together, and lift the top knee without rolling the pelvis back.",
+    "Single Leg Circles": "On your back, reach one leg to the ceiling and draw circles across the body and back around. Keep the pelvis still.",
+    "Adductor Rock Back": "On hands and knees, extend one leg out to the side with the foot flat, and rock the hips back and forward over the kneeling leg.",
+    "Deep Squat Hold": "Feet slightly wider than the hips, sink into a full squat with heels down and elbows pressing the knees gently out. Keep the chest lifted.",
+    "Standing Hip Circles": "Stand on one leg with a hand on a wall and circle the free knee out and around. Keep the standing hip steady.",
+    "Leg Swings": "Holding a wall, swing one leg forward and back from the hip with a relaxed knee. Let the range build over the reps.",
+    "Standing Hamstring Stretch": "Rest one heel on a low step and hinge forward from the hips with a flat back. Toes stay pointing up.",
+    "Low Lunge": "Step one foot forward and lower the back knee to the mat, sinking the hips forward. Keep the front knee over the ankle.",
+    "Low Lunge Twist": "In a low lunge, place the opposite hand on the floor and rotate the chest toward the front leg, reaching the free arm up.",
+    "Lizard": "From a low lunge, walk the front foot out wide and lower the forearms toward the mat inside the leg.",
+    "Half Split": "From a low lunge, slide the hips back and straighten the front leg, folding over it with a long spine.",
+    "Side-lying Quad Stretch": "Lie on your side, hold the top ankle behind you, and gently press the hip forward. Keep the knees in line.",
+    "Cossack Squat": "Step wide and sink toward one heel with the other leg straight and its toes up, then shift across to the other side.",
+    "Standing Hip Airplane": "Hinge over one leg with the other reaching behind, then rotate the pelvis open and closed over the standing hip. Small and controlled.",
+    "Standing Single Leg Balance": "Stand on one leg with the hips level and hold, eyes fixed on one point. Let the foot do the work.",
+    "Shoulder Rolls": "Stand or sit tall and roll the shoulders up, back and down in slow circles.",
+    "Arm Circles": "Stand tall and circle the arms slowly in both directions, keeping the ribs still.",
+    "Wall Angels": "Back against a wall with the arms in a goalpost, slide them up and down the wall keeping the wrists and elbows in contact.",
+    "Scapular Push-ups": "On hands and knees or in a plank, let the shoulder blades draw together, then push the floor away to spread them. The elbows stay straight.",
+    "Puppy Pose": "From hands and knees, walk the hands forward and lower the chest toward the mat with the hips high over the knees.",
+    "Doorway Pec Stretch": "Forearm on a doorframe at shoulder height, step gently through until the chest opens. Keep the ribs down.",
+    "Chest Opener Hands Clasped": "Stand tall, clasp the hands behind the back and draw them down and away, lifting the chest.",
+    "Neck Side Stretch": "Sit tall and lower one ear toward the shoulder, with the opposite arm reaching down. Breathe into the side of the neck.",
+    "Chin Tucks": "Sit tall and glide the chin straight back as if making a double chin, lengthening the back of the neck.",
+    "Thoracic Rotation on All Fours": "On hands and knees, place one hand behind the head and rotate the elbow toward the ceiling, then down toward the opposite wrist.",
+    "Down Dog": "From hands and knees, lift the hips high into an upside-down V, pressing the chest toward the thighs. Bend the knees as much as you need.",
+    "Down Dog Pedal": "In down dog, bend one knee and press the other heel toward the floor, alternating slowly.",
+    "Plank to Down Dog": "From a plank, push the hips up and back into down dog, then return to plank without the shoulders collapsing.",
+    "Cobra": "Face down with hands under the shoulders, press up through the hands to lift the chest while the hips stay on the mat.",
+    "Swimming Prep": "Face down, lift the opposite arm and leg a few inches while the belly stays lifted, then swap sides.",
+    "Swimming": "Face down, lift the opposite arm and leg and flutter them in a small quick beat while breathing steadily. The belly stays lifted.",
+    "Calf Stretch on Wall": "Hands on a wall, step one foot back with the heel down and press it gently to the floor.",
+    "Legs Up the Wall": "Lie on your back with the legs resting up a wall and the arms open. Let the whole body go heavy.",
+    "Hundred Prep": "On your back, curl the head and shoulders up with the legs in tabletop and pump the arms as you breathe in for five and out for five.",
+    "Single Leg Stretch": "Curl up, hug one knee in while the other leg reaches long, and switch. The lower back stays on the mat.",
+    "Criss Cross": "Curl up with hands behind the head and rotate the ribcage toward the bent knee as the other leg reaches long.",
+    "Side Kick Series": "Lie on your side with the top leg hovering and sweep it forward and back without the torso moving.",
+    "Side Plank": "Forearm or hand down, lift the hips to make one straight line from head to feet.",
+    "Teaser Prep": "Sit balanced on the back of the pelvis with knees bent, reach the arms forward, and extend one leg to match the angle of the other thigh.",
+    "Bird Dog": "On hands and knees, reach the opposite arm and leg long without the hips rotating, then swap."
+  },
+  "sessions": [
+    {
+      "id": "wake-up",
+      "name": "Wake Up",
+      "focus": "Ten minutes to unstick the spine and hips before the day gets going.",
+      "minutes": 10,
+      "intensity": "gentle",
+      "phases": [
+        "menstrual",
+        "follicular",
+        "ovulatory",
+        "luteal"
+      ],
+      "moves": [
+        [
+          "Lateral Breathing",
+          "5 breaths",
+          "Let the ribs widen sideways, not the belly."
+        ],
+        [
+          "Pelvic Tilts",
+          "8 slow"
+        ],
+        [
+          "Knee Hugs",
+          "30s"
+        ],
+        [
+          "Supine Twist",
+          "30s each side"
+        ],
+        [
+          "Segmental Bridge",
+          "6 slow"
+        ],
+        [
+          "Cat Cow",
+          "8 slow",
+          "Let the breath set the pace."
+        ],
+        [
+          "Thread the Needle",
+          "30s each side"
+        ],
+        [
+          "Child's Pose",
+          "5 breaths"
+        ],
+        [
+          "Down Dog Pedal",
+          "30s"
+        ],
+        [
+          "Low Lunge",
+          "30s each side"
+        ],
+        [
+          "Deep Squat Hold",
+          "30s",
+          "Heels down. Hold something if you need to."
+        ],
+        [
+          "Roll Down",
+          "4 slow"
+        ],
+        [
+          "Shoulder Rolls",
+          "8 each way"
+        ],
+        [
+          "Neck Side Stretch",
+          "20s each side"
+        ],
+        [
+          "Lateral Breathing",
+          "5 breaths",
+          "Standing this time. Notice what changed."
+        ]
+      ]
+    },
+    {
+      "id": "post-run-reset",
+      "name": "Post-Run Reset",
+      "focus": "Calves, hips and hamstrings straight after a run, before they set.",
+      "minutes": 10,
+      "intensity": "gentle",
+      "phases": [
+        "menstrual",
+        "follicular",
+        "ovulatory",
+        "luteal"
+      ],
+      "moves": [
+        [
+          "Calf Stretch on Wall",
+          "30s each side"
+        ],
+        [
+          "Standing Hamstring Stretch",
+          "30s each side",
+          "Hinge from the hips. The back stays flat."
+        ],
+        [
+          "Half Kneeling Hip Flexor Stretch",
+          "30s each side",
+          "Tuck the tailbone first, then shift forward."
+        ],
+        [
+          "Half Split",
+          "30s each side"
+        ],
+        [
+          "Down Dog Pedal",
+          "30s"
+        ],
+        [
+          "Pigeon",
+          "45s each side"
+        ],
+        [
+          "Child's Pose",
+          "5 breaths"
+        ],
+        [
+          "Figure Four Stretch",
+          "30s each side"
+        ],
+        [
+          "Supine Twist",
+          "30s each side"
+        ],
+        [
+          "Knee Hugs",
+          "5 breaths"
+        ]
+      ]
+    },
+    {
+      "id": "wind-down",
+      "name": "Wind Down",
+      "focus": "Slow floor work and long breaths to settle the body before bed.",
+      "minutes": 10,
+      "intensity": "gentle",
+      "phases": [
+        "menstrual",
+        "luteal"
+      ],
+      "moves": [
+        [
+          "Lateral Breathing",
+          "8 breaths",
+          "Make the exhale longer than the inhale."
+        ],
+        [
+          "Pelvic Clocks",
+          "4 each way"
+        ],
+        [
+          "Knee Hugs",
+          "30s"
+        ],
+        [
+          "Supine Twist",
+          "45s each side"
+        ],
+        [
+          "Figure Four Stretch",
+          "45s each side"
+        ],
+        [
+          "Happy Baby",
+          "30s"
+        ],
+        [
+          "Child's Pose",
+          "8 breaths"
+        ],
+        [
+          "Shell Stretch",
+          "5 breaths"
+        ],
+        [
+          "Sphinx",
+          "30s",
+          "Nothing forced. Let the lower back settle on its own."
+        ],
+        [
+          "Butterfly",
+          "45s"
+        ],
+        [
+          "Legs Up the Wall",
+          "1 min",
+          "If there is no wall, rest the calves on a chair."
+        ],
+        [
+          "Lateral Breathing",
+          "8 breaths"
+        ]
+      ]
+    },
+    {
+      "id": "hips-and-lower-back",
+      "name": "Hips and Lower Back",
+      "focus": "Release for the hips and lower back on the days they take the strain.",
+      "minutes": 20,
+      "intensity": "moderate",
+      "phases": [
+        "luteal",
+        "menstrual"
+      ],
+      "moves": [
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ],
+        [
+          "Pelvic Tilts",
+          "8 slow"
+        ],
+        [
+          "Knee Hugs",
+          "30s"
+        ],
+        [
+          "Figure Four Stretch",
+          "45s each side"
+        ],
+        [
+          "Supine Twist",
+          "45s each side"
+        ],
+        [
+          "Happy Baby",
+          "30s"
+        ],
+        [
+          "Segmental Bridge",
+          "8 slow",
+          "One vertebra at a time, up and down."
+        ],
+        [
+          "Clam",
+          "10 each side",
+          "The pelvis stays stacked. Smaller is better."
+        ],
+        [
+          "Cat Cow",
+          "8 slow"
+        ],
+        [
+          "Thread the Needle",
+          "30s each side"
+        ],
+        [
+          "Child's Pose",
+          "5 breaths"
+        ],
+        [
+          "Adductor Rock Back",
+          "8 each side"
+        ],
+        [
+          "Frog Stretch",
+          "45s"
+        ],
+        [
+          "90/90 Hip Switch",
+          "8 slow"
+        ],
+        [
+          "90/90 Forward Fold",
+          "45s each side"
+        ],
+        [
+          "Pigeon",
+          "45s each side",
+          "Hips square. A cushion under the hip is fine."
+        ],
+        [
+          "Half Kneeling Hip Flexor Stretch",
+          "45s each side"
+        ],
+        [
+          "Lizard",
+          "45s each side"
+        ],
+        [
+          "Butterfly",
+          "45s"
+        ],
+        [
+          "Spine Stretch Forward",
+          "5 slow"
+        ],
+        [
+          "Saw",
+          "5 each side"
+        ],
+        [
+          "Mermaid",
+          "30s each side"
+        ],
+        [
+          "Squat & Reach",
+          "6 each side"
+        ],
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ]
+      ]
+    },
+    {
+      "id": "shoulders-and-upper-back",
+      "name": "Shoulders and Upper Back",
+      "focus": "Open the chest and free the upper back from desk hours and tight arms.",
+      "minutes": 20,
+      "intensity": "moderate",
+      "phases": [
+        "follicular",
+        "ovulatory"
+      ],
+      "moves": [
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ],
+        [
+          "Chin Tucks",
+          "8 slow"
+        ],
+        [
+          "Neck Side Stretch",
+          "20s each side"
+        ],
+        [
+          "Shoulder Rolls",
+          "8 each way"
+        ],
+        [
+          "Arm Circles",
+          "8 each way"
+        ],
+        [
+          "Wall Angels",
+          "8 slow",
+          "Ribs stay on the wall. Go only as high as that allows."
+        ],
+        [
+          "Doorway Pec Stretch",
+          "30s each side"
+        ],
+        [
+          "Chest Opener Hands Clasped",
+          "30s"
+        ],
+        [
+          "Cat Cow",
+          "8 slow"
+        ],
+        [
+          "Thoracic Rotation on All Fours",
+          "8 each side"
+        ],
+        [
+          "Thread the Needle",
+          "45s each side"
+        ],
+        [
+          "Scapular Push-ups",
+          "10 slow"
+        ],
+        [
+          "Puppy Pose",
+          "45s"
+        ],
+        [
+          "Child's Pose",
+          "5 breaths"
+        ],
+        [
+          "Book Openings",
+          "8 each side",
+          "Follow the hand with your eyes. Knees stay glued."
+        ],
+        [
+          "Prone Y-Raise",
+          "8 slow"
+        ],
+        [
+          "Prone W-Raise",
+          "8 slow"
+        ],
+        [
+          "Prone T-Raise",
+          "8 slow"
+        ],
+        [
+          "Swan Prep",
+          "6 slow",
+          "Length first, height second."
+        ],
+        [
+          "Swimming Prep",
+          "8 each side"
+        ],
+        [
+          "Cobra",
+          "5 breaths"
+        ],
+        [
+          "Shell Stretch",
+          "5 breaths"
+        ],
+        [
+          "Thoracic Extension over Bolster",
+          "1 min"
+        ],
+        [
+          "Spine Twist Seated",
+          "6 each side"
+        ],
+        [
+          "Mermaid",
+          "30s each side"
+        ],
+        [
+          "World's Greatest Stretch",
+          "5 each side"
+        ],
+        [
+          "Roll Down",
+          "4 slow"
+        ],
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ]
+      ]
+    },
+    {
+      "id": "full-body-flow",
+      "name": "Full Body Flow",
+      "focus": "Standing to floor and back again, moving every joint through its range.",
+      "minutes": 20,
+      "intensity": "moderate",
+      "phases": [
+        "follicular",
+        "ovulatory"
+      ],
+      "moves": [
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ],
+        [
+          "Roll Down",
+          "4 slow"
+        ],
+        [
+          "Standing Hip Circles",
+          "6 each way"
+        ],
+        [
+          "Leg Swings",
+          "10 each side"
+        ],
+        [
+          "Deep Squat Hold",
+          "30s"
+        ],
+        [
+          "Squat & Reach",
+          "6 each side"
+        ],
+        [
+          "World's Greatest Stretch",
+          "5 each side"
+        ],
+        [
+          "Cossack Squat",
+          "6 each side",
+          "Only as low as the heel stays down."
+        ],
+        [
+          "Low Lunge Twist",
+          "30s each side"
+        ],
+        [
+          "Lizard",
+          "30s each side",
+          "Range is easy to find today. Stop where the stretch is clear, not where it ends."
+        ],
+        [
+          "Down Dog",
+          "5 breaths"
+        ],
+        [
+          "Down Dog Pedal",
+          "30s"
+        ],
+        [
+          "Plank to Down Dog",
+          "6 slow"
+        ],
+        [
+          "Cat Cow",
+          "8 slow"
+        ],
+        [
+          "Thoracic Rotation on All Fours",
+          "6 each side"
+        ],
+        [
+          "Bird Dog",
+          "6 each side"
+        ],
+        [
+          "Frog Stretch",
+          "30s"
+        ],
+        [
+          "Pigeon",
+          "45s each side"
+        ],
+        [
+          "90/90 Hip Switch",
+          "8 slow"
+        ],
+        [
+          "Swan Prep",
+          "6 slow"
+        ],
+        [
+          "Child's Pose",
+          "5 breaths"
+        ],
+        [
+          "Rolling Like a Ball",
+          "6",
+          "Stay round. The head never touches down."
+        ],
+        [
+          "Spine Stretch Forward",
+          "5 slow"
+        ],
+        [
+          "Spine Twist Seated",
+          "6 each side"
+        ],
+        [
+          "Mermaid",
+          "30s each side"
+        ],
+        [
+          "Segmental Bridge",
+          "8 slow"
+        ],
+        [
+          "Supine Twist",
+          "30s each side"
+        ],
+        [
+          "Knee Hugs",
+          "30s"
+        ],
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ]
+      ]
+    },
+    {
+      "id": "deep-release",
+      "name": "Deep Release",
+      "focus": "Half an hour of unhurried floor work for the heaviest days.",
+      "minutes": 30,
+      "intensity": "gentle",
+      "phases": [
+        "menstrual",
+        "luteal"
+      ],
+      "moves": [
+        [
+          "Lateral Breathing",
+          "8 breaths",
+          "Nothing to do here but breathe."
+        ],
+        [
+          "Pelvic Tilts",
+          "8 slow"
+        ],
+        [
+          "Knee Hugs",
+          "45s"
+        ],
+        [
+          "Figure Four Stretch",
+          "45s each side"
+        ],
+        [
+          "Supine Twist",
+          "45s each side"
+        ],
+        [
+          "Happy Baby",
+          "45s"
+        ],
+        [
+          "Segmental Bridge",
+          "6 slow"
+        ],
+        [
+          "Side-lying Quad Stretch",
+          "45s each side"
+        ],
+        [
+          "Cat Cow",
+          "8 slow"
+        ],
+        [
+          "Thread the Needle",
+          "45s each side"
+        ],
+        [
+          "Child's Pose",
+          "8 breaths"
+        ],
+        [
+          "Sphinx",
+          "45s"
+        ],
+        [
+          "Shell Stretch",
+          "8 breaths"
+        ],
+        [
+          "Frog Stretch",
+          "45s"
+        ],
+        [
+          "Half Kneeling Hip Flexor Stretch",
+          "45s each side"
+        ],
+        [
+          "Lizard",
+          "45s each side"
+        ],
+        [
+          "Pigeon",
+          "45s each side",
+          "Prop the hip if it needs it. Comfort is the point today."
+        ],
+        [
+          "90/90 Forward Fold",
+          "45s each side"
+        ],
+        [
+          "Butterfly",
+          "45s"
+        ],
+        [
+          "Mermaid",
+          "45s each side"
+        ],
+        [
+          "Standing Roll Down with Knee Bend",
+          "4 slow"
+        ],
+        [
+          "Calf Stretch on Wall",
+          "30s each side"
+        ],
+        [
+          "Doorway Pec Stretch",
+          "30s each side"
+        ],
+        [
+          "Chest Opener Hands Clasped",
+          "30s"
+        ],
+        [
+          "Neck Side Stretch",
+          "30s each side"
+        ],
+        [
+          "Thoracic Extension over Bolster",
+          "45s"
+        ],
+        [
+          "Knee Hugs",
+          "30s"
+        ],
+        [
+          "Legs Up the Wall",
+          "1 min"
+        ],
+        [
+          "Lateral Breathing",
+          "10 breaths"
+        ]
+      ]
+    },
+    {
+      "id": "strong-and-supple",
+      "name": "Strong and Supple",
+      "focus": "Range of movement with the control to hold it, Pilates style.",
+      "minutes": 30,
+      "intensity": "strong",
+      "phases": [
+        "follicular",
+        "ovulatory"
+      ],
+      "moves": [
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ],
+        [
+          "Roll Down",
+          "4 slow"
+        ],
+        [
+          "Standing Single Leg Balance",
+          "30s each side"
+        ],
+        [
+          "Standing Hip Airplane",
+          "5 each side",
+          "Tiny range. The standing knee stays soft."
+        ],
+        [
+          "Deep Squat Hold",
+          "30s"
+        ],
+        [
+          "World's Greatest Stretch",
+          "5 each side"
+        ],
+        [
+          "Low Lunge Twist",
+          "30s each side"
+        ],
+        [
+          "Lizard",
+          "30s each side",
+          "Range comes easily this week. Stop where the stretch is clear, not where it ends."
+        ],
+        [
+          "Plank to Down Dog",
+          "6 slow"
+        ],
+        [
+          "Bird Dog",
+          "8 each side"
+        ],
+        [
+          "Thoracic Rotation on All Fours",
+          "8 each side"
+        ],
+        [
+          "90/90 Hip Switch",
+          "8 slow"
+        ],
+        [
+          "Pigeon",
+          "45s each side"
+        ],
+        [
+          "Hundred Prep",
+          "5 breaths",
+          "In for five, out for five. Ribs stay down."
+        ],
+        [
+          "Single Leg Stretch",
+          "10 each side"
+        ],
+        [
+          "Criss Cross",
+          "10 each side"
+        ],
+        [
+          "Dead Bug",
+          "8 each side"
+        ],
+        [
+          "Roll Up",
+          "6 slow",
+          "Bend the knees if the lower back lifts off."
+        ],
+        [
+          "Spine Stretch Forward",
+          "5 slow"
+        ],
+        [
+          "Saw",
+          "5 each side"
+        ],
+        [
+          "Teaser Prep",
+          "5 each side"
+        ],
+        [
+          "Mermaid",
+          "30s each side"
+        ],
+        [
+          "Side Kick Series",
+          "10 each side"
+        ],
+        [
+          "Clam",
+          "12 each side"
+        ],
+        [
+          "Side Plank",
+          "30s each side",
+          "Knee down is a full version, not a lesser one."
+        ],
+        [
+          "Segmental Bridge",
+          "8 slow"
+        ],
+        [
+          "Shoulder Bridge with Leg Lift",
+          "6 each side"
+        ],
+        [
+          "Single Leg Circles",
+          "6 each way, each side"
+        ],
+        [
+          "Swan Prep",
+          "6 slow"
+        ],
+        [
+          "Swimming",
+          "30s"
+        ],
+        [
+          "Cobra",
+          "5 breaths"
+        ],
+        [
+          "Child's Pose",
+          "5 breaths"
+        ],
+        [
+          "Thread the Needle",
+          "30s each side"
+        ],
+        [
+          "Supine Twist",
+          "30s each side"
+        ],
+        [
+          "Knee Hugs",
+          "30s"
+        ],
+        [
+          "Lateral Breathing",
+          "5 breaths"
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% set nav = 'mobility' %}
+{% block title %}{{ session.name or 'New session' }} — VIRRA Admin{% endblock %}
+{% block body %}
+  <div style="display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap">
+    <h1>{{ session.name or 'New session' }}</h1>
+    {% if not is_new %}<span class="pill {{ 'live' if session.is_active }}">{{ 'live' if session.is_active else 'staged' }}</span>{% endif %}
+    <a class="btn" style="margin-left:auto" href="/mobility">All sessions</a>
+  </div>
+
+  {% if timing %}
+    <div class="notice bad" style="margin-bottom:1.2rem">
+      <span class="t">Minutes and moves disagree</span>
+      <ul>{% for warning in timing %}<li>{{ warning }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  {% if estimates %}
+    <p class="sub" style="margin-bottom:1.2rem">
+      The moves below add up to about <b>{{ estimates.clock_minutes }} min</b> on the clock
+      (holds at their length, twice for "each side"; breaths at five seconds; reps at three or four).
+      The app's own fallback of thirty seconds a move would say {{ estimates.app_minutes }} min, but the card
+      and the workout screen both show the minutes you type here, so the clock is the number to match.
+    </p>
+  {% endif %}
+
+  <form class="stack" method="post" action="{{ '/mobility/new' if is_new else '/mobility/' ~ session.id }}">
+    <fieldset>
+      <legend>Session</legend>
+      <div class="fields">
+        <div class="field"><label>Name <span class="hint">— what she taps. "Hips and Lower Back", not "Flow #2"</span></label>
+          <input type="text" name="name" value="{{ session.name }}" required></div>
+        <div class="field"><label>Id <span class="hint">— slug, permanent</span></label>
+          <input type="text" name="id" value="{{ session.id }}" {{ 'readonly' if not is_new }} placeholder="left blank = from the name"></div>
+        <div class="field"><label>Minutes <span class="hint">— 10, 20 or 30; must match the clock</span></label>
+          <input type="number" name="minutes" min="5" max="90" value="{{ session.minutes }}"></div>
+        <div class="field"><label>Intensity</label>
+          <select name="intensity">
+            {% for level in v.INTENSITIES %}<option value="{{ level }}" {{ 'selected' if session.intensity == level }}>{{ level }}</option>{% endfor %}
+          </select></div>
+        <div class="field"><label>Position <span class="hint">— order within its length</span></label>
+          <input type="number" name="position" value="{{ session.position or 0 }}"></div>
+        <div class="field wide"><label>Focus <span class="hint">— one line under the name, what it loosens and why, under 90 characters</span></label>
+          <input type="text" name="focus" maxlength="90" value="{{ session.focus or '' }}"></div>
+        <div class="field wide">
+          <label>Phases <span class="hint">— which cycle phases this suits. The app ranks by these; it never hides a session for them</span></label>
+          <div style="display:flex;gap:1.2rem;flex-wrap:wrap">
+            {% for phase in v.PHASES %}
+              <label class="switch"><input type="checkbox" name="phases" value="{{ phase }}" {{ 'checked' if phase in (session.phases or []) }}> {{ phase }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="field wide">
+          <label class="switch"><input type="checkbox" name="is_active" value="1" {{ 'checked' if session.is_active }}> Active — appears in the app's mobility list</label>
+          <span class="hint">An active session needs at least one move.</span>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Moves, in order</legend>
+      <p class="hint" style="margin:0 0 0.7rem">
+        Reps is free text and for mat work is usually time or breaths: <code>30s</code>, <code>45s each side</code>, <code>5 breaths</code>, <code>8 slow</code>.
+        A duration with "each side" is timed twice by the app. Leave sets blank unless the move genuinely repeats as rounds.
+        Leave description blank for a move already in the exercise catalogue and its description is copied in on save; anything else needs one or two sentences.
+        No tempo, no rest: mobility moves carry neither.
+      </p>
+      <div class="rowhead move"><span>Move</span><span>Reps / time</span><span>Sets</span><span>Cue</span><span>Description</span><span></span></div>
+      <div class="rows" id="moves">
+        {% for move in (session.moves or [{}]) %}
+          <div class="row move">
+            <input type="text" name="move-{{ loop.index0 }}-name" value="{{ move.name or '' }}" list="catalogue" placeholder="Cat Cow">
+            <input type="text" name="move-{{ loop.index0 }}-reps" value="{{ move.reps or '' }}" placeholder="30s each side">
+            <input type="text" name="move-{{ loop.index0 }}-sets" value="{{ move.sets if move.sets is not none }}" placeholder="">
+            <input type="text" name="move-{{ loop.index0 }}-cue" value="{{ move.cue or '' }}" placeholder="what you would say in the room">
+            <textarea name="move-{{ loop.index0 }}-description" rows="2" placeholder="blank = from the catalogue">{{ move.description or '' }}</textarea>
+            <button type="button" class="drop" onclick="dropRow(this)" title="Remove">&times;</button>
+          </div>
+        {% endfor %}
+      </div>
+      <datalist id="catalogue">
+        {% for exercise in catalogue %}<option value="{{ exercise.name }}">{% endfor %}
+      </datalist>
+      <p style="margin:0.7rem 0 0"><button type="button" class="btn small" onclick="addRow('moves')">+ Move</button></p>
+    </fieldset>
+
+    <div class="actions">
+      <button class="btn primary" {{ 'disabled' if readonly }}>Save session</button>
+      <a class="btn" href="/mobility">Cancel</a>
+      {% if not is_new %}<a class="btn danger" style="margin-left:auto" href="/mobility/{{ session.id }}/delete">Delete</a>{% endif %}
+    </div>
+  </form>
+{% endblock %}

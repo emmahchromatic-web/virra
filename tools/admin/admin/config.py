@@ -37,6 +37,9 @@ ALLOWLIST = frozenset(
         # sessions_json by hand; for strength it regenerates it from the
         # programme, and for run the schedule now comes from the generator.
         "plan_templates",
+        # Mobility sessions (card 264): the session and its ordered moves.
+        "mobility_sessions",
+        "mobility_session_moves",
     }
 )
 
