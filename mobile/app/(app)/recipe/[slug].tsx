@@ -40,9 +40,16 @@ import { ProScreen } from '@/components/ui/ProScreen';
 const MEALS: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 
+/** Both stepper icons share one explicit weight, so the minus and the plus
+ *  cannot render at different visual weights side by side. */
+const STEPPER_WEIGHT = 'medium' as const;
+
+/** One text size for everything in the meta row, time and pills alike. */
+const META_SIZE = 10;
+
 function MacroTile(
-  { label, value, unit, dp = 1 }:
-  { label: string; value: number | null; unit: string; dp?: 0 | 1 },
+  { label, value, dp = 1 }:
+  { label: string; value: number | null; dp?: 0 | 1 },
 ) {
   return (
     <View style={styles.macroTile}>
@@ -54,15 +61,12 @@ function MacroTile(
             difference from 12 g. */}
         {value === null ? '-' : `${Math.round(value * 10 ** dp) / 10 ** dp}`}
       </VirraText>
+      {/* No separate unit line: KCAL names its own unit, and everything else on
+          the strip is grams, so a "G" under four of five tiles only made the
+          tiles different heights. */}
       <VirraText variant="mono" size={9} color={colors.muted}>{label}</VirraText>
-      <VirraText variant="mono" size={9} color={colors.muted}>{unit}</VirraText>
     </View>
   );
-}
-
-/** "1 serving" / "1.25 servings", matching the stepper's own formatting. */
-function servingsLabel(n: number): string {
-  return `${formatServings(n)} ${n === 1 ? 'serving' : 'servings'}`;
 }
 
 function RecipeDetailScreen() {
@@ -227,16 +231,18 @@ function RecipeDetailScreen() {
               </VirraText>
             )}
             <View style={styles.metaRow}>
-              {/* Facts read as plain text and tags as pills, so the two are
-                  told apart at a glance. The separator matters: without it
-                  "5 MIN" and "MAKES 1" ran together into one string. */}
-              <VirraText variant="mono" size={11} color={colors.muted}>
-                {[time > 0 ? `${time} MIN` : null, `MAKES ${recipe.serves}`]
-                  .filter(Boolean).join('  \u00b7  ')}
-              </VirraText>
+              {/* The time reads as plain text and the dietary tags as pills, so
+                  the two are told apart by shape, and share one text size so
+                  the row reads as a row. How many it makes is left to the
+                  Servings card below rather than said twice. */}
+              {time > 0 && (
+                <VirraText variant="mono" size={META_SIZE} color={colors.muted}>
+                  {`${time} MIN`}
+                </VirraText>
+              )}
               {recipe.dietary.map((d) => (
                 <View key={d} style={styles.chip}>
-                  <VirraText variant="mono" size={9} color={colors.slate}>{d.toUpperCase()}</VirraText>
+                  <VirraText variant="mono" size={META_SIZE} color={colors.slate}>{d.toUpperCase()}</VirraText>
                 </View>
               ))}
             </View>
@@ -254,7 +260,7 @@ function RecipeDetailScreen() {
                   accessibilityLabel="Fewer servings"
                   style={[styles.stepBtn, servings <= MIN_SERVINGS && styles.stepBtnOff]}
                 >
-                  <SymbolView name="minus" size={14} tintColor={colors.breath} />
+                  <SymbolView name="minus" size={14} weight={STEPPER_WEIGHT} tintColor={colors.breath} />
                 </Pressable>
                 <VirraText variant="display" size={20} color={colors.breath} style={styles.servingsValue}>
                   {formatServings(servings)}
@@ -267,17 +273,17 @@ function RecipeDetailScreen() {
                   accessibilityLabel="More servings"
                   style={[styles.stepBtn, servings >= MAX_SERVINGS && styles.stepBtnOff]}
                 >
-                  <SymbolView name="plus" size={14} tintColor={colors.breath} />
+                  <SymbolView name="plus" size={14} weight={STEPPER_WEIGHT} tintColor={colors.breath} />
                 </Pressable>
               </View>
             </View>
 
             <View style={styles.macros}>
-              <MacroTile label="KCAL"    unit=""  value={scaled.calories} dp={0} />
-              <MacroTile label="CARBS"   unit="G" value={scaled.carbs_g} />
-              <MacroTile label="PROTEIN" unit="G" value={scaled.protein_g} />
-              <MacroTile label="FAT"     unit="G" value={scaled.fat_g} />
-              <MacroTile label="FIBRE"   unit="G" value={scaled.fibre_g} />
+              <MacroTile label="KCAL"    value={scaled.calories} dp={0} />
+              <MacroTile label="CARBS"   value={scaled.carbs_g} />
+              <MacroTile label="PROTEIN" value={scaled.protein_g} />
+              <MacroTile label="FAT"     value={scaled.fat_g} />
+              <MacroTile label="FIBRE"   value={scaled.fibre_g} />
             </View>
           </VirraCard>
 
@@ -288,8 +294,11 @@ function RecipeDetailScreen() {
                 agree when those match. Say which the numbers are, and drop the
                 notes that state an amount rather than print two of them. */}
             {!notesAsWritten && (
-              <VirraText variant="body" size={12} color={colors.muted} style={styles.ingredientHint}>
-                {`Quantities are for ${servingsLabel(servings)} of a recipe that makes ${recipe.serves}.`}
+              <VirraText variant="mono" size={10} color={colors.muted} style={styles.ingredientHint}>
+                {/* "Scaled from", not "scaled to": it reads correctly whether
+                    the servings went up or down, and the stepper above already
+                    shows the number they went to. */}
+                {`SCALED FROM ${recipe.serves} ${recipe.serves === 1 ? 'SERVING' : 'SERVINGS'}`}
               </VirraText>
             )}
             {recipe.ingredients.map((i) => {
