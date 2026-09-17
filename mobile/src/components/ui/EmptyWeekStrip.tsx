@@ -8,9 +8,11 @@ const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 interface EmptyWeekStripProps {
   todayIndex: number; // 0..6 for Mon..Sun
+  /** Overrides the "pick a plan" line, e.g. for the free tier (card 298). */
+  caption?:   string;
 }
 
-export function EmptyWeekStrip({ todayIndex }: EmptyWeekStripProps) {
+export function EmptyWeekStrip({ todayIndex, caption }: EmptyWeekStripProps) {
   return (
     <View>
       <View style={empty.row}>
@@ -24,7 +26,7 @@ export function EmptyWeekStrip({ todayIndex }: EmptyWeekStripProps) {
         ))}
       </View>
       <VirraText variant="body" size={11} color={colors.muted} style={empty.caption}>
-        No active plan, tap to pick one
+        {caption ?? 'No active plan, tap to pick one'}
       </VirraText>
     </View>
   );
