@@ -23,7 +23,16 @@ interface SubscriptionState {
   showProFeatures:    boolean;
   setShowProFeatures: (show: boolean) => Promise<void>;
   hydrateProFeatures: () => Promise<void>;
+  /** Internal builds only. Pins the status so every tier can be looked at
+   *  without a real purchase, a real lapse, or a second build. While set,
+   *  the app layout does not ask RevenueCat. null = the real answer. */
+  devOverride:    SubscriptionStatus | null;
+  setDevOverride: (status: SubscriptionStatus | null) => Promise<void>;
 }
+
+export const DEV_SUB_OVERRIDE_KEY = 'virra:dev_sub_override';
+export const INTERNAL_TOOLS =
+  (typeof __DEV__ !== 'undefined' && __DEV__) || process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true';
 
 const ACTIVE_STATUSES: SubscriptionStatus[] = ['trial', 'active'];
 
@@ -44,5 +53,23 @@ export const useSubscriptionStore = create<SubscriptionState>((set) => ({
       const stored = await AsyncStorage.getItem(SHOW_PRO_FEATURES_KEY);
       if (stored === '0') set({ showProFeatures: false });
     } catch { /* default stays on */ }
+    if (!INTERNAL_TOOLS) return;
+    try {
+      const pinned = await AsyncStorage.getItem(DEV_SUB_OVERRIDE_KEY) as SubscriptionStatus | null;
+      if (pinned) set({ devOverride: pinned, status: pinned, isActive: ACTIVE_STATUSES.includes(pinned), trialEnd: null });
+    } catch { /* no override */ }
+  },
+
+  devOverride: null,
+  setDevOverride: async (status) => {
+    if (!INTERNAL_TOOLS) return;
+    if (status) {
+      set({ devOverride: status, status, isActive: ACTIVE_STATUSES.includes(status), trialEnd: null });
+      try { await AsyncStorage.setItem(DEV_SUB_OVERRIDE_KEY, status); } catch { /* session only */ }
+    } else {
+      // Back to `unknown` so the app layout asks RevenueCat again.
+      set({ devOverride: null, status: 'unknown', isActive: false, trialEnd: null });
+      try { await AsyncStorage.removeItem(DEV_SUB_OVERRIDE_KEY); } catch { /* fine */ }
+    }
   },
 }));

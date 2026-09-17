@@ -63,6 +63,8 @@ export default function AppLayout() {
 
   // Ask RevenueCat where she stands and mirror it into the store.
   const syncEntitlement = useCallback(() => {
+    // Internal "Preview as" pin on the Subscription screen wins over everything.
+    if (useSubscriptionStore.getState().devOverride) return;
     if (process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') {
       setStatus('trial');
       return;
@@ -85,7 +87,9 @@ export default function AppLayout() {
   useEffect(() => {
     if (!session || isActive) return;
     syncEntitlement();
-  }, [session, isActive, syncEntitlement]);
+    // subStatus: clearing the preview pin drops the status back to `unknown`
+    // without touching isActive, and that has to trigger a fresh ask.
+  }, [session, isActive, subStatus === 'unknown', syncEntitlement]);
 
   // The downgrade. A trial cancelled in Apple's settings stays active until
   // day 14 and lapses on day 15, and iOS keeps the app in memory for days:

@@ -100,3 +100,20 @@ describe('paywall close + Apple-led trial eligibility', () => {
     expect(queryByText('Start 14-day free trial')).toBeNull();
   });
 });
+
+describe('internal preview pin', () => {
+  it('outranks StoreKit, so "Lapsed" shows the no-trial paywall on an Apple ID that is still eligible', async () => {
+    const rc = require('@/lib/revenuecat');
+    mockParams = {};
+    useSubscriptionStore.setState({ status: 'expired', isActive: false, devOverride: 'expired' });
+    rc.getOfferings.mockResolvedValueOnce([
+      { identifier: 'm', product: { identifier: 'pro.month', title: 'Monthly', priceString: '£9.99' } },
+    ]);
+    rc.getTrialEligibility.mockResolvedValueOnce(true);
+    const { findByText, queryByText } = render(<PaywallScreen />);
+    expect(await findByText('Virra Pro Monthly · £9.99').catch(() => null)).toBeDefined();
+    expect(queryByText('Start 14-day free trial')).toBeNull();
+    expect(queryByText('Come back to Virra Pro')).toBeTruthy();
+    useSubscriptionStore.setState({ devOverride: null });
+  });
+});

@@ -67,3 +67,17 @@ describe('Show Pro features preference', () => {
     expect(useSubscriptionStore.getState().showProFeatures).toBe(false);
   });
 });
+
+// Internal "Preview as" pin on the Subscription screen.
+describe('devOverride', () => {
+  beforeEach(() => useSubscriptionStore.setState({ status: 'free', isActive: false, devOverride: null }));
+
+  it('pins a status, and "Real" drops back to unknown so RevenueCat is asked again', async () => {
+    await useSubscriptionStore.getState().setDevOverride('expired');
+    expect(useSubscriptionStore.getState()).toMatchObject({ devOverride: 'expired', status: 'expired', isActive: false });
+    await useSubscriptionStore.getState().setDevOverride('active');
+    expect(useSubscriptionStore.getState()).toMatchObject({ devOverride: 'active', isActive: true });
+    await useSubscriptionStore.getState().setDevOverride(null);
+    expect(useSubscriptionStore.getState()).toMatchObject({ devOverride: null, status: 'unknown', isActive: false });
+  });
+});

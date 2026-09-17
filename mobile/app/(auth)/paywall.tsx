@@ -21,7 +21,7 @@ const PRIVACY_URL = 'https://virra.app/privacy';
 // The lists live in pro.ts so the tiles, the paywall and the tests agree.
 
 export default function PaywallScreen() {
-  const { setStatus, status } = useSubscriptionStore();
+  const { setStatus, status, devOverride } = useSubscriptionStore();
   // Card 298. Two ways in. From onboarding (no params) the way out is into
   // the app. From a locked tile inside the app (`from=app`) the way out is
   // Back, to the screen she was on, and the kicker names what she tapped.
@@ -34,7 +34,11 @@ export default function PaywallScreen() {
   // our own records say. StoreKit's answer wins when it has one; our status
   // (lapsed = no trial) is the fallback while it is unknown.
   const [storeEligible, setStoreEligible] = useState<boolean | null>(null);
-  const canTrial    = storeEligible ?? trialEligible(status);
+  // An internal "Preview as" pin outranks StoreKit: the point of the pin is
+  // to look at a tier this Apple ID is not actually in.
+  const canTrial    = devOverride
+    ? trialEligible(status)
+    : (storeEligible ?? trialEligible(status));
   const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
   const [selected, setSelected]   = useState<PurchasesPackage | null>(null);
   const [loading,  setLoading]    = useState(false);
@@ -205,8 +209,8 @@ export default function PaywallScreen() {
             auto-renew is turned off at least 24 hours before the end of the current period.
             Your account is charged for renewal within 24 hours prior to the end of the current
             period. Manage or cancel at any time in Settings → [your name] → Subscriptions
-            on this device. Any unused portion of the free trial is forfeited when you start a
-            paid subscription.
+            on this device.
+            {canTrial ? ' Any unused portion of the free trial is forfeited when you start a paid subscription.' : ''}
           </VirraText>
           <View style={styles.legalLinks}>
             <Pressable onPress={() => Linking.openURL(TERMS_URL)} hitSlop={8}>

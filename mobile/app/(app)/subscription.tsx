@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useSubscriptionStore } from '@/store/subscription';
+import { useSubscriptionStore, INTERNAL_TOOLS } from '@/store/subscription';
 import { getEntitlementInfo, restorePurchases } from '@/lib/revenuecat';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -38,8 +38,16 @@ const UPGRADE_LABEL: Record<string, string> = {
   cancelled: 'Subscribe to Virra Pro',
 };
 
+const PREVIEW_OPTIONS = [
+  { label: 'Real',   value: null },
+  { label: 'Free',   value: 'free' },
+  { label: 'Lapsed', value: 'expired' },
+  { label: 'Trial',  value: 'trial' },
+  { label: 'Pro',    value: 'active' },
+] as const;
+
 export default function SubscriptionScreen() {
-  const { status, trialEnd, setStatus } = useSubscriptionStore();
+  const { status, trialEnd, setStatus, devOverride, setDevOverride } = useSubscriptionStore();
   const [managementURL, setManagementURL] = useState<string | null>(null);
   const [loading, setLoading]             = useState(true);
   const [restoring, setRestoring]         = useState(false);
@@ -151,6 +159,39 @@ export default function SubscriptionScreen() {
           {restoring && <ActivityIndicator size="small" color={colors.muted} />}
         </Pressable>
       </VirraCard>
+
+      {/* Internal builds only (card 298). Pins the tier so the free, lapsed,
+          trial and paid experiences can each be looked at without a purchase,
+          a real lapse or a second build. "Real" hands back to RevenueCat. */}
+      {INTERNAL_TOOLS && (
+        <VirraCard style={styles.card}>
+          <VirraText variant="mono" size={11} color={colors.dawn} style={styles.sectionLabel}>
+            INTERNAL · PREVIEW AS
+          </VirraText>
+          <View style={styles.previewRow}>
+            {PREVIEW_OPTIONS.map((o) => {
+              const on = devOverride === o.value;
+              return (
+                <Pressable
+                  key={o.label}
+                  onPress={() => setDevOverride(o.value)}
+                  style={[styles.previewChip, on && styles.previewChipOn]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Preview as ${o.label}`}
+                  accessibilityState={{ selected: on }}
+                >
+                  <VirraText variant="mono" size={10} color={on ? colors.mile : colors.breath}>
+                    {o.label.toUpperCase()}
+                  </VirraText>
+                </Pressable>
+              );
+            })}
+          </View>
+          <VirraText variant="body" size={12} color={colors.muted}>
+            Not in App Store builds. Lapsed = trialled or subscribed before, so no free trial is offered.
+          </VirraText>
+        </VirraCard>
+      )}
     </ScrollView>
     </SafeAreaView>
   );
@@ -166,6 +207,9 @@ const styles = StyleSheet.create({
   card:         { gap: spacing.xs },
   sectionLabel: { letterSpacing: 1.5, marginBottom: spacing.xs },
   badgeRow:     { flexDirection: 'row', marginTop: spacing.xs },
+  previewRow:   { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginVertical: spacing.xs },
+  previewChip:  { paddingVertical: 6, paddingHorizontal: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  previewChipOn:{ backgroundColor: colors.dawn, borderColor: colors.dawn },
   badge:        {
     borderWidth: 1, borderRadius: radius.sm,
     paddingHorizontal: spacing.md, paddingVertical: spacing.xs,
