@@ -288,14 +288,14 @@ export default function DashboardScreen() {
         />
 
         {/* 7. Week strip */}
-        {/* Card 298. The strip is the plan's week, so it is a Pro surface:
-            a padlocked line for a free user, nothing at all once she has
-            hidden Pro features. */}
-        {session && (isPro || showLocked) && (
+        {/* Card 298. On Pro the strip is the plan's week. Off Pro it is her
+            logged week (WeekStrip reads the activities table), so it is free
+            content and shows whether or not Pro features are hidden. */}
+        {session && (
           <Pressable
-            onPress={() => router.push((isPro ? '/(app)/(tabs)/training' : paywallRoute('plans')) as any)}
+            onPress={() => router.push('/(app)/(tabs)/training' as any)}
             accessibilityRole="button"
-            accessibilityLabel={isPro ? "This week's training, open Training tab" : 'Your planned week, part of Virra Pro'}
+            accessibilityLabel={isPro ? "This week's training, open Training tab" : 'What you logged this week, open Training tab'}
           >
             <VirraCard style={{ paddingVertical: spacing.xs }}>
               <SectionLabel style={{ marginBottom: 2 }}>THIS WEEK</SectionLabel>
