@@ -105,15 +105,16 @@ function parseDMY(str: string): Date | null {
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 /**
- * Card 303. The picker's dots take the colour of the plan on that day. Run and
- * strength match MonthCalendar and DayCell; mobility is pink here by Emma's
- * call (17 Sep). Anything else falls back to muted rather than borrowing a
- * colour that means something.
+ * Card 303. The picker's dots take the colour of the plan on that day, the same
+ * colours as MonthCalendar, DayCell and the Training tab. Mobility is sage, not
+ * pink: pink (heat) is the app's warning colour, and a mobility session should
+ * be one colour everywhere (Emma, 17 Sep). Anything else falls back to muted
+ * rather than borrowing a colour that means something.
  */
 const OCCUPIED_DOT: Array<{ modality: string; label: string; color: string }> = [
   { modality: 'run',      label: 'RUN',      color: colors.pulse },
   { modality: 'strength', label: 'STRENGTH', color: colors.dawn },
-  { modality: 'mobility', label: 'MOBILITY', color: colors.heat },
+  { modality: 'mobility', label: 'MOBILITY', color: colors.sage },
 ];
 
 function occupiedDotColor(modality: string): string {
