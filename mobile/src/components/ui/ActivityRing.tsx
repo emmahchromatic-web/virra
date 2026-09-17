@@ -67,12 +67,15 @@ function ActivityRingTile({ ring }: { ring: Props }) {
 }
 
 export function ActivityRings({
-  steps, exerciseMins, stepsTarget, exerciseMinsTarget,
+  steps, exerciseMins, stepsTarget, exerciseMinsTarget, horizontal,
 }: {
   steps:              number;
   exerciseMins:       number;
   stepsTarget:        number;
   exerciseMinsTarget: number;
+  /** Side by side rather than stacked, for when the rings own a full-width
+   *  row (card 298: the free tier with Pro tiles hidden). */
+  horizontal?:        boolean;
 }) {
   const stepsText = steps >= 1000
     ? `${(steps / 1000).toFixed(1)}k`
@@ -80,7 +83,7 @@ export function ActivityRings({
   const minsText = String(exerciseMins);
 
   return (
-    <View style={styles.stack}>
+    <View style={horizontal ? styles.row : styles.stack}>
       <ActivityRingTile ring={{ value: steps, max: stepsTarget, color: colors.pulse, label: 'STEPS', valueText: stepsText }} />
       <ActivityRingTile ring={{ value: exerciseMins, max: exerciseMinsTarget, color: colors.dawn, label: 'MIN', valueText: minsText }} />
     </View>
@@ -93,4 +96,5 @@ const styles = StyleSheet.create({
   tile:      { alignItems: 'center', gap: 3 },
   tileLabel: { letterSpacing: 1, textAlign: 'center' },
   stack:     { gap: spacing.sm, alignItems: 'center' },
+  row:       { flexDirection: 'row', gap: spacing.xl, alignItems: 'center', justifyContent: 'center' },
 });

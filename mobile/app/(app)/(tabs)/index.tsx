@@ -263,6 +263,7 @@ export default function DashboardScreen() {
               exerciseMins={exerciseMins}
               stepsTarget={stepsTarget}
               exerciseMinsTarget={EXERCISE_MINS_TARGET[inferredLoad]}
+              horizontal={!isPro && !showLocked}
             />
           </VirraCard>
         </View>

@@ -101,7 +101,7 @@ export default function PaywallScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         {featureCopy && (
           <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
-            {featureCopy.kicker.toUpperCase()} IS PART OF VIRRA PRO
+            {featureCopy.kicker.toUpperCase()} · PART OF VIRRA PRO
           </VirraText>
         )}
         <VirraText variant="display" size={48} color={colors.pulse} style={featureCopy ? undefined : styles.title}>
@@ -180,8 +180,8 @@ export default function PaywallScreen() {
             Virra Pro is an auto-renewing subscription
             {selected ? ` (${selected.product.title} at ${selected.product.priceString})` : ''}.
             {canTrial
-              ? 'Payment is charged to your Apple ID account at the end of the 14-day free trial. '
-              : 'Payment is charged to your Apple ID account at confirmation of purchase. '}
+              ? ' Payment is charged to your Apple ID account at the end of the 14-day free trial. '
+              : ' Payment is charged to your Apple ID account at confirmation of purchase. '}
             The subscription renews automatically at the same price for the same period unless
             auto-renew is turned off at least 24 hours before the end of the current period.
             Your account is charged for renewal within 24 hours prior to the end of the current

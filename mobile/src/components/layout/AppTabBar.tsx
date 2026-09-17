@@ -75,9 +75,13 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={styles.bar}>
-      {left.map(({ route, routeIndex }: any) => (
-        <TabButton key={route.key} route={route} routeIndex={routeIndex} state={state} navigation={navigation} />
-      ))}
+      {/* Each side is its own half so the play button stays dead centre
+          whatever the tab count: the free tier can drop Recipes (card 298). */}
+      <View style={styles.side}>
+        {left.map(({ route, routeIndex }: any) => (
+          <TabButton key={route.key} route={route} routeIndex={routeIndex} state={state} navigation={navigation} />
+        ))}
+      </View>
 
       {/* Centre FAB: routes by today's planned session modality */}
       <View style={styles.fabWrap}>
@@ -111,9 +115,11 @@ export function AppTabBar({ state, navigation }: BottomTabBarProps) {
         </Pressable>
       </View>
 
-      {right.map(({ route, routeIndex }: any) => (
-        <TabButton key={route.key} route={route} routeIndex={routeIndex} state={state} navigation={navigation} />
-      ))}
+      <View style={styles.side}>
+        {right.map(({ route, routeIndex }: any) => (
+          <TabButton key={route.key} route={route} routeIndex={routeIndex} state={state} navigation={navigation} />
+        ))}
+      </View>
     </View>
   );
 }
@@ -127,6 +133,10 @@ const styles = StyleSheet.create({
     borderTopColor:  colors.border,
     paddingBottom:   spacing.lg,
     paddingTop:      spacing.sm,
+  },
+  side: {
+    flex:          2,
+    flexDirection: 'row',
   },
   tab: {
     flex:           1,

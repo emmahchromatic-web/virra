@@ -84,7 +84,7 @@ export function ProLockedCard({ feature, compact, note, always, style }: Props) 
 
 const styles = StyleSheet.create({
   card:      { gap: spacing.xs },
-  compact:   { gap: 4, justifyContent: 'center' },
+  compact:   { gap: 4, justifyContent: 'center', flex: 1 },
   kickerRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   kicker:    { letterSpacing: 1.5 },
   title:     { lineHeight: 24, marginTop: 2 },

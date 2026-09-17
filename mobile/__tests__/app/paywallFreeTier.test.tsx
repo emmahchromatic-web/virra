@@ -48,7 +48,7 @@ describe('paywall on the free tier', () => {
     mockParams = { from: 'app', feature: 'recipes' };
     useSubscriptionStore.setState({ status: 'expired', isActive: false });
     const { getByText, queryByText } = render(<PaywallScreen />);
-    expect(getByText('THE RECIPE BOOK IS PART OF VIRRA PRO')).toBeTruthy();
+    expect(getByText('THE RECIPE BOOK · PART OF VIRRA PRO')).toBeTruthy();
     fireEvent.press(getByText('Not now'));
     await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
     expect(mockReplace).not.toHaveBeenCalled();
