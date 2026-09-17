@@ -73,3 +73,10 @@ describe('paywall lists', () => {
     expect(PAYWALL_PRO_LIST.join(' ')).not.toMatch(/HealthKit|Apple Health|Daily dashboard/);
   });
 });
+
+describe('season planning is a Pro feature of its own', () => {
+  it('has copy, so the padlock under ADD A RACE can name it', () => {
+    expect(PRO_FEATURES.season.kicker).toBe('Season planning');
+    expect(paywallRoute('season')).toBe('/(auth)/paywall?from=app&feature=season');
+  });
+});

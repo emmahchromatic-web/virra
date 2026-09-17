@@ -2,15 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, SafeAreaView, ScrollView, Pressable, Linking } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
-import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
+import { getOfferings, purchasePackage, restorePurchases, getTrialEligibility } from '@/lib/revenuecat';
 import { useSubscriptionStore } from '@/store/subscription';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
-import { PRO_FEATURES, PAYWALL_PRO_LIST, PAYWALL_FREE_LIST, isProFeature, proCtaLabel, trialEligible } from '@/lib/pro';
+import { PRO_FEATURES, PAYWALL_PRO_LIST, PAYWALL_FREE_LIST, isProFeature, trialEligible } from '@/lib/pro';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { InlineError } from '@/components/ui/InlineError';
+import { SymbolView } from 'expo-symbols';
 
 const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://virra.app/privacy';
@@ -27,7 +28,13 @@ export default function PaywallScreen() {
   const params      = useLocalSearchParams<{ from?: string; feature?: string }>();
   const fromApp     = params.from === 'app';
   const featureCopy = isProFeature(params.feature) ? PRO_FEATURES[params.feature] : null;
-  const canTrial    = trialEligible(status);
+  // Who may be promised a trial. Apple is the authority: the intro offer is
+  // once per Apple ID per subscription group, so someone who trialled, let
+  // it lapse, or even made a second Virra account is NOT eligible, whatever
+  // our own records say. StoreKit's answer wins when it has one; our status
+  // (lapsed = no trial) is the fallback while it is unknown.
+  const [storeEligible, setStoreEligible] = useState<boolean | null>(null);
+  const canTrial    = storeEligible ?? trialEligible(status);
   const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
   const [selected, setSelected]   = useState<PurchasesPackage | null>(null);
   const [loading,  setLoading]    = useState(false);
@@ -44,6 +51,7 @@ export default function PaywallScreen() {
     getOfferings().then((pkgs) => {
       setPackages(pkgs);
       setSelected(pkgs[0] ?? null);
+      getTrialEligibility(pkgs.map((p) => p.product.identifier)).then(setStoreEligible);
     });
   }, []);
 
@@ -99,6 +107,17 @@ export default function PaywallScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* A way out at the top, not only "Not now" three screens down.
+            Same action as the ghost button at the bottom. */}
+        <Pressable
+          onPress={handleContinueFree}
+          style={styles.close}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={fromApp ? 'Close' : 'Continue with the free version'}
+        >
+          <SymbolView name="xmark" size={18} tintColor={colors.muted} />
+        </Pressable>
         {featureCopy && (
           <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
             {featureCopy.kicker.toUpperCase()} · PART OF VIRRA PRO
@@ -166,7 +185,7 @@ export default function PaywallScreen() {
         )}
 
         <VirraButton
-          label={proCtaLabel(status)}
+          label={canTrial ? 'Start 14-day free trial' : 'Subscribe to Virra Pro'}
           onPress={handlePurchase}
           loading={loading}
           style={styles.cta}
@@ -232,8 +251,9 @@ export default function PaywallScreen() {
 const styles = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: colors.mile },
   scroll:      { padding: spacing.lg, gap: spacing.md },
-  title:       { marginTop: spacing.lg },
-  kicker:      { letterSpacing: 1.5, marginTop: spacing.lg },
+  title:       { marginTop: spacing.xs },
+  kicker:      { letterSpacing: 1.5, marginTop: spacing.xs },
+  close:       { alignSelf: 'flex-end', width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   sub:         { marginTop: spacing.sm, marginBottom: spacing.md },
   features:    { gap: spacing.md },
   listKicker:  { letterSpacing: 1.5, marginBottom: -spacing.xs },

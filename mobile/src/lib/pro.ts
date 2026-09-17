@@ -14,7 +14,8 @@ export type ProFeature =
   | 'trends'
   | 'achievements'
   | 'describe_meal'
-  | 'week_ahead';
+  | 'week_ahead'
+  | 'season';
 
 export interface ProFeatureCopy {
   /** Short uppercase kicker for a locked tile and the paywall. */
@@ -59,6 +60,10 @@ export const PRO_FEATURES: Record<ProFeature, ProFeatureCopy> = {
   describe_meal: {
     kicker: 'Describe a meal',
     body:   'Type what you ate and Virra estimates the calories and macros for you.',
+  },
+  season: {
+    kicker: 'Season planning',
+    body:   'Two or more races and Virra builds the season between them: base, build, peak, taper and recovery.',
   },
   week_ahead: {
     kicker: 'The week ahead',

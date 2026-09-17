@@ -81,3 +81,24 @@ export async function restorePurchases(): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Card 298. Whether Apple will actually grant the introductory free trial.
+ * true / false when StoreKit knows; null when it does not (Test Store, the
+ * simulator, a network failure), and the caller falls back to its own rule.
+ * Eligible only if EVERY offered product is eligible: they share one
+ * subscription group, so in practice they agree.
+ */
+export async function getTrialEligibility(productIds: string[]): Promise<boolean | null> {
+  if (productIds.length === 0) return null;
+  try {
+    const result = await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
+    const statuses = productIds.map((id) => result[id]?.status);
+    const S = Purchases.INTRO_ELIGIBILITY_STATUS;
+    if (statuses.some((s) => s === S.INTRO_ELIGIBILITY_STATUS_INELIGIBLE)) return false;
+    if (statuses.every((s) => s === S.INTRO_ELIGIBILITY_STATUS_ELIGIBLE)) return true;
+    return null;
+  } catch {
+    return null;
+  }
+}

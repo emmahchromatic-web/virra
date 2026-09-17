@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
@@ -10,6 +10,7 @@ import { useProfileStore } from '@/store/profile';
 import { useNotificationsStore } from '@/store/notifications';
 import { getEntitlementInfo } from '@/lib/revenuecat';
 import { isProStatus } from '@/lib/pro';
+import { recomputeSeasonForUser } from '@/lib/seasonEngine';
 import { importNewWorkouts } from '@/lib/healthKitImport';
 import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
@@ -60,8 +61,8 @@ export default function AppLayout() {
     if (!isLoading && !session) router.replace('/(auth)');
   }, [session, isLoading]);
 
-  useEffect(() => {
-    if (!session || isActive) return;
+  // Ask RevenueCat where she stands and mirror it into the store.
+  const syncEntitlement = useCallback(() => {
     if (process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') {
       setStatus('trial');
       return;
@@ -79,7 +80,36 @@ export default function AppLayout() {
         setStatus(info.everSubscribed ? 'expired' : 'free');
       }
     });
-  }, [session, isActive]);
+  }, [setStatus]);
+
+  useEffect(() => {
+    if (!session || isActive) return;
+    syncEntitlement();
+  }, [session, isActive, syncEntitlement]);
+
+  // The downgrade. A trial cancelled in Apple's settings stays active until
+  // day 14 and lapses on day 15, and iOS keeps the app in memory for days:
+  // checking only when "not active" meant a lapsed trial stayed Pro until the
+  // process happened to be killed. Re-ask every time she comes back.
+  useEffect(() => {
+    if (!session) return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') syncEntitlement();
+    });
+    return () => sub.remove();
+  }, [session, syncEntitlement]);
+
+  // The upgrade. Races are free to add but the season they make is Pro, so a
+  // free user can hold two races and no season. Build it the moment she has
+  // Pro. Idempotent: returns early when an active season already exists.
+  useEffect(() => {
+    if (!session?.user.id || !isActive) return;
+    recomputeSeasonForUser(
+      session.user.id,
+      new Date().toLocaleDateString('en-CA'),
+      useCycleStore.getState().cycleProfile,
+    ).catch(() => { /* next launch tries again */ });
+  }, [session?.user.id, isActive]);
 
   useEffect(() => {
     if (session?.user.id) loadFromSupabase(session.user.id);

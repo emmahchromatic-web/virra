@@ -17,6 +17,7 @@ jest.mock('@/lib/revenuecat', () => ({
   getOfferings:     jest.fn().mockResolvedValue([]),
   purchasePackage:  jest.fn(),
   restorePurchases: jest.fn(),
+  getTrialEligibility: jest.fn().mockResolvedValue(null),
 }));
 jest.mock('@/lib/permissionsConfig', () => ({
   getPostAuthRoute: jest.fn().mockResolvedValue('/(app)/(tabs)'),
@@ -72,5 +73,30 @@ describe('paywall lists what is free', () => {
     expect(getByText('VIRRA PRO')).toBeTruthy();
     expect(getByText('FREE, ALWAYS')).toBeTruthy();
     expect(getByText('Meal logging with daily totals')).toBeTruthy();
+  });
+});
+
+describe('paywall close + Apple-led trial eligibility', () => {
+  const rc = require('@/lib/revenuecat');
+
+  it('has a close button at the top that does what "Not now" does', async () => {
+    mockParams = { from: 'app', feature: 'plans' };
+    useSubscriptionStore.setState({ status: 'free', isActive: false });
+    mockBack.mockClear();
+    const { getByLabelText } = render(<PaywallScreen />);
+    fireEvent.press(getByLabelText('Close'));
+    await waitFor(() => expect(mockBack).toHaveBeenCalledTimes(1));
+  });
+
+  it('drops the trial promise when Apple says she is not eligible, even on a "free" account', async () => {
+    mockParams = {};
+    useSubscriptionStore.setState({ status: 'free', isActive: false });
+    rc.getOfferings.mockResolvedValueOnce([
+      { identifier: 'm', product: { identifier: 'pro.month', title: 'Monthly', priceString: '£9.99' } },
+    ]);
+    rc.getTrialEligibility.mockResolvedValueOnce(false);
+    const { findByText, queryByText } = render(<PaywallScreen />);
+    expect(await findByText('Subscribe to Virra Pro')).toBeTruthy();
+    expect(queryByText('Start 14-day free trial')).toBeNull();
   });
 });

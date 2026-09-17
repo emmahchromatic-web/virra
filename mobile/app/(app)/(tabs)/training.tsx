@@ -352,7 +352,7 @@ export default function TrainingScreen() {
         )}
 
         {/* Season chain overview */}
-        <SeasonTimeline summary={seasonSummary} />
+        {isPro && <SeasonTimeline summary={seasonSummary} />}
 
         {/* Card 029. When there is no season yet, say what would make one.
             Without this the concept is invisible until it already exists. */}
@@ -367,14 +367,23 @@ export default function TrainingScreen() {
             <VirraText variant="mono" size={11} color={colors.breath} style={{ letterSpacing: 1.5 }}>
               ADD A RACE
             </VirraText>
-            {!seasonSummary && (
+            {isPro && !seasonSummary && (
               <VirraText variant="body" size={12} color={colors.muted}>
                 Add two or more and Virra builds a season around them.
+              </VirraText>
+            )}
+            {!isPro && (
+              <VirraText variant="body" size={12} color={colors.muted}>
+                Free to add, and they stay on your calendar.
               </VirraText>
             )}
           </View>
           <SymbolView name="chevron.right" size={13} tintColor={colors.muted} />
         </Pressable>
+
+        {/* Card 298. Adding races is data in, so it is free. The season Virra
+            builds between them is the prescription, so it carries the padlock. */}
+        {!isPro && <ProLockedCard feature="season" compact />}
 
         {/* Today's planned session hero */}
         {isPro && (activeBlocks.length > 0 || activePlan) && (
