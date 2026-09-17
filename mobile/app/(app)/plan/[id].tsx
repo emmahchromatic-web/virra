@@ -347,6 +347,7 @@ function PlanDetailScreen() {
   // Card 301. Counted back by the length on the stepper, not the template's.
   const raceLength  = durationOverride > 0 ? durationOverride : (plan?.duration_weeks || 8);
   const racePlan    = raceTarget ? raceStart(raceTarget, raceLength, new Date()) : null;
+  const raceWeeks   = raceOpen && racePlan ? racePlan.weeks : null;
 
   const startHint = raceOpen && racePlan
     ? racePlan.startsToday
@@ -538,7 +539,9 @@ function PlanDetailScreen() {
     return generateRunPlan({
       archetype,
       goal:                raceDistanceFor(plan.distance_goal),
-      weeks:               durationOverride > 0 ? durationOverride : archetype.defaultWeeks,
+      // A race too close for the chosen length builds only the weeks left
+      // (card 301), so the preview shows those rather than the full length.
+      weeks:               raceWeeks ?? (durationOverride > 0 ? durationOverride : archetype.defaultWeeks),
       tier:                runnerModel.tier,
       preset:              runnerModel.preset,
       difficulty:          runnerModel.difficulty,
@@ -547,7 +550,7 @@ function PlanDetailScreen() {
       days,
       longRunDay:          Math.max(...days),
     });
-  }, [isStrength, plan, runnerModel, archetype, dayAssignment, durationOverride]);
+  }, [isStrength, plan, runnerModel, archetype, dayAssignment, durationOverride, raceWeeks]);
 
   const generatedWeeks = generated?.weeks ?? null;
 
