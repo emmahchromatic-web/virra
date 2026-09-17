@@ -304,6 +304,7 @@ export default function RecipesScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <ProLockedCard
             feature="recipes"
+            always
             note={recipes.length > 0
               ? `${recipes.length} recipes across ${groups.map((g) => g.label.toLowerCase()).join(', ')}.`
               : undefined}

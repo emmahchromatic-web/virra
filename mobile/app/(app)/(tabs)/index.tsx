@@ -42,7 +42,7 @@ import { appAlert } from '@/components/ui/VirraAlert';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
 import { tracksCycle } from '@/lib/cycleEngine';
-import { useIsPro, paywallRoute } from '@/lib/pro';
+import { useProGate, paywallRoute } from '@/lib/pro';
 import { ProLockedCard } from '@/components/ui/ProLockedCard';
 
 const EXERCISE_MINS_TARGET: Record<TrainingLoad, number> = {
@@ -56,7 +56,7 @@ export default function DashboardScreen() {
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
   const refreshReadiness = useReadinessStore((s) => s.refresh);
-  const isPro = useIsPro();
+  const { isPro, showLocked } = useProGate();
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const meta     = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
@@ -252,10 +252,12 @@ export default function DashboardScreen() {
               }}
               style={styles.sessionHero}
             />
-          ) : (
+          ) : showLocked ? (
             <ProLockedCard feature="plans" compact style={styles.sessionHero} />
-          )}
-          <VirraCard style={styles.ringsCard}>
+          ) : null}
+          {/* With the tile hidden the rings take the whole row rather than
+              sitting alone at the left edge. */}
+          <VirraCard style={[styles.ringsCard, !isPro && !showLocked && styles.ringsCardWide]}>
             <ActivityRings
               steps={steps}
               exerciseMins={exerciseMins}
@@ -309,6 +311,7 @@ export default function DashboardScreen() {
 
         {/* 10. Action tiles */}
         <View style={styles.actionRow}>
+          {(isPro || showLocked) && (
           <Pressable
             style={[styles.actionTile, { borderColor: colors.pulse }]}
             onPress={() => router.push((isPro ? '/(app)/insights' : paywallRoute('insights')) as any)}
@@ -323,6 +326,7 @@ export default function DashboardScreen() {
               </VirraText>
             </View>
           </Pressable>
+          )}
 
           {checkin.done ? (
             <Pressable
@@ -405,6 +409,7 @@ const styles = StyleSheet.create({
   heroRow:     { flexDirection: 'row', alignItems: 'stretch', gap: spacing.md },
   sessionHero: { flex: 1 },
   ringsCard:   { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, width: 80 },
+  ringsCardWide: { width: undefined, flex: 1 },
   actionRow:   { flexDirection: 'row', gap: spacing.md },
   actionTile:  {
     flex: 1, borderWidth: 1.5, borderRadius: 10,

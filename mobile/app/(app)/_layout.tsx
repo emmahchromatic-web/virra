@@ -132,6 +132,7 @@ export default function AppLayout() {
     }
 
     useNotificationsStore.getState().hydrate().then(reconcilePresented);
+    useSubscriptionStore.getState().hydrateProFeatures();
 
     // Card 253. Workouts finished with no signal are queued locally; this is
     // where they land. Safe to call every time: anything that fails stays

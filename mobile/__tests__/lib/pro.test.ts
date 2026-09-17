@@ -62,3 +62,14 @@ describe('resolveTargetsForTier', () => {
     expect(resolveTargetsForTier(true, metrics, 'luteal', 'easy')).not.toEqual(getNutritionTargets(null, 'easy'));
   });
 });
+
+describe('paywall lists', () => {
+  const { PAYWALL_PRO_LIST, PAYWALL_FREE_LIST } = require('@/lib/pro');
+  it('names what is free as well as what is Pro', () => {
+    expect(PAYWALL_FREE_LIST.length).toBeGreaterThan(0);
+    expect(PAYWALL_FREE_LIST.join(' ')).toMatch(/Cycle logging/);
+    expect(PAYWALL_PRO_LIST.join(' ')).toMatch(/training plans/);
+    // Free things must not be sold as Pro.
+    expect(PAYWALL_PRO_LIST.join(' ')).not.toMatch(/HealthKit|Apple Health|Daily dashboard/);
+  });
+});

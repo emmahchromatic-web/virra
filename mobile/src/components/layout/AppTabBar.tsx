@@ -7,6 +7,7 @@ import { appAlert } from '@/components/ui/VirraAlert';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { useTodayStore } from '@/store/today';
+import { useProGate } from '@/lib/pro';
 import type { TodaysSession } from '@/lib/todaysSession';
 import { sessionLabelText } from '@/lib/sessionLabels';
 
@@ -60,9 +61,14 @@ function routeToSession(session: TodaysSession) {
 
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const todaySessions = useTodayStore((s) => s.todaySessions);
+  // Card 298. The recipe book is Pro, and a free user who has hidden Pro
+  // features should not carry a tab whose only content is a locked card.
+  const { isPro, showLocked } = useProGate();
+  const hideRecipes = !isPro && !showLocked;
   const allRoutes = state.routes
     .map((route: any, routeIndex: number) => ({ route, routeIndex }))
-    .filter(({ route }: any) => route.name in TAB_ICONS);
+    .filter(({ route }: any) => route.name in TAB_ICONS)
+    .filter(({ route }: any) => !(hideRecipes && route.name === 'recipes'));
 
   const left  = allRoutes.filter(({ route }: any) => LEFT_TABS.includes(route.name));
   const right = allRoutes.filter(({ route }: any) => RIGHT_TABS.includes(route.name));

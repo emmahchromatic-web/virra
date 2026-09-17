@@ -104,3 +104,32 @@ export function trialEligible(status: string): boolean {
 export function proCtaLabel(status: string): string {
   return trialEligible(status) ? 'Start 14-day free trial' : 'Subscribe to Virra Pro';
 }
+
+/**
+ * What a gated call site needs in one read. `showLocked` is "draw the locked
+ * tile here": she is not Pro AND has not hidden Pro features in Profile.
+ * `ProScreen` ignores the preference on purpose (a route she reached must
+ * say something), so it reads the store directly.
+ */
+export function useProGate(): { isPro: boolean; showLocked: boolean } {
+  const isPro  = useIsPro();
+  const show   = useSubscriptionStore((s) => s.showProFeatures);
+  return { isPro, showLocked: !isPro && show };
+}
+
+/** The paywall's two lists. Free is named so the wall reads as a choice. */
+export const PAYWALL_PRO_LIST = [
+  'Cycle-adjusted training plans (5K → marathon)',
+  'Nutrition targets that shift with your phase',
+  'Strength and mobility programmes that follow your cycle',
+  'A recipe book that matches your phase and your targets',
+  'Insights, check-in trends and achievements',
+  'Describe a meal and Virra estimates it',
+];
+
+export const PAYWALL_FREE_LIST = [
+  'Cycle logging and your phase, every day',
+  'Meal logging with daily totals',
+  'Runs and workouts, logged or imported from Apple Health',
+  'Weight tracking and a daily check-in',
+];

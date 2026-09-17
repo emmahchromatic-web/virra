@@ -12,7 +12,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { lookupBarcode, searchByName } from '@/lib/openFoodFacts';
 import { searchMyFoods } from '@/lib/myFoods';
 import { useAuthStore } from '@/store/auth';
-import { useIsPro, paywallRoute } from '@/lib/pro';
+import { useProGate, paywallRoute } from '@/lib/pro';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -274,7 +274,7 @@ export default function FoodSearchScreen() {
   const [myResults,     setMyResults]         = useState<VirraFood[]>([]);
   const { session } = useAuthStore();
   // Card 298. Manual logging is free; the Haiku estimate costs money per call.
-  const isPro = useIsPro();
+  const { isPro, showLocked } = useProGate();
   const [remoteSearching, setRemoteSearching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const [favourites, setFavourites] = useState<FavouriteEntry[]>([]);
@@ -683,14 +683,16 @@ export default function FoodSearchScreen() {
 
               {/* Action row: peer affordances to search */}
               <View style={styles.actionRow}>
-                <VirraButton
-                  label={isPro ? 'Describe a meal' : 'Describe a meal · Pro'}
-                  variant="primary"
-                  onPress={() => isPro
-                    ? router.push({ pathname: '/(app)/describe-meal', params: { logId: logId ?? '', mealType: activeMeal ?? 'snack' } })
-                    : router.push(paywallRoute('describe_meal') as never)}
-                  style={{ flex: 1.4 }}
-                />
+                {(isPro || showLocked) && (
+                  <VirraButton
+                    label={isPro ? 'Describe a meal' : 'Describe a meal · Pro'}
+                    variant="primary"
+                    onPress={() => isPro
+                      ? router.push({ pathname: '/(app)/describe-meal', params: { logId: logId ?? '', mealType: activeMeal ?? 'snack' } })
+                      : router.push(paywallRoute('describe_meal') as never)}
+                    style={{ flex: 1.4 }}
+                  />
+                )}
                 <VirraButton
                   label="Log manually"
                   variant="ghost"

@@ -44,3 +44,20 @@ describe('ProLockedCard', () => {
     expect(mockPush).toHaveBeenCalledWith('/(auth)/paywall?from=app&feature=insights');
   });
 });
+
+// "Show Pro features" off in Profile hides the tiles; a whole-screen gate
+// still has to say something, so `always` wins.
+describe('ProLockedCard with Pro features hidden', () => {
+  beforeEach(() => useSubscriptionStore.setState({ status: 'free', isActive: false, showProFeatures: false }));
+  afterAll(() => useSubscriptionStore.setState({ showProFeatures: true }));
+
+  it('renders nothing by default', () => {
+    const { queryByText } = render(<ProLockedCard feature="plans" />);
+    expect(queryByText('VIRRA PRO')).toBeNull();
+  });
+
+  it('still renders when told to', () => {
+    const { getByText } = render(<ProLockedCard feature="plans" always />);
+    expect(getByText('VIRRA PRO')).toBeTruthy();
+  });
+});

@@ -5,7 +5,7 @@ import type { PurchasesPackage } from 'react-native-purchases';
 import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
 import { useSubscriptionStore } from '@/store/subscription';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
-import { PRO_FEATURES, isProFeature, proCtaLabel, trialEligible } from '@/lib/pro';
+import { PRO_FEATURES, PAYWALL_PRO_LIST, PAYWALL_FREE_LIST, isProFeature, proCtaLabel, trialEligible } from '@/lib/pro';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
@@ -15,18 +15,9 @@ import { InlineError } from '@/components/ui/InlineError';
 const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://virra.app/privacy';
 
-// Sells only what ships. The education library was descoped and does not
-// belong here. The recipe book now does: it has a content model, seeded
-// recipes and a tab that reads them, so naming it at the point of payment
-// describes something that exists. Cards 211 and 214.
-const FEATURES = [
-  'Cycle-adjusted training plans (5K → marathon)',
-  'Nutrition targets that shift with your phase',
-  'HealthKit sync: workouts import automatically',
-  'Daily dashboard built for your cycle',
-  'Strength programmes that follow your cycle',
-  'A recipe book that matches your phase and your targets',
-];
+// Sells only what ships (cards 211 and 214), and since card 298 says what is
+// free as well: the wall is a choice between two real things, not a gate.
+// The lists live in pro.ts so the tiles, the paywall and the tests agree.
 
 export default function PaywallScreen() {
   const { setStatus, status } = useSubscriptionStore();
@@ -122,10 +113,25 @@ export default function PaywallScreen() {
             : 'Your plans and your history are still here. Pick up where you left off.'}
         </VirraText>
 
-        <VirraCard style={styles.features}>
-          {FEATURES.map((f) => (
+        <VirraCard accent style={styles.features}>
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.listKicker}>
+            VIRRA PRO
+          </VirraText>
+          {PAYWALL_PRO_LIST.map((f) => (
             <View key={f} style={styles.featureRow}>
               <VirraText variant="mono" color={colors.pulse} size={12}>✓</VirraText>
+              <VirraText variant="body" color={colors.breath} style={styles.featureLabel}>{f}</VirraText>
+            </View>
+          ))}
+        </VirraCard>
+
+        <VirraCard style={styles.features}>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.listKicker}>
+            FREE, ALWAYS
+          </VirraText>
+          {PAYWALL_FREE_LIST.map((f) => (
+            <View key={f} style={styles.featureRow}>
+              <VirraText variant="mono" color={colors.muted} size={12}>✓</VirraText>
               <VirraText variant="body" color={colors.breath} style={styles.featureLabel}>{f}</VirraText>
             </View>
           ))}
@@ -230,6 +236,7 @@ const styles = StyleSheet.create({
   kicker:      { letterSpacing: 1.5, marginTop: spacing.lg },
   sub:         { marginTop: spacing.sm, marginBottom: spacing.md },
   features:    { gap: spacing.md },
+  listKicker:  { letterSpacing: 1.5, marginBottom: -spacing.xs },
   // The gutter after the tick was two hardcoded spaces inside the Text, which
   // is not a layout: a bullet long enough to wrap put its second line flush
   // under the tick instead of aligned with the first. A real gap plus a

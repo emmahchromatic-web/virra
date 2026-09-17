@@ -45,3 +45,25 @@ describe('useSubscriptionStore free tier', () => {
     expect(result.current.trialEnd).toBeNull();
   });
 });
+
+describe('Show Pro features preference', () => {
+  const mod = require('@react-native-async-storage/async-storage');
+  const AsyncStorage = mod.default ?? mod;
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    useSubscriptionStore.setState({ showProFeatures: true });
+  });
+
+  it('is on by default and hydrates to on when nothing is stored', async () => {
+    await useSubscriptionStore.getState().hydrateProFeatures();
+    expect(useSubscriptionStore.getState().showProFeatures).toBe(true);
+  });
+
+  it('persists off and hydrates it back', async () => {
+    await useSubscriptionStore.getState().setShowProFeatures(false);
+    expect(useSubscriptionStore.getState().showProFeatures).toBe(false);
+    useSubscriptionStore.setState({ showProFeatures: true });
+    await useSubscriptionStore.getState().hydrateProFeatures();
+    expect(useSubscriptionStore.getState().showProFeatures).toBe(false);
+  });
+});

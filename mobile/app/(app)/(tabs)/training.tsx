@@ -28,7 +28,7 @@ import { AddEventModal } from '@/components/ui/AddEventModal';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EQUIPMENT_ASKED_KEY } from '@/lib/workoutPreference';
-import { useIsPro, paywallRoute } from '@/lib/pro';
+import { useProGate, paywallRoute } from '@/lib/pro';
 import { ProLockedCard } from '@/components/ui/ProLockedCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -114,7 +114,7 @@ export default function TrainingScreen() {
   const { session }    = useAuthStore();
   const { cycleInfo, periodStart, cycleLength, cycleMode, currentPackStart } = useCycleStore();
   // Card 298. Plans, strength and mobility prescribe; logging a run does not.
-  const isPro          = useIsPro();
+  const { isPro, showLocked } = useProGate();
 
   const [activePlan,        setActivePlan]        = useState<UserPlan | null>(null);
   const [recentActivities,  setRecentActivities]   = useState<Activity[]>([]);
@@ -411,6 +411,7 @@ export default function TrainingScreen() {
 
         {/* Card 264. A one-off mobility session needs no plan behind it, so it
             sits outside the block stack rather than pretending to be one. */}
+        {(isPro || showLocked) && (
         <Pressable
           onPress={() => router.push((isPro ? '/(app)/mobility' : paywallRoute('mobility')) as any)}
           accessibilityRole="button"
@@ -432,6 +433,7 @@ export default function TrainingScreen() {
             <SymbolView name="chevron.right" size={14} tintColor={colors.muted} />
           </VirraCard>
         </Pressable>
+        )}
 
         {/* Monthly training calendar */}
         {isPro && activeBlocks.length > 0 && session && (

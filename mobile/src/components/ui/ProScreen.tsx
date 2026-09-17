@@ -39,7 +39,7 @@ export function ProScreen({ feature, children }: Props) {
         <View style={{ width: 18 }} />
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <ProLockedCard feature={feature} />
+        <ProLockedCard feature={feature} always />
       </ScrollView>
     </SafeAreaView>
   );

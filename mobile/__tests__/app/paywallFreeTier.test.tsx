@@ -64,3 +64,13 @@ describe('paywall on the free tier', () => {
     expect(queryByText('Start 14-day free trial')).toBeNull();
   });
 });
+
+describe('paywall lists what is free', () => {
+  it('shows a FREE, ALWAYS list next to the Pro list', () => {
+    useSubscriptionStore.setState({ status: 'unknown', isActive: false });
+    const { getByText } = render(<PaywallScreen />);
+    expect(getByText('VIRRA PRO')).toBeTruthy();
+    expect(getByText('FREE, ALWAYS')).toBeTruthy();
+    expect(getByText('Meal logging with daily totals')).toBeTruthy();
+  });
+});

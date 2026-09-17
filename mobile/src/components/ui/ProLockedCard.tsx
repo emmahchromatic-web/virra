@@ -15,16 +15,22 @@ interface Props {
   compact?: boolean;
   /** Extra line under the body, e.g. "your plan is saved". */
   note?:    string;
+  /** Draw even when "Show Pro features" is off in Profile. ProScreen sets
+   *  this: a route she has reached must say something. */
+  always?:  boolean;
   style?:   StyleProp<ViewStyle>;
 }
 
 // Card 298. What a free user sees in place of a Pro feature. Never an empty
 // state and never a dead control: the card says what the feature does and
 // the one button goes to the paywall, which comes back here on Back.
-export function ProLockedCard({ feature, compact, note, style }: Props) {
+export function ProLockedCard({ feature, compact, note, always, style }: Props) {
   const status = useSubscriptionStore((s) => s.status);
+  const show   = useSubscriptionStore((s) => s.showProFeatures);
   const copy   = PRO_FEATURES[feature];
   const open   = () => router.push(paywallRoute(feature) as never);
+
+  if (!show && !always) return null;
 
   if (compact) {
     return (
