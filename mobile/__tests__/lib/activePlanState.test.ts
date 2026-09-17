@@ -6,6 +6,7 @@ import {
   seedDaysFromSchedule,
   remainingWeeks,
   occupiedDaysExcept,
+  assignDay,
   type ScheduledSession,
 } from '@/lib/activePlanState';
 
@@ -153,28 +154,72 @@ describe('remainingWeeks', () => {
   });
 });
 
-describe('occupiedDaysExcept (card 282)', () => {
+describe('occupiedDaysExcept (cards 282, 303)', () => {
+  const run  = (over: Partial<ScheduledSession>) => ({ ...sess(over), modality: 'run' as const });
+  const lift = (over: Partial<ScheduledSession>) => ({ ...sess(over), modality: 'strength' as const });
   const week = [
-    { sessions: [sess({ block_id: 'mine',  day_of_week: 0 })] },
-    { sessions: [sess({ block_id: 'other', day_of_week: 1 })] },
-    { sessions: [sess({ block_id: 'mine',  day_of_week: 2 }), sess({ block_id: 'other', day_of_week: 2 })] },
-    { sessions: [sess({ block_id: 'other', day_of_week: 4, status: 'dropped' })] },
+    { sessions: [run({ block_id: 'mine',  day_of_week: 0 })] },
+    { sessions: [lift({ block_id: 'other', day_of_week: 1 })] },
+    { sessions: [run({ block_id: 'mine',  day_of_week: 2 }), lift({ block_id: 'other', day_of_week: 2 })] },
+    { sessions: [lift({ block_id: 'other', day_of_week: 4, status: 'dropped' })] },
   ];
+  const days = (m: Map<number, string[]>) => [...m.keys()];
 
   it('does not flag the adjusted plan\'s own sessions as clashes', () => {
-    expect(occupiedDaysExcept(week, 'mine')).toEqual([1, 2]);
+    expect(days(occupiedDaysExcept(week, 'mine'))).toEqual([1, 2]);
   });
 
   it('still flags a day the plan shares with another plan', () => {
     // Wednesday holds one of mine and one of theirs: it is still a clash.
-    expect(occupiedDaysExcept(week, 'mine')).toContain(2);
+    expect(occupiedDaysExcept(week, 'mine').get(2)).toEqual(['strength']);
   });
 
   it('flags everything on a plan you are not on', () => {
-    expect(occupiedDaysExcept(week, null)).toEqual([0, 1, 2]);
+    expect(days(occupiedDaysExcept(week, null))).toEqual([0, 1, 2]);
   });
 
   it('ignores dropped and moved sessions, as before', () => {
-    expect(occupiedDaysExcept(week, null)).not.toContain(4);
+    expect(occupiedDaysExcept(week, null).has(4)).toBe(false);
+  });
+
+  it('says what kind of session is on each day, so a run dot is not orange', () => {
+    expect(occupiedDaysExcept(week, 'other').get(0)).toEqual(['run']);
+  });
+
+  it('lists each kind once, in the order it appears, when two plans share a day', () => {
+    const busy = [{ sessions: [
+      run({ block_id: 'a', day_of_week: 5 }),
+      lift({ block_id: 'b', day_of_week: 5 }),
+      run({ block_id: 'a', day_of_week: 5 }),
+    ] }];
+    expect(occupiedDaysExcept(busy, null).get(5)).toEqual(['run', 'strength']);
+  });
+});
+
+describe('assignDay (card 299)', () => {
+  const slots = [
+    { key: 'easy_0', label: 'easy', day: 0 },
+    { key: 'easy_1', label: 'easy', day: 2 },
+    { key: 'long_2', label: 'long', day: 5 },
+  ];
+
+  it('moves a session to a free day', () => {
+    expect(assignDay(slots, 'easy_0', 1).map((s) => s.day)).toEqual([1, 2, 5]);
+  });
+
+  it('swaps with the session already on that day instead of doubling up', () => {
+    expect(assignDay(slots, 'easy_0', 5).map((s) => s.day)).toEqual([5, 2, 0]);
+  });
+
+  it('can never put two sessions on one day, however many taps', () => {
+    let s = slots;
+    for (const [key, day] of [['easy_0', 2], ['long_2', 2], ['easy_1', 2], ['easy_0', 5]] as const) {
+      s = assignDay(s, key, day);
+      expect(new Set(s.map((x) => x.day)).size).toBe(s.length);
+    }
+  });
+
+  it('leaves the week alone when the day is already the session\'s own', () => {
+    expect(assignDay(slots, 'easy_1', 2)).toBe(slots);
   });
 });
