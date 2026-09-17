@@ -23,6 +23,7 @@ import { useProfileStore, personalMetricsFields } from '@/store/profile';
 import { buildPersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 /**
  * One recipe: read it, favourite it, log it.
@@ -64,7 +65,7 @@ function servingsLabel(n: number): string {
   return `${formatServings(n)} ${n === 1 ? 'serving' : 'servings'}`;
 }
 
-export default function RecipeDetailScreen() {
+function RecipeDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
 
   const { session }   = useAuthStore();
@@ -419,3 +420,15 @@ const styles = StyleSheet.create({
   stepNum:  { paddingTop: 3 },
   stepBody: { flex: 1, lineHeight: 22 },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedRecipeDetailScreen() {
+  return (
+    <ProScreen feature="recipes">
+      <RecipeDetailScreen />
+    </ProScreen>
+  );
+}

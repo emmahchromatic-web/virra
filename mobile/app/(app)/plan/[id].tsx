@@ -28,6 +28,7 @@ import { EquipmentChooser } from '@/components/ui/EquipmentChooser';
 import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 interface WeekSession {
   week:     number;
@@ -192,7 +193,7 @@ function VolumeChart({ weeks }: { weeks: WeekSession[] }) {
 
 interface UserPlan { start_date: string; goal_date: string | null }
 
-export default function PlanDetailScreen() {
+function PlanDetailScreen() {
   const { id }        = useLocalSearchParams<{ id: string }>();
   const { session }   = useAuthStore();
 
@@ -1288,3 +1289,15 @@ const styles = StyleSheet.create({
   equipOption: { gap: 2, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.mist, borderWidth: 1, borderColor: colors.control },
   cta:         { marginTop: spacing.sm },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedPlanDetailScreen() {
+  return (
+    <ProScreen feature="plans">
+      <PlanDetailScreen />
+    </ProScreen>
+  );
+}

@@ -10,6 +10,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archetypes';
 import { entryCriteria } from '@/lib/runProgramme/suitability';
 import { useAuthStore } from '@/store/auth';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 interface PlanTemplate {
   id:             string;
@@ -41,7 +42,7 @@ const MODALITY_LABEL: Record<string, string> = {
   mobility: 'Mobility',
 };
 
-export default function BrowsePlansScreen() {
+function BrowsePlansScreen() {
   const [templates, setTemplates] = useState<PlanTemplate[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [modality,  setModality]  = useState<string | null>(null);
@@ -236,3 +237,15 @@ const styles = StyleSheet.create({
   forWhom:        { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: spacing.sm },
   onThisPlan:     { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedBrowsePlansScreen() {
+  return (
+    <ProScreen feature="plans">
+      <BrowsePlansScreen />
+    </ProScreen>
+  );
+}

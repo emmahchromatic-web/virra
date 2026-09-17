@@ -52,6 +52,9 @@ export interface EntitlementInfo {
   isTrial:       boolean;
   trialEnd:      Date | null;
   managementURL: string | null;
+  /** Card 298. Held the entitlement at some point, active or not. Separates
+   *  a lapsed subscriber (expired) from someone on the free tier (free). */
+  everSubscribed: boolean;
 }
 
 export async function getEntitlementInfo(): Promise<EntitlementInfo> {
@@ -59,13 +62,14 @@ export async function getEntitlementInfo(): Promise<EntitlementInfo> {
     const customerInfo = await Purchases.getCustomerInfo();
     const ent = customerInfo.entitlements.active[ENTITLEMENT_ID];
     return {
-      isActive:      !!ent,
-      isTrial:       (ent?.periodType as string | undefined)?.toUpperCase() === 'TRIAL',
-      trialEnd:      ent?.expirationDate ? new Date(ent.expirationDate) : null,
-      managementURL: customerInfo.managementURL ?? null,
+      isActive:       !!ent,
+      isTrial:        (ent?.periodType as string | undefined)?.toUpperCase() === 'TRIAL',
+      trialEnd:       ent?.expirationDate ? new Date(ent.expirationDate) : null,
+      managementURL:  customerInfo.managementURL ?? null,
+      everSubscribed: !!customerInfo.entitlements.all[ENTITLEMENT_ID],
     };
   } catch {
-    return { isActive: false, isTrial: false, trialEnd: null, managementURL: null };
+    return { isActive: false, isTrial: false, trialEnd: null, managementURL: null, everSubscribed: false };
   }
 }
 
@@ -75,5 +79,26 @@ export async function restorePurchases(): Promise<boolean> {
     return !!customerInfo.entitlements.active[ENTITLEMENT_ID];
   } catch {
     return false;
+  }
+}
+
+/**
+ * Card 298. Whether Apple will actually grant the introductory free trial.
+ * true / false when StoreKit knows; null when it does not (Test Store, the
+ * simulator, a network failure), and the caller falls back to its own rule.
+ * Eligible only if EVERY offered product is eligible: they share one
+ * subscription group, so in practice they agree.
+ */
+export async function getTrialEligibility(productIds: string[]): Promise<boolean | null> {
+  if (productIds.length === 0) return null;
+  try {
+    const result = await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
+    const statuses = productIds.map((id) => result[id]?.status);
+    const S = Purchases.INTRO_ELIGIBILITY_STATUS;
+    if (statuses.some((s) => s === S.INTRO_ELIGIBILITY_STATUS_INELIGIBLE)) return false;
+    if (statuses.every((s) => s === S.INTRO_ELIGIBILITY_STATUS_ELIGIBLE)) return true;
+    return null;
+  } catch {
+    return null;
   }
 }
