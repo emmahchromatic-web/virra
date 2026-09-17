@@ -73,15 +73,25 @@ export function inferModality(sportType: string): BlockModality {
 }
 
 export async function getActiveBlocks(userId: string): Promise<TrainingBlock[]> {
+  return (await fetchActiveBlocks(userId)).blocks;
+}
+
+/**
+ * getActiveBlocks, keeping the error. Card 295: with no signal the query fails,
+ * getActiveBlocks returns [], and the Training tab told the user they had no
+ * plan. A screen that shows the result to the user must be able to tell "none"
+ * from "could not ask".
+ */
+export async function fetchActiveBlocks(userId: string): Promise<{ blocks: TrainingBlock[]; error: string | null }> {
   const today = new Date().toISOString().split('T')[0];
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('training_blocks')
     .select('id, user_id, template_id, starts_on, ends_on, load_modifier, modality, is_primary, event_id, template:plan_templates(name, duration_weeks, distance_goal, sport_type)')
     .eq('user_id', userId)
     .lte('starts_on', today)
     .or(`ends_on.is.null,ends_on.gte.${today}`)
     .order('is_primary', { ascending: false });
-  return (data ?? []) as unknown as TrainingBlock[];
+  return { blocks: (data ?? []) as unknown as TrainingBlock[], error: error?.message ?? null };
 }
 
 /**
