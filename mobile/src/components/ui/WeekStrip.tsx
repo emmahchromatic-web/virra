@@ -7,6 +7,7 @@ import { VirraText } from './VirraText';
 import { DayCell } from './DayCell';
 import { EmptyWeekStrip } from './EmptyWeekStrip';
 import { deriveDayState, type DayState } from '@/lib/dayState';
+import { useIsPro } from '@/lib/pro';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import type { CyclePhase } from '@/store/cycle';
@@ -38,6 +39,10 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
   const todayISO  = useMemo(() => localDateISO(new Date()), []);
 
   const { days } = useWeekSessions(mondayISO);
+  // Card 298. What she did is hers on any tier; what Virra planned for her is
+  // Pro. A lapsed subscriber keeps her saved plan, and without this its
+  // upcoming sessions showed through here while the plan itself was locked.
+  const isPro = useIsPro();
 
   const [hasPlan,   setHasPlan]   = useState<boolean>(true); // optimistic
   const [todayLoad, setTodayLoad] = useState<TrainingLoad | null>(null);
@@ -74,13 +79,19 @@ export function WeekStrip({ userId, phase }: { userId: string; phase?: CyclePhas
       // Filter to statuses dayState cares about (planned + completed), mirroring
       // the previous Supabase query's `.in('status', ['planned', 'completed'])`.
       const relevant = d.sessions.filter(
-        (s) => s.status === 'planned' || s.status === 'completed',
+        (s) => s.status === 'completed' || (isPro && s.status === 'planned'),
       );
       return deriveDayState(relevant, isPast);
     });
-  }, [days, todayISO]);
+  }, [days, todayISO, isPro]);
 
   const tIndex = todayIndexMonZero();
+
+  // The strip is the plan's week. Off Pro there is no plan to show, and a
+  // lapsed subscriber's saved one stays behind the padlock with the rest.
+  if (!isPro) {
+    return <EmptyWeekStrip todayIndex={tIndex} caption="Your planned week is part of Virra Pro" />;
+  }
 
   if (!hasPlan) {
     return <EmptyWeekStrip todayIndex={tIndex} />;

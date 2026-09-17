@@ -57,6 +57,9 @@ export default function DashboardScreen() {
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
   const refreshReadiness = useReadinessStore((s) => s.refresh);
   const { isPro, showLocked } = useProGate();
+  // With the Insights tile hidden the check-in tile has the row to itself;
+  // laid out as a column it became a tall, mostly empty card.
+  const soloTile = !isPro && !showLocked;
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const meta     = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
@@ -285,11 +288,14 @@ export default function DashboardScreen() {
         />
 
         {/* 7. Week strip */}
-        {session && (
+        {/* Card 298. The strip is the plan's week, so it is a Pro surface:
+            a padlocked line for a free user, nothing at all once she has
+            hidden Pro features. */}
+        {session && (isPro || showLocked) && (
           <Pressable
-            onPress={() => router.push('/(app)/(tabs)/training' as any)}
+            onPress={() => router.push((isPro ? '/(app)/(tabs)/training' : paywallRoute('plans')) as any)}
             accessibilityRole="button"
-            accessibilityLabel="This week's training, open Training tab"
+            accessibilityLabel={isPro ? "This week's training, open Training tab" : 'Your planned week, part of Virra Pro'}
           >
             <VirraCard style={{ paddingVertical: spacing.xs }}>
               <SectionLabel style={{ marginBottom: 2 }}>THIS WEEK</SectionLabel>
@@ -331,7 +337,7 @@ export default function DashboardScreen() {
 
           {checkin.done ? (
             <Pressable
-              style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }]}
+              style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }, soloTile && styles.actionTileSolo]}
               onPress={() => router.push((isPro ? '/(app)/checkin-trends' : paywallRoute('trends')) as any)}
               accessibilityRole="button"
             >
@@ -354,7 +360,7 @@ export default function DashboardScreen() {
             </Pressable>
           ) : (
             <Pressable
-              style={[styles.actionTile, { borderColor: colors.dawn }]}
+              style={[styles.actionTile, { borderColor: colors.dawn }, soloTile && styles.actionTileSolo]}
               onPress={() => router.push('/(app)/checkin')}
               accessibilityRole="button"
             >
@@ -416,6 +422,7 @@ const styles = StyleSheet.create({
     flex: 1, borderWidth: 1.5, borderRadius: 10,
     backgroundColor: colors.mist, padding: spacing.md, gap: spacing.sm,
   },
+  actionTileSolo: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   actionLabel:  { letterSpacing: 1.5 },
   actionSub:    { lineHeight: 14, marginTop: 2 },
   checkinVals:  { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs,
