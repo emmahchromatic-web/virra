@@ -116,8 +116,25 @@ export default function ProfileScreen() {
   const [creditsModalVisible, setCreditsModalVisible] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
 
-  async function handleToggleWeight(next: boolean) {
+  function handleToggleWeight(next: boolean) {
     if (!session || weightSyncing) return;
+    if (next) { void setWeightTracking(true); return; }
+    // Card 307. Off used to be instant. Nothing is deleted, but the cost is on
+    // the way back: turning it on re-imports a year from Apple Health and
+    // re-stamps every reading's phase with today's cycle settings. Say both
+    // before the user commits, not after.
+    appAlert(
+      'Turn off weight tracking?',
+      'Your readings are kept but hidden, and Apple Health stops syncing. If you turn it back on, the app re-imports your last year of weights from Apple Health.',
+      [
+        { text: 'Keep tracking', style: 'cancel' },
+        { text: 'Turn off', style: 'destructive', onPress: () => { void setWeightTracking(false); } },
+      ],
+    );
+  }
+
+  async function setWeightTracking(next: boolean) {
+    if (!session) return;
     if (next && !weightExplainerDismissedAt) setShowExplainer(true);
     await saveProfile(session.user.id, { trackWeight: next });
     if (!next) {
@@ -509,6 +526,7 @@ export default function ProfileScreen() {
               value={trackWeight}
               onValueChange={handleToggleWeight}
               disabled={weightSyncing}
+              accessibilityLabel="Track weight"
             />
           </View>
           {weightSyncNote && (
