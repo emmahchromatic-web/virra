@@ -140,15 +140,22 @@ describe('toIngredientUnit', () => {
 });
 
 describe('formatQuantity for counted things', () => {
-  // "1x egg" rather than "1 egg": it reads as a count, and it does not look
-  // like a weight whose unit went missing.
-  it('prints the count with an x and no unit word', () => {
-    expect(formatQuantity(1, 'unit')).toBe('1x');
-    expect(formatQuantity(2, 'unit')).toBe('2x');
+  // "1 x egg" rather than "1 egg": it reads as a count, and it does not look
+  // like a weight whose unit went missing. The space matches "80 g" and
+  // "1 tsp", so the quantity column has one shape.
+  it('prints the count with a spaced x and no unit word', () => {
+    expect(formatQuantity(1, 'unit')).toBe('1 x');
+    expect(formatQuantity(2, 'unit')).toBe('2 x');
   });
 
   it('still rounds a scaled count', () => {
-    expect(formatQuantity(1.5, 'unit')).toBe('1.5x');
+    expect(formatQuantity(1.5, 'unit')).toBe('1.5 x');
+  });
+
+  it('uses the same number-space-unit shape as every other unit', () => {
+    for (const unit of INGREDIENT_UNITS) {
+      expect(formatQuantity(0.5, unit)).toMatch(/^0\.5 [a-z]+$/);
+    }
   });
 
   it('is kept by toIngredientUnit', () => {

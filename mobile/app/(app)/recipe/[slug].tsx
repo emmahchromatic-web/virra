@@ -399,7 +399,11 @@ const styles = StyleSheet.create({
   section: { gap: spacing.sm },
 
   ingredient:     { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
-  qty:            { minWidth: 62, paddingTop: 3 },
+  // A fixed width, not a minimum. With minWidth any quantity longer than the
+  // column ("0.5 tbsp" measures ~69pt) pushed only that row's food name to the
+  // right, so names stopped lining up. 76pt fits eight mono characters with room
+  // to spare; anything longer wraps inside the column instead of shoving the name.
+  qty:            { width: 76, paddingTop: 3 },
   ingredientMain: { flex: 1, gap: 1 },
   ingredientHint: { lineHeight: 18, marginTop: -spacing.xs },
 
