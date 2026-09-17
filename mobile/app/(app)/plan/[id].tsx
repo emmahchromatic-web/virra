@@ -17,9 +17,9 @@ import { archetypeForTemplate, raceDistanceFor, type ArchetypeKey } from '@/lib/
 import { planFeasibility } from '@/lib/runProgramme/volumeCurve';
 import { entryCriteria, assessSuitability } from '@/lib/runProgramme/suitability';
 import { authoredSessionCount, sessionCountBounds } from '@/lib/sessionCountBounds';
-import { sessionsForBlock, currentWeekIndex, planDurationWeeks, seedDaysFromSchedule, remainingWeeks, occupiedDaysExcept } from '@/lib/activePlanState';
+import { sessionsForBlock, currentWeekIndex, planDurationWeeks, seedDaysFromSchedule, remainingWeeks, occupiedDaysExcept, assignDay } from '@/lib/activePlanState';
 import { sessionLabelText } from '@/lib/sessionLabels';
-import { planStartOptions, describeFirstWeek, localISO, addDaysISO } from '@/lib/planStart';
+import { planStartOptions, describeFirstWeek, localISO, addDaysISO, raceStart } from '@/lib/planStart';
 import { weekStatus, expectedKmByNow } from '@/lib/weekProgress';
 import { weekStartLocal } from '@/lib/insightMetrics';
 import { useProfileStore } from '@/store/profile';
@@ -104,17 +104,51 @@ function parseDMY(str: string): Date | null {
 
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+/**
+ * Card 303. The picker's dots take the colour of the plan on that day. Run and
+ * strength match MonthCalendar and DayCell; mobility is pink here by Emma's
+ * call (17 Sep). Anything else falls back to muted rather than borrowing a
+ * colour that means something.
+ */
+const OCCUPIED_DOT: Array<{ modality: string; label: string; color: string }> = [
+  { modality: 'run',      label: 'RUN',      color: colors.pulse },
+  { modality: 'strength', label: 'STRENGTH', color: colors.dawn },
+  { modality: 'mobility', label: 'MOBILITY', color: colors.heat },
+];
+
+function occupiedDotColor(modality: string): string {
+  return OCCUPIED_DOT.find((d) => d.modality === modality)?.color ?? colors.muted;
+}
+
+function OccupiedLegend({ occupiedDays }: { occupiedDays: Map<number, string[]> }) {
+  const present = new Set([...occupiedDays.values()].flat());
+  if (present.size === 0) return null;
+  const known  = OCCUPIED_DOT.filter((d) => present.has(d.modality));
+  const hasOther = [...present].some((m) => !OCCUPIED_DOT.some((d) => d.modality === m));
+  const items  = hasOther ? [...known, { modality: 'other', label: 'OTHER', color: colors.muted }] : known;
+  return (
+    <View style={picker.legend}>
+      <VirraText variant="mono" size={10} color={colors.muted}>DOTS = YOUR OTHER PLANS:</VirraText>
+      {items.map((d) => (
+        <View key={d.modality} style={picker.legendItem}>
+          <View style={[picker.legendDot, { backgroundColor: d.color }]} />
+          <VirraText variant="mono" size={10} color={colors.muted}>{d.label}</VirraText>
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function SchedulePickerRow({
   label, selectedDay, takenDays, occupiedDays, onChange,
 }: {
   label:        string;
   selectedDay:  number;
   takenDays:    number[];
-  occupiedDays: number[];
+  occupiedDays: Map<number, string[]>;
   onChange:     (day: number) => void;
 }) {
   const taken    = new Set(takenDays);
-  const occupied = new Set(occupiedDays);
   return (
     <View style={picker.row}>
       <VirraText variant="mono" size={10} color={colors.breath} style={picker.label}>
@@ -124,7 +158,7 @@ function SchedulePickerRow({
         {DAY_LETTERS.map((letter, i) => {
           const isSelected  = selectedDay === i;
           const isTaken     = taken.has(i);
-          const isOccupied  = occupied.has(i) && !isSelected;
+          const others      = isSelected ? [] : (occupiedDays.get(i) ?? []);
           return (
             <Pressable
               key={i}
@@ -144,7 +178,13 @@ function SchedulePickerRow({
               >
                 {letter}
               </VirraText>
-              {isOccupied && <View style={picker.occupiedDot} />}
+              {others.length > 0 && (
+                <View style={picker.dots}>
+                  {others.map((m) => (
+                    <View key={m} style={[picker.occupiedDot, { backgroundColor: occupiedDotColor(m) }]} />
+                  ))}
+                </View>
+              )}
             </Pressable>
           );
         })}
@@ -166,7 +206,11 @@ const picker = StyleSheet.create({
   // No ring and a recessed fill: 'taken' reads as unavailable without
   // making the letter itself hard to read. Card 218.
   dayBtnTaken:   { borderColor: 'transparent', backgroundColor: colors.mist, opacity: 0.55 },
-  occupiedDot:   { position: 'absolute', bottom: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: colors.dawn },
+  dots:          { position: 'absolute', bottom: 3, flexDirection: 'row', gap: 2 },
+  occupiedDot:   { width: 4, height: 4, borderRadius: 2 },
+  legend:        { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: spacing.sm, rowGap: 2, marginTop: -spacing.xs },
+  legendItem:    { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  legendDot:     { width: 6, height: 6, borderRadius: 3 },
 });
 
 function VolumeChart({ weeks }: { weeks: WeekSession[] }) {
@@ -300,18 +344,17 @@ function PlanDetailScreen() {
   const { days: weekDays } = useWeekSessions(mondayISO);
 
   const raceTarget  = raceDateObj;
-  const startDate   = raceTarget && plan?.duration_weeks
-    ? new Date(raceTarget.getTime() - plan.duration_weeks * 7 * 86400000)
-    : null;
-  const weeksIn     = startDate
-    ? Math.max(0, Math.floor((Date.now() - startDate.getTime()) / (7 * 86400000)))
-    : 0;
-  const startInPast = startDate ? startDate.getTime() < Date.now() : false;
+  // Card 301. Counted back by the length on the stepper, not the template's.
+  const raceLength  = durationOverride > 0 ? durationOverride : (plan?.duration_weeks || 8);
+  const racePlan    = raceTarget ? raceStart(raceTarget, raceLength, new Date()) : null;
+  const raceWeeks   = raceOpen && racePlan ? racePlan.weeks : null;
 
-  const startHint = raceOpen && raceTarget && plan?.duration_weeks
-    ? startInPast
-      ? `Starting now · you'll be on week ${weeksIn + 1} of ${plan.duration_weeks}`
-      : `Plan starts ${startDate!.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}`
+  const startHint = raceOpen && racePlan
+    ? racePlan.startsToday
+      ? racePlan.weeks < raceLength
+        ? `Starting today · you'll get ${racePlan.weeks} of ${raceLength} weeks`
+        : `Starting today · all ${raceLength} weeks`
+      : `Plan starts ${new Date(`${racePlan.start}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}`
     : null;
 
   /**
@@ -328,7 +371,7 @@ function PlanDetailScreen() {
     if (!session || !plan) return;
     setSaving(true);
     const today      = new Date().toISOString().split('T')[0];
-    const effectiveDuration = durationOverride > 0 ? durationOverride : (plan.duration_weeks || 8);
+    let effectiveDuration = durationOverride > 0 ? durationOverride : (plan.duration_weeks || 8);
     // Without a race, the runner chose when to begin. A race goal derives its
     // own start (below) by counting back from the race, and wins — two answers
     // to when a plan begins is one too many.
@@ -338,9 +381,14 @@ function PlanDetailScreen() {
     // final week. See addDaysISO.
     let goalDate: string | null = addDaysISO(planStart, effectiveDuration * 7);
 
-    if (raceOpen && raceTarget) {
-      goalDate  = raceTarget.toISOString().split('T')[0];
-      planStart = (startDate && !startInPast) ? startDate.toISOString().split('T')[0] : today;
+    if (raceOpen && raceTarget && racePlan) {
+      // Local date: toISOString gave the day before for a race picked at local
+      // midnight in BST.
+      goalDate          = localISO(raceTarget);
+      planStart         = racePlan.start;
+      // A race too close for the full length gets the weeks that are left, so
+      // the plan ends in race week instead of running on past it.
+      effectiveDuration = racePlan.weeks;
     }
 
     // Clears both tables for this slot, so the plan screen and the training
@@ -394,6 +442,9 @@ function PlanDetailScreen() {
   function cancelAdjust() {
     setAdjusting(false);
     setRaceOpen(false);
+    // Card 310. A start picked while adjusting was kept, and Restart then used
+    // it instead of the default.
+    setStartChoice(null);
     // Put the controls back where the initial load left them. Without this a
     // cancelled adjust leaves `durationOverride` holding the remaining-weeks
     // figure it was seeded with, and Restart then quietly rebuilds a shorter
@@ -488,7 +539,9 @@ function PlanDetailScreen() {
     return generateRunPlan({
       archetype,
       goal:                raceDistanceFor(plan.distance_goal),
-      weeks:               durationOverride > 0 ? durationOverride : archetype.defaultWeeks,
+      // A race too close for the chosen length builds only the weeks left
+      // (card 301), so the preview shows those rather than the full length.
+      weeks:               raceWeeks ?? (durationOverride > 0 ? durationOverride : archetype.defaultWeeks),
       tier:                runnerModel.tier,
       preset:              runnerModel.preset,
       difficulty:          runnerModel.difficulty,
@@ -497,7 +550,7 @@ function PlanDetailScreen() {
       days,
       longRunDay:          Math.max(...days),
     });
-  }, [isStrength, plan, runnerModel, archetype, dayAssignment, durationOverride]);
+  }, [isStrength, plan, runnerModel, archetype, dayAssignment, durationOverride, raceWeeks]);
 
   const generatedWeeks = generated?.weeks ?? null;
 
@@ -1104,9 +1157,7 @@ function PlanDetailScreen() {
                 <VirraText variant="mono" size={11} color={colors.pulse} style={styles.sectionLabel}>
                   SCHEDULE YOUR WEEK
                 </VirraText>
-                <VirraText variant="mono" size={10} color={colors.muted} style={{ marginTop: -spacing.xs }}>
-                  ORANGE DOTS = DAYS WITH OTHER PLAN SESSIONS
-                </VirraText>
+                <OccupiedLegend occupiedDays={occupiedDays} />
                 {dayAssignment.map((slot) => (
                   <SchedulePickerRow
                     key={slot.key}
@@ -1114,9 +1165,7 @@ function PlanDetailScreen() {
                     selectedDay={slot.day}
                     takenDays={dayAssignment.filter((s) => s.key !== slot.key).map((s) => s.day)}
                     occupiedDays={occupiedDays}
-                    onChange={(d) => setDayAssignment((prev) =>
-                      prev.map((s) => s.key === slot.key ? { ...s, day: d } : s)
-                    )}
+                    onChange={(d) => setDayAssignment((prev) => assignDay(prev, slot.key, d))}
                   />
                 ))}
               </VirraCard>
