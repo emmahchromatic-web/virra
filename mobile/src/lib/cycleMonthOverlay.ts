@@ -1,6 +1,5 @@
 import { getCyclePhase, type CyclePhase } from '@/lib/cycleEngine';
 
-const MENSTRUAL_DAYS = 5;
 const MS_PER_DAY     = 1000 * 60 * 60 * 24;
 
 export interface CycleDayOverlay {
@@ -19,6 +18,7 @@ export function getCycleDayOverlay(
   periodStart: Date,
   cycleLength: number,
   date: Date,
+  periodDays: number,
 ): CycleDayOverlay {
   const start   = toMidnight(periodStart);
   const now     = toMidnight(date);
@@ -34,11 +34,11 @@ export function getCycleDayOverlay(
   // the rest of the app.
   const synth = new Date(start);
   synth.setDate(start.getDate() + dayIndex);
-  const phase = getCyclePhase(periodStart, cycleLength, synth);
+  const phase = getCyclePhase(periodStart, cycleLength, synth, periodDays);
 
   return {
     phase,
     dayOfCycle,
-    isBleed: dayIndex < MENSTRUAL_DAYS,
+    isBleed: dayIndex < periodDays,
   };
 }

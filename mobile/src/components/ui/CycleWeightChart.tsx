@@ -5,7 +5,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from './VirraText';
 import { bandFor, type PhaseBands } from '@/lib/weightBand';
 import { MIN_FOLLICULAR_READINGS } from '@/lib/weightBaseline';
-import { getCycleInfo } from '@/lib/cycleEngine';
+import { getCycleInfo, phaseForCycleDay } from '@/lib/cycleEngine';
 import type { CyclePhase } from '@/lib/cycleEngine';
 
 export interface WeightReading {
@@ -18,6 +18,8 @@ interface Props {
   readings:    WeightReading[];
   periodStart: Date;
   cycleLength: number;
+  /** Card 304: menstrual days, from useCycleStore().periodDays. */
+  periodDays:  number;
   /** The user's learned per-phase bands; falls back to the population band per
    *  phase where absent. */
   bands?:      PhaseBands | null;
@@ -60,22 +62,15 @@ function anchorToCurrentCycle(periodStart: Date, cycleLength: number, today: Dat
   return d;
 }
 
-function phaseForDay(day: number, cycleLength: number): CyclePhase {
-  if (day <= 5) return 'menstrual';
-  const ov = cycleLength - 14;
-  if (day >= ov - 1 && day <= ov + 1) return 'ovulatory';
-  if (day < ov - 1) return 'follicular';
-  return 'luteal';
-}
-
-function bandPath(cycleLength: number, bands?: PhaseBands | null): string {
-  const days = Array.from({ length: cycleLength }, (_, i) => i + 1);
-  const upper = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(bandFor(phaseForDay(d, cycleLength), bands).upper)}`);
-  const lower = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(bandFor(phaseForDay(d, cycleLength), bands).lower)}`).reverse();
+function bandPath(cycleLength: number, periodDays: number, bands?: PhaseBands | null): string {
+  const days  = Array.from({ length: cycleLength }, (_, i) => i + 1);
+  const band  = (d: number) => bandFor(phaseForCycleDay(d, cycleLength, periodDays), bands);
+  const upper = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(band(d).upper)}`);
+  const lower = days.map((d) => `${xForDay(d, cycleLength)},${yForDelta(band(d).lower)}`).reverse();
   return `M ${upper.join(' L ')} L ${lower.join(' L ')} Z`;
 }
 
-export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLength, bands, today = new Date() }: Props) {
+export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLength, periodDays, bands, today = new Date() }: Props) {
   const anchor      = anchorToCurrentCycle(periodStart, cycleLength, today);
   const todayInfo   = dayOfCycleFor(today, anchor, cycleLength);
   const calibrating = baselineKg === null;
@@ -84,7 +79,7 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
   // that count. Telling someone to wait "~3 cycles" sent them looking for a
   // cycle-logging problem when the real answer was to weigh in more often.
   const follicularLogged = calibrating
-    ? readings.filter((r) => getCycleInfo(periodStart, cycleLength, new Date(r.recorded_on)).phase === 'follicular').length
+    ? readings.filter((r) => getCycleInfo(periodStart, cycleLength, new Date(r.recorded_on), periodDays).phase === 'follicular').length
     : 0;
 
   const buckets: Record<number, WeightReading[]> = { 0: [], [-1]: [], [-2]: [] };
@@ -129,7 +124,7 @@ export function CycleWeightChart({ baselineKg, readings, periodStart, cycleLengt
           >{y >= 0 ? `+${y}` : String(y)}</SvgText>
         ))}
         {!calibrating && (
-          <Path d={bandPath(cycleLength, bands)} fill="rgba(212,255,38,0.18)" stroke="rgba(212,255,38,0.4)" strokeWidth={1} />
+          <Path d={bandPath(cycleLength, periodDays, bands)} fill="rgba(212,255,38,0.18)" stroke="rgba(212,255,38,0.4)" strokeWidth={1} />
         )}
         {todayInfo.cycleOffset === 0 && (
           <>

@@ -22,7 +22,7 @@ describe('sampleToRow', () => {
   };
 
   it('builds an upsert row with cycle metadata for a follicular date', () => {
-    const row = sampleToRow('user-1', sample, periodStart, 28);
+    const row = sampleToRow('user-1', sample, periodStart, 28, 5);
     expect(row).toEqual({
       user_id:             'user-1',
       recorded_on:         '2025-01-08',
@@ -34,11 +34,11 @@ describe('sampleToRow', () => {
   });
 
   it('returns null when value is zero or negative', () => {
-    expect(sampleToRow('u', { ...sample, value: 0 }, periodStart, 28)).toBeNull();
+    expect(sampleToRow('u', { ...sample, value: 0 }, periodStart, 28, 5)).toBeNull();
   });
 
   it('omits cycle metadata when periodStart is null', () => {
-    const row = sampleToRow('user-1', sample, null, 28);
+    const row = sampleToRow('user-1', sample, null, 28, 5);
     expect(row).toEqual({
       user_id:             'user-1',
       recorded_on:         '2025-01-08',

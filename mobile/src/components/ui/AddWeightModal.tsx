@@ -40,12 +40,12 @@ export function AddWeightModal({ visible, userId, onClose }: Props) {
     const kg            = Math.round(parseFloat(value) * 10) / 10;
     const today         = new Date();
     const recordedOn    = today.toLocaleDateString('en-CA');
-    const { periodStart, cycleLength } = useCycleStore.getState();
+    const { periodStart, cycleLength, periodDays } = useCycleStore.getState();
 
     let cycleDay:   number | null = null;
     let cyclePhase: CyclePhase | null = null;
     if (periodStart) {
-      const info = getCycleInfo(periodStart, cycleLength, today);
+      const info = getCycleInfo(periodStart, cycleLength, today, periodDays);
       cycleDay   = info.dayOfCycle;
       cyclePhase = info.phase;
     }

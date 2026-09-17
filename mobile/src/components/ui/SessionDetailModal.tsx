@@ -20,7 +20,7 @@ interface Props {
   visible:    boolean;
   date:       string;
   userId:     string;
-  cycleStore: { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null };
+  cycleStore: { periodStart: Date | null; cycleLength: number; periodDays: number; phase: CyclePhase | null };
   onClose:    () => void;
 }
 

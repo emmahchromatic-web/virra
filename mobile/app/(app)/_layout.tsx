@@ -47,7 +47,7 @@ async function maybeShowWeekAhead(): Promise<void> {
 export default function AppLayout() {
   const { session, isLoading } = useAuthStore();
   const { setStatus, isActive, status: subStatus, trialEnd } = useSubscriptionStore();
-  const { loadFromSupabase, periodStart, cycleLength } = useCycleStore();
+  const { loadFromSupabase, periodStart, cycleLength, periodDays } = useCycleStore();
   const { load: loadProfile, trackWeight } = useProfileStore();
   const appState = useRef<AppStateStatus>(AppState.currentState);
 
@@ -96,12 +96,14 @@ export default function AppLayout() {
         userId:      session!.user.id,
         periodStart: periodStart ?? null,
         cycleLength: cycleLength ?? 28,
+        periodDays,
       });
       if (trackWeight) {
         importNewWeightSamples({
           userId:      session!.user.id,
           periodStart: periodStart ?? null,
           cycleLength: cycleLength ?? 28,
+          periodDays,
         });
       }
     }
@@ -170,7 +172,7 @@ export default function AppLayout() {
     });
 
     return () => { sub.remove(); notifSub.remove(); receiveSub.remove(); };
-  }, [session?.user.id, periodStart, cycleLength, trackWeight]);
+  }, [session?.user.id, periodStart, cycleLength, periodDays, trackWeight]);
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>

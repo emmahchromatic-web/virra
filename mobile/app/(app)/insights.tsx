@@ -11,7 +11,7 @@ import { computeInsightMetrics, formatPaceMmSs, describeFuelling, type InsightMe
 import { summariseRunStructure, summariseStrengthStructure } from '@/lib/workoutStructure';
 import { sessionLabelText } from '@/lib/sessionLabels';
 import { modulateRunStructure } from '@/lib/cycleModulation';
-import { getCycleInfo } from '@/lib/cycleEngine';
+import { getCycleInfo, DEFAULT_PERIOD_DAYS } from '@/lib/cycleEngine';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -57,7 +57,7 @@ const tile = StyleSheet.create({
 
 export default function InsightsScreen() {
   const { session }   = useAuthStore();
-  const { cycleInfo, periodStart, cycleLength, cycleProfile, hasPlaceboWeek, cycleMode, currentPackStart } = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength, periodDays, cycleProfile, hasPlaceboWeek, cycleMode, currentPackStart } = useCycleStore();
 
   const [metrics,          setMetrics]          = useState<InsightMetrics | null>(null);
   const [overallText,      setOverallText]      = useState<string | null>(null);
@@ -160,7 +160,7 @@ export default function InsightsScreen() {
       const date = new Date(`${s.scheduled_date}T00:00:00`);
       const effectiveStart = cycleMode === 'pack' ? currentPackStart : periodStart;
       const phaseForDate = effectiveStart
-        ? getCycleInfo(effectiveStart, cycleLength ?? 28, date).phase
+        ? getCycleInfo(effectiveStart, cycleLength ?? 28, date, cycleMode === 'pack' ? DEFAULT_PERIOD_DAYS : periodDays).phase
         : null;
       const modulated = modulateRunStructure(s.run_structure, phaseForDate, cycleProfile ?? 'natural', hasPlaceboWeek).adjusted;
       return summariseRunStructure(modulated);

@@ -78,7 +78,7 @@ async function functionErrorMessage(error: unknown): Promise<string> {
 export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
   const { status }             = useSubscriptionStore();
-  const { cycleInfo, periodStart, cycleLength, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength, periodDays, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
   const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, heightCm, dateOfBirth, sex, injuryLevel, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
   const [weightSyncing, setWeightSyncing] = useState(false);
   const [weightSyncNote, setWeightSyncNote] = useState<string | null>(null);
@@ -131,6 +131,7 @@ export default function ProfileScreen() {
         userId:      session.user.id,
         periodStart: periodStart ?? null,
         cycleLength: cycleLength ?? 28,
+        periodDays,
       });
       bumpWeightDataVersion();
       setWeightSyncNote(

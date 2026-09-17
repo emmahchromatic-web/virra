@@ -60,6 +60,7 @@ export default function WeightScreen() {
   const cycleInfo         = useCycleStore((s) => s.cycleInfo);
   const periodStart       = useCycleStore((s) => s.periodStart);
   const cycleLength       = useCycleStore((s) => s.cycleLength);
+  const periodDays        = useCycleStore((s) => s.periodDays);
 
   const [readings, setReadings] = useState<WeightReading[]>([]);
   const [addOpen,  setAddOpen]  = useState(false);
@@ -168,6 +169,7 @@ export default function WeightScreen() {
                   readings={readings}
                   periodStart={periodStart!}
                   cycleLength={cycleLength}
+                  periodDays={periodDays}
                   bands={cyclePhaseBands}
                 />
               ) : (

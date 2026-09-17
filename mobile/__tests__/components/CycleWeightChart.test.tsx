@@ -17,7 +17,7 @@ describe('CycleWeightChart', () => {
         baselineKg={60}
         readings={[reading(5, 60), reading(8, 60.1)]}
         periodStart={periodStart}
-        cycleLength={28}
+        cycleLength={28} periodDays={5}
         today={new Date(periodStart)}
       />
     );
@@ -32,7 +32,7 @@ describe('CycleWeightChart', () => {
         baselineKg={null}
         readings={[reading(5, 60)]}
         periodStart={periodStart}
-        cycleLength={28}
+        cycleLength={28} periodDays={5}
         today={new Date(periodStart)}
       />
     );
@@ -45,7 +45,7 @@ describe('CycleWeightChart', () => {
         baselineKg={60}
         readings={[reading(5, 60)]}
         periodStart={periodStart}
-        cycleLength={28}
+        cycleLength={28} periodDays={5}
         today={new Date(periodStart)}
       />
     );
@@ -60,7 +60,7 @@ describe('CycleWeightChart', () => {
         baselineKg={60}
         readings={[reading(24, 61.5)]}
         periodStart={periodStart}
-        cycleLength={28}
+        cycleLength={28} periodDays={5}
         today={today}
       />
     );

@@ -8,7 +8,7 @@ describe('CycleMonthCalendar', () => {
 
   it('renders weekday headers M T W T F S S', () => {
     const { getAllByText } = render(
-      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} year={2025} month={1} today={today} />
+      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} periodDays={5} year={2025} month={1} today={today} />
     );
     expect(getAllByText('M')).toHaveLength(1);
     expect(getAllByText('W')).toHaveLength(1);
@@ -20,7 +20,7 @@ describe('CycleMonthCalendar', () => {
 
   it('renders all 31 days of January 2025', () => {
     const { getByTestId } = render(
-      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} year={2025} month={1} today={today} />
+      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} periodDays={5} year={2025} month={1} today={today} />
     );
     for (let d = 1; d <= 31; d++) {
       const id = d === 10 ? 'cycle-month-day-today' : `cycle-month-day-${d}`;
@@ -30,14 +30,14 @@ describe('CycleMonthCalendar', () => {
 
   it('marks the today cell with testID cycle-month-day-today', () => {
     const { getByTestId } = render(
-      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} year={2025} month={1} today={today} />
+      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} periodDays={5} year={2025} month={1} today={today} />
     );
     expect(getByTestId('cycle-month-day-today')).toBeTruthy();
   });
 
   it('renders the legend row', () => {
     const { getByText } = render(
-      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} year={2025} month={1} today={today} />
+      <CycleMonthCalendar periodStart={periodStart} cycleLength={28} periodDays={5} year={2025} month={1} today={today} />
     );
     expect(getByText(/BLEED/i)).toBeTruthy();
     expect(getByText(/FOLLICULAR/i)).toBeTruthy();

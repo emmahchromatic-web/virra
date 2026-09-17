@@ -12,64 +12,64 @@ describe('getCyclePhase', () => {
 
   // ── Menstrual (days 1–5) ──────────────────────────────────────────
   it('returns menstrual on day 1 (period start)', () => {
-    expect(getCyclePhase(start, len28, start)).toBe('menstrual');
+    expect(getCyclePhase(start, len28, start, 5)).toBe('menstrual');
   });
 
   it('returns menstrual on day 5 (last bleed day)', () => {
-    expect(getCyclePhase(start, len28, day(4, start))).toBe('menstrual');
+    expect(getCyclePhase(start, len28, day(4, start), 5)).toBe('menstrual');
   });
 
   // ── Follicular (days 6 – ovulation-2) ───────────────────────────
   it('returns follicular on day 6', () => {
-    expect(getCyclePhase(start, len28, day(5, start))).toBe('follicular');
+    expect(getCyclePhase(start, len28, day(5, start), 5)).toBe('follicular');
   });
 
   it('returns follicular on day 12 (day before ovulatory window, 28-day cycle)', () => {
-    expect(getCyclePhase(start, len28, day(11, start))).toBe('follicular');
+    expect(getCyclePhase(start, len28, day(11, start), 5)).toBe('follicular');
   });
 
   // ── Ovulatory (ovulation day ±1, ovulation = cycleLength − 14) ───
   it('returns ovulatory on day 13 (start of window, 28-day cycle)', () => {
-    expect(getCyclePhase(start, len28, day(12, start))).toBe('ovulatory');
+    expect(getCyclePhase(start, len28, day(12, start), 5)).toBe('ovulatory');
   });
 
   it('returns ovulatory on day 14 (peak, 28-day cycle)', () => {
-    expect(getCyclePhase(start, len28, day(13, start))).toBe('ovulatory');
+    expect(getCyclePhase(start, len28, day(13, start), 5)).toBe('ovulatory');
   });
 
   it('returns ovulatory on day 15 (end of window, 28-day cycle)', () => {
-    expect(getCyclePhase(start, len28, day(14, start))).toBe('ovulatory');
+    expect(getCyclePhase(start, len28, day(14, start), 5)).toBe('ovulatory');
   });
 
   // ── Luteal (after ovulatory → end of cycle) ──────────────────────
   it('returns luteal on day 16', () => {
-    expect(getCyclePhase(start, len28, day(15, start))).toBe('luteal');
+    expect(getCyclePhase(start, len28, day(15, start), 5)).toBe('luteal');
   });
 
   it('returns luteal on day 28 (last day of cycle)', () => {
-    expect(getCyclePhase(start, len28, day(27, start))).toBe('luteal');
+    expect(getCyclePhase(start, len28, day(27, start), 5)).toBe('luteal');
   });
 
   // ── Multi-cycle wrapping ──────────────────────────────────────────
   it('wraps into next cycle correctly (day 29 = day 1 of cycle 2)', () => {
-    expect(getCyclePhase(start, len28, day(28, start))).toBe('menstrual');
+    expect(getCyclePhase(start, len28, day(28, start), 5)).toBe('menstrual');
   });
 
   it('handles 3 full cycles elapsed', () => {
-    expect(getCyclePhase(start, len28, day(84, start))).toBe('menstrual');
+    expect(getCyclePhase(start, len28, day(84, start), 5)).toBe('menstrual');
   });
 
   // ── Non-standard cycle lengths ────────────────────────────────────
   it('returns ovulatory at correct window for 30-day cycle (ovulation = day 16)', () => {
-    expect(getCyclePhase(start, 30, day(15, start))).toBe('ovulatory');
+    expect(getCyclePhase(start, 30, day(15, start), 5)).toBe('ovulatory');
   });
 
   it('returns luteal from day 18 in a 30-day cycle', () => {
-    expect(getCyclePhase(start, 30, day(17, start))).toBe('luteal');
+    expect(getCyclePhase(start, 30, day(17, start), 5)).toBe('luteal');
   });
 
   it('returns follicular correctly in a 35-day cycle', () => {
-    expect(getCyclePhase(start, 35, day(10, start))).toBe('follicular');
+    expect(getCyclePhase(start, 35, day(10, start), 5)).toBe('follicular');
   });
 });
 
@@ -122,15 +122,15 @@ describe('getCycleInfo for dates before the period start', () => {
   };
 
   it('wraps backwards into the previous cycle instead of going negative', () => {
-    expect(getCycleInfo(start, len28, before(1)).dayOfCycle).toBe(28);
-    expect(getCycleInfo(start, len28, before(10)).dayOfCycle).toBe(19);
-    expect(getCycleInfo(start, len28, before(28)).dayOfCycle).toBe(1);
-    expect(getCycleInfo(start, len28, before(29)).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, len28, before(1), 5).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, len28, before(10), 5).dayOfCycle).toBe(19);
+    expect(getCycleInfo(start, len28, before(28), 5).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, len28, before(29), 5).dayOfCycle).toBe(28);
   });
 
   it('never reports a dayOfCycle outside 1..cycleLength, however far back', () => {
     for (let n = 0; n <= 200; n++) {
-      const { dayOfCycle } = getCycleInfo(start, len28, before(n));
+      const { dayOfCycle } = getCycleInfo(start, len28, before(n), 5);
       expect(dayOfCycle).toBeGreaterThanOrEqual(1);
       expect(dayOfCycle).toBeLessThanOrEqual(len28);
     }
@@ -138,15 +138,15 @@ describe('getCycleInfo for dates before the period start', () => {
 
   it('spreads back-dated readings across all four phases rather than calling them all menstrual', () => {
     const phases = new Set<string>();
-    for (let n = 0; n < 28; n++) phases.add(getCycleInfo(start, len28, before(n)).phase);
+    for (let n = 0; n < 28; n++) phases.add(getCycleInfo(start, len28, before(n), 5).phase);
     expect(phases).toEqual(new Set(['menstrual', 'follicular', 'ovulatory', 'luteal']));
   });
 
   it('mirrors the equivalent day of a forward cycle', () => {
     // 10 days before a start is the same point in the cycle as 18 days after
     // the previous start, i.e. day 19 either way.
-    expect(getCycleInfo(start, len28, before(10)).phase)
-      .toBe(getCycleInfo(new Date('2025-02-05'), len28, new Date('2025-02-23')).phase);
+    expect(getCycleInfo(start, len28, before(10), 5).phase)
+      .toBe(getCycleInfo(new Date('2025-02-05'), len28, new Date('2025-02-23'), 5).phase);
   });
 
   it('leaves forward dates exactly as they were', () => {
@@ -155,11 +155,11 @@ describe('getCycleInfo for dates before the period start', () => {
       d.setDate(d.getDate() + n);
       return d;
     };
-    expect(getCycleInfo(start, len28, on(0)).dayOfCycle).toBe(1);
-    expect(getCycleInfo(start, len28, on(5)).dayOfCycle).toBe(6);
-    expect(getCycleInfo(start, len28, on(27)).dayOfCycle).toBe(28);
-    expect(getCycleInfo(start, len28, on(28)).dayOfCycle).toBe(1);
-    expect(getCycleInfo(start, len28, on(56)).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, len28, on(0), 5).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, len28, on(5), 5).dayOfCycle).toBe(6);
+    expect(getCycleInfo(start, len28, on(27), 5).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, len28, on(28), 5).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, len28, on(56), 5).dayOfCycle).toBe(1);
   });
 });
 
@@ -175,8 +175,8 @@ describe('getCycleInfo across a daylight saving change', () => {
       d.setDate(d.getDate() + n);
       return d;
     };
-    expect(getCycleInfo(start, 28, on(27)).dayOfCycle).toBe(28);
-    expect(getCycleInfo(start, 28, on(28)).dayOfCycle).toBe(1);
+    expect(getCycleInfo(start, 28, on(27), 5).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, 28, on(28), 5).dayOfCycle).toBe(1);
   });
 
   it('counts whole days when the clocks go back mid-cycle', () => {
@@ -186,7 +186,7 @@ describe('getCycleInfo across a daylight saving change', () => {
       d.setDate(d.getDate() + n);
       return d;
     };
-    expect(getCycleInfo(start, 28, on(20)).dayOfCycle).toBe(21);
-    expect(getCycleInfo(start, 28, on(27)).dayOfCycle).toBe(28);
+    expect(getCycleInfo(start, 28, on(20), 5).dayOfCycle).toBe(21);
+    expect(getCycleInfo(start, 28, on(27), 5).dayOfCycle).toBe(28);
   });
 });

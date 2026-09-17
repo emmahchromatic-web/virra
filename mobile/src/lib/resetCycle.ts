@@ -6,7 +6,7 @@ function toYmd(d: Date): string {
 }
 
 export async function resetCycleToToday(userId: string, today: Date = new Date()): Promise<void> {
-  const { cycleLength, setPeriodStart } = useCycleStore.getState();
+  const { cycleLength, startNewPeriod } = useCycleStore.getState();
   const periodStart = toYmd(today);
 
   // Upsert, not insert. This inserted unconditionally, so tapping "my period
@@ -29,5 +29,7 @@ export async function resetCycleToToday(userId: string, today: Date = new Date()
 
   if (error) throw new Error(error.message);
 
-  setPeriodStart(today);
+  // Not setPeriodStart: a new period moves the finished one's logged length
+  // into the history the next assumed length is averaged from. Card 304.
+  startNewPeriod(today);
 }

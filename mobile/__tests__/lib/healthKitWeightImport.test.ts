@@ -43,7 +43,7 @@ beforeEach(async () => {
 describe('importNewWeightSamples', () => {
   it('never writes a null phase over a stamp the row already has', async () => {
     // No period start: sampleToRow cannot stamp anything, which is correct.
-    await importNewWeightSamples({ userId: 'u1', periodStart: null, cycleLength: 28 });
+    await importNewWeightSamples({ userId: 'u1', periodStart: null, cycleLength: 28, periodDays: 5 });
 
     expect(mockUpsert).toHaveBeenCalledTimes(1);
     const [payload] = mockUpsert.mock.calls[0] as [Record<string, unknown>[]];
@@ -59,7 +59,7 @@ describe('importNewWeightSamples', () => {
   });
 
   it('writes the phase whole when it can be worked out', async () => {
-    await importNewWeightSamples({ userId: 'u1', periodStart: new Date('2026-08-17'), cycleLength: 28 });
+    await importNewWeightSamples({ userId: 'u1', periodStart: new Date('2026-08-17'), cycleLength: 28, periodDays: 5 });
 
     const stamped = (mockUpsert.mock.calls as [Record<string, unknown>[]][])
       .flatMap(([payload]) => payload)
@@ -77,7 +77,7 @@ describe('importNewWeightSamples', () => {
       { value: 58400, startDate: '2026-08-21T07:00:00.000Z', endDate: '2026-08-21T07:00:00.000Z' },
     ]));
 
-    await importNewWeightSamples({ userId: 'u1', periodStart: new Date('2026-08-17'), cycleLength: 28 });
+    await importNewWeightSamples({ userId: 'u1', periodStart: new Date('2026-08-17'), cycleLength: 28, periodDays: 5 });
 
     const payloads = (mockUpsert.mock.calls as [Record<string, unknown>[]][]).map(([p]) => p);
     expect(payloads.length).toBe(2);

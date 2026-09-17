@@ -112,7 +112,7 @@ const field = StyleSheet.create({
 
 export default function ManualActivityScreen() {
   const { session }                       = useAuthStore();
-  const { periodStart, cycleLength }      = useCycleStore();
+  const { periodStart, cycleLength, periodDays } = useCycleStore();
 
   const [type,        setType]        = useState<ActivityType>('run');
   const [activityKey, setActivityKey] = useState<string>('run');
@@ -191,7 +191,7 @@ export default function ManualActivityScreen() {
     setSaving(true);
 
     const phaseAtTime = periodStart
-      ? getCycleInfo(periodStart, cycleLength ?? 28, actDate).phase
+      ? getCycleInfo(periodStart, cycleLength ?? 28, actDate, periodDays).phase
       : null;
 
     const startedAt = new Date(actDate);

@@ -47,7 +47,7 @@ type RunState = 'idle' | 'active' | 'paused' | 'finished';
 export default function RunTrackerScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const { session }               = useAuthStore();
-  const { periodStart, cycleLength, cycleInfo } = useCycleStore();
+  const { periodStart, cycleLength, periodDays, cycleInfo } = useCycleStore();
 
   const [runState,     setRunState]     = useState<RunState>('idle');
   const [distanceM,    setDistanceM]    = useState(0);
@@ -182,7 +182,7 @@ export default function RunTrackerScreen() {
     );
 
     const phaseAtTime = periodStart
-      ? getCycleInfo(periodStart, cycleLength ?? 28, startedAt.current).phase
+      ? getCycleInfo(periodStart, cycleLength ?? 28, startedAt.current, periodDays).phase
       : null;
 
     const { data: act, error: actErr } = await supabase
