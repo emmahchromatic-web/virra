@@ -4,6 +4,7 @@ import {
   describeFirstWeek,
   localISO,
   addDaysISO,
+  raceStart,
 } from '@/lib/planStart';
 
 // Weekdays verified against the real calendar, not assumed:
@@ -134,5 +135,40 @@ describe('addDaysISO', () => {
 
     const oldEnd = addDaysISO('2026-09-15', 9 * 7);  // counted from the Tuesday
     expect(oldEnd < raceDay).toBe(true);
+  });
+});
+
+describe('raceStart (card 301)', () => {
+  // Thu 17 Sep 2026. Races are Sundays: Sun 13 Dec (race week starts Mon 7 Dec)
+  // and Sun 29 Nov (race week starts Mon 23 Nov).
+  const now = sep(17);
+  const dec13 = new Date(2026, 11, 13, 9, 0);
+  const nov29 = new Date(2026, 10, 29, 9, 0);
+
+  it('counts back by the length the runner chose, not the template\'s', () => {
+    // Emma's case: Beginner 5K set to 12 weeks, a December race. The template's
+    // 8 weeks started it in October.
+    expect(raceStart(dec13, 12, now)).toEqual({ start: '2026-09-21', weeks: 12, startsToday: false });
+    expect(raceStart(dec13, 8, now).start).toBe('2026-10-19');
+  });
+
+  it('ends in race week: the last of the weeks is the week of the race', () => {
+    const { start, weeks } = raceStart(dec13, 12, now);
+    expect(addDaysISO(start, (weeks - 1) * 7)).toBe('2026-12-07');
+  });
+
+  it('starts today with the weeks that are left when the full length no longer fits', () => {
+    // 12 weeks back from Mon 23 Nov is Mon 7 Sep, already gone. Mon 14 Sep's
+    // week to race week is 11 weeks.
+    expect(raceStart(nov29, 12, now)).toEqual({ start: '2026-09-17', weeks: 11, startsToday: true });
+  });
+
+  it('keeps the full length when the start falls earlier in this same week', () => {
+    // 11 weeks back from Mon 23 Nov is Mon 14 Sep, the Monday just gone.
+    expect(raceStart(nov29, 11, now)).toEqual({ start: '2026-09-17', weeks: 11, startsToday: true });
+  });
+
+  it('never offers fewer than one week', () => {
+    expect(raceStart(sep(20), 8, now).weeks).toBe(1);
   });
 });
