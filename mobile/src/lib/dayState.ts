@@ -1,4 +1,4 @@
-export type Modality = 'run' | 'strength' | 'swim' | 'yoga' | 'cycle' | 'hike' | 'other';
+export type Modality = 'run' | 'strength' | 'swim' | 'yoga' | 'cycle' | 'hike' | 'mobility' | 'other';
 
 export interface SessionForDay {
   status:   'planned' | 'completed' | 'dropped' | 'moved' | string;

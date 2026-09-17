@@ -21,6 +21,14 @@ describe('sessionLabelText', () => {
     expect(sessionLabelText('general')).toBe('Full body');
   });
 
+  it('leaves an authored session name alone, capitals and all', () => {
+    // A mobility session's label is its name (card 264). "Deep release" would
+    // be the fallback lower-casing content that was already right.
+    expect(sessionLabelText('Deep Release')).toBe('Deep Release');
+    expect(sessionLabelText('Hips and Lower Back')).toBe('Hips and Lower Back');
+    expect(sessionLabelUpper('Wake Up')).toBe('WAKE UP');
+  });
+
   it('never leaves an underscore on screen, even for a label it has never seen', () => {
     // This is the actual fix. A map entry only rescues the label you thought
     // of; the fallback rescues the next one too.

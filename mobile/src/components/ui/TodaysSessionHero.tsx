@@ -18,6 +18,7 @@ const MODALITY_ICON: Record<TodaysSession['modality'], SymbolViewProps['name']> 
   strength: 'dumbbell.fill',
   swim:     'figure.pool.swim',
   yoga:     'figure.mind.and.body',
+  mobility: 'figure.flexibility',
   other:    'figure.mixed.cardio',
 };
 
@@ -26,6 +27,7 @@ const MODALITY_TINT: Record<TodaysSession['modality'], string> = {
   strength: colors.dawn,
   swim:     colors.breath,
   yoga:     colors.breath,
+  mobility: colors.sage,
   other:    colors.muted as string,
 };
 
