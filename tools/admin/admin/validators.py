@@ -28,10 +28,9 @@ UNIT_LABELS = {
     "tbsp": "tbsp",
     "unit": "x",       # 1 red pepper, 2 eggs: the app prints these as "1x"
 }
-# Spoons and counts are presentation only, and the app has to know how to print
-# them. Anything here that the installed build does not understand renders as
-# grams, so these two need build 15 before they are safe to use.
-UNITS_NEEDING_BUILD_15 = ("tsp", "tbsp", "unit")
+# Spoons and counts are presentation only: the app prints them as written ("1 tsp",
+# "1x") and never converts them. Builds before 15 did not know them and fell back
+# to grams; build 15 is the first that can display every unit here.
 
 MACROS = ("calories", "carbs_g", "protein_g", "fat_g", "fibre_g")
 MACRO_LABELS = {
