@@ -96,6 +96,49 @@ describe('skip and continue', () => {
   });
 });
 
+describe('fit them into the rest of the week', () => {
+  // Friday 3 Apr 2026: Friday, Saturday and Sunday are left in the week.
+  const FRIDAY = { ...INPUT, today: '2026-04-03' };
+  const missedThree = [
+    { id: 'm1', scheduled_date: '2026-03-30' },
+    { id: 'm2', scheduled_date: '2026-04-01' },
+    { id: 'm3', scheduled_date: '2026-04-02' },
+  ];
+  const moves = () => state.writes.filter((w) => 'scheduled_date' in w.patch).map((w) => w.patch);
+
+  it('moves each missed session onto a free day left this week, with its weekday', async () => {
+    // The case seen on the simulator on 18 Sep: three missed, Fri/Sat/Sun free.
+    state.missed = missedThree;
+    const result = await applyRealignment('rearrange_into_week', FRIDAY);
+
+    expect(moves()).toEqual([
+      { scheduled_date: '2026-04-03', day_of_week: 4 },
+      { scheduled_date: '2026-04-04', day_of_week: 5 },
+      { scheduled_date: '2026-04-05', day_of_week: 6 },
+    ]);
+    expect(state.writes.some((w) => w.patch.status === 'dropped')).toBe(false);
+    expect(result.summary).toBe('3 sessions moved into the rest of this week.');
+    expect(result.changedCount).toBe(3);
+  });
+
+  it('only moves as many as fit, and says how many were cleared', async () => {
+    state.missed = missedThree;
+    state.future = [{ id: 'f1', scheduled_date: '2026-04-04' }]; // Saturday is already taken
+    const result = await applyRealignment('rearrange_into_week', FRIDAY);
+
+    expect(moves().map((m) => m.scheduled_date)).toEqual(['2026-04-03', '2026-04-05']);
+    const dropped = state.writes.find((w) => w.patch.status === 'dropped');
+    expect(dropped!.ids).toEqual(['m3']);
+    expect(result.summary).toBe('2 sessions moved into the rest of this week. 1 would not fit, so it has been cleared.');
+  });
+
+  it('says "session" for one', async () => {
+    state.missed = [missedThree[0]];
+    const result = await applyRealignment('rearrange_into_week', FRIDAY);
+    expect(result.summary).toBe('1 session moved into the rest of this week.');
+  });
+});
+
 describe('carry on unchanged', () => {
   it('touches nothing — the runner was told what it means and chose it', async () => {
     state.missed = [{ id: 's1', scheduled_date: '2026-03-01' }];

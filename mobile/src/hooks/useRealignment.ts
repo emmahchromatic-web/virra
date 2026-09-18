@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import { getCycleInfo } from '@/lib/cycleEngine';
@@ -14,7 +15,15 @@ import { getActiveBlocks } from '@/lib/trainingBlocks';
  */
 const SNOOZE_KEY = 'realignment_snoozed_on';
 
-export function useRealignment(userId: string | null) {
+/**
+ * `enabled` is the Pro gate (card 298). It must NOT be folded into `userId`:
+ * the prompt is fetched while the subscription status is still resolving
+ * ("unknown" counts as Pro so subscribers get no padlock flash), so a userId
+ * that disappears when the status settles leaves a prompt on screen whose
+ * every choice silently does nothing. Seen on the simulator, 18 Sep. The id
+ * stays; only detection is gated, and a prompt already shown is cleared.
+ */
+export function useRealignment(userId: string | null, enabled = true) {
   const [prompt,  setPrompt]  = useState<RealignmentPrompt | null>(null);
   const [blockId, setBlockId] = useState<string | null>(null);
   const [busy,    setBusy]    = useState(false);
@@ -28,10 +37,20 @@ export function useRealignment(userId: string | null) {
 
   const today = new Date().toLocaleDateString('en-CA');
 
+  // Only the latest check may write. The status starts "unknown" (which counts
+  // as Pro), so a check starts at launch; the status then settles, a second
+  // check clears the prompt, and the first one used to land afterwards and put
+  // it back — a Pro prompt shown to a lapsed runner. Seen on the simulator,
+  // 18 Sep.
+  const latest = useRef(0);
+
   const refresh = useCallback(async () => {
-    if (!userId || snoozedOn === today) { setPrompt(null); return; }
+    const run = ++latest.current;
+    const current = () => run === latest.current;
+    if (!enabled || !userId || snoozedOn === today) { setPrompt(null); return; }
 
     const blocks = await getActiveBlocks(userId);
+    if (!current()) return;
     const runBlock = blocks.find((b) => b.modality === 'run');
     if (!runBlock) { setPrompt(null); return; }
     setBlockId(runBlock.id);
@@ -42,6 +61,7 @@ export function useRealignment(userId: string | null) {
       .eq('user_id', userId)
       .eq('block_id', runBlock.id)
       .in('status', ['planned', 'completed', 'dropped', 'moved']);
+    if (!current()) return;
     if (error) { console.warn('[realignment]', error.message); return; }
 
     // A runner who does not track a cycle gets no menstrual-week exception,
@@ -56,7 +76,15 @@ export function useRealignment(userId: string | null) {
       hasRaceDate: Boolean(runBlock.event_id) || Boolean(runBlock.ends_on),
       phaseOn,
     }));
-  }, [userId, today, snoozedOn, cycleMode, periodStart, cycleLength, periodDays, cycleProfile]);
+  }, [enabled, userId, today, snoozedOn, cycleMode, periodStart, cycleLength, periodDays, cycleProfile]);
+
+  useEffect(() => {
+    let live = true;
+    AsyncStorage.getItem(SNOOZE_KEY)
+      .then((v) => { if (live && v) setSnoozedOn(v); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -64,9 +92,9 @@ export function useRealignment(userId: string | null) {
     if (!userId || !blockId) return null;
     setBusy(true);
     try {
-      const result = await applyRealignment(option.action, { userId, blockId, today });
-      setPrompt(null);
-      return result;
+      // The prompt stays up: the caller shows what happened inside it, and
+      // closes it with `close` once the runner has read it.
+      return await applyRealignment(option.action, { userId, blockId, today });
     } catch (e) {
       console.error('[realignment] apply failed', e);
       throw e;
@@ -75,10 +103,17 @@ export function useRealignment(userId: string | null) {
     }
   }, [userId, blockId, today]);
 
+  // Dismissing snoozes for the rest of the day, which has to survive leaving
+  // the screen: the state alone came back on the next mount, so "Not now" only
+  // lasted until the app was reopened.
   const dismiss = useCallback(() => {
     setSnoozedOn(today);
     setPrompt(null);
+    void AsyncStorage.setItem(SNOOZE_KEY, today).catch(() => {});
   }, [today]);
 
-  return { prompt, busy, choose, dismiss, refresh, snoozeKey: SNOOZE_KEY };
+  /** Close without snoozing: the prompt has been acted on. */
+  const close = useCallback(() => setPrompt(null), []);
+
+  return { prompt, busy, choose, dismiss, close, refresh, snoozeKey: SNOOZE_KEY };
 }

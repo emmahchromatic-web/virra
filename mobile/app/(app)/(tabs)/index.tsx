@@ -60,11 +60,13 @@ export default function DashboardScreen() {
   const refreshReadiness = useReadinessStore((s) => s.refresh);
   const { isPro, showLocked } = useProGate();
   // Card 298. Every option on the realignment prompt acts on a training plan,
-  // and "rebuild" routes to the plans screen, so a free runner would be
-  // prompted about something they cannot reach. Passing null also spares them
-  // the query. A lapsed subscriber can still have an open block, so this is not
-  // hypothetical.
-  const realignment = useRealignment(isPro ? (session?.user.id ?? null) : null);
+  // and "rebuild" routes to the plans screen, so a free runner is not prompted
+  // about something they cannot reach. The gate is the second argument, not a
+  // missing user id: the id has to stay for the actions to work when the
+  // subscription status settles after the prompt is already up.
+  const realignment = useRealignment(session?.user.id ?? null, isPro);
+  const [realignOutcome, setRealignOutcome] = useState<string | null>(null);
+  const [realignError,   setRealignError]   = useState<string | null>(null);
   // With the Insights tile hidden the check-in tile has the row to itself;
   // laid out as a column it became a tall, mostly empty card.
   const soloTile = !isPro && !showLocked;
@@ -399,21 +401,26 @@ export default function DashboardScreen() {
         visible={!showFitnessModal && realignment.prompt != null}
         prompt={realignment.prompt}
         busy={realignment.busy}
+        outcome={realignOutcome}
+        error={realignError}
         onDismiss={realignment.dismiss}
+        onDone={() => { setRealignOutcome(null); realignment.close(); }}
+        onClearError={() => setRealignError(null)}
         onChoose={async (option) => {
+          setRealignError(null);
           try {
             const result = await realignment.choose(option);
             if (!result) return;
             if (result.needsRebuild) {
+              // A pushed screen, not a modal presentation, so it is safe to
+              // navigate as the prompt closes.
+              realignment.close();
               router.push('/(app)/plans/browse' as any);
               return;
             }
-            appAlert('Plan updated', result.summary);
-          } catch (e) {
-            appAlert(
-              'Could not update your plan',
-              'Nothing has been changed. Check your connection and try again.',
-            );
+            setRealignOutcome(result.summary);
+          } catch {
+            setRealignError('Nothing has been changed. Check your connection and try again.');
           }
         }}
       />

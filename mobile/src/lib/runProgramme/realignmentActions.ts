@@ -61,6 +61,11 @@ function remainingDaysThisWeek(today: string): string[] {
   return Array.from({ length: 7 - dow }, (_, i) => addDaysIso(today, i));
 }
 
+/** "1 session", "3 sessions". A bare "3 moved" read as a number with no noun. */
+function sessionCount(n: number): string {
+  return `${n} ${n === 1 ? 'session' : 'sessions'}`;
+}
+
 export async function applyRealignment(
   action: RealignmentAction,
   input:  ApplyInput,
@@ -121,8 +126,8 @@ export async function applyRealignment(
 
       return {
         summary: dropped.length > 0
-          ? `${moving.length} moved into the rest of this week. ${dropped.length} would not fit, so ${dropped.length === 1 ? 'it has' : 'they have'} been cleared.`
-          : `${moving.length} moved into the rest of this week.`,
+          ? `${sessionCount(moving.length)} moved into the rest of this week. ${dropped.length} would not fit, so ${dropped.length === 1 ? 'it has' : 'they have'} been cleared.`
+          : `${sessionCount(moving.length)} moved into the rest of this week.`,
         needsRebuild: false,
         changedCount: moving.length,
       };

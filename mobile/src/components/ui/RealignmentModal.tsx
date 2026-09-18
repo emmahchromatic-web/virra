@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet } from 'react-native';
 import { VirraModal } from './VirraModal';
 import { VirraText } from './VirraText';
 import { VirraButton } from './VirraButton';
+import { InlineError } from './InlineError';
 import { colors, spacing, radius } from '@/constants/theme';
 import type { RealignmentPrompt, RealignmentOption } from '@/lib/runProgramme/realignment';
 
@@ -10,8 +11,15 @@ interface Props {
   visible: boolean;
   prompt:  RealignmentPrompt | null;
   busy?:   boolean;
+  /** What the chosen action did, shown in place of the options. */
+  outcome?: string | null;
+  /** Why the chosen action failed. Nothing was changed. */
+  error?:   string | null;
   onChoose: (option: RealignmentOption) => void;
   onDismiss: () => void;
+  /** Closes the prompt after an outcome has been read. */
+  onDone:    () => void;
+  onClearError: () => void;
 }
 
 /**
@@ -24,8 +32,28 @@ interface Props {
  * No progress bars, no streak language, nothing that implies they have failed
  * at something. They missed some runs.
  */
-export function RealignmentModal({ visible, prompt, busy, onChoose, onDismiss }: Props) {
+export function RealignmentModal({
+  visible, prompt, busy, outcome, error, onChoose, onDismiss, onDone, onClearError,
+}: Props) {
   if (!visible || !prompt) return null;
+
+  // The result is reported here, inside the prompt, never with appAlert. An
+  // alert opened as this modal closes is presented from a view controller that
+  // already has one on screen, so iOS draws nothing and the invisible dialog
+  // eats every touch after it: the Dashboard froze on the simulator, 18 Sep.
+  // Same rule as card 215 and InlineError.
+  if (outcome) {
+    return (
+      <VirraModal visible={visible} onClose={onDone} title="Picking this back up">
+        <View style={s.body}>
+          <VirraText variant="serif" size={21} color={colors.breath} style={s.headline}>
+            {outcome}
+          </VirraText>
+          <VirraButton label="Done" onPress={onDone} />
+        </View>
+      </VirraModal>
+    );
+  }
 
   return (
     <VirraModal visible={visible} onClose={onDismiss} title="Picking this back up">
@@ -33,6 +61,10 @@ export function RealignmentModal({ visible, prompt, busy, onChoose, onDismiss }:
         <VirraText variant="serif" size={21} color={colors.breath} style={s.headline}>
           {prompt.headline}
         </VirraText>
+
+        {error ? (
+          <InlineError title="Could not update your plan" message={error} onDismiss={onClearError} />
+        ) : null}
 
         <View style={s.options}>
           {prompt.options.map((option) => (
