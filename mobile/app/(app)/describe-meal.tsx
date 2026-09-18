@@ -14,6 +14,7 @@ import { InlineError } from '@/components/ui/InlineError';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { inferUnitFromName, unitInputLabel } from '@/lib/foodUnits';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -193,7 +194,7 @@ const discFact = StyleSheet.create({
 // in-tree banner sidesteps that entirely: no second native modal, ever.
 // ---- Screen ----
 
-export default function DescribeMealScreen() {
+function DescribeMealScreen() {
   const { logId, mealType, prefillHaikuInput, replaceHaikuInput } = useLocalSearchParams<{
     logId:              string;
     mealType:           MealType;
@@ -492,3 +493,15 @@ const styles = StyleSheet.create({
   disclosureFacts:     { gap: spacing.md, marginTop: spacing.xs, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border },
   disclosureFootnote:  { letterSpacing: 1.5, textAlign: 'center', marginTop: spacing.xs },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedDescribeMealScreen() {
+  return (
+    <ProScreen feature="describe_meal">
+      <DescribeMealScreen />
+    </ProScreen>
+  );
+}

@@ -22,6 +22,7 @@ import {
   type ScheduledMobility,
 } from '@/lib/mobilitySchedule';
 import type { CyclePhase } from '@/lib/cycleEngine';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 /**
  * Card 264: the mobility library, and the two ways into it.
@@ -54,7 +55,7 @@ function shortDate(iso: string): string {
   return new Date(`${iso}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
-export default function MobilityScreen() {
+function MobilityScreen() {
   const [sessions,  setSessions]  = useState<MobilitySessionSummary[]>([]);
   const [scheduled, setScheduled] = useState<ScheduledMobility[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -365,3 +366,15 @@ const styles = StyleSheet.create({
   addBtn:      { backgroundColor: colors.pulse },
   btnOff:      { opacity: 0.4 },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedMobilityScreen() {
+  return (
+    <ProScreen feature="mobility">
+      <MobilityScreen />
+    </ProScreen>
+  );
+}

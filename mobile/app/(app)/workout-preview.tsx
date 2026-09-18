@@ -45,6 +45,7 @@ import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/wo
 import { enqueueCompletion } from '@/lib/pendingCompletions';
 import { sessionLabelText } from '@/lib/sessionLabels';
 import { limitSetInput, isWithinWeightLimit, isBigJump, formatKg } from '@/lib/setInputLimits';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -379,7 +380,7 @@ function buildStepLines(session: SessionData): string[] {
   return [];
 }
 
-export default function WorkoutPreviewScreen() {
+function WorkoutPreviewScreen() {
   // Two ways in, card 264. `sessionId` is a row in planned_sessions, the week's
   // scheduled work. `mobilitySessionId` is a one-off: no plan behind it, and
   // none needed. Everything after loading is identical, because the finish path
@@ -1657,3 +1658,15 @@ const s = StyleSheet.create({
   resumeBtn:      { backgroundColor: colors.pulse },
   stopBtn:        { backgroundColor: 'rgba(255,46,126,0.18)', borderWidth: 1, borderColor: colors.heat },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedWorkoutPreviewScreen() {
+  return (
+    <ProScreen feature="strength">
+      <WorkoutPreviewScreen />
+    </ProScreen>
+  );
+}

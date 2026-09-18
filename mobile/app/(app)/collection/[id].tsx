@@ -11,6 +11,7 @@ import { fetchRecipes, fetchDietaryPrefs, type Recipe } from '@/lib/recipes';
 import { satisfiesDietary } from '@/lib/recipeMatch';
 import { useAuthStore } from '@/store/auth';
 import { colors, spacing } from '@/constants/theme';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 /**
  * One collection's recipes.
@@ -21,7 +22,7 @@ import { colors, spacing } from '@/constants/theme';
  * this screen instead. The tab is now the rails plus one row per shelf, and it
  * stops mattering how big the book gets.
  */
-export default function CollectionScreen() {
+function CollectionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,3 +137,15 @@ const styles = StyleSheet.create({
   filterNote: { paddingBottom: spacing.xs },
   loading: { paddingVertical: spacing.xxl, alignItems: 'center' },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedCollectionScreen() {
+  return (
+    <ProScreen feature="recipes">
+      <CollectionScreen />
+    </ProScreen>
+  );
+}

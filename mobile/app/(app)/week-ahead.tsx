@@ -16,6 +16,7 @@ import { sessionLabelText } from '@/lib/sessionLabels';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { appAlert } from '@/components/ui/VirraAlert';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 const MODALITY_ICON: Record<string, React.ComponentProps<typeof SymbolView>['name']> = {
   run:      'figure.run',
@@ -126,7 +127,7 @@ function fmtRange(monday: string): string {
   return `${sFmt} – ${eFmt}`;
 }
 
-export default function WeekAheadScreen() {
+function WeekAheadScreen() {
   const { periodStart, cycleLength }      = useCycleStore();
   const profile                           = useProfileStore();
   const metrics                           = useMemo(
@@ -303,3 +304,15 @@ const s = StyleSheet.create({
     borderRadius: radius.sm, borderWidth: 1, borderColor: colors.control,
   },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedWeekAheadScreen() {
+  return (
+    <ProScreen feature="week_ahead">
+      <WeekAheadScreen />
+    </ProScreen>
+  );
+}

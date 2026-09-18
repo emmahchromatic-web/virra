@@ -9,6 +9,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 type MetricKey = 'energy' | 'mood' | 'sleep_quality';
 type Period    = 7 | 30;
@@ -37,7 +38,7 @@ function isoToDisplay(iso: string): string {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-export default function CheckinTrendsScreen() {
+function CheckinTrendsScreen() {
   const { session }              = useAuthStore();
   const [metric, setMetric]      = useState<MetricKey>('energy');
   const [period, setPeriod]      = useState<Period>(7);
@@ -243,3 +244,15 @@ const s = StyleSheet.create({
 
   editBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedCheckinTrendsScreen() {
+  return (
+    <ProScreen feature="trends">
+      <CheckinTrendsScreen />
+    </ProScreen>
+  );
+}

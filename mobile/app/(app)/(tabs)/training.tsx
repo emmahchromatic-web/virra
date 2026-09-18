@@ -13,7 +13,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
-import { getActiveBlocks, computeBlockLoad, endTrainingBlock, planSlot, SLOT_LABEL,
+import { fetchActiveBlocks, computeBlockLoad, endTrainingBlock, planSlot, SLOT_LABEL,
          type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
 import { attachMobilityLabels, topUpMobilitySchedule } from '@/lib/mobilitySchedule';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
@@ -29,7 +29,13 @@ import { AddEventModal } from '@/components/ui/AddEventModal';
 import { useProfileStore } from '@/store/profile';
 import { hasEquipmentPreference } from '@/lib/getStrongSession';
 import { EQUIPMENT_ASKED_KEY } from '@/lib/workoutPreference';
+import { useProGate, paywallRoute } from '@/lib/pro';
+import { ProLockedCard } from '@/components/ui/ProLockedCard';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
+import { useWeekSessions } from '@/hooks/useWeekSessions';
+import { sessionLabelText } from '@/lib/sessionLabels';
+import { cachedWeekRows, mondayOfLocal } from '@/lib/cachedWeek';
 
 interface PlanTemplate {
   id:             string;
@@ -114,10 +120,12 @@ const why = StyleSheet.create({
 export default function TrainingScreen() {
   const { session }    = useAuthStore();
   const { cycleInfo, periodStart, cycleLength, cycleMode, currentPackStart } = useCycleStore();
+  // Card 298. Plans, strength and mobility prescribe; logging a run does not.
+  const { isPro, showLocked } = useProGate();
 
   const [activePlan,        setActivePlan]        = useState<UserPlan | null>(null);
   const [recentActivities,  setRecentActivities]   = useState<Activity[]>([]);
-  const [, setLoading]                             = useState(true);
+  const [loading, setLoading]                      = useState(true);
   const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
   const [enrichedToday,     setEnrichedToday]       = useState<TodaysSession[]>([]);
   const [seasonSummary,     setSeasonSummary]       = useState<SeasonChainSummary | null>(null);
@@ -126,6 +134,11 @@ export default function TrainingScreen() {
   // we then run them through `enrichTodaysSessions` to hydrate activity metrics, cycle
   // modulation, and workout-structure summaries for the hero card.
   const todayPlanned = useTodaySessions();
+  // Card 295. True when the last attempt to read the plan failed (no signal).
+  // What was last known stays on screen; this only decides whether to say so.
+  const [planLoadFailed, setPlanLoadFailed] = useState(false);
+  const { days: thisWeek } = useWeekSessions(mondayOfLocal(new Date()));
+  const cachedWeek = React.useMemo(() => cachedWeekRows(thisWeek, new Date()), [thisWeek]);
 
   const now = new Date();
   const [calYear,        setCalYear]        = useState(now.getFullYear());
@@ -298,8 +311,8 @@ export default function TrainingScreen() {
     // A weekly mobility session is written eight weeks ahead and topped up here,
     // so the habit never quietly runs out (card 264).
     await topUpMobilitySchedule(session!.user.id).catch(() => 0);
-    const [blocks, planRes, activityRes, season] = await Promise.all([
-      getActiveBlocks(session!.user.id),
+    const [blocksRes, planRes, activityRes, season] = await Promise.all([
+      fetchActiveBlocks(session!.user.id),
       supabase
         .from('user_plans')
         .select('id, template_id, start_date, goal_date, template:plan_templates(id, name, sport_type, distance_goal, duration_weeks, description, tagline)')
@@ -314,9 +327,15 @@ export default function TrainingScreen() {
         .limit(5),
       loadSeasonSummary(session!.user.id, cycleInfo?.phase ?? null),
     ]);
-    setActiveBlocks(await attachMobilityLabels(blocks));
-    setActivePlan(planRes.data as UserPlan | null);
-    setRecentActivities((activityRes.data ?? []) as Activity[]);
+    // Card 295. A failed read is not "no plan". Keep what was last known and
+    // say the app could not check, rather than replacing it with nothing.
+    const failed = Boolean(blocksRes.error || planRes.error);
+    setPlanLoadFailed(failed);
+    if (!failed) {
+      setActiveBlocks(await attachMobilityLabels(blocksRes.blocks));
+      setActivePlan(planRes.data as UserPlan | null);
+    }
+    if (!activityRes.error) setRecentActivities((activityRes.data ?? []) as Activity[]);
     setSeasonSummary(season);
     setLoading(false);
   }
@@ -354,7 +373,7 @@ export default function TrainingScreen() {
         )}
 
         {/* Season chain overview */}
-        <SeasonTimeline summary={seasonSummary} />
+        {isPro && <SeasonTimeline summary={seasonSummary} />}
 
         {/* Card 029. When there is no season yet, say what would make one.
             Without this the concept is invisible until it already exists. */}
@@ -369,22 +388,65 @@ export default function TrainingScreen() {
             <VirraText variant="mono" size={11} color={colors.breath} style={{ letterSpacing: 1.5 }}>
               ADD A RACE
             </VirraText>
-            {!seasonSummary && (
+            {isPro && !seasonSummary && (
               <VirraText variant="body" size={12} color={colors.muted}>
                 Add two or more and Virra builds a season around them.
+              </VirraText>
+            )}
+            {!isPro && (
+              <VirraText variant="body" size={12} color={colors.muted}>
+                Free to add, and they stay on your calendar.
               </VirraText>
             )}
           </View>
           <SymbolView name="chevron.right" size={13} tintColor={colors.muted} />
         </Pressable>
 
+        {/* Card 298. Adding races is data in, so it is free. The season Virra
+            builds between them is the prescription, so it carries the padlock. */}
+        {!isPro && <ProLockedCard feature="season" compact />}
+
         {/* Today's planned session hero */}
-        {(activeBlocks.length > 0 || activePlan) && (
+        {isPro && (activeBlocks.length > 0 || activePlan || (planLoadFailed && cachedWeek.length > 0)) && (
           <TodaysSessionHero sessions={enrichedToday} />
         )}
 
-        {/* Active plan / block stack */}
-        {activeBlocks.length > 0 ? (
+        {/* Active plan / block stack. Card 298: a free user sees what a plan
+            is and the one way to get one. A lapsed subscriber's blocks are
+            untouched in the database, and the note says so. */}
+        {!isPro ? (
+          <ProLockedCard
+            feature="plans"
+            note={activeBlocks.length > 0 || activePlan
+              ? 'Your plan is saved. Pick up where you left off.'
+              : undefined}
+          />
+        ) : planLoadFailed && activeBlocks.length === 0 && !activePlan ? (
+          <>
+            <NeedsSignal
+              title="Your plan needs signal to load."
+              detail={cachedWeek.length > 0
+                ? "This week's sessions are saved on your phone, so you can still see and start them."
+                : 'Nothing from your plan is saved on this phone yet. It will show once you are back online.'}
+              onRetry={loadData}
+              retrying={loading}
+            />
+            {cachedWeek.length > 0 && (
+              <VirraCard style={{ gap: spacing.xs }}>
+                <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>THIS WEEK</VirraText>
+                {cachedWeek.map((row) => (
+                  <View key={row.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                    <VirraText variant="mono" size={12} color={row.isToday ? colors.breath : colors.muted} style={{ width: 36 }}>{row.dayLabel}</VirraText>
+                    <VirraText variant="body" size={13} color={colors.breath} style={{ flex: 1 }}>{sessionLabelText(row.label) || row.modality}</VirraText>
+                    {row.status === 'completed' && (
+                      <VirraText variant="mono" size={11} color={colors.pulse}>DONE</VirraText>
+                    )}
+                  </View>
+                ))}
+              </VirraCard>
+            )}
+          </>
+        ) : activeBlocks.length > 0 ? (
           <BlockStack
             blocks={activeBlocks}
             cyclePhase={cycleInfo?.phase ?? null}
@@ -404,14 +466,20 @@ export default function TrainingScreen() {
 
         {/* Card 264. A one-off mobility session needs no plan behind it, so it
             sits outside the block stack rather than pretending to be one. */}
+        {(isPro || showLocked) && (
         <Pressable
-          onPress={() => router.push('/(app)/mobility' as any)}
+          onPress={() => router.push((isPro ? '/(app)/mobility' : paywallRoute('mobility')) as any)}
           accessibilityRole="button"
-          accessibilityLabel="Mobility sessions"
+          accessibilityLabel={isPro ? 'Mobility sessions' : 'Mobility sessions, part of Virra Pro'}
         >
           <VirraCard style={styles.mobilityCard}>
             <View style={{ flex: 1, gap: 4 }}>
-              <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5 }}>MOBILITY</VirraText>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                {!isPro && <SymbolView name="lock.fill" size={11} tintColor={colors.dawn} />}
+                <VirraText variant="mono" size={11} color={colors.dawn} style={{ letterSpacing: 1.5 }}>
+                  {isPro ? 'MOBILITY' : 'MOBILITY · VIRRA PRO'}
+                </VirraText>
+              </View>
               <VirraText variant="bodyMedium" size={15} color={colors.breath}>Ten, twenty or thirty minutes on the mat</VirraText>
               <VirraText variant="body" size={12} color="rgba(244,237,224,0.5)" style={{ lineHeight: 18 }}>
                 Pilates-style range of movement, picked for where you are in your cycle. No plan needed.
@@ -420,9 +488,10 @@ export default function TrainingScreen() {
             <SymbolView name="chevron.right" size={14} tintColor={colors.muted} />
           </VirraCard>
         </Pressable>
+        )}
 
         {/* Monthly training calendar */}
-        {activeBlocks.length > 0 && session && (
+        {isPro && activeBlocks.length > 0 && session && (
           <VirraCard style={{ gap: spacing.sm }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <VirraText variant="mono" size={11} color={colors.pulse} style={{ letterSpacing: 1.5 }}>
@@ -504,15 +573,17 @@ export default function TrainingScreen() {
         </Pressable>
 
         {/* Browse plans footer link */}
-        <Pressable
-          onPress={() => router.push('/(app)/plans/browse' as any)}
-          style={styles.browseLink}
-          accessibilityRole="button"
-        >
-          <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
-            BROWSE ALL PLANS →
-          </VirraText>
-        </Pressable>
+        {isPro && (
+          <Pressable
+            onPress={() => router.push('/(app)/plans/browse' as any)}
+            style={styles.browseLink}
+            accessibilityRole="button"
+          >
+            <VirraText variant="mono" size={11} color={colors.muted} style={{ letterSpacing: 1.5 }}>
+              BROWSE ALL PLANS →
+            </VirraText>
+          </Pressable>
+        )}
       </ScrollView>
       <EquipmentPreferenceModal visible={askEquipment} onDone={handleEquipmentDone} />
       {session && (

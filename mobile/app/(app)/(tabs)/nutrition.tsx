@@ -11,7 +11,9 @@ import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore, personalMetricsFields } from '@/store/profile';
 import { CopyMealFromDayModal } from '@/components/ui/CopyMealFromDayModal';
-import { resolveNutritionTargets, buildPersonalMetrics, LOAD_LABELS, type TrainingLoad } from '@/lib/nutritionTargets';
+import { resolveTargetsForTier, buildPersonalMetrics, LOAD_LABELS, type TrainingLoad } from '@/lib/nutritionTargets';
+import { useIsPro } from '@/lib/pro';
+import { ProLockedCard } from '@/components/ui/ProLockedCard';
 import { getDailyTrainingContext, type DailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -237,6 +239,9 @@ export default function NutritionScreen() {
   const { cycleInfo } = useCycleStore();
   const profile = useProfileStore();
   const metrics = buildPersonalMetrics(personalMetricsFields(profile));
+  // Card 298. Logging is free; the phase-shifting, bodyweight-aware target is
+  // Pro. A free user logs against the flat table and sees why below it.
+  const isPro   = useIsPro();
 
   const [load,    setLoad]    = useState<TrainingLoad>('easy');
   const [entries, setEntries] = useState<FoodEntry[]>([]);
@@ -247,7 +252,7 @@ export default function NutritionScreen() {
   const [copyingInto, setCopyingInto] = useState<MealType | null>(null);
 
   const today   = new Date().toISOString().split('T')[0];
-  const targets = resolveNutritionTargets(metrics, cycleInfo?.phase ?? null, load);
+  const targets = resolveTargetsForTier(isPro, metrics, cycleInfo?.phase ?? null, load);
 
   const totals = entries.reduce(
     (acc, e) => ({
@@ -263,7 +268,10 @@ export default function NutritionScreen() {
   useEffect(() => {
     if (!session) return;
     loadData();
-  }, [session, today]);
+    // isPro: the snapshot in targets_json must be re-written when the tier
+    // resolves or changes, or a purchase made mid-day would keep the flat
+    // target until tomorrow.
+  }, [session, today, isPro]);
 
   useFocusEffect(useCallback(() => {
     if (session && logId) {
@@ -311,7 +319,7 @@ export default function NutritionScreen() {
     setLoad(effectiveLoad);
 
     const effectiveMetrics = buildPersonalMetrics(personalMetricsFields(useProfileStore.getState()));
-    const effectiveTargets = resolveNutritionTargets(effectiveMetrics, cycleInfo?.phase ?? null, effectiveLoad);
+    const effectiveTargets = resolveTargetsForTier(isPro, effectiveMetrics, cycleInfo?.phase ?? null, effectiveLoad);
 
     const { data: log } = await supabase
       .from('nutrition_logs')
@@ -343,7 +351,8 @@ export default function NutritionScreen() {
   async function handlePickLoad(next: TrainingLoad) {
     setLoad(next);
     if (!session) return;
-    const nextTargets = resolveNutritionTargets(
+    const nextTargets = resolveTargetsForTier(
+      isPro,
       buildPersonalMetrics(personalMetricsFields(useProfileStore.getState())),
       cycleInfo?.phase ?? null,
       next,
@@ -484,8 +493,15 @@ export default function NutritionScreen() {
             <MacroBar label="FAT"     actual={totals.fat_g}     target={targets.fat_g}     color={colors.breath} />
             <MacroBar label="FIBRE"   actual={totals.fibre_g}   target={targets.fibre_g}   color={colors.muted}  />
           </View>
-          {cycleInfo && <WhyCard body={NUTRITION_WHY[cycleInfo.phase]} />}
+          {isPro && cycleInfo && <WhyCard body={NUTRITION_WHY[cycleInfo.phase]} />}
         </VirraCard>
+
+        {!isPro && (
+          <ProLockedCard
+            feature="nutrition_targets"
+            note="Today's target is the standard one for your training load."
+          />
+        )}
 
         {/* Meal sections */}
         {MEAL_TYPES.map((meal) => (

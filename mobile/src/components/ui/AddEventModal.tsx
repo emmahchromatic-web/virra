@@ -3,6 +3,8 @@ import { View, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native
 import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { recomputeSeasonForUser } from '@/lib/seasonEngine';
+import { useSubscriptionStore } from '@/store/subscription';
+import { isProStatus } from '@/lib/pro';
 import { applyRaceToSchedule } from '@/lib/raceSchedule';
 import { useCycleStore } from '@/store/cycle';
 import { colors, spacing, radius } from '@/constants/theme';
@@ -125,10 +127,15 @@ export function AddEventModal({ visible, userId, onClose, onSaved }: Props) {
     }).catch((e) => { console.warn('[raceSchedule] apply failed', e); });
 
     // Fire-and-forget: auto-create season if 2+ future events now exist
-    const cycleProfile = useCycleStore.getState().cycleProfile;
-    recomputeSeasonForUser(userId, toLocalISO(today), cycleProfile).catch((e) => {
-      console.warn('[seasonEngine] recompute failed', e);
-    });
+    // Card 298. The race is hers to add on the free tier; the season built
+    // around it is Pro. The app layout builds it the moment she upgrades.
+    const sub = useSubscriptionStore.getState();
+    if (isProStatus(sub.status, sub.isActive)) {
+      const cycleProfile = useCycleStore.getState().cycleProfile;
+      recomputeSeasonForUser(userId, toLocalISO(today), cycleProfile).catch((e) => {
+        console.warn('[seasonEngine] recompute failed', e);
+      });
+    }
     setName('');
     setTargetTime('');
     setDistanceGoal('marathon');

@@ -23,8 +23,10 @@ import { QuickLogRow } from '@/components/ui/QuickLogRow';
 import { TipsCarousel } from '@/components/ui/TipsCarousel';
 import { FitnessUpdateCard } from '@/components/ui/FitnessUpdateCard';
 import { FitnessUpdateModal } from '@/components/ui/FitnessUpdateModal';
+import { RealignmentModal } from '@/components/ui/RealignmentModal';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { useFitnessUpdate } from '@/hooks/useFitnessUpdate';
+import { useRealignment } from '@/hooks/useRealignment';
 import { SymbolView } from 'expo-symbols';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { getDailyStats } from '@/lib/healthKitDaily';
@@ -42,6 +44,8 @@ import { appAlert } from '@/components/ui/VirraAlert';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { TodaysSession } from '@/lib/todaysSession';
 import { tracksCycle } from '@/lib/cycleEngine';
+import { useProGate, paywallRoute } from '@/lib/pro';
+import { ProLockedCard } from '@/components/ui/ProLockedCard';
 
 const EXERCISE_MINS_TARGET: Record<TrainingLoad, number> = {
   rest: 15, easy: 30, moderate: 45, hard: 60,
@@ -54,6 +58,16 @@ export default function DashboardScreen() {
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
   const refreshReadiness = useReadinessStore((s) => s.refresh);
+  const { isPro, showLocked } = useProGate();
+  // Card 298. Every option on the realignment prompt acts on a training plan,
+  // and "rebuild" routes to the plans screen, so a free runner would be
+  // prompted about something they cannot reach. Passing null also spares them
+  // the query. A lapsed subscriber can still have an open block, so this is not
+  // hypothetical.
+  const realignment = useRealignment(isPro ? (session?.user.id ?? null) : null);
+  // With the Insights tile hidden the check-in tile has the row to itself;
+  // laid out as a column it became a tall, mostly empty card.
+  const soloTile = !isPro && !showLocked;
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const meta     = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
@@ -97,7 +111,7 @@ export default function DashboardScreen() {
       const metrics = buildPersonalMetrics(personalMetricsFields(useProfileStore.getState()));
       const [monthly, nutr, ci] = await Promise.all([
         getMonthlyStats(session.user.id, today),
-        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, resolvedLoad, metrics),
+        getTodayNutritionTotals(session.user.id, today, cycleInfo?.phase ?? null, resolvedLoad, metrics, isPro),
         getTodayCheckin(session.user.id, today),
       ]);
       setMonthlyStats(monthly);
@@ -106,7 +120,7 @@ export default function DashboardScreen() {
       // Readiness refresh runs after check-in resolves so it can include today's subjective score
       refreshReadiness(cycleInfo?.phase ?? null, ci).catch(() => {});
     } catch { /* no-op */ }
-  }, [session, today, cycleInfo?.phase]); // inferredLoad removed from deps
+  }, [session, today, cycleInfo?.phase, isPro]); // inferredLoad removed from deps
 
   // The dashboard is a tab, so it stays mounted while a workout is logged on a
   // pushed screen. Without a refetch on focus, returning from a finished session
@@ -137,6 +151,7 @@ export default function DashboardScreen() {
       load:         inferredLoad,
       metrics,
       inferredLoad,
+      isPro,
     });
     if (!logId) { appAlert('Could not open food log', 'Please check your connection and try again.'); return; }
     router.push(`/(app)/food-search?logId=${logId}&mealType=${defaultMealSlot()}` as any);
@@ -232,25 +247,34 @@ export default function DashboardScreen() {
         {/* 3. Readiness */}
         <ReadinessRow />
 
-        {/* 4. Today session + rings */}
+        {/* 4. Today session + rings. Card 298: the planned session is Pro;
+            a free user gets the locked tile in the same slot, never an
+            empty "no session planned" that reads as a bug. */}
         <View style={styles.heroRow}>
-          <TodaysSessionHero
-            sessions={todaySessions}
-            onStartPress={(session) => {
-              if (session.modality === 'run') {
-                router.push(`/(app)/run?sessionId=${session.id}` as any);
-              } else {
-                router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
-              }
-            }}
-            style={styles.sessionHero}
-          />
-          <VirraCard style={styles.ringsCard}>
+          {isPro ? (
+            <TodaysSessionHero
+              sessions={todaySessions}
+              onStartPress={(session) => {
+                if (session.modality === 'run') {
+                  router.push(`/(app)/run?sessionId=${session.id}` as any);
+                } else {
+                  router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
+                }
+              }}
+              style={styles.sessionHero}
+            />
+          ) : showLocked ? (
+            <ProLockedCard feature="plans" compact style={styles.sessionHero} />
+          ) : null}
+          {/* With the tile hidden the rings take the whole row rather than
+              sitting alone at the left edge. */}
+          <VirraCard style={[styles.ringsCard, !isPro && !showLocked && styles.ringsCardWide]}>
             <ActivityRings
               steps={steps}
               exerciseMins={exerciseMins}
               stepsTarget={stepsTarget}
               exerciseMinsTarget={EXERCISE_MINS_TARGET[inferredLoad]}
+              horizontal={!isPro && !showLocked}
             />
           </VirraCard>
         </View>
@@ -272,11 +296,14 @@ export default function DashboardScreen() {
         />
 
         {/* 7. Week strip */}
+        {/* Card 298. On Pro the strip is the plan's week. Off Pro it is her
+            logged week (WeekStrip reads the activities table), so it is free
+            content and shows whether or not Pro features are hidden. */}
         {session && (
           <Pressable
             onPress={() => router.push('/(app)/(tabs)/training' as any)}
             accessibilityRole="button"
-            accessibilityLabel="This week's training, open Training tab"
+            accessibilityLabel={isPro ? "This week's training, open Training tab" : 'What you logged this week, open Training tab'}
           >
             <VirraCard style={{ paddingVertical: spacing.xs }}>
               <SectionLabel style={{ marginBottom: 2 }}>THIS WEEK</SectionLabel>
@@ -299,22 +326,27 @@ export default function DashboardScreen() {
 
         {/* 10. Action tiles */}
         <View style={styles.actionRow}>
+          {(isPro || showLocked) && (
           <Pressable
             style={[styles.actionTile, { borderColor: colors.pulse }]}
-            onPress={() => router.push('/(app)/insights' as any)}
+            onPress={() => router.push((isPro ? '/(app)/insights' : paywallRoute('insights')) as any)}
             accessibilityRole="button"
+            accessibilityLabel={isPro ? 'Insights' : 'Insights, part of Virra Pro'}
           >
-            <SymbolView name="chart.line.uptrend.xyaxis" size={28} tintColor={colors.pulse} />
+            <SymbolView name={isPro ? 'chart.line.uptrend.xyaxis' : 'lock.fill'} size={28} tintColor={colors.pulse} />
             <View>
               <VirraText variant="mono" size={10} color={colors.pulse} style={styles.actionLabel}>INSIGHTS</VirraText>
-              <VirraText variant="body" size={11} color={colors.muted} style={styles.actionSub}>Your week, narrated</VirraText>
+              <VirraText variant="body" size={11} color={colors.muted} style={styles.actionSub}>
+                {isPro ? 'Your week, narrated' : 'Virra Pro'}
+              </VirraText>
             </View>
           </Pressable>
+          )}
 
           {checkin.done ? (
             <Pressable
-              style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }]}
-              onPress={() => router.push('/(app)/checkin-trends' as any)}
+              style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }, soloTile && styles.actionTileSolo]}
+              onPress={() => router.push((isPro ? '/(app)/checkin-trends' : paywallRoute('trends')) as any)}
               accessibilityRole="button"
             >
               <SymbolView name="checkmark.circle.fill" size={28} tintColor={colors.pulse} />
@@ -336,7 +368,7 @@ export default function DashboardScreen() {
             </Pressable>
           ) : (
             <Pressable
-              style={[styles.actionTile, { borderColor: colors.dawn }]}
+              style={[styles.actionTile, { borderColor: colors.dawn }, soloTile && styles.actionTileSolo]}
               onPress={() => router.push('/(app)/checkin')}
               accessibilityRole="button"
             >
@@ -356,6 +388,34 @@ export default function DashboardScreen() {
         verdict={verdict}
         onConfirm={async () => { await confirm(); setShowFitnessModal(false); }}
         onSnooze={async () => { await snooze(); setShowFitnessModal(false); }}
+      />
+
+      {/*
+        One prompt at a time. A Fitness Update and a realignment are both about
+        the plan being out of step with the runner, and showing them together
+        would read as the app piling on.
+      */}
+      <RealignmentModal
+        visible={!showFitnessModal && realignment.prompt != null}
+        prompt={realignment.prompt}
+        busy={realignment.busy}
+        onDismiss={realignment.dismiss}
+        onChoose={async (option) => {
+          try {
+            const result = await realignment.choose(option);
+            if (!result) return;
+            if (result.needsRebuild) {
+              router.push('/(app)/plans/browse' as any);
+              return;
+            }
+            appAlert('Plan updated', result.summary);
+          } catch (e) {
+            appAlert(
+              'Could not update your plan',
+              'Nothing has been changed. Check your connection and try again.',
+            );
+          }
+        }}
       />
 
       {session && (
@@ -392,11 +452,13 @@ const styles = StyleSheet.create({
   heroRow:     { flexDirection: 'row', alignItems: 'stretch', gap: spacing.md },
   sessionHero: { flex: 1 },
   ringsCard:   { alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, width: 80 },
+  ringsCardWide: { width: undefined, flex: 1 },
   actionRow:   { flexDirection: 'row', gap: spacing.md },
   actionTile:  {
     flex: 1, borderWidth: 1.5, borderRadius: 10,
     backgroundColor: colors.mist, padding: spacing.md, gap: spacing.sm,
   },
+  actionTileSolo: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   actionLabel:  { letterSpacing: 1.5 },
   actionSub:    { lineHeight: 14, marginTop: 2 },
   checkinVals:  { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs,

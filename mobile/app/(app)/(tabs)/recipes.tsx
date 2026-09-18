@@ -26,6 +26,8 @@ import { defaultMealSlot, type MealType } from '@/lib/nutritionLog';
 import { resolveNutritionTargets, buildPersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { RecipeRow, macroLine, timeLine } from '@/components/recipes/RecipeRow';
+import { useIsPro } from '@/lib/pro';
+import { ProLockedCard } from '@/components/ui/ProLockedCard';
 
 /**
  * The recipe book. Replaces the holding page left when the education library
@@ -215,6 +217,7 @@ export default function RecipesScreen() {
   const [askDiet,   setAskDiet]   = useState(false);
   const [slotEaten, setSlotEaten] = useState({ calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 });
   const [favIds,    setFavIds]    = useState<string[]>([]);
+  const isPro = useIsPro();
 
   const slot  = defaultMealSlot();
   const today = new Date().toISOString().split('T')[0];
@@ -289,6 +292,26 @@ export default function RecipesScreen() {
     setPrefs(next);
     await AsyncStorage.setItem(DIETARY_ASKED_KEY, '1');
     if (session && next.length > 0) await saveDietaryPrefs(session.user.id, next);
+  }
+
+  // Card 298. The recipe book is authored content matched to her phase and
+  // targets: Pro. The tab stays in the bar so the book is discoverable, and
+  // the collections are named so she knows what is in it.
+  if (!isPro) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <AppHeader title="Recipes" showProfile />
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <ProLockedCard
+            feature="recipes"
+            always
+            note={recipes.length > 0
+              ? `${recipes.length} recipes across ${groups.map((g) => g.label.toLowerCase()).join(', ')}.`
+              : undefined}
+          />
+        </ScrollView>
+      </SafeAreaView>
+    );
   }
 
   return (

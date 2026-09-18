@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { resolveNutritionTargets, type PersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
+import { resolveTargetsForTier, type PersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import type { CyclePhase } from '@/store/cycle';
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -32,6 +32,9 @@ export interface TodayLogContext {
   load:          TrainingLoad;
   metrics:       PersonalMetrics | null;
   inferredLoad?: TrainingLoad | null;
+  /** Card 298. Free tier snapshots the flat table. Defaults to Pro so the
+   *  older call sites keep their behaviour until each passes the tier. */
+  isPro?:        boolean;
 }
 
 /**
@@ -45,7 +48,7 @@ export interface TodayLogContext {
  * a logId to attach entries to. Returns null on failure.
  */
 export async function getOrCreateTodayLogId(ctx: TodayLogContext): Promise<string | null> {
-  const targets = resolveNutritionTargets(ctx.metrics, ctx.phase, ctx.load);
+  const targets = resolveTargetsForTier(ctx.isPro ?? true, ctx.metrics, ctx.phase, ctx.load);
 
   const { data, error } = await supabase
     .from('nutrition_logs')
