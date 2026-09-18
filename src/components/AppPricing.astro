@@ -1,0 +1,81 @@
+---
+// Card 314. "Free to log, Pro to plan": the app's two tiers, in the app's own
+// words (src/lib/appTiers.ts mirrors the paywall). Drop it into the app page
+// once the download CTA is live.
+import SectionLabel from './SectionLabel.astro';
+import { FREE_LIST, PRO_LIST, PRICE, FAQ } from '../lib/appTiers';
+---
+<section class="app-pricing" aria-labelledby="app-pricing-title">
+  <div class="ap-wrap">
+    <SectionLabel text="What it costs" />
+    <h2 id="app-pricing-title">Free to log. Pro to plan.</h2>
+    <p class="ap-lede">
+      Everything you put into VIRRA is free. Everything VIRRA works out for you, around your cycle, is Virra Pro.
+    </p>
+
+    <div class="ap-tiers">
+      <article class="ap-tier">
+        <p class="ap-kicker">Free, always</p>
+        <p class="ap-price">£0</p>
+        <ul>
+          {FREE_LIST.map((item) => <li>{item}</li>)}
+        </ul>
+      </article>
+
+      <article class="ap-tier ap-tier-pro">
+        <p class="ap-kicker ap-kicker-pro">Virra Pro</p>
+        <p class="ap-price">{PRICE.monthly}<span> a month</span></p>
+        <p class="ap-sub">or {PRICE.annual} a year, which is two months free. {PRICE.trial}, cancel any time.</p>
+        <ul>
+          {PRO_LIST.map((item) => <li>{item}</li>)}
+        </ul>
+      </article>
+    </div>
+
+    <div class="ap-faq">
+      {FAQ.map(({ q, a }) => (
+        <details>
+          <summary>{q}</summary>
+          <p>{a}</p>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .app-pricing { padding: 80px 0; border-top: 1px solid var(--border); }
+  .ap-wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+  h2 {
+    font-family: var(--font-display); font-weight: 900; text-transform: uppercase;
+    font-size: clamp(2.2rem, 5vw, 3.6rem); line-height: 0.95; color: var(--pulse); margin: 0 0 16px;
+  }
+  .ap-lede { font-family: var(--font-editorial); font-style: italic; font-size: 1.15rem; color: var(--breath); max-width: 640px; margin: 0 0 40px; }
+
+  .ap-tiers { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .ap-tier { background: var(--mist); border: 1px solid var(--border); border-radius: 12px; padding: 28px 24px; }
+  .ap-tier-pro { border-color: rgba(212,255,38,0.35); }
+  .ap-kicker { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+  .ap-kicker-pro { color: var(--pulse); }
+  .ap-price { font-family: var(--font-display); font-weight: 900; font-size: 2.4rem; color: var(--breath); margin: 0 0 4px; }
+  .ap-price span { font-family: var(--font-body); font-weight: 400; font-size: 0.95rem; color: var(--muted); }
+  .ap-sub { font-size: 0.9rem; color: var(--muted); margin: 0 0 8px; }
+  ul { list-style: none; padding: 0; margin: 20px 0 0; display: grid; gap: 12px; }
+  li { position: relative; padding-left: 24px; color: var(--breath); line-height: 1.45; }
+  li::before { content: '✓'; position: absolute; left: 0; font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+  .ap-tier-pro li::before { color: var(--pulse); }
+
+  .ap-faq { margin-top: 40px; max-width: 720px; display: grid; gap: 4px; }
+  details { border-top: 1px solid var(--border); padding: 16px 0; }
+  details:last-child { border-bottom: 1px solid var(--border); }
+  summary { cursor: pointer; font-weight: 600; color: var(--breath); list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: '+'; float: right; font-family: var(--font-mono); color: var(--pulse); }
+  details[open] summary::after { content: '–'; }
+  details p { margin: 12px 0 0; color: var(--muted); line-height: 1.6; }
+
+  @media (max-width: 900px) {
+    .ap-wrap { padding: 0 24px; }
+    .ap-tiers { grid-template-columns: 1fr; }
+  }
+</style>
