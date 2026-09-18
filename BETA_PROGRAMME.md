@@ -76,3 +76,32 @@ Name+email · iPhone? (hard screen, kind Android dead-end) · run frequency · t
 - Application form live, tested on a phone
 
 **If the build slips, slip the recruitment — never the reverse.** A broken first impression with the 40 warmest prospects is the only unrecoverable failure. A one-week slide costs almost nothing (launch → late Oct/early Nov).
+
+## 9 · Exit survey: the free-tier questions (card 315, drafted 2026-09-18)
+
+The beta was designed around a hard paywall. On 2026-09-16 Virra became free with Pro (card 298): logging is free, anything Virra prescribes is Pro. Testers on builds before 16 never saw a free tier, so the exit survey has to ask about the line directly. Add these to the week-4 Tally survey, after the Sean Ellis question and before the testimonial permission.
+
+**Q-A. Which of these would you expect to be free in an app like Virra?** Multi-select, options in random order, no grouping, no hint of which side each is on today.
+- Logging my period and seeing my cycle phase
+- Logging what I eat, with daily totals
+- Logging runs and workouts, including from Apple Health
+- Logging my weight and a daily check-in
+- A training plan that adjusts to my cycle
+- Nutrition targets that change with my cycle phase
+- Strength programmes
+- Mobility sessions
+- The recipe book
+- Insights and trends about my training and cycle
+- Describing a meal and having it estimated for me
+- A season planned around my races
+
+**Q-B. At what monthly price would Virra Pro feel like good value?** Single choice: under £5 · £5–£7.99 · £8–£9.99 · £10–£12.99 · £13 or more · I would not pay for it. (Replaces the generic price question. It must say "Virra Pro", not "the app": the app is free.)
+
+**Q-C. (Build 16 testers only) Did you turn "Show Pro features" off in your Profile?** Yes · No · I didn't know it was there. Follow-up if Yes, free text: what made you turn it off?
+
+**Reading the answers.** Four of the twelve options are free today (the first four). For each Pro feature, the share of testers who expected it free:
+- over 50%: candidate to move to free, decide with Emma before the October submission;
+- 30–50%: keep Pro, but check the locked tile and paywall copy explain it well;
+- under 30%: the line is in the right place.
+
+For each free feature, under a third expecting it free means it could carry a padlock without surprise, which is a reason to keep it free, not to lock it: it is generosity people notice. Compare Q-A with `select * from public.pro_funnel;` (which locked tiles actually get tapped) before changing anything. Record the outcome on card 298.
