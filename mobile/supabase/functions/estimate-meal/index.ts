@@ -133,6 +133,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  // Card 312. This is the one call that costs money, so it is the one the
+  // server refuses without Pro. has_pro() answers true for everyone while the
+  // enforce_pro switch is off (see the 20260918 migration), so this is inert
+  // until launch. The app's own gate means a free user never reaches here
+  // through the UI; this is for anyone who goes round the UI.
+  const { data: hasPro, error: proErr } = await supabase.rpc("has_pro", { uid: user.id });
+  if (proErr) console.error("[estimate-meal] has_pro failed:", proErr.message);
+  if (proErr || !hasPro) return err("Virra Pro required", 403);
+
   let body: { description?: string; force_refresh?: boolean };
   try { body = await req.json(); } catch { return err("Invalid JSON", 400); }
 
