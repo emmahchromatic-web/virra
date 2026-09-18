@@ -1,0 +1,45 @@
+---
+// Card 314. Draft app page. NOT linked from the nav and marked noindex until
+// the App Store link exists (website strategy: the download CTA is day two).
+// When it goes live: add the store badge to the hero, remove `noindex`, link
+// it from the header, and add it to the sitemap.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import SectionLabel from '../components/SectionLabel.astro';
+import AppPricing from '../components/AppPricing.astro';
+---
+<BaseLayout
+  title="The VIRRA app — free to log, Pro to plan"
+  description="Log your cycle, meals and runs for free. Virra Pro plans your training and fuelling around your cycle."
+  noindex
+>
+  <Header />
+  <main>
+    <section class="app-hero">
+      <div class="wrap">
+        <SectionLabel text="The app" />
+        <h1>Run with your cycle.</h1>
+        <p class="lede">
+          Log your cycle, your meals and your runs for free. When you want a plan that moves with your
+          body, Virra Pro builds it.
+        </p>
+        <p class="soon">Coming to the App Store. Join Run Hot to hear the day it lands.</p>
+      </div>
+    </section>
+    <AppPricing />
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 48px; }
+  .app-hero { padding: 96px 0 72px; }
+  h1 {
+    font-family: var(--font-display); font-weight: 900; text-transform: uppercase;
+    font-size: clamp(3rem, 8vw, 6rem); line-height: 0.92; color: var(--pulse); margin: 0 0 20px;
+  }
+  .lede { font-family: var(--font-editorial); font-style: italic; font-size: 1.3rem; color: var(--breath); max-width: 640px; margin: 0 0 24px; }
+  .soon { font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+  @media (max-width: 900px) { .wrap { padding: 0 24px; } }
+</style>
