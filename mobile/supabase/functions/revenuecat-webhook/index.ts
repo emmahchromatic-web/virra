@@ -2,7 +2,7 @@
 //
 // RevenueCat POSTs one JSON body per event. We verify the shared secret it
 // was configured to send in the Authorization header, map the event to a row
-// (see _shared/rcEvent.ts) and upsert it with the service role. Nothing here
+// (see rcEvent.ts) and upsert it with the service role. Nothing here
 // decides whether she is Pro: that is has_pro() in Postgres, which reads
 // this table and the enforce_pro switch.
 //
