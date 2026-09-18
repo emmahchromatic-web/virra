@@ -31,7 +31,7 @@ OUTPUT FORMAT, strict JSON only, no prose, no markdown fences, no commentary:
 RULES:
 - Use UK portion conventions. Standard pub burger ~150g cooked weight, standard chips portion ~200g, pint of lager ~568ml, flat white ~200ml, slice of toast ~35g. Scale up/down when the description specifies size.
 - Macro values are TOTAL for the specified portion (NOT per 100g). Calories in kcal.
-- "confidence" per item: lower (0.3–0.5) for restaurant dishes with high prep variance, higher (0.7–0.9) for branded packaged foods or simple home cooking.
+- "confidence" per item: lower (0.3-0.5) for restaurant dishes with high prep variance, higher (0.7-0.9) for branded packaged foods or simple home cooking.
 - "overall_confidence": holistic. If any single item is highly uncertain, drag the overall down.
 - Never editorialise the food. Never use words like "high", "indulgent", "treat", "splurge", "healthy", "unhealthy". Just report what is in it.
 - "notes" is for ambiguity the user should know about (e.g. "Estimate assumes pub-size portion, so adjust grams if larger"). Otherwise null.
@@ -132,6 +132,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // Card 312. This is the one call that costs money, so it is the one the
+  // server refuses without Pro. has_pro() answers true for everyone while the
+  // enforce_pro switch is off (see the 20260918 migration), so this is inert
+  // until launch. The app's own gate means a free user never reaches here
+  // through the UI; this is for anyone who goes round the UI.
+  const { data: hasPro, error: proErr } = await supabase.rpc("has_pro", { uid: user.id });
+  if (proErr) console.error("[estimate-meal] has_pro failed:", proErr.message);
+  if (proErr || !hasPro) return err("Virra Pro required", 403);
 
   let body: { description?: string; force_refresh?: boolean };
   try { body = await req.json(); } catch { return err("Invalid JSON", 400); }
