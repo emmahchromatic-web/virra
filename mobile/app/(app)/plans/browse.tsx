@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
@@ -69,7 +70,10 @@ function BrowsePlansScreen() {
     return () => { cancelled = true; };
   }, []);
 
-  useEffect(() => {
+  // Card 300. On focus, not on mount: Browse stays mounted underneath plan
+  // detail, so leaving a plan and coming back showed the list read before you
+  // left. Reading it each time the screen is shown keeps the badge honest.
+  useFocusEffect(useCallback(() => {
     if (!session) return;
     let cancelled = false;
     (async () => {
@@ -85,7 +89,7 @@ function BrowsePlansScreen() {
       }
     })();
     return () => { cancelled = true; };
-  }, [session]);
+  }, [session]));
 
   // Remembered rather than reset each visit: someone browsing strength plans is
   // usually still browsing strength plans the next time they open this.
