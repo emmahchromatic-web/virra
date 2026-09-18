@@ -14,6 +14,13 @@ export interface PermissionItem {
   body:     string;
   why:      string;
   optional: boolean;
+  /**
+   * Asked on the onboarding (and re-permissions) walkthrough, or only at the
+   * moment the feature is used. Card 302, Emma's rule: a permission is asked for
+   * when it is used, not grouped with the others. Required, so a new permission
+   * has to decide.
+   */
+  askedUpFront: boolean;
 }
 
 export const PERMISSIONS: readonly PermissionItem[] = [
@@ -25,6 +32,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     body:     "Virra reads your workout history to pre-fill your fitness baseline, and pulls cycle data if you've logged it in Apple Health.",
     why:      'Raw health records stay in Apple Health on your device. Virra only processes aggregated training and cycle signals to generate your plan and insights, and never sells health data.',
     optional: false,
+    askedUpFront: true,
   },
   {
     id:       'location',
@@ -34,6 +42,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     body:     'Virra uses GPS to map routes, measure pace in real time, and log splits. The screen can lock during a run; Virra keeps recording in the background until you tap Finish.',
     why:      "We ask for When in Use only, never Always. Location is only collected during an active run.",
     optional: false,
+    askedUpFront: true,
   },
   {
     id:       'notifications',
@@ -43,6 +52,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     body:     'Virra sends smart reminders that cancel themselves as soon as the action is done.',
     why:      "Training reminders cancel when your workout is logged. Nutrition reminders cancel when you've logged a meal.",
     optional: false,
+    askedUpFront: true,
   },
   {
     id:       'camera',
@@ -52,6 +62,7 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     body:     'Scan any barcode to log food instantly, with no typing and no searching.',
     why:      'You can always add this later in Settings. It only affects barcode scanning.',
     optional: true,
+    askedUpFront: true,
   },
   {
     id:       'photos',
@@ -61,8 +72,17 @@ export const PERMISSIONS: readonly PermissionItem[] = [
     body:     'Virra opens your photo library so you can pick a profile picture.',
     why:      'We only read the single image you choose. Virra never browses your library, and the photo is stored against your profile alone.',
     optional: true,
+    // The profile photo step comes BEFORE the walkthrough, so asking here asked
+    // after the photo was already picked. And the iOS picker needs no library
+    // permission at all (expo-image-picker opens the system picker without
+    // checking), so nothing needs to ask. The row stays in Settings so the
+    // list is still a complete answer to "what can Virra access".
+    askedUpFront: false,
   },
 ] as const;
+
+/** The walkthrough's steps: only what is asked for up front. Card 302. */
+export const ONBOARDING_PERMISSIONS: readonly PermissionItem[] = PERMISSIONS.filter((p) => p.askedUpFront);
 
 // Single source of truth for the HK permission set so onboarding, re-permissions,
 // and app-launch init all establish the same bridge.
@@ -134,9 +154,8 @@ export async function requestPermission(id: PermissionItem['id']): Promise<void>
       await Camera.requestCameraPermissionsAsync();
       break;
     case 'photos':
-      // Onboarding has always opened the library to pick an avatar, so the
-      // permission has always been asked for. It just was not listed here,
-      // which made the screen an incomplete answer to "what has Virra got?".
+      // Only from Settings › Permissions now. Onboarding no longer asks (card
+      // 302): picking a profile photo uses the system picker, which needs none.
       await ImagePicker.requestMediaLibraryPermissionsAsync();
       break;
   }
