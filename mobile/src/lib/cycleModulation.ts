@@ -175,6 +175,15 @@ export function shouldAnchorKeySession(session_type: SessionType): boolean {
   return session_type === 'long' || session_type === 'tempo' || session_type === 'intervals' || session_type === 'strength';
 }
 
+/**
+ * Which phase suits which kind of session, lowest first.
+ *
+ * Long and tempo work best in the follicular phase; sharp interval work best in
+ * the ovulatory window. Exported because the generator places hard sessions
+ * with it directly — anchorKeySession answers "which of these days", and the
+ * composer needs "how good is this day", which is the same knowledge asked a
+ * different way.
+ */
 const ANCHOR_RANK: Record<SessionType, Record<CyclePhase, number>> = {
   long:      { follicular: 0, ovulatory: 1, luteal: 2, menstrual: 3 },
   tempo:     { follicular: 0, ovulatory: 1, luteal: 2, menstrual: 3 },
@@ -183,6 +192,12 @@ const ANCHOR_RANK: Record<SessionType, Record<CyclePhase, number>> = {
   race:      { follicular: 0, ovulatory: 0, luteal: 0, menstrual: 0 },
   strength:  { ovulatory:  0, follicular: 1, luteal: 2, menstrual: 3 },
 };
+
+/** How well a phase suits a kind of session. Lower is better; 99 means unknown. */
+export function phaseRankForSession(session_type: SessionType, phase: CyclePhase | null): number {
+  if (!phase) return 99;
+  return ANCHOR_RANK[session_type][phase];
+}
 
 export function anchorKeySession(
   candidates:   { date: string; cycle_phase: CyclePhase | null }[],
@@ -194,7 +209,7 @@ export function anchorKeySession(
   return candidates
     .map((c) => ({
       date: c.date,
-      rank: c.cycle_phase ? ANCHOR_RANK[session_type][c.cycle_phase] : 99,
+      rank: phaseRankForSession(session_type, c.cycle_phase),
     }))
     .sort((a, b) => a.rank - b.rank || a.date.localeCompare(b.date))
     [0].date;

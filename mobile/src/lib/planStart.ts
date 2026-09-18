@@ -138,3 +138,37 @@ export function addDaysISO(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   return localISO(new Date(y, m - 1, d + days));
 }
+
+export interface RaceStart {
+  /** Local calendar date the plan starts, YYYY-MM-DD. */
+  start:       string;
+  /** Weeks the plan will actually have, counting race week as the last. */
+  weeks:       number;
+  /** True when the full length no longer fits and the plan starts today. */
+  startsToday: boolean;
+}
+
+/**
+ * Where a plan with a race goal starts, and how long it can be.
+ *
+ * Card 301. The start was counted back from the race by the template's length,
+ * not the length the runner chose: Beginner 5K set to 12 weeks with a December
+ * race started in October and came out 8 weeks long.
+ *
+ * So the runner's length is counted back, in the same Monday-start weeks the
+ * schedule is written in, with race week as the last week. A start that has
+ * already come round is today, and the plan gets the weeks that are left rather
+ * than a full-length plan that runs on past race day.
+ */
+export function raceStart(race: Date, chosenWeeks: number, now: Date): RaceStart {
+  const weeks      = Math.max(1, Math.round(chosenWeeks));
+  const raceMonday = mondayOf(race);
+  const start      = addDays(raceMonday, -(weeks - 1) * 7);
+  const today      = addDays(now, 0);
+
+  if (start.getTime() > today.getTime()) {
+    return { start: localISO(start), weeks, startsToday: false };
+  }
+  const weeksLeft = Math.round((raceMonday.getTime() - mondayOf(today).getTime()) / (7 * 86400000)) + 1;
+  return { start: localISO(today), weeks: Math.min(weeks, Math.max(1, weeksLeft)), startsToday: true };
+}

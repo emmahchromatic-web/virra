@@ -6,13 +6,13 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { OnboardingProgressBar } from '@/components/ui/OnboardingProgressBar';
-import { PERMISSIONS, requestPermission, markPermissionsGranted } from '@/lib/permissionsConfig';
+import { ONBOARDING_PERMISSIONS, requestPermission, markPermissionsGranted } from '@/lib/permissionsConfig';
 
 export default function RePermissionsScreen() {
   const [permIndex, setPermIndex] = useState(0);
   const [loading, setLoading]     = useState(false);
 
-  const current = PERMISSIONS[permIndex];
+  const current = ONBOARDING_PERMISSIONS[permIndex];
 
   async function finish() {
     await markPermissionsGranted();
@@ -20,7 +20,7 @@ export default function RePermissionsScreen() {
   }
 
   function advance() {
-    if (permIndex < PERMISSIONS.length - 1) {
+    if (permIndex < ONBOARDING_PERMISSIONS.length - 1) {
       setPermIndex(permIndex + 1);
     } else {
       finish();
@@ -39,7 +39,7 @@ export default function RePermissionsScreen() {
       <View style={styles.header}>
         <View style={styles.headerSide} />
         <View style={styles.progressWrapper}>
-          <OnboardingProgressBar currentStep={permIndex + 1} totalSteps={PERMISSIONS.length} />
+          <OnboardingProgressBar currentStep={permIndex + 1} totalSteps={ONBOARDING_PERMISSIONS.length} />
         </View>
         <View style={styles.headerSide} />
       </View>
@@ -66,7 +66,7 @@ export default function RePermissionsScreen() {
         <View style={styles.footer}>
           <VirraButton label="CONTINUE" onPress={handleContinue} loading={loading} />
           <VirraText variant="mono" size={10} color="rgba(244,237,224,0.25)" style={styles.counter}>
-            {permIndex + 1} of {PERMISSIONS.length}
+            {permIndex + 1} of {ONBOARDING_PERMISSIONS.length}
           </VirraText>
         </View>
       </View>

@@ -5,6 +5,8 @@ import { useCycleStore } from '@/store/cycle';
 import { loadProgrammeSessions, loadProgrammeMeta, variantForPreference, hasEquipmentPreference } from './getStrongSession';
 import { loadRunnerModel } from './runProgramme/runnerModel';
 import { generateRunPlan, phaseForWeek } from './runProgramme/generatePlan';
+import { cycleAlignedDownWeeks, rankHardDay, shapingStrength, type CycleContext } from './runProgramme/cycleShaping';
+import { defaultDownWeeks } from './runProgramme/volumeCurve';
 import { archetypeForTemplate, raceDistanceFor } from './runProgramme/archetypes';
 import type { WorkoutPreference } from '@/store/profile';
 
@@ -402,10 +404,27 @@ async function buildGeneratedRunPlan(
     hasEventDate: Boolean(opts.endsOn),
   });
 
+  const weeks = opts.maxWeeks ?? archetype.defaultWeeks;
+
+  // The cycle shapes the plan before it exists, rather than correcting it
+  // afterwards. Read-time modulation still runs; it now has less to correct.
+  const cycleState = useCycleStore.getState();
+  const cycleCtx: CycleContext = {
+    mode:        cycleState.cycleMode,
+    periodStart: cycleState.periodStart,
+    cycleLength: cycleState.cycleLength,
+  };
+  const strength = shapingStrength(cycleCtx, cycleState.cycleProfile === 'irregular');
+  const planStart = new Date(`${opts.startsOn}T00:00:00`);
+
+  const downWeeks = strength === 'none'
+    ? undefined
+    : cycleAlignedDownWeeks(planStart, cycleCtx, defaultDownWeeks(weeks));
+
   const plan = generateRunPlan({
     archetype,
     goal:                raceDistanceFor(tmpl?.distance_goal ?? null),
-    weeks:               opts.maxWeeks ?? archetype.defaultWeeks,
+    weeks,
     tier:                model.tier,
     preset:              model.preset,
     difficulty:          model.difficulty,
@@ -415,13 +434,20 @@ async function buildGeneratedRunPlan(
     // The last day the runner has chosen is the long-run day unless they said
     // otherwise; most people put their long run at the weekend.
     longRunDay:          Math.max(...days),
+    downWeeks,
+    // Day placement is the fine half of the shaping, so it needs a cycle we can
+    // predict. An irregular one gets the coarse half only.
+    rankHardDay:         strength === 'full'
+      ? rankHardDay(planStart, cycleCtx)
+      : undefined,
   });
 
   const context: GenerateContext = {
     baseline_pace_secs: model.thresholdSecs,
     runPlan: {
       goal:      raceDistanceFor(tmpl?.distance_goal ?? null),
-      intensity: archetype.forceDifficulty ?? model.difficulty,
+      intensity:   archetype.forceDifficulty ?? model.difficulty,
+      intensities: plan.intensities,
       phases:    plan.curve.map((w, i) => phaseForWeek(w, i, plan.curve.filter((x) => x.kind === 'build' || x.kind === 'down').length)),
       longRunKm: plan.curve.map((w) => w.longRunKm),
       walkRun:   plan.walkRun,
@@ -442,10 +468,26 @@ export async function removeBlock(blockId: string): Promise<void> {
  *   2. Drops every future planned session belonging to this block
  *      status='planned' rows with scheduled_date >= today flip to 'dropped'.
  *      Completed and past sessions are left untouched (history preserved).
+ *   3. Deactivates the plan's user_plans row, unless another open block still
+ *      carries the same template.
+ *
+ * Step 3 is card 300. clearSlot has always closed both tables, but this path
+ * (DROP on the Training tab's plan stack) closed only training_blocks. Emma
+ * dropped Intermediate 10K and its user_plans row stayed active, so Browse
+ * said YOU ARE ON THIS PLAN and plan detail offered RESTART on a plan she had
+ * left. user_plans and training_blocks are two records of one fact; every
+ * way out of a plan has to close both.
  */
 export async function endTrainingBlock(blockId: string): Promise<void> {
   const today     = new Date().toISOString().split('T')[0];
   const yesterday = blockCloseDate();
+
+  const { data: block, error: readErr } = await supabase
+    .from('training_blocks')
+    .select('user_id, template_id')
+    .eq('id', blockId)
+    .maybeSingle();
+  if (readErr) throw new Error(`endTrainingBlock read failed: ${readErr.message}`);
 
   const { error: sessErr } = await supabase
     .from('planned_sessions')
@@ -460,6 +502,29 @@ export async function endTrainingBlock(blockId: string): Promise<void> {
     .update({ ends_on: yesterday })
     .eq('id', blockId);
   if (error) throw new Error(`endTrainingBlock failed: ${error.message}`);
+
+  const owner = block as { user_id: string; template_id: string | null } | null;
+  if (!owner?.template_id) return;   // an ad-hoc block has no plan row to close
+
+  // A rebuild can leave a newer block on the same template open. That plan is
+  // still being followed, so its row must stay active.
+  const { data: stillOpen, error: openErr } = await supabase
+    .from('training_blocks')
+    .select('id')
+    .eq('user_id', owner.user_id)
+    .eq('template_id', owner.template_id)
+    .neq('id', blockId)
+    .or(`ends_on.is.null,ends_on.gte.${today}`);
+  if (openErr) throw new Error(`endTrainingBlock open-block check failed: ${openErr.message}`);
+  if ((stillOpen ?? []).length > 0) return;
+
+  const { error: planErr } = await supabase
+    .from('user_plans')
+    .update({ is_active: false })
+    .eq('user_id', owner.user_id)
+    .eq('template_id', owner.template_id)
+    .eq('is_active', true);
+  if (planErr) throw new Error(`endTrainingBlock plan deactivate failed: ${planErr.message}`);
 }
 
 export { closeBlock } from './scheduleGenerator';

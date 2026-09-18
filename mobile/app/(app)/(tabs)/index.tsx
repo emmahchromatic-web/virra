@@ -23,8 +23,10 @@ import { QuickLogRow } from '@/components/ui/QuickLogRow';
 import { TipsCarousel } from '@/components/ui/TipsCarousel';
 import { FitnessUpdateCard } from '@/components/ui/FitnessUpdateCard';
 import { FitnessUpdateModal } from '@/components/ui/FitnessUpdateModal';
+import { RealignmentModal } from '@/components/ui/RealignmentModal';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { useFitnessUpdate } from '@/hooks/useFitnessUpdate';
+import { useRealignment } from '@/hooks/useRealignment';
 import { SymbolView } from 'expo-symbols';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { getDailyStats } from '@/lib/healthKitDaily';
@@ -57,6 +59,15 @@ export default function DashboardScreen() {
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
   const refreshReadiness = useReadinessStore((s) => s.refresh);
   const { isPro, showLocked } = useProGate();
+  // Card 298. Every option on the realignment prompt acts on a training plan,
+  // and "rebuild" routes to the plans screen, so a free runner would be
+  // prompted about something they cannot reach. Passing null also spares them
+  // the query. A lapsed subscriber can still have an open block, so this is not
+  // hypothetical.
+  const realignment = useRealignment(isPro ? (session?.user.id ?? null) : null);
+  // With the Insights tile hidden the check-in tile has the row to itself;
+  // laid out as a column it became a tall, mostly empty card.
+  const soloTile = !isPro && !showLocked;
 
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const meta     = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
@@ -285,11 +296,14 @@ export default function DashboardScreen() {
         />
 
         {/* 7. Week strip */}
+        {/* Card 298. On Pro the strip is the plan's week. Off Pro it is her
+            logged week (WeekStrip reads the activities table), so it is free
+            content and shows whether or not Pro features are hidden. */}
         {session && (
           <Pressable
             onPress={() => router.push('/(app)/(tabs)/training' as any)}
             accessibilityRole="button"
-            accessibilityLabel="This week's training, open Training tab"
+            accessibilityLabel={isPro ? "This week's training, open Training tab" : 'What you logged this week, open Training tab'}
           >
             <VirraCard style={{ paddingVertical: spacing.xs }}>
               <SectionLabel style={{ marginBottom: 2 }}>THIS WEEK</SectionLabel>
@@ -331,7 +345,7 @@ export default function DashboardScreen() {
 
           {checkin.done ? (
             <Pressable
-              style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }]}
+              style={[styles.actionTile, { borderColor: colors.pulse, backgroundColor: 'rgba(212,255,38,0.06)' }, soloTile && styles.actionTileSolo]}
               onPress={() => router.push((isPro ? '/(app)/checkin-trends' : paywallRoute('trends')) as any)}
               accessibilityRole="button"
             >
@@ -354,7 +368,7 @@ export default function DashboardScreen() {
             </Pressable>
           ) : (
             <Pressable
-              style={[styles.actionTile, { borderColor: colors.dawn }]}
+              style={[styles.actionTile, { borderColor: colors.dawn }, soloTile && styles.actionTileSolo]}
               onPress={() => router.push('/(app)/checkin')}
               accessibilityRole="button"
             >
@@ -374,6 +388,34 @@ export default function DashboardScreen() {
         verdict={verdict}
         onConfirm={async () => { await confirm(); setShowFitnessModal(false); }}
         onSnooze={async () => { await snooze(); setShowFitnessModal(false); }}
+      />
+
+      {/*
+        One prompt at a time. A Fitness Update and a realignment are both about
+        the plan being out of step with the runner, and showing them together
+        would read as the app piling on.
+      */}
+      <RealignmentModal
+        visible={!showFitnessModal && realignment.prompt != null}
+        prompt={realignment.prompt}
+        busy={realignment.busy}
+        onDismiss={realignment.dismiss}
+        onChoose={async (option) => {
+          try {
+            const result = await realignment.choose(option);
+            if (!result) return;
+            if (result.needsRebuild) {
+              router.push('/(app)/plans/browse' as any);
+              return;
+            }
+            appAlert('Plan updated', result.summary);
+          } catch (e) {
+            appAlert(
+              'Could not update your plan',
+              'Nothing has been changed. Check your connection and try again.',
+            );
+          }
+        }}
       />
 
       {session && (
@@ -416,6 +458,7 @@ const styles = StyleSheet.create({
     flex: 1, borderWidth: 1.5, borderRadius: 10,
     backgroundColor: colors.mist, padding: spacing.md, gap: spacing.sm,
   },
+  actionTileSolo: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   actionLabel:  { letterSpacing: 1.5 },
   actionSub:    { lineHeight: 14, marginTop: 2 },
   checkinVals:  { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs,
