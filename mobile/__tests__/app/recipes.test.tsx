@@ -268,11 +268,20 @@ describe('the recipe detail screen', () => {
 
   // Null fibre means "not known", and rendering it as 0 would be a claim we
   // cannot support.
-  // Both facts were bare text next to a pill, so "5 MIN" and "MAKES 1" ran
-  // together into one unreadable string on device.
-  it('separates the time from the serving count', async () => {
-    const { findByText } = render(<RecipeDetailScreen />);
-    expect(await findByText(/30 MIN\s+\u00b7\s+MAKES 6/)).toBeTruthy();
+  // How many a recipe makes is shown once, on the Servings card. The meta row
+  // used to repeat it, three times over counting the scaled-quantity caption.
+  it('shows the time in the meta row without repeating the serving count', async () => {
+    const { findByText, queryByText } = render(<RecipeDetailScreen />);
+    expect(await findByText('30 MIN')).toBeTruthy();
+    expect(queryByText(/MAKES/)).toBeNull();
+  });
+
+  it('captions scaled quantities in both directions', async () => {
+    const { findByText, findByLabelText, getByText } = render(<RecipeDetailScreen />);
+    // Opens on 1 of 6, so the quantities are already scaled.
+    expect(await findByText('SCALED FROM 6 SERVINGS')).toBeTruthy();
+    fireEvent.press(await findByLabelText('More servings'));
+    await waitFor(() => expect(getByText('SCALED FROM 6 SERVINGS')).toBeTruthy());
   });
 
   it('shows a dash for unknown fibre rather than zero', async () => {

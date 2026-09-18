@@ -30,6 +30,16 @@ export interface SessionSlot {
 // Returns ordered slots for the day-assignment picker.
 // When maxSessionsPerWeek exceeds the number of unique labels in the template,
 // labels are cycled (lower→upper→lower…) so the picker always shows the right count.
+//
+// Card 311. The labels were every distinct session across ALL weeks, in the
+// order first seen. A race is in the final week only, so Path to parkrun's rows
+// read RUN/WALK · RACE · RUN/WALK, and Beginner 5K's long run landed in the
+// middle slot (Wednesday) because it appeared before the tempo did. For a plan
+// that falls back to the template, that label is what gets written every week.
+//
+// So a race is never a weekly slot, and the long run is always the last slot,
+// which DAY_TEMPLATES puts on the weekend and the run generator treats as the
+// long-run day. Strength labels are neither, and take the unchanged path below.
 export function computeDefaultDayAssignment(
   sessionsJson:        WeekSession[],
   maxSessionsPerWeek?: number,
@@ -47,10 +57,21 @@ export function computeDefaultDayAssignment(
   const count    = maxSessionsPerWeek ?? unique.length;
   const template = DAY_TEMPLATES[Math.min(count, 7)] ??
     Array.from({ length: count }, (_, i) => i);
+
+  const everyday = unique.filter((l) => !ANCHOR_LAST.has(l));
+  const hasLong  = unique.includes('long');
+  const labels: string[] = !hasLong && !unique.includes('race')
+    ? Array.from({ length: count }, (_, i) => unique.length > 0 ? unique[i % unique.length] : 'general')
+    : Array.from({ length: count }, (_, i) => {
+        if (hasLong && i === count - 1) return 'long';
+        if (everyday.length > 0) return everyday[i % everyday.length];
+        // Nothing but a race and no long run: better its own name than none.
+        return hasLong ? 'long' : 'race';
+      });
+
   const occurrences: Record<string, number> = {};
-  return Array.from({ length: count }, (_, i) => {
-    const label = unique.length > 0 ? unique[i % unique.length] : 'general';
-    const occ   = occurrences[label] ?? 0;
+  return labels.map((label, i) => {
+    const occ = occurrences[label] ?? 0;
     occurrences[label] = occ + 1;
     return { key: `${label}_${occ}`, label, day: template[i] };
   });
@@ -102,7 +123,10 @@ export interface ProgrammeContext {
  */
 export interface RunPlanContext {
   goal:      RaceDistance;
+  /** Fallback when a week has no intensity of its own. */
   intensity: Difficulty;
+  /** Per week. On an intensity-led plan this is what progresses. */
+  intensities?: Difficulty[];
   /** Indexed by week. */
   phases:    WeekPhase[];
   longRunKm: number[];
@@ -203,7 +227,7 @@ export function generateSchedule(
             thresholdSecs: context.baseline_pace_secs,
             goal:          plan?.goal,
             phase:         plan?.phases[weekIndex],
-            intensity:     plan?.intensity,
+            intensity:     plan?.intensities?.[weekIndex] ?? plan?.intensity,
             walkRun:       plan?.walkRun?.[weekIndex],
           });
         } else if (modality === 'strength') {

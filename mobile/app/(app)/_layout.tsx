@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
@@ -9,6 +9,8 @@ import { useCycleStore } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { useNotificationsStore } from '@/store/notifications';
 import { getEntitlementInfo } from '@/lib/revenuecat';
+import { isProStatus } from '@/lib/pro';
+import { recomputeSeasonForUser } from '@/lib/seasonEngine';
 import { importNewWorkouts } from '@/lib/healthKitImport';
 import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
@@ -33,6 +35,10 @@ async function maybeShowWeekAhead(): Promise<void> {
   // Only prompt from Sunday 18:00 onwards (Mon–Sat counts as "past Sunday")
   if (dow === 0 && hour < 18) return;
 
+  // Card 298. The week ahead plans around a plan she does not have on the
+  // free tier; pushing her at a locked screen on a Sunday evening is a nag.
+  if (!isProStatus(useSubscriptionStore.getState().status, useSubscriptionStore.getState().isActive)) return;
+
   const prefs = await loadNotificationPreferences();
   if (!prefs.weeklyPlan) return;
 
@@ -55,8 +61,10 @@ export default function AppLayout() {
     if (!isLoading && !session) router.replace('/(auth)');
   }, [session, isLoading]);
 
-  useEffect(() => {
-    if (!session || isActive) return;
+  // Ask RevenueCat where she stands and mirror it into the store.
+  const syncEntitlement = useCallback(() => {
+    // Internal "Preview as" pin on the Subscription screen wins over everything.
+    if (useSubscriptionStore.getState().devOverride) return;
     if (process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') {
       setStatus('trial');
       return;
@@ -68,11 +76,44 @@ export default function AppLayout() {
       } else if (info.isActive) {
         setStatus('active');
       } else {
-        setStatus('expired');
-        router.replace('/(auth)/paywall');
+        // Card 298. No entitlement no longer means no app. She goes in on
+        // the free tier and meets Virra Pro where it prescribes something:
+        // the locked tiles and ProScreen do the gating from here.
+        setStatus(info.everSubscribed ? 'expired' : 'free');
       }
     });
-  }, [session, isActive]);
+  }, [setStatus]);
+
+  useEffect(() => {
+    if (!session || isActive) return;
+    syncEntitlement();
+    // subStatus: clearing the preview pin drops the status back to `unknown`
+    // without touching isActive, and that has to trigger a fresh ask.
+  }, [session, isActive, subStatus === 'unknown', syncEntitlement]);
+
+  // The downgrade. A trial cancelled in Apple's settings stays active until
+  // day 14 and lapses on day 15, and iOS keeps the app in memory for days:
+  // checking only when "not active" meant a lapsed trial stayed Pro until the
+  // process happened to be killed. Re-ask every time she comes back.
+  useEffect(() => {
+    if (!session) return;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') syncEntitlement();
+    });
+    return () => sub.remove();
+  }, [session, syncEntitlement]);
+
+  // The upgrade. Races are free to add but the season they make is Pro, so a
+  // free user can hold two races and no season. Build it the moment she has
+  // Pro. Idempotent: returns early when an active season already exists.
+  useEffect(() => {
+    if (!session?.user.id || !isActive) return;
+    recomputeSeasonForUser(
+      session.user.id,
+      new Date().toLocaleDateString('en-CA'),
+      useCycleStore.getState().cycleProfile,
+    ).catch(() => { /* next launch tries again */ });
+  }, [session?.user.id, isActive]);
 
   useEffect(() => {
     if (session?.user.id) loadFromSupabase(session.user.id);
@@ -127,6 +168,7 @@ export default function AppLayout() {
     }
 
     useNotificationsStore.getState().hydrate().then(reconcilePresented);
+    useSubscriptionStore.getState().hydrateProFeatures();
 
     // Card 253. Workouts finished with no signal are queued locally; this is
     // where they land. Safe to call every time: anything that fails stays

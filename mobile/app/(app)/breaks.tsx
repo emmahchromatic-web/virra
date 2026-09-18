@@ -10,6 +10,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { BreakModal } from '@/components/ui/BreakModal';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 interface BreakRecord {
   id:          string;
@@ -30,7 +31,7 @@ function fmtBreakRange(start: string, end: string): string {
   return `${s.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${eStr}`;
 }
 
-export default function BreaksScreen() {
+function BreaksScreen() {
   const { session }                     = useAuthStore();
   const [breaks,       setBreaks]       = useState<BreakRecord[]>([]);
   const [activeBlocks, setActiveBlocks] = useState<TrainingBlock[]>([]);
@@ -143,3 +144,15 @@ const s = StyleSheet.create({
   },
   divider:  { height: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedBreaksScreen() {
+  return (
+    <ProScreen feature="plans">
+      <BreaksScreen />
+    </ProScreen>
+  );
+}

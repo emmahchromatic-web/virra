@@ -1,34 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, SafeAreaView, ScrollView, Pressable, Linking } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
-import { getOfferings, purchasePackage, restorePurchases } from '@/lib/revenuecat';
+import { getOfferings, purchasePackage, restorePurchases, getTrialEligibility } from '@/lib/revenuecat';
 import { useSubscriptionStore } from '@/store/subscription';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
+import { PRO_FEATURES, PAYWALL_PRO_LIST, PAYWALL_FREE_LIST, isProFeature, trialEligible } from '@/lib/pro';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { InlineError } from '@/components/ui/InlineError';
+import { SymbolView } from 'expo-symbols';
 
 const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
 const PRIVACY_URL = 'https://virra.app/privacy';
 
-// Sells only what ships. The education library was descoped and does not
-// belong here. The recipe book now does: it has a content model, seeded
-// recipes and a tab that reads them, so naming it at the point of payment
-// describes something that exists. Cards 211 and 214.
-const FEATURES = [
-  'Cycle-adjusted training plans (5K → marathon)',
-  'Nutrition targets that shift with your phase',
-  'HealthKit sync: workouts import automatically',
-  'Daily dashboard built for your cycle',
-  'Strength programmes that follow your cycle',
-  'A recipe book that matches your phase and your targets',
-];
+// Sells only what ships (cards 211 and 214), and since card 298 says what is
+// free as well: the wall is a choice between two real things, not a gate.
+// The lists live in pro.ts so the tiles, the paywall and the tests agree.
 
 export default function PaywallScreen() {
-  const { setStatus } = useSubscriptionStore();
+  const { setStatus, status, devOverride } = useSubscriptionStore();
+  // Card 298. Two ways in. From onboarding (no params) the way out is into
+  // the app. From a locked tile inside the app (`from=app`) the way out is
+  // Back, to the screen she was on, and the kicker names what she tapped.
+  const params      = useLocalSearchParams<{ from?: string; feature?: string }>();
+  const fromApp     = params.from === 'app';
+  const featureCopy = isProFeature(params.feature) ? PRO_FEATURES[params.feature] : null;
+  // Who may be promised a trial. Apple is the authority: the intro offer is
+  // once per Apple ID per subscription group, so someone who trialled, let
+  // it lapse, or even made a second Virra account is NOT eligible, whatever
+  // our own records say. StoreKit's answer wins when it has one; our status
+  // (lapsed = no trial) is the fallback while it is unknown.
+  const [storeEligible, setStoreEligible] = useState<boolean | null>(null);
+  // An internal "Preview as" pin outranks StoreKit: the point of the pin is
+  // to look at a tier this Apple ID is not actually in.
+  const canTrial    = devOverride
+    ? trialEligible(status)
+    : (storeEligible ?? trialEligible(status));
   const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
   const [selected, setSelected]   = useState<PurchasesPackage | null>(null);
   const [loading,  setLoading]    = useState(false);
@@ -45,13 +55,22 @@ export default function PaywallScreen() {
     getOfferings().then((pkgs) => {
       setPackages(pkgs);
       setSelected(pkgs[0] ?? null);
+      getTrialEligibility(pkgs.map((p) => p.product.identifier)).then(setStoreEligible);
     });
   }, []);
 
   async function routePostPaywall() {
+    if (fromApp && router.canGoBack()) { router.back(); return; }
     const route = await getPostAuthRoute();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     router.replace(route as any);
+  }
+
+  // The free tier is the default, not a consolation: she keeps everything she
+  // can log, and meets Pro again where it prescribes something.
+  async function handleContinueFree() {
+    if (!fromApp) setStatus('free');
+    await routePostPaywall();
   }
 
   async function handlePurchase() {
@@ -92,17 +111,50 @@ export default function PaywallScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <VirraText variant="display" size={48} color={colors.pulse} style={styles.title}>
-          Start your free trial
+        {/* A way out at the top, not only "Not now" three screens down.
+            Same action as the ghost button at the bottom. */}
+        <Pressable
+          onPress={handleContinueFree}
+          style={styles.close}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel={fromApp ? 'Close' : 'Continue with the free version'}
+        >
+          <SymbolView name="xmark" size={18} tintColor={colors.muted} />
+        </Pressable>
+        {featureCopy && (
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.kicker}>
+            {featureCopy.kicker.toUpperCase()} · PART OF VIRRA PRO
+          </VirraText>
+        )}
+        <VirraText variant="display" size={48} color={colors.pulse} style={featureCopy ? undefined : styles.title}>
+          {canTrial ? 'Start your free trial' : 'Come back to Virra Pro'}
         </VirraText>
         <VirraText variant="serif" color={colors.breath} style={styles.sub}>
-          14 days free. Cancel any time. No charge until your trial ends.
+          {canTrial
+            ? '14 days free. Cancel any time. No charge until your trial ends.'
+            : 'Your plans and your history are still here. Pick up where you left off.'}
         </VirraText>
 
-        <VirraCard style={styles.features}>
-          {FEATURES.map((f) => (
+        <VirraCard accent style={styles.features}>
+          <VirraText variant="mono" size={11} color={colors.pulse} style={styles.listKicker}>
+            VIRRA PRO
+          </VirraText>
+          {PAYWALL_PRO_LIST.map((f) => (
             <View key={f} style={styles.featureRow}>
               <VirraText variant="mono" color={colors.pulse} size={12}>✓</VirraText>
+              <VirraText variant="body" color={colors.breath} style={styles.featureLabel}>{f}</VirraText>
+            </View>
+          ))}
+        </VirraCard>
+
+        <VirraCard style={styles.features}>
+          <VirraText variant="mono" size={11} color={colors.muted} style={styles.listKicker}>
+            FREE, ALWAYS
+          </VirraText>
+          {PAYWALL_FREE_LIST.map((f) => (
+            <View key={f} style={styles.featureRow}>
+              <VirraText variant="mono" color={colors.muted} size={12}>✓</VirraText>
               <VirraText variant="body" color={colors.breath} style={styles.featureLabel}>{f}</VirraText>
             </View>
           ))}
@@ -137,7 +189,7 @@ export default function PaywallScreen() {
         )}
 
         <VirraButton
-          label="Start 14-day free trial"
+          label={canTrial ? 'Start 14-day free trial' : 'Subscribe to Virra Pro'}
           onPress={handlePurchase}
           loading={loading}
           style={styles.cta}
@@ -150,13 +202,15 @@ export default function PaywallScreen() {
           <VirraText variant="body" size={11} color={colors.muted} style={styles.legalBody}>
             Virra Pro is an auto-renewing subscription
             {selected ? ` (${selected.product.title} at ${selected.product.priceString})` : ''}.
-            Payment is charged to your Apple ID account at the end of the 14-day free trial.
+            {canTrial
+              ? ' Payment is charged to your Apple ID account at the end of the 14-day free trial. '
+              : ' Payment is charged to your Apple ID account at confirmation of purchase. '}
             The subscription renews automatically at the same price for the same period unless
             auto-renew is turned off at least 24 hours before the end of the current period.
             Your account is charged for renewal within 24 hours prior to the end of the current
             period. Manage or cancel at any time in Settings → [your name] → Subscriptions
-            on this device. Any unused portion of the free trial is forfeited when you start a
-            paid subscription.
+            on this device.
+            {canTrial ? ' Any unused portion of the free trial is forfeited when you start a paid subscription.' : ''}
           </VirraText>
           <View style={styles.legalLinks}>
             <Pressable onPress={() => Linking.openURL(TERMS_URL)} hitSlop={8}>
@@ -179,6 +233,12 @@ export default function PaywallScreen() {
           onPress={handleRestore}
         />
 
+        <VirraButton
+          label={fromApp ? 'Not now' : 'Continue with the free version'}
+          variant="ghost"
+          onPress={handleContinueFree}
+        />
+
         {(__DEV__ || process.env.EXPO_PUBLIC_INTERNAL_BUILD === 'true') && (
           <VirraButton
             label="Skip (internal build)"
@@ -195,9 +255,12 @@ export default function PaywallScreen() {
 const styles = StyleSheet.create({
   safe:        { flex: 1, backgroundColor: colors.mile },
   scroll:      { padding: spacing.lg, gap: spacing.md },
-  title:       { marginTop: spacing.lg },
+  title:       { marginTop: spacing.xs },
+  kicker:      { letterSpacing: 1.5, marginTop: spacing.xs },
+  close:       { alignSelf: 'flex-end', width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   sub:         { marginTop: spacing.sm, marginBottom: spacing.md },
   features:    { gap: spacing.md },
+  listKicker:  { letterSpacing: 1.5, marginBottom: -spacing.xs },
   // The gutter after the tick was two hardcoded spaces inside the Text, which
   // is not a layout: a bullet long enough to wrap put its second line flush
   // under the tick instead of aligned with the first. A real gap plus a

@@ -115,29 +115,58 @@ export function remainingWeeks(
 }
 
 /**
- * Days of the week that already hold a session from some OTHER plan.
+ * Days of the week that already hold a session from some OTHER plan, and what
+ * kind of session each one is.
  *
- * Card 282. The day picker marks these with an orange dot, captioned "days with
- * other plan sessions". That was true while the picker only appeared before a
- * plan was started, when every session in the week belonged to something else.
- * Card 256's Adjust mode shows the same picker on a plan you are already on, and
- * the dots then flagged that plan's own sessions as somebody else's — adjusting
- * Beginner 5K marked its own long run and tempo as clashes.
+ * Card 282. The day picker marks these with a dot. That was true while the
+ * picker only appeared before a plan was started, when every session in the
+ * week belonged to something else. Card 256's Adjust mode shows the same picker
+ * on a plan you are already on, and the dots then flagged that plan's own
+ * sessions as somebody else's — adjusting Beginner 5K marked its own long run
+ * and tempo as clashes.
  *
  * So the plan being viewed is excluded. On a plan you are not on, `ownBlockId`
  * is null and nothing changes.
+ *
+ * Card 303. Every dot was orange, so a run on Saturday looked like strength.
+ * Each day now carries the modalities on it, in the order they first appear, so
+ * the picker can colour a dot per plan and show two when two plans share a day.
  */
-export function occupiedDaysExcept(
-  week:       Array<{ sessions: Array<ScheduledSession> }>,
+export function occupiedDaysExcept<M extends string>(
+  week:       Array<{ sessions: Array<ScheduledSession & { modality: M }> }>,
   ownBlockId: string | null,
-): number[] {
-  const days = new Set<number>();
+): Map<number, M[]> {
+  const days = new Map<number, M[]>();
   for (const day of week) {
     for (const s of day.sessions) {
       if (!isLiveSession(s)) continue;
       if (ownBlockId && s.block_id === ownBlockId) continue;
-      days.add(s.day_of_week);
+      const kinds = days.get(s.day_of_week) ?? [];
+      if (!kinds.includes(s.modality)) kinds.push(s.modality);
+      days.set(s.day_of_week, kinds);
     }
   }
-  return [...days].sort((a, b) => a - b);
+  return new Map([...days].sort(([a], [b]) => a - b));
+}
+
+/**
+ * Put one session on a day, swapping with whichever session already had it.
+ *
+ * Card 299. A day another session held was only dimmed, and tapping it still
+ * moved the session there, so three runs could all land on Tuesday. Swapping
+ * means nothing is lost and no two sessions can share a day, without making the
+ * runner clear a day before another session can take it.
+ */
+export function assignDay<T extends { key: string; day: number }>(
+  slots: T[],
+  key:   string,
+  day:   number,
+): T[] {
+  const moving = slots.find((s) => s.key === key);
+  if (!moving || moving.day === day) return slots;
+  return slots.map((s) => {
+    if (s.key === key) return { ...s, day };
+    if (s.day === day) return { ...s, day: moving.day };
+    return s;
+  });
 }

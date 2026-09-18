@@ -44,6 +44,8 @@ import { isStrengthV2 } from '@/lib/workoutStructure';
 import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/workoutDrafts';
 import { enqueueCompletion } from '@/lib/pendingCompletions';
 import { sessionLabelText } from '@/lib/sessionLabels';
+import { limitSetInput, isWithinWeightLimit, isBigJump, formatKg } from '@/lib/setInputLimits';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 type ScreenState = 'loading' | 'idle' | 'active' | 'paused';
 
@@ -299,6 +301,9 @@ function applyPrefillWeights(
     if (!settings[ex.name] && ex.section === 'mobility') continue;
     const w = weights[ex.name];
     if (w == null) continue;
+    // A weight saved before the field had limits (card 297) must not come back
+    // as a pre-fill the field itself would refuse.
+    if (!isWithinWeightLimit(w)) continue;
     next[ex.id] = (next[ex.id] ?? []).map((s) =>
       s.weightKg === '' ? { ...s, weightKg: String(w) } : s);
   }
@@ -375,7 +380,7 @@ function buildStepLines(session: SessionData): string[] {
   return [];
 }
 
-export default function WorkoutPreviewScreen() {
+function WorkoutPreviewScreen() {
   // Two ways in, card 264. `sessionId` is a row in planned_sessions, the week's
   // scheduled work. `mobilitySessionId` is a one-off: no plan behind it, and
   // none needed. Everything after loading is identical, because the finish path
@@ -422,6 +427,15 @@ export default function WorkoutPreviewScreen() {
   // hold a split squat simultaneously.
   const [hold,         setHold]         = useState<{ exId: string; setIdx: number; startedAt: number; target: HoldTarget } | null>(null);
   const [holdNow,      setHoldNow]      = useState(0);
+  // Card 297. Last saved weight per exercise name, from before this session,
+  // for the big-jump check. Kept apart from the pre-fill so editing a set
+  // cannot move the thing it is being compared against.
+  const [lastWeights,  setLastWeights]  = useState<Record<string, number>>({});
+  // The one refused keystroke worth explaining, keyed "<exId>:<setIdx>:<field>".
+  const [inputHint,    setInputHint]    = useState<{ key: string; text: string } | null>(null);
+  // Exercises whose big jump the user has already confirmed this session.
+  const jumpConfirmedRef = useRef<Set<string>>(new Set());
+  const weightInputRefs  = useRef<Record<string, TextInput | null>>({});
 
   // Moment the app last came to the foreground, so a rest that ran out while
   // the user was in another app can finish silently.
@@ -542,17 +556,22 @@ export default function WorkoutPreviewScreen() {
             }
           }
 
-          if (structure && !resumed) {
+          if (structure) {
             const exercises = toLogExercises(structure);
-            setLogged(seedLoggedSets(exercises));
+            if (!resumed) setLogged(seedLoggedSets(exercises));
             // Pre-fill each set with last session's weight, and find out which
             // movements take a weight at all. Both are keyed by exercise name.
+            // Fetched on a resumed session too: the big-jump check (card 297)
+            // needs last time's weights, and which movements take a weight
+            // does not change because the app was closed. Only a fresh session
+            // is pre-filled; a draft already holds what the user typed.
             if (session) {
               const names = exercises.map((e) => e.name);
               Promise.all([getLastLoggedWeights(session.user.id, names), getExerciseSettings(names)])
                 .then(([weights, exSettings]) => {
                   setSettings(exSettings);
-                  setLogged((prev) => applyPrefillWeights(prev, exercises, weights, exSettings));
+                  setLastWeights(weights);
+                  if (!resumed) setLogged((prev) => applyPrefillWeights(prev, exercises, weights, exSettings));
                 })
                 .catch(() => {});
             }
@@ -655,17 +674,59 @@ export default function WorkoutPreviewScreen() {
 
   // ---- Strength logging helpers ----
 
-  function updateLoggedSet(exId: string, setIdx: number, field: 'actualReps' | 'weightKg', value: string) {
+  function updateLoggedSet(ex: LogExercise, setIdx: number, field: 'actualReps' | 'weightKg', typed: string) {
+    // Card 297: refuse a keystroke that goes over a limit and say why, rather
+    // than clamping. A hold logs seconds in the reps field, so it gets its own.
+    const kind    = field === 'weightKg' ? 'weight' : parseHoldTarget(ex.reps_label) ? 'seconds' : 'reps';
+    const current = logged[ex.id]?.[setIdx]?.[field] ?? '';
+    const { value, hint } = limitSetInput(kind, current, typed);
+    setInputHint(hint ? { key: `${ex.id}:${setIdx}:${field}`, text: hint } : null);
+    if (value === current) return;
     setLogged((prev) => {
-      const sets = prev[exId] ? [...prev[exId]] : [];
+      const sets = prev[ex.id] ? [...prev[ex.id]] : [];
       if (!sets[setIdx]) return prev;
       sets[setIdx] = { ...sets[setIdx], [field]: value };
-      return { ...prev, [exId]: sets };
+      return { ...prev, [ex.id]: sets };
     });
   }
 
   function toggleSetDone(ex: LogExercise, setIdx: number) {
-    const nextDone = !(logged[ex.id]?.[setIdx]?.done ?? false);
+    const set = logged[ex.id]?.[setIdx];
+    if (!set) return;
+    const nextDone = !set.done;
+    setInputHint(null);
+
+    // Card 297. A weight more than double last time is usually a typo that
+    // stayed under the hard limit (25 typed as 250). Ask once per exercise;
+    // unticking never asks.
+    const weight = parseFloat(set.weightKg);
+    const last   = lastWeights[ex.name];
+    if (nextDone && !jumpConfirmedRef.current.has(ex.id) && isBigJump(weight, last)) {
+      appAlert(
+        'More than double last time',
+        `Last time you logged ${formatKg(last)} kg for ${ex.name}. Log ${formatKg(weight)} kg?`,
+        [
+          {
+            text: 'Fix it',
+            style: 'cancel',
+            // After the dialog has gone, or the focus is lost with it.
+            onPress: () => { setTimeout(() => weightInputRefs.current[`${ex.id}:${setIdx}`]?.focus(), 350); },
+          },
+          {
+            text: 'Log it',
+            onPress: () => {
+              jumpConfirmedRef.current.add(ex.id);
+              setSetDone(ex, setIdx, true);
+            },
+          },
+        ],
+      );
+      return;
+    }
+    setSetDone(ex, setIdx, nextDone);
+  }
+
+  function setSetDone(ex: LogExercise, setIdx: number, nextDone: boolean) {
     const sets = logged[ex.id] ? [...logged[ex.id]] : [];
     if (!sets[setIdx]) return;
     // On completing a set, default empty reps to the target so a quick tap
@@ -1328,22 +1389,25 @@ export default function WorkoutPreviewScreen() {
                   </View>
 
                   {sets.map((st, i) => (
-                    <View key={i} style={s.setRow}>
+                    <React.Fragment key={i}>
+                    <View style={s.setRow}>
                       <VirraText variant="mono" size={14} color={colors.muted} style={s.colSet}>{i + 1}</VirraText>
                       <TextInput
                         style={[s.setInput, s.colInput, st.done && s.setInputDone]}
                         value={st.actualReps}
-                        onChangeText={(v) => updateLoggedSet(ex.id, i, 'actualReps', v)}
+                        onChangeText={(v) => updateLoggedSet(ex, i, 'actualReps', v)}
                         placeholder={st.extra ? 'reps' : String(st.targetReps)}
                         placeholderTextColor="rgba(244,237,224,0.3)"
                         keyboardType="number-pad"
                         maxLength={3}
+                        accessibilityLabel={`${ex.name} set ${i + 1} ${holdTarget ? 'seconds' : 'reps'}`}
                       />
                       {showWeight && (
                         <TextInput
                           style={[s.setInput, s.colInput, st.done && s.setInputDone]}
+                          ref={(el) => { weightInputRefs.current[`${ex.id}:${i}`] = el; }}
                           value={st.weightKg}
-                          onChangeText={(v) => updateLoggedSet(ex.id, i, 'weightKg', v)}
+                          onChangeText={(v) => updateLoggedSet(ex, i, 'weightKg', v)}
                           placeholder="0"
                           placeholderTextColor="rgba(244,237,224,0.3)"
                           keyboardType="decimal-pad"
@@ -1367,6 +1431,17 @@ export default function WorkoutPreviewScreen() {
                         </Pressable>
                       )}
                     </View>
+                    {inputHint?.key.startsWith(`${ex.id}:${i}:`) && (
+                      <VirraText
+                        variant="mono"
+                        size={10}
+                        color={colors.heat}
+                        style={s.inputHint}
+                      >
+                        {inputHint.text.toUpperCase()}
+                      </VirraText>
+                    )}
+                    </React.Fragment>
                   ))}
 
                   <Pressable
@@ -1559,6 +1634,7 @@ const s = StyleSheet.create({
     fontFamily: fonts.mono, fontSize: 15,
   },
   setInputDone: { borderColor: colors.pulse },
+  inputHint:  { marginLeft: 28 + spacing.sm, letterSpacing: 1 },
   addWeightBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingTop: spacing.xs },
   holdBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
@@ -1582,3 +1658,15 @@ const s = StyleSheet.create({
   resumeBtn:      { backgroundColor: colors.pulse },
   stopBtn:        { backgroundColor: 'rgba(255,46,126,0.18)', borderWidth: 1, borderColor: colors.heat },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedWorkoutPreviewScreen() {
+  return (
+    <ProScreen feature="strength">
+      <WorkoutPreviewScreen />
+    </ProScreen>
+  );
+}

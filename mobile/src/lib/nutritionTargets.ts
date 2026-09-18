@@ -258,3 +258,18 @@ export const LOAD_LABELS: Record<TrainingLoad, string> = {
   moderate: 'Moderate',
   hard:     'Hard',
 };
+
+/**
+ * Card 298. The free tier logs food against the flat table: the same numbers
+ * for every phase, no bodyweight engine. Pro gets the full resolver. Every
+ * screen that shows a target goes through here so the tier line is drawn in
+ * exactly one place.
+ */
+export function resolveTargetsForTier(
+  isPro:   boolean,
+  metrics: Partial<PersonalMetrics> | null | undefined,
+  phase:   CyclePhase | null,
+  load:    TrainingLoad,
+): NutritionTargets {
+  return isPro ? resolveNutritionTargets(metrics, phase, load) : getNutritionTargets(null, load);
+}

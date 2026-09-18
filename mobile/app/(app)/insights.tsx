@@ -18,6 +18,7 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { AddEventModal } from '@/components/ui/AddEventModal';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Shimmer } from '@/components/ui/Shimmer';
+import { ProScreen } from '@/components/ui/ProScreen';
 
 const PHASE_COLOR: Record<string, string> = {
   menstrual:  colors.heat,
@@ -55,7 +56,7 @@ const tile = StyleSheet.create({
   sub:      { letterSpacing: 1 },
 });
 
-export default function InsightsScreen() {
+function InsightsScreen() {
   const { session }   = useAuthStore();
   const { cycleInfo, periodStart, cycleLength, periodDays, cycleProfile, hasPlaceboWeek, cycleMode, currentPackStart } = useCycleStore();
 
@@ -468,3 +469,15 @@ const styles = StyleSheet.create({
   upcomingSummary: { paddingLeft: 76, paddingBottom: 2 },
   footer:          { textAlign: 'center', letterSpacing: 2 },
 });
+
+// Card 298. Whole-screen gate. The tabs keep a free user away from this
+// route; a notification tap, a stale link or a back-swipe can still land
+// here, and the screen would otherwise render for something she does not
+// have. Same locked card as the tiles, plus a back button.
+export default function GatedInsightsScreen() {
+  return (
+    <ProScreen feature="insights">
+      <InsightsScreen />
+    </ProScreen>
+  );
+}

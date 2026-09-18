@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
+import { useIsPro } from '@/lib/pro';
 import { useCycleStore, type CycleProfile } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { INJURY_LEVELS, INJURY_LABEL, type InjuryLevel } from '@/lib/injuryLevels';
@@ -77,7 +78,8 @@ async function functionErrorMessage(error: unknown): Promise<string> {
 
 export default function ProfileScreen() {
   const { session, signOut }   = useAuthStore();
-  const { status }             = useSubscriptionStore();
+  const { status, showProFeatures, setShowProFeatures } = useSubscriptionStore();
+  const isPro                  = useIsPro();
   const { cycleInfo, periodStart, cycleLength, periodDays, setCycleLength, setPeriodStart, cycleProfile } = useCycleStore();
   const { firstName, lastName, avatarUrl, stepsTarget, workoutPreference, save: saveProfile, trackWeight, heightCm, dateOfBirth, sex, injuryLevel, weightExplainerDismissedAt, bumpWeightDataVersion } = useProfileStore();
   const [weightSyncing, setWeightSyncing] = useState(false);
@@ -116,8 +118,25 @@ export default function ProfileScreen() {
   const [creditsModalVisible, setCreditsModalVisible] = useState(false);
   const [showExplainer, setShowExplainer] = useState(false);
 
-  async function handleToggleWeight(next: boolean) {
+  function handleToggleWeight(next: boolean) {
     if (!session || weightSyncing) return;
+    if (next) { void setWeightTracking(true); return; }
+    // Card 307. Off used to be instant. Nothing is deleted, but the cost is on
+    // the way back: turning it on re-imports a year from Apple Health and
+    // re-stamps every reading's phase with today's cycle settings. Say both
+    // before the user commits, not after.
+    appAlert(
+      'Turn off weight tracking?',
+      'Your readings are kept but hidden, and Apple Health stops syncing. If you turn it back on, the app re-imports your last year of weights from Apple Health.',
+      [
+        { text: 'Keep tracking', style: 'cancel' },
+        { text: 'Turn off', style: 'destructive', onPress: () => { void setWeightTracking(false); } },
+      ],
+    );
+  }
+
+  async function setWeightTracking(next: boolean) {
+    if (!session) return;
     if (next && !weightExplainerDismissedAt) setShowExplainer(true);
     await saveProfile(session.user.id, { trackWeight: next });
     if (!next) {
@@ -400,6 +419,7 @@ export default function ProfileScreen() {
   }
 
   const subLabel: Record<string, string> = {
+    free:      'Free version',
     trial:     'Free trial active',
     active:    'Subscribed',
     expired:   'Subscription expired',
@@ -482,6 +502,22 @@ export default function ProfileScreen() {
             value={subLabel[status] ?? status}
             onPress={() => router.push('/(app)/subscription')}
           />
+          {/* Card 298. Free users can hide the locked Pro tiles. On by
+              default: the tiles are how she finds out what Pro adds, and
+              the paywall stays one tap away from the row above. */}
+          {!isPro && (
+            <View style={{ marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
+              <View style={{ flex: 1 }}>
+                <VirraText variant="body" size={15} color={colors.breath}>Show Pro features</VirraText>
+                <VirraText variant="body" size={12} color={colors.muted} style={{ marginTop: 2 }}>
+                  {showProFeatures
+                    ? 'Locked tiles show what Virra Pro adds'
+                    : 'Hidden. Upgrade any time from the status row above'}
+                </VirraText>
+              </View>
+              <VirraSwitch value={showProFeatures} onValueChange={setShowProFeatures} />
+            </View>
+          )}
         </VirraCard>
 
         <VirraCard style={styles.card}>
@@ -510,6 +546,7 @@ export default function ProfileScreen() {
               value={trackWeight}
               onValueChange={handleToggleWeight}
               disabled={weightSyncing}
+              accessibilityLabel="Track weight"
             />
           </View>
           {weightSyncNote && (
