@@ -19,6 +19,8 @@ jest.mock('@/lib/revenuecat', () => ({
   restorePurchases: jest.fn(),
   getTrialEligibility: jest.fn().mockResolvedValue(null),
 }));
+const mockTrack = jest.fn();
+jest.mock('@/lib/proEvents', () => ({ trackPro: (...a: any[]) => mockTrack(...a) }));
 jest.mock('@/lib/permissionsConfig', () => ({
   getPostAuthRoute: jest.fn().mockResolvedValue('/(app)/(tabs)'),
 }));
@@ -115,5 +117,17 @@ describe('internal preview pin', () => {
     expect(queryByText('Start 14-day free trial')).toBeNull();
     expect(queryByText('Come back to Virra Pro')).toBeTruthy();
     useSubscriptionStore.setState({ devOverride: null });
+  });
+});
+
+describe('paywall measurement', () => {
+  it('records the open with the feature that sent her, and the close', async () => {
+    mockTrack.mockClear();
+    mockParams = { from: 'app', feature: 'recipes' };
+    useSubscriptionStore.setState({ status: 'free', isActive: false, devOverride: null });
+    const { getByText } = render(<PaywallScreen />);
+    expect(mockTrack).toHaveBeenCalledWith('paywall_open', { feature: 'recipes', source: 'app' });
+    fireEvent.press(getByText('Not now'));
+    await waitFor(() => expect(mockTrack).toHaveBeenCalledWith('paywall_close', { feature: 'recipes', source: 'app' }));
   });
 });

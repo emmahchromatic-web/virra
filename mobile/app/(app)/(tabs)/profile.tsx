@@ -12,7 +12,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
 import { useAuthStore } from '@/store/auth';
 import { useSubscriptionStore } from '@/store/subscription';
-import { useIsPro } from '@/lib/pro';
+import { useIsPro, paywallRoute } from '@/lib/pro';
+import { trackPro } from '@/lib/proEvents';
 import { useCycleStore, type CycleProfile } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { INJURY_LEVELS, INJURY_LABEL, type InjuryLevel } from '@/lib/injuryLevels';
@@ -515,7 +516,13 @@ export default function ProfileScreen() {
                     : 'Hidden. Upgrade any time from the status row above'}
                 </VirraText>
               </View>
-              <VirraSwitch value={showProFeatures} onValueChange={setShowProFeatures} />
+              <VirraSwitch
+                value={showProFeatures}
+                onValueChange={(next) => {
+                  trackPro(next ? 'show_pro_features_on' : 'show_pro_features_off');
+                  setShowProFeatures(next);
+                }}
+              />
             </View>
           )}
         </VirraCard>
@@ -649,11 +656,15 @@ export default function ProfileScreen() {
             value={stepsTarget.toLocaleString()}
             onPress={() => { setStepsInput(String(stepsTarget)); setStepsError(''); setStepsModalVisible(true); }}
           />
-          <Row
-            label="BREAKS"
-            value={breakSummary}
-            onPress={() => router.push('/(app)/breaks' as any)}
-          />
+          {/* Card 298 hardening. Breaks pause a plan, so the row is Pro: a
+              padlocked value for a free user, gone once Pro features are hidden. */}
+          {(isPro || showProFeatures) && (
+            <Row
+              label="BREAKS"
+              value={isPro ? breakSummary : 'Virra Pro'}
+              onPress={() => router.push((isPro ? '/(app)/breaks' : paywallRoute('plans')) as any)}
+            />
+          )}
           <View style={styles.prefRow}>
             <VirraText variant="mono" size={11} color={colors.muted} style={styles.prefLabel}>WORKOUT LOCATION</VirraText>
             <View style={styles.prefSegments}>

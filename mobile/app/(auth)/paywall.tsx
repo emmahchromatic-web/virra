@@ -11,6 +11,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { InlineError } from '@/components/ui/InlineError';
+import { trackPro } from '@/lib/proEvents';
 import { SymbolView } from 'expo-symbols';
 
 const TERMS_URL   = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
@@ -51,6 +52,10 @@ export default function PaywallScreen() {
   // dead button is the worst possible failure. Card 215's InlineError instead.
   const [failure,  setFailure]    = useState<{ title: string; message?: string } | null>(null);
 
+  // Card 298 measurement: which surface sent her here, and what she did next.
+  const evt = { feature: isProFeature(params.feature) ? params.feature : null, source: fromApp ? 'app' as const : 'onboarding' as const };
+  useEffect(() => { trackPro('paywall_open', evt); /* once per visit */ }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     getOfferings().then((pkgs) => {
       setPackages(pkgs);
@@ -69,6 +74,7 @@ export default function PaywallScreen() {
   // The free tier is the default, not a consolation: she keeps everything she
   // can log, and meets Pro again where it prescribes something.
   async function handleContinueFree() {
+    trackPro(fromApp ? 'paywall_close' : 'continue_free', evt);
     if (!fromApp) setStatus('free');
     await routePostPaywall();
   }
@@ -77,8 +83,11 @@ export default function PaywallScreen() {
     if (!selected) return;
     setLoading(true);
     setFailure(null);
+    const productId = selected.product.identifier;
+    trackPro('purchase_start', { ...evt, productId });
     const { success, cancelled, error } = await purchasePackage(selected);
     setLoading(false);
+    trackPro(success ? 'purchase_success' : cancelled ? 'purchase_cancel' : 'purchase_fail', { ...evt, productId });
     if (success) {
       setStatus('active');
       await routePostPaywall();
@@ -97,6 +106,7 @@ export default function PaywallScreen() {
     setFailure(null);
     const success = await restorePurchases();
     setLoading(false);
+    trackPro(success ? 'restore_success' : 'restore_none', evt);
     if (success) {
       setStatus('active');
       await routePostPaywall();

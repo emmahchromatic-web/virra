@@ -12,7 +12,6 @@ export type ProFeature =
   | 'recipes'
   | 'insights'
   | 'trends'
-  | 'achievements'
   | 'describe_meal'
   | 'week_ahead'
   | 'season';
@@ -52,10 +51,6 @@ export const PRO_FEATURES: Record<ProFeature, ProFeatureCopy> = {
   trends: {
     kicker: 'Check-in trends',
     body:   'Energy, mood and sleep across your cycle, so patterns stop being a surprise.',
-  },
-  achievements: {
-    kicker: 'Achievements',
-    body:   'Cycle literacy, consistency and milestones, recognised as you earn them.',
   },
   describe_meal: {
     kicker: 'Describe a meal',
@@ -128,7 +123,7 @@ export const PAYWALL_PRO_LIST = [
   'Nutrition targets that shift with your phase',
   'Strength and mobility programmes that follow your cycle',
   'A recipe book that matches your phase and your targets',
-  'Insights, check-in trends and achievements',
+  'Insights and check-in trends',
   'Describe a meal and Virra estimates it',
 ];
 
