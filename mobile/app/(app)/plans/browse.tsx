@@ -12,6 +12,7 @@ import { archetypeForTemplate, raceDistanceFor } from '@/lib/runProgramme/archet
 import { entryCriteria } from '@/lib/runProgramme/suitability';
 import { useAuthStore } from '@/store/auth';
 import { ProScreen } from '@/components/ui/ProScreen';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
 
 interface PlanTemplate {
   id:             string;
@@ -46,6 +47,10 @@ const MODALITY_LABEL: Record<string, string> = {
 function BrowsePlansScreen() {
   const [templates, setTemplates] = useState<PlanTemplate[]>([]);
   const [loading,   setLoading]   = useState(true);
+  // Card 295. Offline, the catalogue read failed and "No plans available yet"
+  // showed, as if Virra had no plans. A failed read is its own state.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt,    setAttempt]    = useState(0);
   const [modality,  setModality]  = useState<string | null>(null);
   // Card 256. The switch-plan loop started here: nothing on this screen said
   // which plan you were already on, so picking it again looked like a choice.
@@ -57,18 +62,20 @@ function BrowsePlansScreen() {
     (async () => {
       // is_active hides templates replaced by Get Strong (the old generic
       // strength template) from the picker without deleting the row.
-      const { data } = await supabase
+      setLoading(true);
+      const { data, error } = await supabase
         .from('plan_templates')
         .select('id, name, sport_type, distance_goal, duration_weeks, description, tagline, archetype_key')
         .eq('is_active', true)
         .order('sort_order');
       if (!cancelled) {
-        setTemplates((data ?? []) as PlanTemplate[]);
+        setLoadFailed(Boolean(error));
+        if (!error) setTemplates((data ?? []) as PlanTemplate[]);
         setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [attempt]);
 
   // Card 300. On focus, not on mount: Browse stays mounted underneath plan
   // detail, so leaving a plan and coming back showed the list read before you
@@ -77,12 +84,13 @@ function BrowsePlansScreen() {
     if (!session) return;
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('user_plans')
         .select('template_id')
         .eq('user_id', session.user.id)
         .eq('is_active', true);
-      if (!cancelled) {
+      // Offline, keep the last known "on this plan" marks rather than clearing them.
+      if (!cancelled && !error) {
         setActiveIds(((data ?? []) as { template_id: string | null }[])
           .map((r) => r.template_id)
           .filter(Boolean) as string[]);
@@ -157,7 +165,15 @@ function BrowsePlansScreen() {
           {visible.map((t) => (
             <TemplateCard key={t.id} template={t} isActive={activeIds.includes(t.id)} />
           ))}
-          {templates.length === 0 && !loading && (
+          {loadFailed && templates.length === 0 && (
+            <NeedsSignal
+              title="Plans need signal to load."
+              detail="Browse again once you are back online. Anything you have already started is saved."
+              onRetry={() => setAttempt((n) => n + 1)}
+              retrying={loading}
+            />
+          )}
+          {templates.length === 0 && !loading && !loadFailed && (
             <VirraText variant="body" color={colors.muted}>No plans available yet.</VirraText>
           )}
         </View>
