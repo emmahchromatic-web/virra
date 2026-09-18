@@ -7,6 +7,7 @@ import { clearUserScopedCaches } from '@/lib/localCaches';
 import { cancelAllNotifications } from '@/lib/notifications';
 import { useNotificationsStore } from '@/store/notifications';
 import { useSessionStore } from '@/store/sessionStore';
+import { useSubscriptionStore } from '@/store/subscription';
 
 interface AuthState {
   session:    Session | null;
@@ -74,6 +75,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     // it just recreated; doing it the other way round leaves a user-scoped key
     // rebuilt at the moment of sign-out, which is the shape of the bug this is
     // fixing.
+    // Card 298 hardening. The tier is in memory too. Without this, a free
+    // account signing in after a Pro one (same phone, app never closed) saw
+    // everything unlocked until the next foreground re-check. `unknown` makes
+    // the app layout ask RevenueCat again for whoever signs in next, and
+    // RevenueCat itself is dropped to an anonymous customer. The internal
+    // preview pin and the Show Pro features switch are device-level and stay.
+    try {
+      const sub = useSubscriptionStore.getState();
+      if (!sub.devOverride) sub.setStatus('unknown');
+      // Imported here, not at the top: the billing SDK is native-only, and a
+      // static import would drag it into every screen test that touches auth.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { logOutRevenueCat } = require('@/lib/revenuecat') as typeof import('@/lib/revenuecat');
+      await logOutRevenueCat();
+    } catch {
+      // Never block sign-out on the billing SDK.
+    }
+
     try {
       useNotificationsStore.getState().reset();
       await useSessionStore.getState().clearCache();

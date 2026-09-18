@@ -21,6 +21,8 @@ Working document. ASC app already exists: **ID `6768433819`**, Apple ID `dickens
 
 ### Phase 2 — Visual assets
 
+> **Free with Pro (card 313).** Capture with the internal **Preview as** pin (Profile > Subscription): set **Pro** for the training, nutrition, insights and recipe shots, and **Free** for one dashboard shot showing a padlocked tile, so nobody feels tricked after installing. The paywall shot must show both lists (VIRRA PRO and FREE, ALWAYS). Turn the pin back to Real afterwards; it never ships in the App Store binary.
+
 ASC's upload UI gates strictly on pixel dimensions per slot. Populate every slot the ASC UI shows you, capturing each from a matching simulator. Up to 10 screenshots per tier.
 
 - [ ] **6.9"** (1320×2868) — iPhone 16 Pro Max
@@ -108,6 +110,8 @@ The "Run with Your Cycle" wording leans into the moat. Apple search rewards dist
 
 ### Subtitle — `Training in tune with you` (25 chars)
 
+> **Free with Pro (card 313, 2026-09-18).** The app is no longer a hard paywall. Logging is free; plans, targets, programmes and recipes are Virra Pro. A subtitle that says so is worth testing: `Free cycle & run log. Pro plans` (30), `Log free. Train with your cycle` (30). Recommendation: keep `Training in tune with you` for launch (it sells the moat) and say "free" in the first line of the description and the promotional text, which can be changed without a new build.
+
 Alternatives:
 - `Training that flexes with you` (29)
 - `Cycle-aware training & fuel` (27)
@@ -116,18 +120,25 @@ Alternatives:
 
 ### Promotional Text — (170 chars max, editable post-launch)
 
-> Training plans that adjust to your cycle. Nutrition targets that shift with your phase. Recovery that respects what your body actually needs. Built by a runner, for runners.
+> Free to log your cycle, meals and runs. Virra Pro adds training plans and nutrition targets that move with your cycle. 14 days free. Built by a runner, for runners.
 
-(160 chars — good)
+(163 chars. Says "free" first: it is the line people read before tapping Get.)
 
 ### Description — (4000 chars max)
 
 ```
-Virra is a running app built around how women's bodies actually work.
+Virra is a running app built around how women's bodies actually work. Logging your cycle, your meals and your runs is free, for as long as you like. Virra Pro plans your training and your fuelling around your cycle.
 
 It's the only app that takes your menstrual cycle as seriously as your training plan — adjusting pace targets, fuelling demands, and recovery cues in real time. The same long run feels different in luteal than in follicular. So why should the plan stay the same?
 
-WHAT VIRRA DOES
+FREE, ALWAYS
+
+— Cycle logging and your phase, every day
+— Meal logging with daily totals
+— Runs and workouts, logged or imported from Apple Health
+— Weight tracking and a daily check-in
+
+VIRRA PRO (14 days free)
 
 — Cycle-Adjusted Training Plans
 5K to marathon. The plan reads your cycle phase, your training history, and your upcoming races. Long runs anchor to your follicular window for peak quality. Intervals land in ovulation for peak power. Threshold pace adjusts in luteal — same physiological work, different number on the watch.
@@ -135,17 +146,28 @@ WHAT VIRRA DOES
 — Phase-Aware Nutrition Targets
 Carb, protein, fat, and fibre targets that flex with your cycle phase AND your training load. Higher carbs in luteal, when cravings are real and your body needs them. Front-loaded fuelling on long-run mornings. Never about restriction. Always about fuelling the work.
 
+— Strength and Mobility Programmes
+Strength sessions that follow your cycle, with a guided set and rep logger. Ten, twenty or thirty minutes of mobility, picked for your phase.
+
+— A Recipe Book That Knows Your Day
+Recipes matched to your phase and to what is left of your targets.
+
+— Insights and Check-in Trends
+Your week, narrated. Energy, mood and sleep across your cycle, so patterns stop being a surprise.
+
+— Describe a Meal
+Type what you ate and Virra estimates it.
+
+FOR EVERYONE
+
 — Seamless Apple Health Sync
-Runs from your Apple Watch import automatically. Pace, distance, heart rate, route. No manual logging unless you want to. Period tracking syncs both ways.
+Runs from your Apple Watch import automatically. Pace, distance, heart rate, route. No manual logging unless you want to.
 
 — Daily Dashboard
-Today's training. Today's cycle phase. Today's fuelling target. One screen. No paralysis.
+Today's cycle phase. Today's fuelling. What you did this week. One screen. No paralysis.
 
 — Smart Notifications
-Reminders that cancel themselves when the action is done. Logged your workout? The training reminder disappears. Logged dinner? The nutrition prompt goes quiet. Notifications that earn their place.
-
-— Education Library
-Articles by a qualified personal trainer covering every phase, every nutritional question, every recovery pattern. The "why" behind every number on your dashboard.
+Reminders that cancel themselves when the action is done. Logged dinner? The nutrition prompt goes quiet. Notifications that earn their place.
 
 WHO VIRRA IS FOR
 
@@ -153,13 +175,13 @@ Runners who want to train hard AND respect what their body needs at each phase. 
 
 NOT a weight loss app. NOT a calorie counter. NEVER diet culture. Virra speaks the language of fuelling, not restriction.
 
-SUBSCRIPTION
+VIRRA PRO
 
-14-day free trial, then Virra Pro:
-• Monthly subscription
-• Annual subscription (save vs monthly)
-• Auto-renews unless cancelled in App Store settings
-• Cancel anytime — your data stays
+Virra is free to download and free to log with. Virra Pro is optional:
+• 14-day free trial, once per Apple ID
+• Monthly or annual subscription (annual is two months free)
+• Auto-renews unless cancelled in App Store settings at least 24 hours before the period ends
+• Cancel any time. You keep everything you have logged, and logging stays free
 
 PRIVACY
 
@@ -204,13 +226,13 @@ Virra is a running app for women that integrates menstrual cycle data with train
 
 2. Apple HealthKit is the primary data source. We use HKObserverQuery to import workouts and HKMenstrualFlow to read period data. We write workouts and nutrition macros back to HealthKit for users who opt in.
 
-3. Subscription: 14-day free trial → recurring monthly or annual. Configured in App Store Connect under the "Virra Pro" subscription group. Restored purchases supported.
+3. Free with an optional subscription. The app is fully usable without paying: cycle logging, meal logging, run and workout logging (manual, GPS and HealthKit import), weight and a daily check-in are free with no time limit. "Virra Pro" (auto-renewable, monthly or annual, one subscription group, 14-day introductory free trial) unlocks training plans, phase-adjusted nutrition targets, strength and mobility programmes, the recipe book, insights and the describe-a-meal estimator. Locked features show a padlock and open the purchase screen; the purchase screen lists both what is free and what is Pro, carries the full Schedule 2 disclosures, links Terms and Privacy, and can be closed from the top (X) or the bottom ("Not now" / "Continue with the free version"). A user who is not eligible for the introductory offer is shown "Subscribe to Virra Pro", never a trial (eligibility is read from StoreKit). Restore Purchases is on the purchase screen and under Profile > Subscription. A "Show Pro features" switch in Profile lets a free user hide the padlocked tiles. The internal "Preview as" row under Profile > Subscription exists only in development and TestFlight-internal builds (gated by __DEV__ || EXPO_PUBLIC_INTERNAL_BUILD) and is absent from this binary.
 
-4. Demo account: provided in the credentials field. The account has completed onboarding and 4 weeks of sample training + cycle data so reviewers can immediately see the cycle-aware features in action.
+4. Demo accounts: TWO are provided in the credentials field. (a) A free account, to see the free tier and the padlocks. (b) An account with Virra Pro granted (RevenueCat promotional entitlement), onboarding complete and 4 weeks of sample training + cycle data, so reviewers can see the cycle-aware features without purchasing.
 
 5. Permissions: HealthKit (workouts, heart rate variants, exercise minutes, distance, steps, VO₂max, sleep, weight, menstrual flow — read; workouts + nutrition macros — write), Location (**When in Use only — we never request Always**; `UIBackgroundModes: ["location"]` is declared so the run tracker can continue recording GPS while the screen is locked during an active run, which is the standard iOS pattern shared by Strava, Runkeeper, Apple Fitness etc.), Notifications (training and meal reminders that cancel themselves when the action is completed), Camera (for food barcode scanning in the nutrition log). All requested with a clear in-app rationale screen before the iOS dialog. The app does not block on denial — every feature degrades gracefully.
 
-6. Cycle-aware claims are framed as informational and educational, not medical advice. Every article in the Education Library carries a disclaimer footer reminding the reader that Virra is not a substitute for advice from a qualified healthcare professional. A separate "Health & medical" entry in Profile presents the same disclaimer at any time.
+6. Cycle-aware claims are framed as informational and educational, not medical advice. A "Health & medical" entry in Profile states at any time that Virra is not a substitute for advice from a qualified healthcare professional. (The Education Library named in earlier drafts was descoped and is not in this binary; do not cite it.)
 
 7. AI insights: weekly narrative insights are generated via an Anthropic Claude Haiku API call from a Supabase Edge Function. Only aggregated training and cycle metrics are sent — never raw HealthKit readings (no heart rate samples, no GPS traces, no per-meal nutrition rows). The purpose is health management for the user; the data is not used for advertising, marketing, research, or data mining. Anthropic is disclosed as a third-party processor in the App Privacy questionnaire and in the privacy policy.
 

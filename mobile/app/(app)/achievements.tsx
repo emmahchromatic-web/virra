@@ -6,7 +6,6 @@ import { SymbolView } from 'expo-symbols';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
-import { ProScreen } from '@/components/ui/ProScreen';
 
 /**
  * Holding page. The shortcut is wired now so the profile layout is settled and
@@ -15,7 +14,9 @@ import { ProScreen } from '@/components/ui/ProScreen';
  * the sort of thing people screenshot, so the first list needs to be the right
  * one. Card 3.
  */
-function AchievementsScreen() {
+// Not gated (card 298 hardening): the page only says "coming soon", and a
+// padlock on it would sell something that does not exist yet.
+export default function AchievementsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -57,14 +58,3 @@ const styles = StyleSheet.create({
   copy:   { textAlign: 'center', lineHeight: 21 },
 });
 
-// Card 298. Whole-screen gate. The tabs keep a free user away from this
-// route; a notification tap, a stale link or a back-swipe can still land
-// here, and the screen would otherwise render for something she does not
-// have. Same locked card as the tiles, plus a back button.
-export default function GatedAchievementsScreen() {
-  return (
-    <ProScreen feature="achievements">
-      <AchievementsScreen />
-    </ProScreen>
-  );
-}
