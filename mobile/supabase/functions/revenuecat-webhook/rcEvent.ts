@@ -1,5 +1,6 @@
 // Card 312. Turns a RevenueCat webhook event into a user_subscriptions row.
-// Pure and Deno-free so it can be unit-tested with the app's Jest.
+// Pure and Deno-free so it can be unit-tested with the app Jest suite. Lives
+// beside index.ts because the dashboard deploys one folder at a time.
 //
 // RevenueCat sends every event as { api_version, event: {...} }. The fields we
 // read are stable across their v1 webhook payload:

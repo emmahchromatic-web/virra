@@ -9,12 +9,12 @@
 // Setup (once, by whoever holds the keys):
 //   Supabase -> Edge Functions -> Secrets: RC_WEBHOOK_SECRET = <long random string>
 //   RevenueCat -> Project -> Integrations -> Webhooks: URL
-//     https://<project-ref>.functions.supabase.co/revenuecat-webhook
+//     https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook
 //     Authorization header value: Bearer <the same string>
 //   Deploy with --no-verify-jwt (RevenueCat does not hold a Supabase JWT).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { rowFromEvent, isStale, type RcEvent } from "../_shared/rcEvent.ts";
+import { rowFromEvent, isStale, type RcEvent } from "./rcEvent.ts";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 

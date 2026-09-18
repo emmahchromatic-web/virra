@@ -1,5 +1,5 @@
 // Card 312. The RevenueCat webhook's mapping, tested without Deno.
-import { rowFromEvent, isStale } from '../../supabase/functions/_shared/rcEvent';
+import { rowFromEvent, isStale } from '../../supabase/functions/revenuecat-webhook/rcEvent';
 
 const USER = '5f3a1c2e-9b4d-4e6f-8a7b-0c1d2e3f4a5b';
 const NOW  = Date.parse('2026-09-18T10:00:00Z');
