@@ -14,7 +14,7 @@ jest.mock('@/store/cycle', () => {
   const setPeriodStart = jest.fn();
   return {
     useCycleStore: {
-      getState: () => ({ cycleLength: 28, setPeriodStart }),
+      getState: () => ({ cycleLength: 28, startNewPeriod: setPeriodStart }),
     },
     __setPeriodStart: setPeriodStart,
   };

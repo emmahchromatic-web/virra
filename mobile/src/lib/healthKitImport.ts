@@ -77,6 +77,8 @@ interface ImportContext {
   userId:      string;
   periodStart: Date | null;
   cycleLength: number;
+  /** Card 304: menstrual days for this user, from useCycleStore().periodDays. */
+  periodDays:  number;
 }
 
 // Runs every foreground import cycle. First call (per install) reconciles a full
@@ -154,7 +156,7 @@ export async function importNewWorkouts(ctx: ImportContext): Promise<number> {
 
           // Determine cycle phase at the time of the workout
           const phaseAtTime = ctx.periodStart
-            ? getCycleInfo(ctx.periodStart, ctx.cycleLength, startedAt).phase
+            ? getCycleInfo(ctx.periodStart, ctx.cycleLength, startedAt, ctx.periodDays).phase
             : null;
 
           const hkUuid = w.id ?? (w.sourceId ? `${w.sourceId}::${w.start}` : null);

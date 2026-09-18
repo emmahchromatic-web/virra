@@ -19,7 +19,15 @@ export interface CycleInfo {
   cycleLength:         number;
 }
 
-const MENSTRUAL_DAYS   = 5;
+/**
+ * The period length assumed when the user has never logged one ending. Card 304:
+ * this used to be the ONLY length, so a 3-day period still read as menstrual on
+ * days 4 and 5.
+ */
+export const DEFAULT_PERIOD_DAYS = 5;
+/** Shortest and longest period the app will record. Card 304. */
+export const MIN_PERIOD_DAYS     = 1;
+export const MAX_PERIOD_DAYS     = 10;
 const OVULATORY_WINDOW = 1;
 const MS_PER_DAY       = 1000 * 60 * 60 * 24;
 
@@ -29,10 +37,17 @@ function toMidnight(d: Date): Date {
   return out;
 }
 
+/**
+ * `periodDays` is required, not defaulted, on purpose. A default would let any
+ * caller that forgot it keep the old 5 days and look correct in every test of
+ * the engine; required, the compiler names each one. See card 304 and the
+ * useCycleStore `periodDays` field for where the value comes from.
+ */
 export function getCycleInfo(
   periodStart: Date,
   cycleLength: number,
-  today: Date = new Date(),
+  today: Date,
+  periodDays: number,
 ): CycleInfo {
   const start      = toMidnight(periodStart);
   const now        = toMidnight(today);
@@ -46,35 +61,65 @@ export function getCycleInfo(
   // `elapsed % cycleLength` cannot do this: JavaScript's remainder keeps the
   // sign of the dividend, so -10 % 28 is -10, not 18. That produced a
   // dayOfCycle of zero or below for every back-dated reading, which then
-  // passed the `<= MENSTRUAL_DAYS` test and mislabelled the lot as menstrual.
+  // passed the `<= periodDays` test and mislabelled the lot as menstrual.
   const dayOfCycle = (((elapsed % cycleLength) + cycleLength) % cycleLength) + 1;
-  const ovulation  = cycleLength - 14;
-
-  let phase: CyclePhase;
-  if (dayOfCycle <= MENSTRUAL_DAYS) {
-    phase = 'menstrual';
-  } else if (dayOfCycle >= ovulation - OVULATORY_WINDOW && dayOfCycle <= ovulation + OVULATORY_WINDOW) {
-    phase = 'ovulatory';
-  } else if (dayOfCycle < ovulation - OVULATORY_WINDOW) {
-    phase = 'follicular';
-  } else {
-    phase = 'luteal';
-  }
 
   return {
-    phase,
+    phase: phaseForCycleDay(dayOfCycle, cycleLength, periodDays),
     dayOfCycle,
     daysUntilNextPeriod: cycleLength - dayOfCycle + 1,
     cycleLength,
   };
 }
 
+/**
+ * The phase boundaries, in one place. The weight chart used to carry its own
+ * copy with a hardcoded 5, which no search for callers of getCycleInfo finds.
+ *
+ * Only the menstrual/follicular boundary depends on the period. Ovulation is
+ * placed 14 days before the next period, so it moves with cycle length and not
+ * with how long the bleed lasted.
+ */
+export function phaseForCycleDay(dayOfCycle: number, cycleLength: number, periodDays: number): CyclePhase {
+  const ovulation = cycleLength - 14;
+  if (dayOfCycle <= periodDays) return 'menstrual';
+  if (dayOfCycle >= ovulation - OVULATORY_WINDOW && dayOfCycle <= ovulation + OVULATORY_WINDOW) return 'ovulatory';
+  if (dayOfCycle < ovulation - OVULATORY_WINDOW) return 'follicular';
+  return 'luteal';
+}
+
 export function getCyclePhase(
   periodStart: Date,
   cycleLength: number,
-  today: Date = new Date(),
+  today: Date,
+  periodDays: number,
 ): CyclePhase {
-  return getCycleInfo(periodStart, cycleLength, today).phase;
+  return getCycleInfo(periodStart, cycleLength, today, periodDays).phase;
+}
+
+/** Keep a period length inside what the app records. */
+export function clampPeriodDays(days: number): number {
+  return Math.min(MAX_PERIOD_DAYS, Math.max(MIN_PERIOD_DAYS, Math.round(days)));
+}
+
+/**
+ * The length to assume for the current period. Card 304.
+ *
+ * The period's own logged length wins. Without one, the rounded average of the
+ * last three periods that were logged, because most people's periods are
+ * similar month to month. With no history at all, 5 days.
+ *
+ * `history` is newest first and may include the current period.
+ */
+export function effectivePeriodDays(
+  current: number | null | undefined,
+  history: ReadonlyArray<number | null | undefined>,
+): { days: number; logged: boolean } {
+  if (current != null) return { days: clampPeriodDays(current), logged: true };
+  const recent = history.filter((d): d is number => d != null).slice(0, 3);
+  if (!recent.length) return { days: DEFAULT_PERIOD_DAYS, logged: false };
+  const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+  return { days: clampPeriodDays(mean), logged: false };
 }
 
 /**

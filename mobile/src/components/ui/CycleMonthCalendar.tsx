@@ -17,6 +17,8 @@ const DAY_HEADER = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 interface Props {
   periodStart: Date;
   cycleLength: number;
+  /** Card 304: the bleed dots and menstrual colour stop after this many days. */
+  periodDays:  number;
   year?:       number;
   month?:      number; // 1-based
   today?:      Date;
@@ -35,7 +37,7 @@ function toISO(y: number, m: number, d: number): string {
   return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-export function CycleMonthCalendar({ periodStart, cycleLength, year, month, today = new Date() }: Props) {
+export function CycleMonthCalendar({ periodStart, cycleLength, periodDays, year, month, today = new Date() }: Props) {
   const y = year  ?? today.getFullYear();
   const m = month ?? today.getMonth() + 1;
 
@@ -65,7 +67,7 @@ export function CycleMonthCalendar({ periodStart, cycleLength, year, month, toda
             const iso     = toISO(y, m, dayNum);
             const isToday = iso === todayISO;
             const cellDate = new Date(y, m - 1, dayNum);
-            const overlay  = getCycleDayOverlay(periodStart, cycleLength, cellDate);
+            const overlay  = getCycleDayOverlay(periodStart, cycleLength, cellDate, periodDays);
             const tint     = PHASE_COLOR[overlay.phase];
             const textColor = overlay.phase === 'ovulatory' || overlay.phase === 'luteal'
               ? colors.mile

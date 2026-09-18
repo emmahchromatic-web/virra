@@ -97,6 +97,7 @@ function buildWeekRows(
   sessions:    Session[],
   periodStart: Date | null,
   cycleLength: number,
+  periodDays:  number,
   metrics:     PersonalMetrics | null,
 ): DayRow[] {
   return Array.from({ length: 7 }, (_, i) => {
@@ -104,7 +105,7 @@ function buildWeekRows(
     const date       = new Date(`${iso}T00:00:00`);
     const daySessions = sessions.filter((s) => s.scheduled_date === iso);
     const load       = topLoad(daySessions);
-    const phase      = periodStart ? getCyclePhase(periodStart, cycleLength, date) : null;
+    const phase      = periodStart ? getCyclePhase(periodStart, cycleLength, date, periodDays) : null;
     const { calories } = resolveNutritionTargets(metrics, phase, load);
     return {
       iso,
@@ -128,7 +129,7 @@ function fmtRange(monday: string): string {
 }
 
 function WeekAheadScreen() {
-  const { periodStart, cycleLength }      = useCycleStore();
+  const { periodStart, cycleLength, periodDays } = useCycleStore();
   const profile                           = useProfileStore();
   const metrics                           = useMemo(
     () => buildPersonalMetrics(personalMetricsFields(profile)),
@@ -150,8 +151,8 @@ function WeekAheadScreen() {
           status:         s.status,
         })),
     );
-    return buildWeekRows(monday, sessions, periodStart, cycleLength ?? 28, metrics);
-  }, [days, monday, periodStart, cycleLength, metrics]);
+    return buildWeekRows(monday, sessions, periodStart, cycleLength ?? 28, periodDays, metrics);
+  }, [days, monday, periodStart, cycleLength, periodDays, metrics]);
 
   async function handleDrop(sessionId: string) {
     setBusy(sessionId);

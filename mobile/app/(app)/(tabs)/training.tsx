@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
+import { DEFAULT_PERIOD_DAYS } from '@/lib/cycleEngine';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
@@ -119,7 +120,7 @@ const why = StyleSheet.create({
 
 export default function TrainingScreen() {
   const { session }    = useAuthStore();
-  const { cycleInfo, periodStart, cycleLength, cycleMode, currentPackStart } = useCycleStore();
+  const { cycleInfo, periodStart, cycleLength, periodDays, cycleMode, currentPackStart } = useCycleStore();
   // Card 298. Plans, strength and mobility prescribe; logging a run does not.
   const { isPro, showLocked } = useProGate();
 
@@ -345,6 +346,8 @@ export default function TrainingScreen() {
   const cycleStore = {
     periodStart: (cycleMode === 'pack' ? currentPackStart : periodStart) ?? null,
     cycleLength: cycleLength ?? 28,
+    // A pill withdrawal bleed is not a logged period (see computeForProfile).
+    periodDays:  cycleMode === 'pack' ? DEFAULT_PERIOD_DAYS : periodDays,
     phase:       cycleInfo?.phase ?? null,
   };
 

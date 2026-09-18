@@ -95,16 +95,23 @@ export default function CycleSettingsScreen() {
         const periodStr = periodStart.toISOString().split('T')[0];
         const { data: existing } = await supabase
           .from('cycle_logs')
-          .select('id')
+          .select('id, period_start')
           .eq('user_id', session.user.id)
           .order('period_start', { ascending: false })
           .limit(1)
           .maybeSingle();
 
         if (existing) {
+          // A logged period length was measured from the old start date, so a
+          // moved start clears it. Card 304.
+          const moved = existing.period_start !== periodStr;
           await supabase
             .from('cycle_logs')
-            .update({ period_start: periodStr, cycle_length_days: cycleLength })
+            .update({
+              period_start:      periodStr,
+              cycle_length_days: cycleLength,
+              ...(moved ? { period_length_days: null } : {}),
+            })
             .eq('id', existing.id);
         } else {
           await supabase

@@ -7,6 +7,7 @@ import { useCycleStore } from '@/store/cycle';
 import { useProfileStore } from '@/store/profile';
 import { PHASE_META } from '@/lib/phaseMeta';
 import { resetCycleToToday } from '@/lib/resetCycle';
+import { logPeriodEnd, periodEndChoices } from '@/lib/periodEnd';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
@@ -26,7 +27,7 @@ const ACTION_HEIGHT       = 52;
 
 export default function CycleDetailScreen() {
   const { session } = useAuthStore();
-  const { cycleInfo, cycleProfile, periodStart, cycleLength } = useCycleStore();
+  const { cycleInfo, cycleProfile, periodStart, cycleLength, periodDays, periodDaysLogged } = useCycleStore();
   const trackWeight       = useProfileStore((s) => s.trackWeight);
   const weightBaselineKg  = useProfileStore((s) => s.weightBaselineKg);
   const weightPhaseBands  = useProfileStore((s) => s.weightPhaseBands);
@@ -54,6 +55,31 @@ export default function CycleDetailScreen() {
   const meta      = cycleInfo ? PHASE_META[cycleInfo.phase] : null;
   const isNatural = tracksCycle(cycleProfile);
   const showFull  = !!(cycleInfo && meta && isNatural && periodStart);
+
+  // Card 304. Offered through the first 10 days of the logged period; after
+  // that it is too far behind to still be ending.
+  const endChoices = periodStart ? periodEndChoices(periodStart) : [];
+
+  function handlePeriodEnded() {
+    if (!session || !endChoices.length) return;
+    appAlert(
+      'When did your period end?',
+      'The days after it count as follicular from now on. Anything already logged keeps its phase.',
+      [
+        ...endChoices.map((c) => ({
+          text: c.label,
+          onPress: async () => {
+            try {
+              await logPeriodEnd(session.user.id, c.periodDays);
+            } catch (e: any) {
+              appAlert('Could not save', e?.message ?? 'Please try again.');
+            }
+          },
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+    );
+  }
 
   function handleReset() {
     if (!session) return;
@@ -136,11 +162,28 @@ export default function CycleDetailScreen() {
                 <View style={styles.statDivider} />
                 <Stat value={cycleInfo!.cycleLength}         label="DAY CYCLE" color={meta!.color} />
               </View>
+              <View style={styles.periodRow}>
+                <VirraText variant="mono" size={10} color={colors.muted} style={styles.periodText}>
+                  {`PERIOD · ${periodDaysLogged ? 'LOGGED' : 'ASSUMING'} ${periodDays} ${periodDays === 1 ? 'DAY' : 'DAYS'}`}
+                </VirraText>
+                {endChoices.length > 0 && (
+                  <Pressable
+                    onPress={handlePeriodEnded}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={periodDaysLogged ? 'Change when my period ended' : 'My period ended'}
+                  >
+                    <VirraText variant="mono" size={10} color={colors.pulse} style={styles.periodText}>
+                      {periodDaysLogged ? 'CHANGE' : 'MY PERIOD ENDED'}
+                    </VirraText>
+                  </Pressable>
+                )}
+              </View>
             </VirraCard>
 
             <VirraCard>
               <SectionLabel style={styles.cardLabel}>CYCLE CALENDAR</SectionLabel>
-              <CycleMonthCalendar periodStart={periodStart!} cycleLength={cycleLength} />
+              <CycleMonthCalendar periodStart={periodStart!} cycleLength={cycleLength} periodDays={periodDays} />
             </VirraCard>
 
             {trackWeight && periodStart && (
@@ -157,6 +200,7 @@ export default function CycleDetailScreen() {
                     readings={readings}
                     periodStart={periodStart}
                     cycleLength={cycleLength}
+                    periodDays={periodDays}
                     bands={weightPhaseBands}
                   />
                 </VirraCard>
@@ -262,6 +306,8 @@ const styles = StyleSheet.create({
   stat:         { flex: 1, alignItems: 'center' },
   statDivider:  { width: 1, height: 28, backgroundColor: colors.border },
   statLabel:    { letterSpacing: 1.5, marginTop: 2 },
+  periodRow:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  periodText:   { letterSpacing: 1.5 },
   cardLabel:    { letterSpacing: 1.5, marginBottom: spacing.xs },
   sectionLabel: { letterSpacing: 1.5, marginBottom: spacing.xs, paddingHorizontal: spacing.xs },
 

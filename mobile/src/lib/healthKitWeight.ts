@@ -89,6 +89,7 @@ export function sampleToRow(
   sample:      RawWeightSample,
   periodStart: Date | null,
   cycleLength: number,
+  periodDays:  number,
 ): BodyWeightRow | null {
   const kg = gramsToKg(sample.value);
   if (kg === null) return null;
@@ -98,7 +99,7 @@ export function sampleToRow(
   let cycleDay:   number | null = null;
   let cyclePhase: BodyWeightRow['cycle_phase_at_time'] = null;
   if (periodStart && withinRetroPhaseWindow(date, periodStart)) {
-    const info = getCycleInfo(periodStart, cycleLength, date);
+    const info = getCycleInfo(periodStart, cycleLength, date, periodDays);
     cycleDay   = info.dayOfCycle;
     cyclePhase = info.phase;
   }
@@ -117,6 +118,8 @@ interface ImportContext {
   userId:      string;
   periodStart: Date | null;
   cycleLength: number;
+  /** Card 304: menstrual days for this user, from useCycleStore().periodDays. */
+  periodDays:  number;
 }
 
 /**
@@ -195,7 +198,7 @@ export async function importNewWeightSamples(ctx: ImportContext): Promise<number
   }
 
   const rows = Array.from(latestPerDay.values())
-    .map((s) => sampleToRow(ctx.userId, s, ctx.periodStart, ctx.cycleLength))
+    .map((s) => sampleToRow(ctx.userId, s, ctx.periodStart, ctx.cycleLength, ctx.periodDays))
     .filter((r): r is BodyWeightRow => r !== null);
 
   if (!rows.length) {

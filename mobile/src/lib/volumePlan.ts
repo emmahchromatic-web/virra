@@ -324,7 +324,7 @@ export function getSessionPaceTarget(
 export async function getWeeklyVolumePlan(
   userId:     string,
   blockId:    string,
-  cycleStore: { periodStart: Date | null; cycleLength: number },
+  cycleStore: { periodStart: Date | null; cycleLength: number; periodDays: number },
   loadScale   = 1.0,
 ): Promise<VolumePlanResult> {
   const EMPTY: VolumePlanResult = {
@@ -379,7 +379,7 @@ export async function getWeeklyVolumePlan(
       const weekStart = new Date(startsOn.getTime() + (weekNumber - 1) * msPerWeek);
       let phase: CyclePhase | null = null;
       if (cycleStore.periodStart) {
-        phase = getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, weekStart)?.phase ?? null;
+        phase = getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, weekStart, cycleStore.periodDays)?.phase ?? null;
       }
       const isPast = weekNumber < currentWeek;
       return {
@@ -412,7 +412,7 @@ export async function getWeeklyVolumePlan(
 export async function getDaySessionDetail(
   userId:           string,
   dateISO:          string,
-  cycleStore:       { periodStart: Date | null; cycleLength: number; phase: CyclePhase | null },
+  cycleStore:       { periodStart: Date | null; cycleLength: number; periodDays: number; phase: CyclePhase | null },
   cycle_profile:    CycleProfile = 'natural',
   has_placebo_week: boolean | null = null,
 ): Promise<DayDetail> {
@@ -424,7 +424,7 @@ export async function getDaySessionDetail(
   // and the volume-adjustment note; use the phase predicted for the date.
   const dateForPhase = new Date(`${dateISO}T00:00:00`);
   const phaseForDate: CyclePhase | null = cycleStore.periodStart
-    ? getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, dateForPhase).phase
+    ? getCycleInfo(cycleStore.periodStart, cycleStore.cycleLength, dateForPhase, cycleStore.periodDays).phase
     : null;
 
   const phase_guidance = PHASE_GUIDANCE[phaseForDate ?? ''] ?? '';
@@ -535,6 +535,7 @@ export async function getDaySessionDetail(
         getWeeklyVolumePlan(userId, blockId, {
           periodStart: cycleStore.periodStart,
           cycleLength: cycleStore.cycleLength,
+          periodDays:  cycleStore.periodDays,
         }, loadScale),
       ]);
       volumePlan = plan;
