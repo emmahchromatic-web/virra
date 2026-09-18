@@ -44,6 +44,7 @@ function toV2Exercise(ex: AuthoredSectionGroup['exercises'][number]): StrengthV2
     reps:        ex.reps,
     tempo:       ex.tempo,
     rest:        ex.rest,
+    unit:        ex.unit,
   };
 }
 

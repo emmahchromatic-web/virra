@@ -11,30 +11,30 @@ const authored: AuthoredSectionGroup[] = [
     section: 'mobility',
     label: 'Mobility',
     exercises: [
-      { name: 'Ankle rocks', description: null, sets: null, reps: '30s', tempo: null, rest: null },
+      { name: 'Ankle rocks', description: null, sets: null, reps: '30s', tempo: null, rest: null, unit: 'seconds' as const },
     ],
   },
   {
     section: 'strength',
     label: 'Strength',
     exercises: [
-      { name: 'Back Squat', description: 'Barbell back squat', sets: 4, reps: '6-8', tempo: '3-1-1-0', rest: '120s' },
-      { name: 'Romanian Deadlift', description: null, sets: 4, reps: '8', tempo: '3-1-1-0', rest: '90s' },
+      { name: 'Back Squat', description: 'Barbell back squat', sets: 4, reps: '6-8', tempo: '3-1-1-0', rest: '120s', unit: 'reps' as const },
+      { name: 'Romanian Deadlift', description: null, sets: 4, reps: '8', tempo: '3-1-1-0', rest: '90s', unit: 'reps' as const },
     ],
   },
   {
     section: 'power_core',
     label: 'Power & Core',
     exercises: [
-      { name: 'Box Jump', description: null, sets: 3, reps: '5', tempo: null, rest: '60s' },
-      { name: 'Hanging Leg Raise', description: null, sets: 3, reps: '10', tempo: null, rest: '45s' },
+      { name: 'Box Jump', description: null, sets: 3, reps: '5', tempo: null, rest: '60s', unit: 'reps' as const },
+      { name: 'Hanging Leg Raise', description: null, sets: 3, reps: '10', tempo: null, rest: '45s', unit: 'reps' as const },
     ],
   },
   {
     section: 'accessory',
     label: 'Accessory',
     exercises: [
-      { name: 'Calf Raise', description: null, sets: 3, reps: '12', tempo: '2-0-1-0', rest: '45s' },
+      { name: 'Calf Raise', description: null, sets: 3, reps: '12', tempo: '2-0-1-0', rest: '45s', unit: 'reps' as const },
     ],
   },
 ];

@@ -12,7 +12,7 @@ jest.mock('@/store/cycle', () => ({ useCycleStore: () => ({ cycleInfo: null }) }
 jest.mock('@/lib/notifications', () => ({
   cancelTrainingReminderToday: jest.fn(), scheduleRestComplete: jest.fn(), cancelRestComplete: jest.fn(),
 }));
-jest.mock('@/lib/strengthHistory', () => ({ getLastLoggedWeights: jest.fn().mockResolvedValue({}) }));
+jest.mock('@/lib/strengthHistory', () => ({ getLastLoggedWeights: jest.fn().mockResolvedValue({}), getLastLoggedHolds: jest.fn().mockResolvedValue({}) }));
 jest.mock('@/lib/exerciseSettings', () => ({
   getExerciseSettings: jest.fn().mockResolvedValue({}), DEFAULT_LOAD_TYPE: 'weighted',
 }));

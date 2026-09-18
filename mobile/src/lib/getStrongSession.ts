@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { PrescriptionUnit } from '@/lib/timedHold';
 import type { WorkoutPreference } from '@/store/profile';
 
 /**
@@ -39,6 +40,8 @@ export interface AuthoredExercise {
   /** 4-part tempo, e.g. "3-1-1-0"; null for mobility / power / core moves. */
   tempo:       string | null;
   rest:        string | null;
+  /** Whether `reps` is a count or a duration. Authored, so a hold is never guessed at. */
+  unit:        PrescriptionUnit;
 }
 
 export interface AuthoredSectionGroup {
@@ -98,6 +101,7 @@ type Row = {
   reps:     string | null;
   tempo:    string | null;
   rest:     string | null;
+  unit:     string | null;
   // supabase returns the joined row as an object (or array, depending on the
   // relationship inference): normalise both.
   exercises: { name: string; description: string | null }
@@ -118,7 +122,7 @@ export async function getAuthoredSession(
 ): Promise<AuthoredSession | null> {
   const { data, error } = await supabase
     .from('programme_exercises')
-    .select('section, position, sets, reps, tempo, rest, exercises(name, description)')
+    .select('section, position, sets, reps, tempo, rest, unit, exercises(name, description)')
     .eq('programme_day_id', dayId(programmeId, dayIndex))
     .eq('variant', variant)
     .eq('block', block)
@@ -142,6 +146,7 @@ export async function getAuthoredSession(
       reps:        raw.reps,
       tempo:       raw.tempo,
       rest:        raw.rest,
+      unit:        raw.unit === 'seconds' ? 'seconds' : 'reps',
     });
     buckets.set(raw.section, list);
   }
@@ -169,6 +174,7 @@ function groupRows(rows: Row[]): AuthoredSectionGroup[] {
       reps:        raw.reps,
       tempo:       raw.tempo,
       rest:        raw.rest,
+      unit:        raw.unit === 'seconds' ? 'seconds' : 'reps',
     });
     buckets.set(raw.section, list);
   }
@@ -195,7 +201,7 @@ export async function loadProgrammeSessions(
 ): Promise<Map<string, AuthoredSectionGroup[]>> {
   const { data, error } = await supabase
     .from('programme_exercises')
-    .select('programme_day_id, block, section, position, sets, reps, tempo, rest, exercises(name, description)')
+    .select('programme_day_id, block, section, position, sets, reps, tempo, rest, unit, exercises(name, description)')
     .like('programme_day_id', `${programmeId}-d%`)
     .eq('variant', variant)
     .order('programme_day_id')

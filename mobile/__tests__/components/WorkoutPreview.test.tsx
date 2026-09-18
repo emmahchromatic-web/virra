@@ -33,6 +33,7 @@ jest.mock('@/lib/notifications', () => ({
 
 jest.mock('@/lib/strengthHistory', () => ({
   getLastLoggedWeights: jest.fn().mockResolvedValue({}),
+  getLastLoggedHolds:   jest.fn().mockResolvedValue({}),
 }));
 
 jest.mock('@/lib/exerciseSettings', () => ({
@@ -308,46 +309,70 @@ describe('WorkoutPreviewScreen — strength logging', () => {
     expect(queryByText(/TEMPO 3·0·1/)).toBeNull();     // the stale authored tempo is gone
   });
 
-  it('offers a timer on a timed hold, and logs the seconds held', async () => {
+  it('times a hold on the set row it belongs to, and logs the seconds held', async () => {
+    // HOLD_ROW has no authored unit: this also covers sessions scheduled before
+    // the unit existed, which fall back to reading "20-40 sec".
     supabaseMock.__selectSingle.mockResolvedValue({ data: HOLD_ROW, error: null });
     jest.useFakeTimers();
     try {
-      const { findByText, getByLabelText, queryByText } = render(<WorkoutPreviewScreen />);
+      const { findByText, getByLabelText, getAllByText, queryByText } = render(<WorkoutPreviewScreen />);
       fireEvent.press(await findByText(/let's go/i));
 
-      // The prescription is shown on the control rather than typed into a box.
-      expect(queryByText(/TIME THIS HOLD/)).toBeTruthy();
-      expect(queryByText(/20-40 SEC/)).toBeTruthy();
+      // Said as a hold, counted in seconds, targeted at 20s rather than "20 reps".
+      expect(queryByText(/HOLD 20-40 sec/)).toBeTruthy();
+      expect(getAllByText('SEC').length).toBeGreaterThan(0);
+      expect(getByLabelText('Hollow Hold set 1 seconds held').props.placeholder).toBe('20');
 
-      fireEvent.press(getByLabelText('Time Hollow Hold'));
+      // Each set has its own timer; time the SECOND one first to prove it lands
+      // on the row it was started from, not "the next one not done".
+      fireEvent.press(getByLabelText('Time Hollow Hold set 2'));
       act(() => { jest.advanceTimersByTime(24_000); });
-      // eslint-disable-next-line no-console
-      expect(queryByText(/^0:24\s+·\s+TAP TO STOP$/)).toBeTruthy();
+      expect(queryByText('0:24')).toBeTruthy();
 
-      fireEvent.press(getByLabelText('Stop timing Hollow Hold'));
+      fireEvent.press(getByLabelText('Stop timing Hollow Hold set 2'));
 
-      // 24 seconds recorded against set 1, and the set ticked off.
-      expect(queryByText(/TAP TO STOP/)).toBeNull();
-      expect(getByLabelText('Complete Hollow Hold set 1')).toBeTruthy();
+      expect(getByLabelText('Hollow Hold set 2 seconds held').props.value).toBe('24');
+      expect(getByLabelText('Hollow Hold set 1 seconds held').props.value).toBe('');
+      // Set 1 still has its timer; set 2 is logged and no longer offers one.
+      expect(getByLabelText('Time Hollow Hold set 1')).toBeTruthy();
+      expect(queryByText('0:24')).toBeNull();
     } finally {
       jest.useRealTimers();
       supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
     }
   });
 
-  it('stops a hold by itself at the top of the range', async () => {
+  it('keeps timing past the top of the range, so beating the target can be recorded', async () => {
     supabaseMock.__selectSingle.mockResolvedValue({ data: HOLD_ROW, error: null });
     jest.useFakeTimers();
     try {
       const { findByText, getByLabelText, queryByText } = render(<WorkoutPreviewScreen />);
       fireEvent.press(await findByText(/let's go/i));
-      fireEvent.press(getByLabelText('Time Hollow Hold'));
+      fireEvent.press(getByLabelText('Time Hollow Hold set 1'));
 
-      // Past the 40s top of the range: it should have stopped on its own.
-      act(() => { jest.advanceTimersByTime(45_000); });
-      expect(queryByText(/TAP TO STOP/)).toBeNull();
+      // Past the 40s top of the range. It used to stop itself here and file a
+      // 55 second hold as 40.
+      act(() => { jest.advanceTimersByTime(55_000); });
+      expect(queryByText('0:55')).toBeTruthy();
+
+      fireEvent.press(getByLabelText('Stop timing Hollow Hold set 1'));
+      expect(getByLabelText('Hollow Hold set 1 seconds held').props.value).toBe('55');
     } finally {
       jest.useRealTimers();
+      supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
+    }
+  });
+
+  it("shows last session's best hold as the number to beat", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const history = require('@/lib/strengthHistory');
+    history.getLastLoggedHolds.mockResolvedValueOnce({ 'Hollow Hold': 45 });
+    supabaseMock.__selectSingle.mockResolvedValue({ data: HOLD_ROW, error: null });
+    try {
+      const { findByText } = render(<WorkoutPreviewScreen />);
+      fireEvent.press(await findByText(/let's go/i));
+      expect(await findByText('LAST 0:45')).toBeTruthy();
+    } finally {
       supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
     }
   });

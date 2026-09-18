@@ -14,7 +14,10 @@ jest.mock('@/lib/notifications', () => ({
   scheduleRestComplete: jest.fn(),
   cancelRestComplete: jest.fn(),
 }));
-jest.mock('@/lib/strengthHistory', () => ({ getLastLoggedWeights: jest.fn().mockRejectedValue(new Error('offline')) }));
+jest.mock('@/lib/strengthHistory', () => ({
+  getLastLoggedWeights: jest.fn().mockRejectedValue(new Error('offline')),
+  getLastLoggedHolds:   jest.fn().mockRejectedValue(new Error('offline')),
+}));
 jest.mock('@/lib/exerciseSettings', () => ({
   getExerciseSettings: jest.fn().mockRejectedValue(new Error('offline')),
   DEFAULT_LOAD_TYPE: 'weighted',
