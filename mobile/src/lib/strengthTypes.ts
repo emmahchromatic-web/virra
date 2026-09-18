@@ -1,7 +1,13 @@
 export interface StrengthSet {
+  /** Reps, or seconds held when `unit` says so. */
   reps:       number;
   weight_kg:  number;
   rpe?:       number;
+  /**
+   * What `reps` counts. Absent means reps, which is what every set logged
+   * before holds were timed actually was.
+   */
+  unit?:      'reps' | 'seconds';
 }
 
 export interface StrengthExercise {

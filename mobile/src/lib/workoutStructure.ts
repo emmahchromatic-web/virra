@@ -95,6 +95,11 @@ export interface StrengthV2Exercise {
   tempo:       string | null;
   /** Authored rest (e.g. "90s", "2 min"); null where none is prescribed. */
   rest:        string | null;
+  /**
+   * Whether `reps` is a count or a duration. Absent on sessions scheduled
+   * before the unit was authored; the logger falls back to reading the text.
+   */
+  unit?:       'reps' | 'seconds';
   muscles?:    string[];
 }
 

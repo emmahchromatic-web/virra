@@ -27,14 +27,17 @@ import { normalizeStrengthSessionType } from '@/lib/strengthTypes';
 import type { StrengthExercise } from '@/lib/strengthTypes';
 import { getExerciseMeta } from '@/lib/exerciseLibrary';
 import { isSetAsideCandidate, setAsideReason } from '@/lib/menstrualSetAside';
-import { getLastLoggedWeights } from '@/lib/strengthHistory';
+import { getLastLoggedWeights, getLastLoggedHolds } from '@/lib/strengthHistory';
 import { getExerciseSettings, DEFAULT_LOAD_TYPE, type ExerciseSettings } from '@/lib/exerciseSettings';
 import { recoverProgrammeStructure } from '@/lib/hydratePlannedSessions';
 import { parseRestSeconds } from '@/lib/strengthProgramme';
 import { appAlert } from '@/components/ui/VirraAlert';
 import { RestTimerBar } from '@/components/ui/RestTimerBar';
 import { playRestComplete } from '@/lib/restChime';
-import { parseHoldTarget, formatHold, heldSeconds, holdComplete, type HoldTarget } from '@/lib/timedHold';
+import {
+  holdTargetFor, targetSecondsFor, formatHold, heldSeconds, holdComplete,
+  type HoldTarget, type PrescriptionUnit,
+} from '@/lib/timedHold';
 import {
   startRest, restartRest, restRemainingSeconds, restProgress, shouldChime, restCompleteBody,
   type RestState,
@@ -165,6 +168,13 @@ interface LogExercise {
   section_label: string | null;
   /** Core-led or explosive: a candidate for setting aside on the worst days. */
   sensitive:     boolean;
+  /**
+   * Set when this movement is timed rather than counted. Resolved once, from
+   * the authored unit where there is one and from the prescription text where
+   * there is not, so every later decision (the input, the target, the saved
+   * unit) agrees with itself.
+   */
+  hold:          HoldTarget | null;
 }
 
 // Parse an authored reps string ("8", "8-10", "30s") to a numeric target for
@@ -183,7 +193,10 @@ function toLogExercises(structure: AnyStrengthStructure): LogExercise[] {
     structure.sections.forEach((sec, si) => {
       sec.exercises.forEach((ex, ei) => {
         const setCount = ex.sets ?? 1;
-        const reps     = parseReps(ex.reps);
+        const hold     = holdTargetFor(ex.unit, ex.reps);
+        // A hold's target is its seconds, not the first number in the text: a
+        // plank prescribed "20-40 sec" was being targeted at 20 reps.
+        const reps     = hold ? targetSecondsFor(hold) : parseReps(ex.reps);
         out.push({
           id:            `${si}-${ei}`,
           name:          ex.name,
@@ -196,6 +209,7 @@ function toLogExercises(structure: AnyStrengthStructure): LogExercise[] {
           target_sets:   Array.from({ length: setCount }, () => ({ reps })),
           section:       sec.section,
           section_label: sec.label,
+          hold,
           sensitive:     isSetAsideCandidate(getExerciseMeta(ex.name)?.primaryMuscles, ex.tempo),
         });
       });
@@ -217,6 +231,7 @@ function toLogExercises(structure: AnyStrengthStructure): LogExercise[] {
       section:       null,
       section_label: null,
       sensitive:     isSetAsideCandidate(meta?.primaryMuscles, meta?.tempo ?? null),
+      hold:          holdTargetFor(null, String(ex.target_sets[0]?.reps ?? 0)),
     };
   });
 }
@@ -431,6 +446,10 @@ function WorkoutPreviewScreen() {
   // for the big-jump check. Kept apart from the pre-fill so editing a set
   // cannot move the thing it is being compared against.
   const [lastWeights,  setLastWeights]  = useState<Record<string, number>>({});
+  // Longest hold from the last session that logged one, per exercise name. This
+  // is the number a hold progresses against, so it is shown on the row rather
+  // than pre-filled: last week's time is the target, not this week's result.
+  const [lastHolds,    setLastHolds]    = useState<Record<string, number>>({});
   // The one refused keystroke worth explaining, keyed "<exId>:<setIdx>:<field>".
   const [inputHint,    setInputHint]    = useState<{ key: string; text: string } | null>(null);
   // Exercises whose big jump the user has already confirmed this session.
@@ -567,10 +586,15 @@ function WorkoutPreviewScreen() {
             // is pre-filled; a draft already holds what the user typed.
             if (session) {
               const names = exercises.map((e) => e.name);
-              Promise.all([getLastLoggedWeights(session.user.id, names), getExerciseSettings(names)])
-                .then(([weights, exSettings]) => {
+              Promise.all([
+                getLastLoggedWeights(session.user.id, names),
+                getExerciseSettings(names),
+                getLastLoggedHolds(session.user.id, names),
+              ])
+                .then(([weights, exSettings, holds]) => {
                   setSettings(exSettings);
                   setLastWeights(weights);
+                  setLastHolds(holds);
                   if (!resumed) setLogged((prev) => applyPrefillWeights(prev, exercises, weights, exSettings));
                 })
                 .catch(() => {});
@@ -677,7 +701,7 @@ function WorkoutPreviewScreen() {
   function updateLoggedSet(ex: LogExercise, setIdx: number, field: 'actualReps' | 'weightKg', typed: string) {
     // Card 297: refuse a keystroke that goes over a limit and say why, rather
     // than clamping. A hold logs seconds in the reps field, so it gets its own.
-    const kind    = field === 'weightKg' ? 'weight' : parseHoldTarget(ex.reps_label) ? 'seconds' : 'reps';
+    const kind    = field === 'weightKg' ? 'weight' : ex.hold ? 'seconds' : 'reps';
     const current = logged[ex.id]?.[setIdx]?.[field] ?? '';
     const { value, hint } = limitSetInput(kind, current, typed);
     setInputHint(hint ? { key: `${ex.id}:${setIdx}:${field}`, text: hint } : null);
@@ -752,14 +776,14 @@ function WorkoutPreviewScreen() {
   }
 
   /**
-   * Time the next set of this exercise that has not been completed. A plank is
-   * done with the phone down, so the user taps once, holds, and taps again;
-   * asking them to aim at a particular row first would be fiddly.
+   * Time one named set of this exercise.
+   *
+   * It used to time "the first set not done", which meant a re-timed set landed
+   * on the wrong row and a set logged out of order could not be timed at all.
+   * The control now sits on the row it belongs to.
    */
-  function startHold(ex: LogExercise, target: HoldTarget) {
-    const sets   = logged[ex.id] ?? [];
-    const setIdx = sets.findIndex((st) => !st.done);
-    if (setIdx === -1) return;                 // every set already logged
+  function startHold(ex: LogExercise, target: HoldTarget, setIdx: number) {
+    if (!logged[ex.id]?.[setIdx]) return;
     setHold({ exId: ex.id, setIdx, startedAt: Date.now(), target });
     setHoldNow(Date.now());
   }
@@ -768,7 +792,7 @@ function WorkoutPreviewScreen() {
   function stopHold() {
     const current = holdRef.current;
     if (!current) return;
-    const held = heldSeconds(current.startedAt, Date.now(), current.target);
+    const held = heldSeconds(current.startedAt, Date.now());
     setHold(null);
     if (held <= 0) return;
     const sets = logged[current.exId] ? [...logged[current.exId]] : [];
@@ -777,6 +801,10 @@ function WorkoutPreviewScreen() {
     const next = { ...logged, [current.exId]: sets };
     setLogged(next);
     persistDraft(next, sessionRpe);
+    // A timed set is a completed set, so it earns the same rest as a counted
+    // one. Timing a hold used to skip the rest timer and its notification.
+    const ex = logExercises.find((e) => e.id === current.exId);
+    if (ex) beginRest(ex, next);
   }
 
   /**
@@ -911,7 +939,7 @@ function WorkoutPreviewScreen() {
           actual_reps:        Number.isFinite(reps)   ? reps   : null,
           weight_kg:          Number.isFinite(weight) ? weight : null,
           // A 30 second plank must not read as 30 reps later on.
-          unit:               parseHoldTarget(ex.reps_label) ? 'seconds' : 'reps',
+          unit:               ex.hold ? 'seconds' : 'reps',
         });
       }
       rollup.push({
@@ -925,6 +953,10 @@ function WorkoutPreviewScreen() {
             // borrowing a target that does not exist.
             reps:      Number.isFinite(reps)   ? reps   : (s.extra ? 0 : s.targetReps),
             weight_kg: Number.isFinite(weight) ? weight : 0,
+            // Without this the roll-up on the activity says a plank was 45
+            // reps. Only set for holds, so every existing row still reads as
+            // the rep count it was.
+            ...(ex.hold ? { unit: 'seconds' as const } : {}),
           };
         }),
       });
@@ -1103,12 +1135,18 @@ function WorkoutPreviewScreen() {
     return () => clearInterval(id);
   }, [hold]);
 
-  // Reaching the top of the range stops the hold and records it, so the user
-  // does not have to watch the screen to finish a plank.
+  // Reaching the top of the range is worth hearing, since the phone is usually
+  // face down during a plank. It no longer STOPS the timer: stopping there
+  // capped every hold at its prescription, so beating it could not be recorded
+  // and a good day was filed as par. The chime sounds once and the user decides
+  // when to stop.
+  const holdChimedRef = useRef(false);
+  useEffect(() => { if (!hold) holdChimedRef.current = false; }, [hold]);
   useEffect(() => {
-    if (!hold || !holdComplete(hold.startedAt, holdNow, hold.target)) return;
+    if (!hold || holdChimedRef.current) return;
+    if (!holdComplete(heldSeconds(hold.startedAt, holdNow), hold.target)) return;
+    holdChimedRef.current = true;
     playRestComplete();
-    stopHold();
   }, [hold, holdNow]);
 
   useEffect(() => {
@@ -1339,10 +1377,14 @@ function WorkoutPreviewScreen() {
               // The exercise-level tempo is the editable one; the tempo authored
               // on the session is the fallback for the few that vary by block.
               const tempo        = exSettings?.defaultTempo ?? ex.tempo;
-              // Prescriptions like "20-40 sec" are a hold, not a rep count.
-              const holdTarget  = parseHoldTarget(ex.reps_label);
-              const holdRunning = hold?.exId === ex.id;
-              const allSetsDone = sets.length > 0 && sets.every((st) => st.done);
+              // Resolved in toLogExercises from the authored unit, falling
+              // back to the prescription text for older sessions.
+              const holdTarget  = ex.hold;
+              const lastHold    = lastHolds[ex.name] ?? null;
+              // Which set of THIS exercise is being timed, if any. One hold at
+              // a time across the session: you cannot plank and hold a split
+              // squat at once.
+              const holdRunningSet = hold?.exId === ex.id ? hold.setIdx : -1;
               const showHeader = !!ex.section_label &&
                 (i === 0 || logExercises[i - 1].section !== ex.section);
               return (
@@ -1358,8 +1400,16 @@ function WorkoutPreviewScreen() {
                       <VirraText variant="display" size={17} color={colors.breath}>{ex.name}</VirraText>
                       <View style={s.exMetaRow}>
                         <VirraText variant="mono" size={10} color={colors.breath} style={{ letterSpacing: 1 }}>
-                          REPS {ex.reps_label}
+                          {ex.hold ? 'HOLD' : 'REPS'} {ex.reps_label}
                         </VirraText>
+                        {/* The number a hold progresses against. Emma: "I need
+                            to know how long I held my plank last session so I
+                            can aim to progress it this week." */}
+                        {ex.hold && lastHold != null && (
+                          <VirraText variant="mono" size={10} color={colors.dawn} style={{ letterSpacing: 1 }}>
+                            LAST {formatHold(lastHold)}
+                          </VirraText>
+                        )}
                         {tempo && (
                           <VirraText variant="mono" size={10} color={colors.pulse} style={{ letterSpacing: 1 }}>
                             TEMPO {prettyTempo(tempo)}
@@ -1381,7 +1431,7 @@ function WorkoutPreviewScreen() {
 
                   <View style={s.setHeaderRow}>
                     <VirraText variant="mono" size={10} color={colors.muted} style={s.colSet}>SET</VirraText>
-                    <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>REPS</VirraText>
+                    <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>{holdTarget ? 'SEC' : 'REPS'}</VirraText>
                     {showWeight && (
                       <VirraText variant="mono" size={10} color={colors.muted} style={s.colInput}>KG</VirraText>
                     )}
@@ -1396,12 +1446,39 @@ function WorkoutPreviewScreen() {
                         style={[s.setInput, s.colInput, st.done && s.setInputDone]}
                         value={st.actualReps}
                         onChangeText={(v) => updateLoggedSet(ex, i, 'actualReps', v)}
-                        placeholder={st.extra ? 'reps' : String(st.targetReps)}
+                        // A hold can always be typed as well as timed: the
+                        // timer is a convenience, not the only way in.
+                        placeholder={st.extra ? (holdTarget ? 'sec' : 'reps') : String(st.targetReps)}
                         placeholderTextColor="rgba(244,237,224,0.3)"
                         keyboardType="number-pad"
                         maxLength={3}
-                        accessibilityLabel={`${ex.name} set ${i + 1} ${holdTarget ? 'seconds' : 'reps'}`}
+                        accessibilityLabel={`${ex.name} set ${i + 1} ${holdTarget ? 'seconds held' : 'reps'}`}
                       />
+                      {holdTarget && !st.done && (
+                        <Pressable
+                          onPress={() => (holdRunningSet === i ? stopHold() : startHold(ex, holdTarget, i))}
+                          hitSlop={8}
+                          style={[s.rowTimerBtn, holdRunningSet === i && s.rowTimerBtnRunning]}
+                          accessibilityRole="button"
+                          accessibilityLabel={holdRunningSet === i
+                            ? `Stop timing ${ex.name} set ${i + 1}`
+                            : `Time ${ex.name} set ${i + 1}`}
+                        >
+                          <SymbolView
+                            name={holdRunningSet === i ? 'stop.fill' : 'timer'}
+                            size={13}
+                            tintColor={holdRunningSet === i ? colors.mile : colors.pulse}
+                          />
+                          <VirraText
+                            variant="mono"
+                            size={11}
+                            color={holdRunningSet === i ? colors.mile : colors.pulse}
+                            style={{ letterSpacing: 1 }}
+                          >
+                            {holdRunningSet === i ? formatHold(heldSeconds(hold!.startedAt, holdNow)) : 'TIME'}
+                          </VirraText>
+                        </Pressable>
+                      )}
                       {showWeight && (
                         <TextInput
                           style={[s.setInput, s.colInput, st.done && s.setInputDone]}
@@ -1472,29 +1549,13 @@ function WorkoutPreviewScreen() {
                     </Pressable>
                   )}
 
-                  {holdTarget && !allSetsDone && (
-                    <Pressable
-                      onPress={() => (holdRunning ? stopHold() : startHold(ex, holdTarget))}
-                      style={[s.holdBtn, holdRunning && s.holdBtnRunning]}
-                      accessibilityRole="button"
-                      accessibilityLabel={holdRunning ? `Stop timing ${ex.name}` : `Time ${ex.name}`}
-                    >
-                      <SymbolView
-                        name={holdRunning ? 'stop.fill' : 'timer'}
-                        size={14}
-                        tintColor={holdRunning ? colors.mile : colors.pulse}
-                      />
-                      <VirraText
-                        variant="mono"
-                        size={12}
-                        color={holdRunning ? colors.mile : colors.pulse}
-                        style={{ letterSpacing: 1 }}
-                      >
-                        {holdRunning
-                          ? `${formatHold(heldSeconds(hold!.startedAt, holdNow, hold!.target))}  ·  TAP TO STOP`
-                          : `TIME THIS HOLD  ·  ${ex.reps_label.toUpperCase()}`}
-                      </VirraText>
-                    </Pressable>
+                  {/* "each side" is held twice against the same target, so one
+                      logged set is the pair. Said here rather than left to be
+                      inferred from the prescription. */}
+                  {holdTarget?.eachSide && (
+                    <VirraText variant="mono" size={10} color={colors.muted} style={{ letterSpacing: 1 }}>
+                      BOTH SIDES COUNT AS ONE SET  ·  TARGET {formatHold(targetSecondsFor(holdTarget))}
+                    </VirraText>
                   )}
                 </VirraCard>
                 </React.Fragment>
@@ -1636,12 +1697,14 @@ const s = StyleSheet.create({
   setInputDone: { borderColor: colors.pulse },
   inputHint:  { marginLeft: 28 + spacing.sm, letterSpacing: 1 },
   addWeightBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingTop: spacing.xs },
-  holdBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
-    marginTop: spacing.xs, paddingVertical: spacing.sm,
+  // The timer that belongs to one set row: narrow enough to sit beside the
+  // inputs, wide enough to hold a running m:ss without jumping.
+  rowTimerBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
+    minWidth: 78, paddingHorizontal: spacing.xs, paddingVertical: 6,
     borderRadius: radius.sm, borderWidth: 1, borderColor: colors.pulse,
   },
-  holdBtnRunning: { backgroundColor: colors.pulse, borderColor: colors.pulse },
+  rowTimerBtnRunning: { backgroundColor: colors.pulse, borderColor: colors.pulse },
   rpeGrid:    { gap: spacing.xs, marginVertical: spacing.md },
   rpeRow:     { flexDirection: 'row', gap: spacing.xs },
   rpeChip: {

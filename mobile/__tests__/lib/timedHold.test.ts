@@ -1,4 +1,7 @@
-import { parseHoldTarget, isTimedHold, formatHold, heldSeconds, holdComplete } from '@/lib/timedHold';
+import {
+  parseHoldTarget, isTimedHold, formatHold, heldSeconds, holdComplete,
+  holdTargetFor, targetSecondsFor,
+} from '@/lib/timedHold';
 
 describe('parseHoldTarget', () => {
   it('reads the three formats the Get Strong content actually uses', () => {
@@ -45,30 +48,53 @@ describe('the running hold', () => {
   const target = parseHoldTarget('20-40 sec')!;
 
   it('counts up from zero', () => {
-    expect(heldSeconds(T0, T0, target)).toBe(0);
-    expect(heldSeconds(T0, T0 + 12_000, target)).toBe(12);
-    expect(heldSeconds(T0, T0 + 39_900, target)).toBe(39);
+    expect(heldSeconds(T0, T0)).toBe(0);
+    expect(heldSeconds(T0, T0 + 12_000)).toBe(12);
+    expect(heldSeconds(T0, T0 + 39_900)).toBe(39);
   });
 
-  it('caps at the top of the range rather than running on', () => {
-    expect(heldSeconds(T0, T0 + 40_000, target)).toBe(40);
-    expect(heldSeconds(T0, T0 + 300_000, target)).toBe(40);
+  it('keeps counting past the top of the range, so beating the target is recordable', () => {
+    // It used to cap here, which filed every good day as par.
+    expect(heldSeconds(T0, T0 + 40_000)).toBe(40);
+    expect(heldSeconds(T0, T0 + 61_000)).toBe(61);
   });
 
-  it('reports complete only once the top of the range is reached', () => {
-    expect(holdComplete(T0, T0 + 19_000, target)).toBe(false);
-    expect(holdComplete(T0, T0 + 39_000, target)).toBe(false);
-    expect(holdComplete(T0, T0 + 40_000, target)).toBe(true);
+  it('reports complete once the top of the range is reached, without stopping', () => {
+    expect(holdComplete(19, target)).toBe(false);
+    expect(holdComplete(39, target)).toBe(false);
+    expect(holdComplete(40, target)).toBe(true);
+    expect(holdComplete(75, target)).toBe(true);
   });
 
   it('survives the app being suspended mid-hold, because it counts from the clock', () => {
     // Backgrounded at 5s, back at 25s: the hold reads 25, not 5.
-    expect(heldSeconds(T0, T0 + 25_000, target)).toBe(25);
+    expect(heldSeconds(T0, T0 + 25_000)).toBe(25);
   });
 
   it('formats as m:ss', () => {
     expect(formatHold(0)).toBe('0:00');
     expect(formatHold(9)).toBe('0:09');
     expect(formatHold(75)).toBe('1:15');
+  });
+});
+
+describe('the authored unit decides, with the text as a fallback', () => {
+  it('trusts an authored rep count even when the text mentions a duration', () => {
+    // "8-10, 3s down" is a tempo note on a rep prescription, not a hold.
+    expect(holdTargetFor('reps', '8-10, 3s down')).toBeNull();
+  });
+
+  it('reads the text when nothing was authored, for sessions scheduled earlier', () => {
+    expect(holdTargetFor(null, '20-40 sec')).toEqual({ lowSeconds: 20, highSeconds: 40, eachSide: false });
+    expect(holdTargetFor(undefined, '8-10')).toBeNull();
+  });
+
+  it('still times a hold authored with no number in it', () => {
+    expect(holdTargetFor('seconds', 'max hold')).toEqual({ lowSeconds: 0, highSeconds: 0, eachSide: false });
+  });
+
+  it('counts both sides as one set', () => {
+    expect(targetSecondsFor(parseHoldTarget('20-40s each side')!)).toBe(40);
+    expect(targetSecondsFor(parseHoldTarget('20-40 sec')!)).toBe(20);
   });
 });

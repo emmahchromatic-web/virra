@@ -12,7 +12,7 @@ jest.mock('@/store/cycle', () => ({ useCycleStore: () => ({ cycleInfo: null }) }
 jest.mock('@/lib/notifications', () => ({
   cancelTrainingReminderToday: jest.fn(), scheduleRestComplete: jest.fn(), cancelRestComplete: jest.fn(),
 }));
-jest.mock('@/lib/strengthHistory', () => ({ getLastLoggedWeights: jest.fn() }));
+jest.mock('@/lib/strengthHistory', () => ({ getLastLoggedWeights: jest.fn(), getLastLoggedHolds: jest.fn().mockResolvedValue({}) }));
 jest.mock('@/lib/exerciseSettings', () => ({
   getExerciseSettings: jest.fn().mockResolvedValue({}), DEFAULT_LOAD_TYPE: 'weighted',
 }));
@@ -129,7 +129,7 @@ describe('set row limits', () => {
   it('lets a hold log 90 seconds but not 301', async () => {
     mockRow = HOLD_ROW;
     const utils = await open();
-    const label = 'Hollow Hold set 1 seconds';
+    const label = 'Hollow Hold set 1 seconds held';
     await waitFor(() => expect(utils.getByLabelText(label)).toBeTruthy());
 
     typeInto(utils, label, '90');
