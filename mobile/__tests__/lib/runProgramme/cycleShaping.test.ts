@@ -13,7 +13,7 @@ const PERIOD_START = new Date('2026-01-05T00:00:00');
 const PLAN_START   = new Date('2026-01-05T00:00:00');
 
 const ctx = (over: Partial<CycleContext> = {}): CycleContext => ({
-  mode: 'flow', periodStart: PERIOD_START, cycleLength: 28, ...over,
+  mode: 'flow', periodStart: PERIOD_START, cycleLength: 28, periodDays: 5, ...over,
 });
 
 describe('shapingStrength', () => {

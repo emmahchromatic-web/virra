@@ -26,6 +26,8 @@ export interface CycleContext {
   mode:        CycleMode;
   periodStart: Date | null;
   cycleLength: number;
+  /** Card 304: menstrual days, from useCycleStore().periodDays. */
+  periodDays:  number;
 }
 
 /**
@@ -49,7 +51,7 @@ function addDays(d: Date, n: number): Date {
 /** The phase predicted for a given date. */
 export function phaseOn(ctx: CycleContext, date: Date): CyclePhase | null {
   if (!ctx.periodStart) return null;
-  return getCycleInfo(ctx.periodStart, ctx.cycleLength, date)?.phase ?? null;
+  return getCycleInfo(ctx.periodStart, ctx.cycleLength, date, ctx.periodDays)?.phase ?? null;
 }
 
 /**

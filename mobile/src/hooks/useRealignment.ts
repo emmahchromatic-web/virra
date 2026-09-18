@@ -23,6 +23,7 @@ export function useRealignment(userId: string | null) {
   const cycleProfile = useCycleStore((s) => s.cycleProfile);
   const periodStart  = useCycleStore((s) => s.periodStart);
   const cycleLength  = useCycleStore((s) => s.cycleLength);
+  const periodDays   = useCycleStore((s) => s.periodDays);
   const cycleMode    = useCycleStore((s) => s.cycleMode);
 
   const today = new Date().toLocaleDateString('en-CA');
@@ -46,7 +47,7 @@ export function useRealignment(userId: string | null) {
     // A runner who does not track a cycle gets no menstrual-week exception,
     // because there is nothing to predict from.
     const phaseOn = cycleMode !== 'steady' && periodStart
-      ? (iso: string) => getCycleInfo(periodStart, cycleLength, new Date(`${iso}T00:00:00`))?.phase ?? null
+      ? (iso: string) => getCycleInfo(periodStart, cycleLength, new Date(`${iso}T00:00:00`), periodDays)?.phase ?? null
       : undefined;
 
     setPrompt(detectRealignment({
@@ -55,7 +56,7 @@ export function useRealignment(userId: string | null) {
       hasRaceDate: Boolean(runBlock.event_id) || Boolean(runBlock.ends_on),
       phaseOn,
     }));
-  }, [userId, today, snoozedOn, cycleMode, periodStart, cycleLength, cycleProfile]);
+  }, [userId, today, snoozedOn, cycleMode, periodStart, cycleLength, periodDays, cycleProfile]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

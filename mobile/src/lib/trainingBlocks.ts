@@ -413,6 +413,7 @@ async function buildGeneratedRunPlan(
     mode:        cycleState.cycleMode,
     periodStart: cycleState.periodStart,
     cycleLength: cycleState.cycleLength,
+    periodDays:  cycleState.periodDays,
   };
   const strength = shapingStrength(cycleCtx, cycleState.cycleProfile === 'irregular');
   const planStart = new Date(`${opts.startsOn}T00:00:00`);
