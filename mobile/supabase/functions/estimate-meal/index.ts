@@ -31,7 +31,7 @@ OUTPUT FORMAT, strict JSON only, no prose, no markdown fences, no commentary:
 RULES:
 - Use UK portion conventions. Standard pub burger ~150g cooked weight, standard chips portion ~200g, pint of lager ~568ml, flat white ~200ml, slice of toast ~35g. Scale up/down when the description specifies size.
 - Macro values are TOTAL for the specified portion (NOT per 100g). Calories in kcal.
-- "confidence" per item: lower (0.3–0.5) for restaurant dishes with high prep variance, higher (0.7–0.9) for branded packaged foods or simple home cooking.
+- "confidence" per item: lower (0.3-0.5) for restaurant dishes with high prep variance, higher (0.7-0.9) for branded packaged foods or simple home cooking.
 - "overall_confidence": holistic. If any single item is highly uncertain, drag the overall down.
 - Never editorialise the food. Never use words like "high", "indulgent", "treat", "splurge", "healthy", "unhealthy". Just report what is in it.
 - "notes" is for ambiguity the user should know about (e.g. "Estimate assumes pub-size portion, so adjust grams if larger"). Otherwise null.

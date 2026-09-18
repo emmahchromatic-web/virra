@@ -1,3 +1,5 @@
+begin;
+
 -- Card 312. Server-side enforcement of Virra Pro.
 --
 -- Until now Pro was enforced only on the device (card 298): RevenueCat on the
@@ -135,3 +137,5 @@ end $$;
 --   values ('<uuid>', true, 'manual', 'MANUAL_GRANT')
 --   on conflict (user_id) do update set is_active = true, source = 'manual', updated_at = now();
 -- The webhook never overwrites a manual row (see revenuecat-webhook/index.ts).
+
+commit;

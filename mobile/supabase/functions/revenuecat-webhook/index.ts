@@ -1,4 +1,4 @@
-// Card 312. RevenueCat → user_subscriptions.
+// Card 312. RevenueCat -> user_subscriptions.
 //
 // RevenueCat POSTs one JSON body per event. We verify the shared secret it
 // was configured to send in the Authorization header, map the event to a row
@@ -7,8 +7,8 @@
 // this table and the enforce_pro switch.
 //
 // Setup (once, by whoever holds the keys):
-//   Supabase → Edge Functions → Secrets: RC_WEBHOOK_SECRET = <long random string>
-//   RevenueCat → Project → Integrations → Webhooks: URL
+//   Supabase -> Edge Functions -> Secrets: RC_WEBHOOK_SECRET = <long random string>
+//   RevenueCat -> Project -> Integrations -> Webhooks: URL
 //     https://<project-ref>.functions.supabase.co/revenuecat-webhook
 //     Authorization header value: Bearer <the same string>
 //   Deploy with --no-verify-jwt (RevenueCat does not hold a Supabase JWT).
