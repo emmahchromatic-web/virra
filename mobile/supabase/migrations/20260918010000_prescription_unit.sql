@@ -33,7 +33,7 @@ update public.programme_exercises
    set unit = 'seconds'
  where unit = 'reps'
    and reps is not null
-   and replace(reps, '–', '-') ~* '[0-9]+ *(- *[0-9]+ *)?(s|secs?|seconds?|mins?|minutes?)([^a-z]|$)';
+   and replace(reps, chr(8211), '-') ~* '[0-9]+ *(- *[0-9]+ *)?(s|secs?|seconds?|mins?|minutes?)([^a-z]|$)';
 
 commit;
 
