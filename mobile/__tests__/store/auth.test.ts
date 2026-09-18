@@ -16,6 +16,9 @@ jest.mock('@/lib/notifications', () => ({
   cancelAllNotifications: () => mockCancelAll(),
 }));
 
+const mockRcLogOut = jest.fn(async () => {});
+jest.mock('@/lib/revenuecat', () => ({ logOutRevenueCat: () => mockRcLogOut() }));
+
 describe('useAuthStore', () => {
   beforeEach(async () => {
     useAuthStore.setState({ session: null, user: null, isLoading: true });
@@ -162,5 +165,27 @@ describe('useAuthStore', () => {
 
     await act(async () => { await result.current.signOut(); });
     expect(result.current.session).toBeNull();
+  });
+});
+
+// Card 298 hardening. The tier lives in memory, so it has to be dropped with
+// the session: a free account signing in after a Pro one, without the app
+// closing, otherwise saw everything unlocked.
+describe('signOut resets the subscription tier', () => {
+  const { useSubscriptionStore } = require('@/store/subscription');
+
+  it('drops a Pro status back to unknown and logs RevenueCat out', async () => {
+    mockRcLogOut.mockClear();
+    useSubscriptionStore.setState({ status: 'active', isActive: true, devOverride: null });
+    await useAuthStore.getState().signOut();
+    expect(useSubscriptionStore.getState()).toMatchObject({ status: 'unknown', isActive: false });
+    expect(mockRcLogOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the internal Preview-as pin alone: it belongs to the device, not the account', async () => {
+    useSubscriptionStore.setState({ status: 'expired', isActive: false, devOverride: 'expired' });
+    await useAuthStore.getState().signOut();
+    expect(useSubscriptionStore.getState().status).toBe('expired');
+    useSubscriptionStore.setState({ devOverride: null });
   });
 });

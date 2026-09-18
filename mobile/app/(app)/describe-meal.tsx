@@ -52,6 +52,12 @@ async function extractEdgeError(error: unknown): Promise<string> {
   const ctx = (error as { context?: Response | undefined })?.context;
   if (ctx && typeof ctx === 'object' && 'status' in ctx && typeof (ctx as Response).json === 'function') {
     const res = ctx as Response;
+    // Card 312. The server refuses this call without Pro once enforcement is
+    // on. The button is already gated, so this is the rare path (a trial that
+    // lapsed with the screen open); say what happened and offer the way on.
+    if (res.status === 403) {
+      return 'Describe a meal is part of Virra Pro. You can still log this one manually.';
+    }
     try {
       const body = await res.clone().json() as { error?: unknown };
       if (typeof body?.error === 'string' && body.error.trim()) return body.error.trim();

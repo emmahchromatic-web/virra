@@ -1,6 +1,14 @@
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
+import { useSubscriptionStore } from '@/store/subscription';
+import { isProStatus } from '@/lib/pro';
+
+/** True while she holds Pro (or the answer is still unknown at launch). */
+function holdsPro(): boolean {
+  const s = useSubscriptionStore.getState();
+  return isProStatus(s.status, s.isActive);
+}
 
 // ─── Preference types ────────────────────────────────────────────────────────
 
@@ -150,7 +158,10 @@ export async function scheduleWeeklyPlanReminder(): Promise<void> {
   const prefs = await loadNotificationPreferences();
   const key   = 'notif_weekly_plan';
 
-  if (!prefs.weeklyPlan) {
+  // Card 298 hardening. "Plan your week" opens the week-ahead screen, which is
+  // Pro. Off Pro it would be a weekly nudge towards a padlock, so it is not
+  // scheduled, and one left over from a trial is cancelled.
+  if (!prefs.weeklyPlan || !holdsPro()) {
     await cancelStored(key);
     return;
   }
@@ -191,7 +202,9 @@ export async function scheduleDailyReminders(userId: string): Promise<void> {
   }
 
   // ── Training ────────────────────────────────────────────────────────────────
-  if (prefs.training) {
+  // Planned sessions are Pro. A lapsed subscriber still has them in the table,
+  // and "Today's session is ready" would send her to a locked plan.
+  if (prefs.training && holdsPro()) {
     const { data: sessions, error: sessionsError } = await supabase
       .from('planned_sessions')
       .select('id')
@@ -289,7 +302,10 @@ export async function scheduleTrialReminders(trialEnd: Date): Promise<void> {
     await scheduleOnce(
       storageKey('trial', '11'),
       'Your free trial ends in 3 days',
-      'Subscribe now to keep your training and nutrition data.',
+      // Card 298. The old line said "subscribe now to keep your data". Neither
+      // half is true any more: a StoreKit trial renews by itself unless she
+      // cancels, and cancelling costs her the Pro features, never her data.
+      'Virra Pro then renews automatically. Cancel before then and you keep everything you have logged, on the free version.',
       { type: Notifications.SchedulableTriggerInputTypes.DATE, date: day11 },
     );
   }
@@ -298,7 +314,7 @@ export async function scheduleTrialReminders(trialEnd: Date): Promise<void> {
     await scheduleOnce(
       storageKey('trial', '13'),
       'Last day of your free trial tomorrow',
-      "Subscribe to keep everything you've built.",
+      'Your plan, targets and recipes stay with Virra Pro. Your logging stays free either way.',
       { type: Notifications.SchedulableTriggerInputTypes.DATE, date: day13 },
     );
   }

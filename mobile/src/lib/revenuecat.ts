@@ -4,12 +4,47 @@ const RC_IOS_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY!;
 
 export const ENTITLEMENT_ID = 'virra_pro';
 
-export function configureRevenueCat(userId: string) {
-  Purchases.setLogLevel(LOG_LEVEL.ERROR);
-  Purchases.configure({ apiKey: RC_IOS_KEY, appUserID: userId });
+// Every read below waits on this, so an entitlement check can never race the
+// identity switch and answer for the previous (or an anonymous) customer.
+let ready: Promise<void> = Promise.resolve();
+let configured = false;
+
+/**
+ * Point RevenueCat at the signed-in user. First call configures the SDK;
+ * later calls (a different account on the same phone, card 298 hardening)
+ * use logIn, which is what RevenueCat expects after configure. Calling
+ * configure twice leaves the SDK on the first user.
+ */
+export function configureRevenueCat(userId: string): Promise<void> {
+  ready = (async () => {
+    try {
+      if (!configured) {
+        Purchases.setLogLevel(LOG_LEVEL.ERROR);
+        Purchases.configure({ apiKey: RC_IOS_KEY, appUserID: userId });
+        configured = true;
+      } else {
+        await Purchases.logIn(userId);
+      }
+    } catch (e) {
+      console.error('[revenuecat] identify failed:', e);
+    }
+  })();
+  return ready;
+}
+
+/** Sign-out: drop to an anonymous RevenueCat customer so nothing of hers lingers. */
+export async function logOutRevenueCat(): Promise<void> {
+  if (!configured) return;
+  await ready;
+  try {
+    await Purchases.logOut();
+  } catch {
+    // logOut throws when the customer is already anonymous. Nothing to undo.
+  }
 }
 
 export async function getActiveEntitlement(): Promise<boolean> {
+  await ready;
   try {
     const customerInfo = await Purchases.getCustomerInfo();
     return !!customerInfo.entitlements.active[ENTITLEMENT_ID];
@@ -19,6 +54,7 @@ export async function getActiveEntitlement(): Promise<boolean> {
 }
 
 export async function getOfferings(): Promise<PurchasesPackage[]> {
+  await ready;
   try {
     const offerings = await Purchases.getOfferings();
     return offerings.current?.availablePackages ?? [];
@@ -30,6 +66,7 @@ export async function getOfferings(): Promise<PurchasesPackage[]> {
 export async function purchasePackage(
   pkg: PurchasesPackage,
 ): Promise<{ success: boolean; cancelled?: boolean; error?: string }> {
+  await ready;
   try {
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     return { success: !!customerInfo.entitlements.active[ENTITLEMENT_ID] };
@@ -58,6 +95,7 @@ export interface EntitlementInfo {
 }
 
 export async function getEntitlementInfo(): Promise<EntitlementInfo> {
+  await ready;
   try {
     const customerInfo = await Purchases.getCustomerInfo();
     const ent = customerInfo.entitlements.active[ENTITLEMENT_ID];
@@ -74,6 +112,7 @@ export async function getEntitlementInfo(): Promise<EntitlementInfo> {
 }
 
 export async function restorePurchases(): Promise<boolean> {
+  await ready;
   try {
     const customerInfo = await Purchases.restorePurchases();
     return !!customerInfo.entitlements.active[ENTITLEMENT_ID];
@@ -90,6 +129,7 @@ export async function restorePurchases(): Promise<boolean> {
  * subscription group, so in practice they agree.
  */
 export async function getTrialEligibility(productIds: string[]): Promise<boolean | null> {
+  await ready;
   if (productIds.length === 0) return null;
   try {
     const result = await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
