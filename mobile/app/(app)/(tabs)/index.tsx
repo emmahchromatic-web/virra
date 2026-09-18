@@ -57,9 +57,14 @@ export default function DashboardScreen() {
   const trackWeight                 = useProfileStore((s) => s.trackWeight);
   const stepsTarget                 = useProfileStore((s) => s.stepsTarget);
   const { verdict, confirm, snooze } = useFitnessUpdate(session?.user.id ?? null);
-  const realignment = useRealignment(session?.user.id ?? null);
   const refreshReadiness = useReadinessStore((s) => s.refresh);
   const { isPro, showLocked } = useProGate();
+  // Card 298. Every option on the realignment prompt acts on a training plan,
+  // and "rebuild" routes to the plans screen, so a free runner would be
+  // prompted about something they cannot reach. Passing null also spares them
+  // the query. A lapsed subscriber can still have an open block, so this is not
+  // hypothetical.
+  const realignment = useRealignment(isPro ? (session?.user.id ?? null) : null);
   // With the Insights tile hidden the check-in tile has the row to itself;
   // laid out as a column it became a tall, mostly empty card.
   const soloTile = !isPro && !showLocked;

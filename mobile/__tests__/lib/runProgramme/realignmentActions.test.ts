@@ -11,8 +11,9 @@ const state: {
   future:    Row[];
   occupied:  Array<{ scheduled_date: string }>;
   blockEnds: string | null;
+  planGoal:  string | null;
   writes:    Array<{ table: string; patch: Record<string, unknown>; ids?: string[] }>;
-} = { missed: [], future: [], occupied: [], blockEnds: null, writes: [] };
+} = { missed: [], future: [], occupied: [], blockEnds: null, planGoal: null, writes: [] };
 
 jest.mock('@/lib/supabase', () => ({
   supabase: {
@@ -33,7 +34,9 @@ jest.mock('@/lib/supabase', () => ({
         lt()  { builder._mode = 'missed'; return builder; },
         gte() { if (!builder._patch) builder._mode = 'future'; return builder; },
         maybeSingle() {
-          return Promise.resolve({ data: table === 'training_blocks' ? { ends_on: state.blockEnds } : null, error: null });
+          if (table === 'training_blocks') return Promise.resolve({ data: { ends_on: state.blockEnds, template_id: 'tmpl-1' }, error: null });
+          if (table === 'user_plans')      return Promise.resolve({ data: state.planGoal ? { id: 'p1', goal_date: state.planGoal } : null, error: null });
+          return Promise.resolve({ data: null, error: null });
         },
         update(patch: Record<string, unknown>) { builder._patch = patch; return builder; },
         then(resolve: (v: unknown) => unknown) {
@@ -42,7 +45,7 @@ jest.mock('@/lib/supabase', () => ({
             return Promise.resolve({ data: null, error: null }).then(resolve);
           }
           const data =
-            table === 'training_blocks' ? { ends_on: state.blockEnds }
+            table === 'training_blocks' ? { ends_on: state.blockEnds, template_id: 'tmpl-1' }
             : builder._mode === 'future' ? state.future
             : state.missed;
           return Promise.resolve({ data, error: null }).then(resolve);
@@ -60,6 +63,7 @@ beforeEach(() => {
   state.future    = [];
   state.occupied  = [];
   state.blockEnds = null;
+  state.planGoal  = null;
   state.writes    = [];
 });
 
@@ -138,6 +142,24 @@ describe('extend the plan', () => {
     const blockWrite = state.writes.find((w) => w.table === 'training_blocks');
     expect(blockWrite).toBeDefined();
     expect(blockWrite!.patch.ends_on).toBe('2026-06-08');
+  });
+
+  it('moves the plan\'s goal date with it, so the Training tab and the plan agree', async () => {
+    state.missed    = [{ id: 'm1', scheduled_date: '2026-03-23' }];
+    state.blockEnds = '2026-06-01';
+    state.planGoal  = '2026-06-01';
+    await applyRealignment('extend_plan', INPUT);
+
+    const planWrite = state.writes.find((w) => w.table === 'user_plans');
+    expect(planWrite!.patch.goal_date).toBe('2026-06-08');
+  });
+
+  it('leaves an open-ended plan alone rather than inventing a goal date', async () => {
+    state.missed    = [{ id: 'm1', scheduled_date: '2026-03-23' }];
+    state.blockEnds = null;
+    state.planGoal  = null;
+    await applyRealignment('extend_plan', INPUT);
+    expect(state.writes.some((w) => w.table === 'user_plans')).toBe(false);
   });
 
   it('clears the missed weeks rather than making them up', async () => {

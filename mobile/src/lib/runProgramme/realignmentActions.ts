@@ -165,7 +165,7 @@ export async function applyRealignment(
 
       const { data: block } = await supabase
         .from('training_blocks')
-        .select('ends_on')
+        .select('ends_on, template_id')
         .eq('id', input.blockId)
         .maybeSingle();
       if (block?.ends_on) {
@@ -173,6 +173,26 @@ export async function applyRealignment(
           .from('training_blocks')
           .update({ ends_on: addDaysIso(block.ends_on as string, shift) })
           .eq('id', input.blockId);
+      }
+
+      // The plan row moves too. `user_plans.goal_date` is what the Training tab
+      // prints as the goal and what the plan screen counts the duration from,
+      // so leaving it behind would have a plan claim to finish a week before
+      // its own last session — card 281's bug in a new place.
+      if (block?.template_id) {
+        const { data: plan } = await supabase
+          .from('user_plans')
+          .select('id, goal_date')
+          .eq('user_id', input.userId)
+          .eq('template_id', block.template_id as string)
+          .eq('is_active', true)
+          .maybeSingle();
+        if (plan?.goal_date) {
+          await supabase
+            .from('user_plans')
+            .update({ goal_date: addDaysIso(plan.goal_date as string, shift) })
+            .eq('id', plan.id as string);
+        }
       }
 
       return {
