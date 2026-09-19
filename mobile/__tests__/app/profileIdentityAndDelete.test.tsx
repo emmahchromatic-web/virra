@@ -226,7 +226,8 @@ describe('Profile — sign-out guard', () => {
     expect(appAlertMock).toHaveBeenCalledTimes(1);
     const [, message, buttons] = appAlertMock.mock.calls[0];
     expect(message).toMatch(/1/);
-    expect(message).toMatch(/haven't synced/i);
+    // Singular takes "hasn't": one change hasn't synced, several haven't.
+    expect(message).toBe("1 change hasn't synced yet. Signing out will discard it.");
     expect(signOut).not.toHaveBeenCalled();
 
     // Cancel is a no-op: no onPress at all, so pressing it leaves the user signed in.
@@ -238,6 +239,20 @@ describe('Profile — sign-out guard', () => {
     await act(async () => { await signOutAnywayBtn.onPress(); });
     expect(signOut).toHaveBeenCalledTimes(1);
     expect(router.replace).toHaveBeenCalledWith('/(auth)');
+  });
+
+  it('uses the plural form when more than one change is waiting', async () => {
+    networkState.isOnline = false;
+    outboxMock.readOutbox.mockResolvedValue([
+      { id: 'ob_1', kind: 'completeWorkout', payload: {}, createdAt: new Date().toISOString(), attempts: 0 },
+      { id: 'ob_2', kind: 'completeWorkout', payload: {}, createdAt: new Date().toISOString(), attempts: 0 },
+    ]);
+
+    const utils = await renderProfile();
+    await act(async () => { fireEvent.press(utils.getByRole('button', { name: 'Sign out' })); });
+
+    const [, message] = appAlertMock.mock.calls[0];
+    expect(message).toBe("2 changes haven't synced yet. Signing out will discard them.");
   });
 
   it('signs out immediately with no alert when the outbox is empty', async () => {

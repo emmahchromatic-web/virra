@@ -442,7 +442,7 @@ create table common_foods (
 - [ ] Sub-project 2 (Active Surfaces): pre-workout preview screen, Play CTA routing (Ia), structured run live execution (Ib live), strength live screen (Ic)
 - [ ] Sub-project 3 (Substitution): workout swap mechanics (Id)
 
-### Phase J — Local Cache + Offline Resilience (deferred)
+### Phase J — Local Cache + Offline Resilience (J1 shipped, J2/J3 pending)
 
 Superseded by the offline-first design (card 284): `docs/superpowers/specs/2026-09-14-offline-first-design.md`. J1 Foundation (this plan) shipped the outbox, network store and sync pill. J2 (cache-first reads: dashboard, training, nutrition, recipes) and J3 (remaining write handlers: nutrition, check-in, calendar, favourites) follow as separate plans.
 

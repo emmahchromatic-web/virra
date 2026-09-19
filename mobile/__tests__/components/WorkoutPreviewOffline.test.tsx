@@ -1,4 +1,5 @@
 import React from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { render, waitFor } from '@testing-library/react-native';
 
 jest.mock('expo-router', () => ({
@@ -78,7 +79,14 @@ import WorkoutPreviewScreen from '@/app/(app)/workout-preview';
  * was still impossible, and failed silently.
  */
 describe('starting a workout with no signal', () => {
-  beforeEach(() => { for (const k of Object.keys(mockById)) delete mockById[k]; });
+  beforeEach(async () => {
+    // This screen exercises the real workoutDrafts and outbox modules (only
+    // @/lib/supabase is mocked here), which write real AsyncStorage as their
+    // local-first store. Clear it so a draft or queued completion left by one
+    // test doesn't leak into the next through that layer.
+    await AsyncStorage.clear();
+    for (const k of Object.keys(mockById)) delete mockById[k];
+  });
 
   it('falls back to the session the store already holds', async () => {
     mockById['ps-1'] = CACHED_ROW;

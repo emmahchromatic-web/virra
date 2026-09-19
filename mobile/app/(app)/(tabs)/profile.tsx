@@ -314,7 +314,7 @@ export default function ProfileScreen() {
       if (pending.length > 0) {
         appAlert(
           'Changes have not synced yet',
-          `${pending.length} change${pending.length === 1 ? '' : 's'} haven't synced yet. Signing out will discard ${pending.length === 1 ? 'it' : 'them'}.`,
+          `${pending.length} change${pending.length === 1 ? '' : 's'} ${pending.length === 1 ? "hasn't" : "haven't"} synced yet. Signing out will discard ${pending.length === 1 ? 'it' : 'them'}.`,
           [
             { text: 'Cancel', style: 'cancel' },
             {
