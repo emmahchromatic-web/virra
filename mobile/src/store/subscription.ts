@@ -17,6 +17,18 @@ interface SubscriptionState {
   status:    SubscriptionStatus;
   isActive:  boolean;
   trialEnd:  Date | null;
+  /**
+   * A persisted COPY of the last known status/trialEnd, kept only for
+   * instant display continuity on a cold start (e.g. rendering "Trial ends
+   * in 3 days" before RevenueCat has answered). Nothing gating-related may
+   * ever read these -- `status`/`isActive`/`trialEnd` are the only fields
+   * gating logic reads, and those stay in-memory-only, reset to their
+   * hardcoded defaults on every process boot regardless of what's cached
+   * here. `setStatus()` updates both in lockstep so the cache never goes
+   * stale relative to the live fields going forward.
+   */
+  cachedStatus:   SubscriptionStatus;
+  cachedTrialEnd: Date | null;
   setStatus: (status: SubscriptionStatus, trialEnd?: Date) => void;
   /** Card 298. Whether a free user sees the locked Pro tiles. On by default:
    *  the tiles are how she learns what Pro is, and Emma's reference app saw
@@ -39,27 +51,33 @@ export const INTERNAL_TOOLS =
 const ACTIVE_STATUSES: SubscriptionStatus[] = ['trial', 'active'];
 
 /**
- * Raw fields persisted to AsyncStorage -- `status` and `trialEnd` ONLY, for
- * display continuity across a cold start (e.g. "Trial ends in 3 days" shown
- * immediately, rather than a blank state until RevenueCat answers).
+ * Raw fields persisted to AsyncStorage -- `cachedStatus`/`cachedTrialEnd`
+ * ONLY, a copy kept purely for display continuity across a cold start (e.g.
+ * "Trial ends in 3 days" shown immediately, rather than a blank state until
+ * RevenueCat answers).
  *
- * `isActive` is deliberately absent: it is a pure function of `status`
- * (`ACTIVE_STATUSES.includes(status)`) and must never be trusted as cached
- * data -- it's recomputed both at `setStatus()` time and again after
- * rehydration below. This store gates nothing; feature/paywall gating stays
- * on RevenueCat, entirely unchanged by this persistence.
+ * `status`, `isActive`, and `trialEnd` -- the LIVE fields every gating path
+ * in the app reads (`pro.ts`, `notifications.ts`, `_layout.tsx`'s
+ * `syncEntitlement()` gate, `AddEventModal.tsx`) -- are deliberately EXCLUDED
+ * from persistence entirely. They always start at their hardcoded defaults
+ * (`'unknown'`/`false`/`null`) on every process boot, in-memory only, so
+ * `syncEntitlement()`'s `if (!session || isActive) return;` early-return
+ * cannot be short-circuited by a stale cached entitlement from a
+ * subscription that lapsed or was cancelled while the device was offline.
+ * Gating must always re-ask RevenueCat, exactly as before this store gained
+ * any persistence.
  *
  * `showProFeatures` and `devOverride` keep their own separate AsyncStorage
  * keys (`SHOW_PRO_FEATURES_KEY`, `DEV_SUB_OVERRIDE_KEY`) and are not folded
  * in here.
  *
- * `trialEnd` is `Date | null` -- same ISO-string `partialize`/`merge`
+ * `cachedTrialEnd` is `Date | null` -- same ISO-string `partialize`/`merge`
  * treatment as `cycle.ts`'s `periodStart`/`currentPackStart`, since `Date`
  * objects don't survive a JSON round trip on their own.
  */
 interface PersistedSubscriptionState {
-  status:   SubscriptionStatus;
-  trialEnd: string | null;
+  cachedStatus:   SubscriptionStatus;
+  cachedTrialEnd: string | null;
 }
 
 export const useSubscriptionStore = create<SubscriptionState>()(
@@ -68,8 +86,15 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       status:    'unknown',
       isActive:  false,
       trialEnd:  null,
+      cachedStatus:   'unknown',
+      cachedTrialEnd: null,
       setStatus: (status, trialEnd) =>
-        set({ status, isActive: ACTIVE_STATUSES.includes(status), trialEnd: trialEnd ?? null }),
+        set({
+          status, isActive: ACTIVE_STATUSES.includes(status), trialEnd: trialEnd ?? null,
+          // Kept in lockstep with the live fields so the display cache never
+          // drifts from the last real answer RevenueCat gave.
+          cachedStatus: status, cachedTrialEnd: trialEnd ?? null,
+        }),
 
       showProFeatures: true,
       setShowProFeatures: async (show) => {
@@ -106,26 +131,30 @@ export const useSubscriptionStore = create<SubscriptionState>()(
       storage: createJSONStorage(() => asyncStorageAdapter),
       version: 1,
       partialize: (s): PersistedSubscriptionState => ({
-        status:   s.status,
-        trialEnd: s.trialEnd ? s.trialEnd.toISOString() : null,
-        // isActive, showProFeatures, and devOverride excluded deliberately --
-        // see PersistedSubscriptionState's doc comment above.
+        cachedStatus:   s.cachedStatus,
+        cachedTrialEnd: s.cachedTrialEnd ? s.cachedTrialEnd.toISOString() : null,
+        // status, isActive, trialEnd, showProFeatures, and devOverride
+        // excluded deliberately -- see PersistedSubscriptionState's doc
+        // comment above. Gating must never rehydrate from disk.
       }),
       merge: (persistedState, currentState) => {
-        // `p` is `{}` on a fresh install (nothing in storage yet) -- status
-        // and trialEnd then fall back to currentState's own defaults.
+        // `p` is `{}` on a fresh install (nothing in storage yet) --
+        // cachedStatus/cachedTrialEnd then fall back to currentState's own
+        // defaults.
         const p = (persistedState ?? {}) as Partial<PersistedSubscriptionState>;
 
-        const status   = p.status ?? currentState.status;
-        const trialEnd = p.trialEnd ? new Date(p.trialEnd) : null;
+        const cachedStatus   = p.cachedStatus ?? currentState.cachedStatus;
+        const cachedTrialEnd = p.cachedTrialEnd ? new Date(p.cachedTrialEnd) : null;
 
         return {
           ...currentState,
-          status,
-          trialEnd,
-          // Never trusted from disk -- always re-derived from status, here
-          // exactly as setStatus() does it inline.
-          isActive: ACTIVE_STATUSES.includes(status),
+          cachedStatus,
+          cachedTrialEnd,
+          // status/isActive/trialEnd are intentionally NOT set here -- they
+          // keep currentState's hardcoded boot defaults ('unknown'/false/
+          // null) no matter what's on disk. This is what keeps
+          // syncEntitlement()'s `if (!session || isActive) return;` gate
+          // firing on every cold start exactly as it always has.
         };
       },
     },
