@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import {
   getCycleInfo,
   deriveCycleMode,
@@ -11,6 +12,9 @@ import {
   type ContraceptionType,
 } from '@/lib/cycleEngine';
 import { supabase } from '@/lib/supabase';
+import { asyncStorageAdapter } from './persistAdapter';
+
+const STORE_NAME = 'virra:cycle:v1';
 
 interface CycleState {
   cycleProfile:      CycleProfile;
@@ -32,6 +36,11 @@ interface CycleState {
   hasPlaceboWeek:    boolean | null;
   currentPackStart:  Date | null;
   isLoading:         boolean;
+  // Timestamp of the last successful `loadFromSupabase()`. `null` until one
+  // succeeds. Stamped only on success, mirroring the profile store's
+  // `fetchedAt`, so a failed/offline load never claims freshness it doesn't
+  // have.
+  fetchedAt:         string | null;
   setCycleProfile:      (profile: CycleProfile) => void;
   /** Correct the current period's start date. Its logged length no longer applies. */
   setPeriodStart:       (date: Date, today?: Date) => void;
@@ -67,7 +76,35 @@ function computeForProfile(
   return null; // steady
 }
 
-export const useCycleStore = create<CycleState>((set, get) => ({
+/**
+ * Raw fields persisted to AsyncStorage. `periodStart`/`currentPackStart` are
+ * carried as ISO strings (or `null`) -- `Date` objects don't survive a JSON
+ * round trip on their own, so `partialize` converts them going in and
+ * `merge` converts them back going out.
+ *
+ * `cycleInfo` is deliberately absent: it's derived from these fields plus
+ * "today", and a phase computed at last night's cold start is wrong by the
+ * time the app is opened again. `isLoading` is a runtime "fetch in flight"
+ * flag, not data, and must not be replayed as `true` from a stale cache
+ * before a real `loadFromSupabase()` has run this session.
+ */
+interface PersistedCycleState {
+  cycleProfile:      CycleProfile;
+  periodStart:       string | null;
+  cycleLength:       number;
+  periodDays:        number;
+  periodDaysLogged:  boolean;
+  recentPeriodDays:  number[];
+  cycleMode:         CycleMode;
+  contraceptionType: ContraceptionType | null;
+  hasPlaceboWeek:    boolean | null;
+  currentPackStart:  string | null;
+  fetchedAt:         string | null;
+}
+
+export const useCycleStore = create<CycleState>()(
+  persist(
+    (set, get) => ({
   cycleProfile:      'natural',
   periodStart:       null,
   cycleLength:       28,
@@ -80,6 +117,7 @@ export const useCycleStore = create<CycleState>((set, get) => ({
   hasPlaceboWeek:    null,
   currentPackStart:  null,
   isLoading:         true,
+  fetchedAt:         null,
 
   setCycleProfile: (profile) =>
     set((s) => {
@@ -168,63 +206,142 @@ export const useCycleStore = create<CycleState>((set, get) => ({
 
   loadFromSupabase: async (userId, today = new Date()) => {
     set({ isLoading: true });
-    const [cycleRes, profileRes, lengthsRes] = await Promise.all([
-      supabase
-        .from('cycle_logs')
-        // `created_at` is the tiebreaker, not decoration. Nothing stops two
-        // rows sharing a period_start, and Emma's account had exactly that:
-        // 2026-08-15 logged at 28 days, then corrected to 27 three minutes
-        // later. With period_start alone to order by, which cycle length the
-        // app used came down to whatever the planner returned first, so every
-        // phase boundary could move between sessions.
-        //
-        // Newest wins, because the later row is the correction.
-        .select('period_start, cycle_length_days')
-        .eq('user_id', userId)
-        .order('period_start', { ascending: false })
-        .order('created_at',   { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('user_profiles')
-        .select('cycle_profile, contraception_type, has_placebo_week, current_pack_start')
-        .eq('id', userId)
-        .maybeSingle(),
-      // Card 304. Its own query, deliberately: adding period_length_days to the
-      // query above would fail the WHOLE cycle load with 42703 on a database
-      // the migration has not reached. Here a failure only costs the default.
-      supabase
-        .from('cycle_logs')
-        .select('period_start, period_length_days')
-        .eq('user_id', userId)
-        .order('period_start', { ascending: false })
-        .order('created_at',   { ascending: false })
-        .limit(12),
-    ]);
+    // Failure-safe: a thrown/rejected Supabase call must leave all existing
+    // state (including `fetchedAt` and every raw field) exactly as it was --
+    // this is what makes cached, cold-started data survive an offline
+    // `loadFromSupabase()` call instead of being silently wiped. Only a
+    // genuinely successful read reaches the final `set()`. `isLoading` is
+    // still reset on failure so the UI doesn't get stuck showing a spinner
+    // forever.
+    try {
+      const [cycleRes, profileRes, lengthsRes] = await Promise.all([
+        supabase
+          .from('cycle_logs')
+          // `created_at` is the tiebreaker, not decoration. Nothing stops two
+          // rows sharing a period_start, and Emma's account had exactly that:
+          // 2026-08-15 logged at 28 days, then corrected to 27 three minutes
+          // later. With period_start alone to order by, which cycle length the
+          // app used came down to whatever the planner returned first, so every
+          // phase boundary could move between sessions.
+          //
+          // Newest wins, because the later row is the correction.
+          .select('period_start, cycle_length_days')
+          .eq('user_id', userId)
+          .order('period_start', { ascending: false })
+          .order('created_at',   { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from('user_profiles')
+          .select('cycle_profile, contraception_type, has_placebo_week, current_pack_start')
+          .eq('id', userId)
+          .maybeSingle(),
+        // Card 304. Its own query, deliberately: adding period_length_days to the
+        // query above would fail the WHOLE cycle load with 42703 on a database
+        // the migration has not reached. Here a failure only costs the default.
+        supabase
+          .from('cycle_logs')
+          .select('period_start, period_length_days')
+          .eq('user_id', userId)
+          .order('period_start', { ascending: false })
+          .order('created_at',   { ascending: false })
+          .limit(12),
+      ]);
 
-    const cycleProfile      = (profileRes.data?.cycle_profile      as CycleProfile      | undefined) ?? 'natural';
-    const contraceptionType = (profileRes.data?.contraception_type as ContraceptionType | undefined) ?? null;
-    const hasPlaceboWeek    = profileRes.data?.has_placebo_week    ?? null;
-    const currentPackStart  = profileRes.data?.current_pack_start
-      ? new Date(profileRes.data.current_pack_start)
-      : null;
+      const cycleProfile      = (profileRes.data?.cycle_profile      as CycleProfile      | undefined) ?? 'natural';
+      const contraceptionType = (profileRes.data?.contraception_type as ContraceptionType | undefined) ?? null;
+      const hasPlaceboWeek    = profileRes.data?.has_placebo_week    ?? null;
+      const currentPackStart  = profileRes.data?.current_pack_start
+        ? new Date(profileRes.data.current_pack_start)
+        : null;
 
-    const cycleMode   = deriveCycleMode(cycleProfile, hasPlaceboWeek);
-    const periodStart = cycleRes.data ? new Date(cycleRes.data.period_start) : null;
-    const cycleLength = cycleRes.data?.cycle_length_days ?? 28;
-    const { current, recent } = splitPeriodLengths(
-      lengthsRes.error ? [] : (lengthsRes.data ?? []) as PeriodLengthRow[],
-      cycleRes.data?.period_start ?? null,
-    );
-    const { days: periodDays, logged: periodDaysLogged } = effectivePeriodDays(current, recent);
-    const cycleInfo   = computeForProfile(cycleProfile, hasPlaceboWeek, periodStart, currentPackStart, cycleLength, today, periodDays);
+      const cycleMode   = deriveCycleMode(cycleProfile, hasPlaceboWeek);
+      const periodStart = cycleRes.data ? new Date(cycleRes.data.period_start) : null;
+      const cycleLength = cycleRes.data?.cycle_length_days ?? 28;
+      const { current, recent } = splitPeriodLengths(
+        lengthsRes.error ? [] : (lengthsRes.data ?? []) as PeriodLengthRow[],
+        cycleRes.data?.period_start ?? null,
+      );
+      const { days: periodDays, logged: periodDaysLogged } = effectivePeriodDays(current, recent);
+      const cycleInfo   = computeForProfile(cycleProfile, hasPlaceboWeek, periodStart, currentPackStart, cycleLength, today, periodDays);
 
-    set({
-      cycleProfile, contraceptionType, hasPlaceboWeek, currentPackStart, cycleMode, periodStart, cycleLength,
-      periodDays, periodDaysLogged, recentPeriodDays: recent, cycleInfo, isLoading: false,
-    });
+      set({
+        cycleProfile, contraceptionType, hasPlaceboWeek, currentPackStart, cycleMode, periodStart, cycleLength,
+        periodDays, periodDaysLogged, recentPeriodDays: recent, cycleInfo, isLoading: false,
+        fetchedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('[cycle] loadFromSupabase() failed, keeping cached state:', e instanceof Error ? e.message : String(e));
+      set({ isLoading: false });
+    }
   },
-}));
+    }),
+    {
+      name: STORE_NAME,
+      storage: createJSONStorage(() => asyncStorageAdapter),
+      version: 1,
+      // Approach (a) from the plan: convert Date -> ISO string going in,
+      // ISO string -> Date coming back out via a custom `merge`. Simpler than
+      // a JSON reviver/replacer pair and matches how most Zustand+Date
+      // persistence is done.
+      partialize: (s): PersistedCycleState => ({
+        cycleProfile:      s.cycleProfile,
+        periodStart:       s.periodStart ? s.periodStart.toISOString() : null,
+        cycleLength:       s.cycleLength,
+        periodDays:        s.periodDays,
+        periodDaysLogged:  s.periodDaysLogged,
+        recentPeriodDays:  s.recentPeriodDays,
+        cycleMode:         s.cycleMode,
+        contraceptionType: s.contraceptionType,
+        hasPlaceboWeek:    s.hasPlaceboWeek,
+        currentPackStart:  s.currentPackStart ? s.currentPackStart.toISOString() : null,
+        fetchedAt:         s.fetchedAt,
+        // cycleInfo and isLoading excluded deliberately -- see
+        // PersistedCycleState's doc comment above.
+      }),
+      merge: (persistedState, currentState) => {
+        // `p` is `{}` on a fresh install (nothing in storage yet) -- every
+        // field then falls back to `currentState`'s own default, which is
+        // what a fresh install should show anyway.
+        const p = (persistedState ?? {}) as Partial<PersistedCycleState>;
+
+        const cycleProfile      = p.cycleProfile      ?? currentState.cycleProfile;
+        const cycleLength       = p.cycleLength       ?? currentState.cycleLength;
+        const periodDays        = p.periodDays        ?? currentState.periodDays;
+        const periodDaysLogged  = p.periodDaysLogged  ?? currentState.periodDaysLogged;
+        const recentPeriodDays  = p.recentPeriodDays  ?? currentState.recentPeriodDays;
+        const cycleMode         = p.cycleMode         ?? currentState.cycleMode;
+        const contraceptionType = p.contraceptionType !== undefined ? p.contraceptionType : currentState.contraceptionType;
+        const hasPlaceboWeek    = p.hasPlaceboWeek    !== undefined ? p.hasPlaceboWeek    : currentState.hasPlaceboWeek;
+        const fetchedAt         = p.fetchedAt         !== undefined ? p.fetchedAt         : currentState.fetchedAt;
+        const periodStart       = p.periodStart       ? new Date(p.periodStart)       : null;
+        const currentPackStart  = p.currentPackStart  ? new Date(p.currentPackStart)  : null;
+
+        return {
+          ...currentState,
+          cycleProfile, cycleLength, periodDays, periodDaysLogged, recentPeriodDays,
+          cycleMode, contraceptionType, hasPlaceboWeek, fetchedAt,
+          periodStart, currentPackStart,
+          // Recomputed fresh with `new Date()` ("today"), not persisted and
+          // not whatever `today` was in memory when the app last closed.
+          //
+          // Done here, inside `merge`, rather than in `onRehydrateStorage`:
+          // persist's hydrate flow calls `set(stateFromStorage, true)` (which
+          // notifies subscribers) BEFORE it invokes `onRehydrateStorage`'s
+          // returned callback. Recomputing there would mean the first
+          // notified render still sees the stale/absent cycleInfo the merge
+          // produced, silently corrected a tick later. Computing it as part
+          // of the value `merge` returns means the very first `set()` --
+          // and therefore the very first render -- already carries today's
+          // phase.
+          cycleInfo: computeForProfile(
+            cycleProfile, hasPlaceboWeek, periodStart, currentPackStart, cycleLength, new Date(), periodDays,
+          ),
+        };
+      },
+    },
+  ),
+);
 
 function sameDay(a: Date, b: Date | null): boolean {
   return !!b && a.toDateString() === b.toDateString();
