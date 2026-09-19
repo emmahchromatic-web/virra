@@ -152,6 +152,28 @@ describe('outbox — enqueue and drain', () => {
     expect(result.left).toBe(1);
   });
 
+  it('serialises enqueue against a concurrent drain so neither can lose a write', async () => {
+    const releases: Array<() => void> = [];
+    registerHandler('completeWorkout', (() => new Promise<void>((resolve) => releases.push(resolve))) as unknown as (p: MutationPayloadMap['completeWorkout']) => Promise<void>);
+
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+    const drainPromise = drain('u1');
+
+    // Fire several concurrent enqueues while the drain's handler is still pending.
+    await Promise.all([
+      enqueue('u1', 'completeWorkout', payload('2026-09-19T09:00:00Z')),
+      enqueue('u1', 'completeWorkout', payload('2026-09-19T10:00:00Z')),
+      enqueue('u1', 'completeWorkout', payload('2026-09-19T11:00:00Z')),
+    ]);
+
+    releases.forEach((r) => r());
+    await drainPromise;
+
+    const remaining = await readOutbox('u1');
+    const startedAts = remaining.map((i) => i.payload.activity.started_at).sort();
+    expect(startedAts).toEqual(['2026-09-19T09:00:00Z', '2026-09-19T10:00:00Z', '2026-09-19T11:00:00Z']);
+  });
+
   it('is isolated per user', async () => {
     await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
     expect(await readOutbox('u2')).toHaveLength(0);

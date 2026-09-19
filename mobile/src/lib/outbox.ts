@@ -140,30 +140,32 @@ function dedupeKeyFor(kind: MutationKind, payload: unknown): string | null {
 export async function enqueue<K extends MutationKind>(
   userId: string, kind: K, payload: MutationPayloadMap[K],
 ): Promise<OutboxItem<K>> {
-  const items = await readOutbox(userId);
+  return withLock(userId, async () => {
+    const items = await readOutbox(userId);
 
-  const key = dedupeKeyFor(kind, payload);
-  if (key) {
-    const existing = items.find((i) => i.kind === kind && dedupeKeyFor(i.kind, i.payload) === key);
-    if (existing) {
-      // Replace in place: same queue position, same attempt count, but the
-      // newest payload wins (a second Finish tap can carry a corrected set).
-      //
-      // The id changes only when a drain is running, because that drain may
-      // already have sent the item it is replacing and will remove that id when
-      // it finishes -- taking this newer payload with it. A fresh id survives
-      // that, and replaying it is free: every write in the handler is
-      // idempotent on (user_id, started_at).
-      const id = inFlight.has(userId) ? makeOutboxId() : existing.id;
-      const replaced = { ...existing, id, payload } as OutboxItem<K>;
-      await writeList(outboxKey(userId), items.map((i) => (i.id === existing.id ? replaced : i)) as OutboxItem[]);
-      return replaced;
+    const key = dedupeKeyFor(kind, payload);
+    if (key) {
+      const existing = items.find((i) => i.kind === kind && dedupeKeyFor(i.kind, i.payload) === key);
+      if (existing) {
+        // Replace in place: same queue position, same attempt count, but the
+        // newest payload wins (a second Finish tap can carry a corrected set).
+        //
+        // The id changes only when a drain is running, because that drain may
+        // already have sent the item it is replacing and will remove that id when
+        // it finishes -- taking this newer payload with it. A fresh id survives
+        // that, and replaying it is free: every write in the handler is
+        // idempotent on (user_id, started_at).
+        const id = inFlight.has(userId) ? makeOutboxId() : existing.id;
+        const replaced = { ...existing, id, payload } as OutboxItem<K>;
+        await writeList(outboxKey(userId), items.map((i) => (i.id === existing.id ? replaced : i)) as OutboxItem[]);
+        return replaced;
+      }
     }
-  }
 
-  const item: OutboxItem<K> = { id: makeOutboxId(), kind, payload, createdAt: new Date().toISOString(), attempts: 0 };
-  await writeList(outboxKey(userId), [...items, item] as OutboxItem[]);
-  return item;
+    const item: OutboxItem<K> = { id: makeOutboxId(), kind, payload, createdAt: new Date().toISOString(), attempts: 0 };
+    await writeList(outboxKey(userId), [...items, item] as OutboxItem[]);
+    return item;
+  });
 }
 
 /**
@@ -200,6 +202,34 @@ function isPermanentError(e: unknown): boolean {
   if (code && PERMANENT_CODE.test(code)) return true;
   if (PERMANENT_MESSAGE.test(message)) return true;
   return false;
+}
+
+const locks = new Map<string, Promise<unknown>>();
+
+/**
+ * Serialises every read-modify-write on one user's outbox key. `enqueue` and
+ * `drain`'s tail write both read-then-await-then-write the same AsyncStorage
+ * key; without this, one can silently overwrite what the other just wrote,
+ * even with the per-id filtering `drain()` already does (see git history --
+ * that filtering closes the common case, not every interleaving).
+ *
+ * Deliberately does NOT wrap `drain()`'s per-item handler loop -- only its
+ * tail read-modify-write. Handler calls are the network round trip and can
+ * run for seconds; holding this lock across them would make every `enqueue`
+ * during a drain block until the whole drain finishes, which is both an
+ * unnecessary UX stall (a screen enqueuing a completion would hang) and,
+ * because `drain()`'s in-flight promise itself resolves only after its own
+ * lock acquisition settles, self-deadlocking in the case where the caller is
+ * waiting on that same enqueue to resolve before unblocking the handler (as
+ * the concurrency test below does). Scoping the lock to the actual
+ * read-modify-write sections -- all of `enqueue`, and just the tail of
+ * `drain()` -- closes the race without serialising unrelated network I/O.
+ */
+function withLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = locks.get(userId) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  locks.set(userId, next.then(() => undefined, () => undefined));
+  return next;
 }
 
 const inFlight = new Map<string, Promise<Drain>>();
@@ -253,18 +283,20 @@ export async function drain(userId: string): Promise<Drain> {
       }
     }
 
-    const current   = await readList(outboxKey(userId));
-    const remaining = current
-      .filter((i) => !processed.has(i.id))
-      .map((i) => (bumped && i.id === bumped.id ? bumped : i));
-    await writeList(outboxKey(userId), remaining);
+    return withLock(userId, async () => {
+      const current   = await readList(outboxKey(userId));
+      const remaining = current
+        .filter((i) => !processed.has(i.id))
+        .map((i) => (bumped && i.id === bumped.id ? bumped : i));
+      await writeList(outboxKey(userId), remaining);
 
-    if (newDeadLetters.length > 0) {
-      const currentDead = await readList(deadLetterKey(userId));
-      await writeList(deadLetterKey(userId), [...currentDead, ...newDeadLetters]);
-    }
+      if (newDeadLetters.length > 0) {
+        const currentDead = await readList(deadLetterKey(userId));
+        await writeList(deadLetterKey(userId), [...currentDead, ...newDeadLetters]);
+      }
 
-    return { sent, left: remaining.length, failed, deadLettered: newDeadLetters };
+      return { sent, left: remaining.length, failed, deadLettered: newDeadLetters };
+    });
   })();
 
   inFlight.set(userId, promise);
