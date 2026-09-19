@@ -322,3 +322,16 @@ export const useSessionStore = create<SessionStore>()(
     },
   ),
 );
+
+/**
+ * Whether `dateISO` falls within a loaded, non-stale range -- i.e. the store
+ * has actually queried this date, as distinct from simply having no rows
+ * cached for it. `refresh()` only creates an `idsByDate[date]` key for dates
+ * that come back with >=1 row, so a date with zero planned sessions (a rest
+ * day) never gets a key at all, loaded or not. Callers that need to tell
+ * "confirmed rest day" apart from "not fetched yet" must check this instead
+ * of `idsByDate[date]` presence.
+ */
+export function hasLoadedDate(dateISO: DateISO): boolean {
+  return isCovered(useSessionStore.getState().loadedRanges, dateISO, dateISO, Date.now());
+}

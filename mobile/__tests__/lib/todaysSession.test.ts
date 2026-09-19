@@ -84,9 +84,17 @@ jest.mock('@/lib/supabase', () => ({
   },
 }));
 
-let mockSessionState: any = { byId: {}, idsByDate: {} };
+let mockSessionState: any  = { byId: {}, idsByDate: {} };
+let mockTodayIsLoaded      = false; // whether the store has a loaded range covering TODAY
+
+function mockSessionStateGet()  { return mockSessionState; }
+function mockTodayIsLoadedGet() { return mockTodayIsLoaded; }
+
 jest.mock('@/store/sessionStore', () => ({
-  useSessionStore: { getState: () => mockSessionState },
+  useSessionStore: { getState: () => mockSessionStateGet() },
+  // The real implementation checks `loadedRanges`; the mock only ever needs
+  // to answer for TODAY, so a plain flag stands in for range-coverage math.
+  hasLoadedDate: () => mockTodayIsLoadedGet(),
 }));
 
 import { getTodaysSessions, enrichTodaysSessions } from '@/lib/todaysSession';
@@ -103,11 +111,13 @@ beforeEach(() => {
   plannedSessionsFromCalls = 0;
   activitiesCallCount    = 0;
   mockSessionState       = { byId: {}, idsByDate: {} };
+  mockTodayIsLoaded      = false;
   (mockHydrate as jest.Mock).mockClear();
 });
 
 describe('getTodaysSessions — cache-first', () => {
   it('reads from the session-store cache when it has rows for today, without querying planned_sessions', async () => {
+    mockTodayIsLoaded = true;
     mockSessionState = {
       byId: {
         p1: { id: 'p1', scheduled_date: TODAY, modality: 'run',      session_label: 'easy',  status: 'planned', activity_id: null, run_structure: null, strength_structure: null },
@@ -123,6 +133,7 @@ describe('getTodaysSessions — cache-first', () => {
   });
 
   it('excludes moved/dropped rows sourced from the cache and still does not fall back to a direct query when the filtered set is empty', async () => {
+    mockTodayIsLoaded = true;
     mockSessionState = {
       byId: {
         p1: { id: 'p1', scheduled_date: TODAY, modality: 'run', session_label: 'easy', status: 'dropped', activity_id: null },
@@ -134,12 +145,31 @@ describe('getTodaysSessions — cache-first', () => {
 
     const result = await getTodaysSessions('u1');
 
-    expect(plannedSessionsFromCalls).toBe(0); // cache key existed, so no fallback query
+    expect(plannedSessionsFromCalls).toBe(0); // range was loaded, so no fallback query
     expect(result).toEqual([]);
   });
 
-  it('falls back to a direct query when the cache has nothing for today yet', async () => {
-    mockSessionState = { byId: {}, idsByDate: {} }; // e.g. fresh sign-in, no range loaded
+  // The regression this guards against: `refresh()` only creates an
+  // `idsByDate[date]` KEY for dates that come back with >=1 row, so a day
+  // with zero planned sessions (a rest day) never gets a key at all --
+  // loaded or not. Checking `idsByDate[today]` presence alone would treat
+  // every confirmed rest day as "not loaded yet" and always force a needless
+  // direct query. `hasLoadedDate` (range-coverage based) must be consulted
+  // instead, so a loaded-and-confirmed rest day resolves from cache.
+  it('treats a loaded range with no rows for today as a confirmed rest day, not a cache miss', async () => {
+    mockTodayIsLoaded = true;
+    mockSessionState = { byId: {}, idsByDate: {} }; // range loaded; today just has nothing in it
+    mockPlannedDirectRows = [{ id: 'should-not-be-used', modality: 'run', session_label: 'x', status: 'planned', activity_id: null }];
+
+    const result = await getTodaysSessions('u1');
+
+    expect(plannedSessionsFromCalls).toBe(0); // must not hit the network for a confirmed rest day
+    expect(result).toEqual([]);
+  });
+
+  it('falls back to a direct query when the store has not loaded a range covering today yet', async () => {
+    mockTodayIsLoaded = false; // e.g. fresh sign-in, no range loaded
+    mockSessionState = { byId: {}, idsByDate: {} };
     mockPlannedDirectRows = [
       { id: 'd1', modality: 'run', session_label: 'easy', status: 'planned', activity_id: null, run_structure: null, strength_structure: null },
     ];

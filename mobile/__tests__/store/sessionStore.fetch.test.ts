@@ -23,7 +23,7 @@ jest.mock('@/lib/supabase', () => {
   };
 });
 
-import { useSessionStore } from '@/store/sessionStore';
+import { useSessionStore, hasLoadedDate } from '@/store/sessionStore';
 
 const { __setRows } = jest.requireMock('@/lib/supabase') as { __setRows: (next?: any[]) => void };
 
@@ -54,6 +54,14 @@ describe('sessionStore.ensureLoaded', () => {
     await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
     const fetchedAt2 = useSessionStore.getState().loadedRanges[0].fetchedAt;
     expect(fetchedAt2).toBe(fetchedAt1);
+  });
+
+  it('hasLoadedDate is true for a loaded date with zero rows -- a confirmed rest day is not a cache miss', async () => {
+    __setRows([]); // server confirms nothing scheduled in this range at all
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    expect(useSessionStore.getState().idsByDate['2026-05-25']).toBeUndefined(); // no key created
+    expect(hasLoadedDate('2026-05-25')).toBe(true);  // but the range IS loaded
+    expect(hasLoadedDate('2026-06-01')).toBe(false); // a date outside the loaded range is not
   });
 
   it('refresh() always refetches and updates fetchedAt', async () => {

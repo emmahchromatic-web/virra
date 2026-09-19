@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { modulateForCycle, modulateRunStructure, type SessionType } from './cycleModulation';
 import { summariseRunStructure, summariseStrengthStructure } from './workoutStructure';
 import { useCycleStore } from '@/store/cycle';
-import { useSessionStore } from '@/store/sessionStore';
+import { useSessionStore, hasLoadedDate } from '@/store/sessionStore';
 import { hydratePlannedSessionStructures, persistHydratedRows } from './hydratePlannedSessions';
 
 export interface TodaysSession {
@@ -54,15 +54,20 @@ interface ActivityRow {
  * Reads today's planned-session rows straight out of the shared session-store
  * cache, applying the same filters as the direct query below (excludes
  * 'moved' and 'dropped'). Returns null -- not an empty array -- when the
- * store has no data cached for `today` at all yet (e.g. right after a fresh
- * sign-in before any date range has loaded), so the caller knows to fall
- * back to a direct query rather than mistaking "not loaded" for "nothing
- * planned".
+ * store has not actually loaded a range covering `today` yet (e.g. right
+ * after a fresh sign-in before any date range has loaded), so the caller
+ * knows to fall back to a direct query.
+ *
+ * Deliberately checks `hasLoadedDate`, NOT `idsByDate[today]` presence:
+ * `refresh()` only creates an `idsByDate` key for dates that come back with
+ * at least one row, so a confirmed rest day (zero planned sessions, a
+ * perfectly valid cached answer) would otherwise look identical to "never
+ * fetched" and always force a needless network round trip.
  */
 function readCachedTodaySessions(today: string): PlannedSessionRow[] | null {
+  if (!hasLoadedDate(today)) return null;
   const { byId, idsByDate } = useSessionStore.getState();
-  const ids = idsByDate[today];
-  if (!ids) return null;
+  const ids = idsByDate[today] ?? [];
   return ids
     .map((id) => byId[id])
     .filter((r) => !!r && r.status !== 'moved' && r.status !== 'dropped') as unknown as PlannedSessionRow[];
