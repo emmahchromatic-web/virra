@@ -100,8 +100,16 @@ export async function readDeadLetters(userId: string): Promise<OutboxItem[]> {
 }
 
 export async function dismissDeadLetter(userId: string, id: string): Promise<void> {
-  const items = await readList(deadLetterKey(userId));
-  await writeList(deadLetterKey(userId), items.filter((i) => i.id !== id));
+  // Locked: this is a read-modify-write on the dead-letter key, which
+  // `drain()`'s tail also writes from inside `withLock`. Unserialised, a
+  // dismiss racing a drain that is appending a new dead letter can lose that
+  // new letter or resurrect the dismissed one. Nothing calls this yet (the
+  // dead-letter sheet is J3), but keeping "every RMW on these two keys goes
+  // through withLock" true is what makes that invariant enforceable later.
+  await withLock(userId, async () => {
+    const items = await readList(deadLetterKey(userId));
+    await writeList(deadLetterKey(userId), items.filter((i) => i.id !== id));
+  });
 }
 
 /**
@@ -224,6 +232,16 @@ const locks = new Map<string, Promise<unknown>>();
  * the concurrency test below does). Scoping the lock to the actual
  * read-modify-write sections -- all of `enqueue`, and just the tail of
  * `drain()` -- closes the race without serialising unrelated network I/O.
+ *
+ * NOT RE-ENTRANT. Never call `withLock` from inside a function that is itself
+ * called from inside a locked section -- in particular, do not add locking to
+ * `readOutbox` (or to `migrateLegacyQueue`/`readList` beneath it): `enqueue`
+ * already calls `readOutbox` from inside its own critical section, and a
+ * second acquisition there would wait on a lock its own caller holds and never
+ * released, hanging every `enqueue` for that user forever, silently, with no
+ * error -- i.e. "finishing a workout hangs", the exact failure this whole
+ * subsystem exists to prevent. Lock at the CALL SITE instead (as `drain()`'s
+ * head does for its unlocked `readOutbox`).
  */
 function withLock<T>(userId: string, fn: () => Promise<T>): Promise<T> {
   const prev = locks.get(userId) ?? Promise.resolve();
@@ -240,7 +258,14 @@ export async function drain(userId: string): Promise<Drain> {
   if (running) return running;
 
   const promise = (async (): Promise<Drain> => {
-    const items = await readOutbox(userId);
+    // Locked at the CALL SITE, not inside `readOutbox`: `readOutbox` runs
+    // `migrateLegacyQueue`, which WRITES the outbox key on a first launch
+    // after upgrade, and that write has to be serialised against a concurrent
+    // `enqueue`. It cannot be locked inside `readOutbox` itself -- `enqueue`
+    // calls it from inside its own critical section, and `withLock` is not
+    // re-entrant (see its doc comment). The lock is released before the
+    // handler loop below, so a mid-drain `enqueue` never waits on the network.
+    const items = await withLock(userId, () => readOutbox(userId));
 
     // Every exit path below re-reads the outbox before writing, and removes
     // only the items THIS call actually finished with.

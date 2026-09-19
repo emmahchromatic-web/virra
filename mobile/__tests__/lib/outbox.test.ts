@@ -197,6 +197,13 @@ describe('outbox — enqueue and drain', () => {
       enqueue('u1', 'completeWorkout', payload('2026-09-19T11:00:00Z')),
     ]);
 
+    // The three enqueues above need more AsyncStorage round-trips than the
+    // drain needs to reach its first handler, so the handler is pending by
+    // now. Assert that rather than assume it: if the timing ever shifts,
+    // `releases` is empty, the drain never unblocks, and this would otherwise
+    // hang until Jest's 30s timeout instead of failing with a clear message.
+    expect(releases).toHaveLength(1);
+
     releases.forEach((r) => r());
     await drainPromise;
 
