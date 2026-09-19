@@ -30,7 +30,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // virra:outbox:v1:<userId> / virra:outbox_failed:v1:<userId> supersede
 // virra:pending_completions:v1:<userId> (card 253) as of the J1 outbox.
 // Same rule: per-user, must never survive to the next account.
-export const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_', 'virra:pending_completions:', 'virra:outbox:', 'virra:outbox_failed:'];
+//
+// virra:workout_draft:v1:<userId> mirrors the workout_drafts table (card 228's
+// crash-resume draft, hardened for no signal). Per-user, must not survive to
+// the next account on the device.
+export const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_', 'virra:pending_completions:', 'virra:outbox:', 'virra:outbox_failed:', 'virra:workout_draft:v1:'];
 export const USER_CACHE_KEYS = [
   'virra:sessions:v1',
   'virra:equipment_preference_asked',

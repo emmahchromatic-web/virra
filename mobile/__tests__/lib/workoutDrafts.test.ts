@@ -10,10 +10,14 @@ jest.mock('@/lib/supabase', () => ({
   supabase: { from: (name: string) => mockFrom(name) },
 }));
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/workoutDrafts';
 
 describe('saveWorkoutDraft', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+  });
 
   it('upserts on user_id with the mapped column names', async () => {
     mockUpsert.mockResolvedValue({ error: null });
@@ -40,10 +44,24 @@ describe('saveWorkoutDraft', () => {
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
+
+  it('writes to local storage even when the Supabase upsert fails, so the draft survives with no signal', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    mockUpsert.mockResolvedValue({ error: { message: 'Network request failed' } });
+    await saveWorkoutDraft('user-1', 'sess-1', 'strength', '2026-08-25T10:00:00.000Z', 30, { logged: { a: [1] } });
+
+    const raw = await AsyncStorage.getItem('virra:workout_draft:v1:user-1');
+    expect(raw).not.toBeNull();
+    expect(JSON.parse(raw!).draft).toEqual({ logged: { a: [1] } });
+    spy.mockRestore();
+  });
 });
 
 describe('loadWorkoutDraft', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+  });
 
   it('returns null when no draft exists', async () => {
     mockMaybeSingle.mockResolvedValue({ data: null, error: null });
@@ -70,15 +88,34 @@ describe('loadWorkoutDraft', () => {
     expect(await loadWorkoutDraft('user-1')).toBeNull();
     spy.mockRestore();
   });
+
+  it('reads the local draft without calling Supabase, when one exists', async () => {
+    await saveWorkoutDraft('user-1', 'sess-1', 'run', '2026-08-25T10:00:00.000Z', 0, { splits: [1, 2] });
+    mockMaybeSingle.mockClear();
+
+    const draft = await loadWorkoutDraft('user-1');
+    expect(draft?.draft).toEqual({ splits: [1, 2] });
+    expect(mockMaybeSingle).not.toHaveBeenCalled();
+  });
 });
 
 describe('deleteWorkoutDraft', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    jest.clearAllMocks();
+  });
 
   it('deletes by user_id', async () => {
     mockEqDelete.mockResolvedValue({ error: null });
     await deleteWorkoutDraft('user-1');
     expect(mockDelete).toHaveBeenCalled();
     expect(mockEqDelete).toHaveBeenCalledWith('user_id', 'user-1');
+  });
+
+  it('removes the local draft as well as the remote row', async () => {
+    await saveWorkoutDraft('user-1', 'sess-1', 'run', '2026-08-25T10:00:00.000Z', 0, {});
+    mockEqDelete.mockResolvedValue({ error: null });
+    await deleteWorkoutDraft('user-1');
+    expect(await AsyncStorage.getItem('virra:workout_draft:v1:user-1')).toBeNull();
   });
 });
