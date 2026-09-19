@@ -69,11 +69,43 @@ interface RecentFoodsState {
    * further down for why those two are the ones that call it.
    */
   refresh: () => Promise<void>;
+  /**
+   * Drop the cached foods back to empty. Called from the auth store's
+   * `signOut()` -- one account's logged foods must never be visible to the
+   * next account on the device, and clearing the storage key alone doesn't
+   * clear what this store is holding in memory.
+   */
+  clear: () => void;
 }
 
 /**
- * WHERE THE "after any food entry write" TRIGGER LIVES (Task 6 design
- * decision, task-6-brief.md's open question):
+ * STATUS: DELIBERATELY INERT SCAFFOLDING. NOTHING CALLS `refresh()` TODAY.
+ *
+ * The final whole-branch review found this store had zero readers: it was
+ * refreshed from `nutrition.tsx`'s focus effect and `recipes.ts`'s
+ * `logRecipe`, but no screen ever read `foods`. Every Nutrition-tab focus
+ * therefore paid for a 365-day `nutrition_logs` scan plus an up-to-1000-row
+ * `food_entries` fetch to populate a cache with no consumer -- pure cost, no
+ * benefit. Both trigger calls were removed rather than a consumer invented.
+ *
+ * Why not wire `food-search.tsx`'s YOUR REGULARS to it instead (option (a) of
+ * that review finding)? Their shapes don't match. YOUR REGULARS is scoped to
+ * ONE `meal_type`, ranked by how often a food appears in that slot, and
+ * carries the macros of the logged portion. This store is global across meals,
+ * ordered by recency, de-duplicated by name, and normalised to per-100g/ml
+ * with no `meal_type` and no occurrence count. Pointing that surface here
+ * would mean changing this store's persisted shape (adding meal_type +
+ * counts), re-versioning the key and rewriting its tests -- not the small,
+ * contained UI change that option assumed, and not something to do in a
+ * fix-wave with no second review round.
+ *
+ * So the store keeps its (tested, correct) logic and waits for a real
+ * consumer. J3, or whoever adds an offline-capable recent-foods picker, wires
+ * `refresh()` back into the two call sites described below and reads `foods`
+ * from a screen. Until then it costs nothing at runtime.
+ *
+ * WHERE THE "after any food entry write" TRIGGER LIVED, AND SHOULD LIVE AGAIN
+ * (Task 6 design decision, task-6-brief.md's open question):
  *
  * `food_entries` is written from several places in the app today --
  * `recipes.ts`'s `logRecipe`, `food-search.tsx` (barcode/search/common-food
@@ -92,8 +124,9 @@ interface RecentFoodsState {
  * read-only (J2) task would be the "bigger refactor" this task's brief says to
  * flag rather than force.
  *
- * Given that, this task wires the two call sites it CAN reach without leaving
- * its stated files:
+ * Given that, Task 6 wired the two call sites it COULD reach without leaving
+ * its stated files (both since removed per the STATUS note above -- they are
+ * the two places to restore when a consumer exists):
  *
  *   1. `recipes.ts`'s `logRecipe()` -- named explicitly in the brief as "this
  *      recipe-logging path", and already in this task's file list. Calls
@@ -189,6 +222,8 @@ export const useRecentFoods = create<RecentFoodsState>()(
           console.warn('[recentFoods] refresh() failed, keeping cached state:', e instanceof Error ? e.message : String(e));
         }
       },
+
+      clear: () => set({ foods: [], fetchedAt: null }),
     }),
     {
       name: STORE_NAME,

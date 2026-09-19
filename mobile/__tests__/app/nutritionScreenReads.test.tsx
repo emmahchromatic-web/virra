@@ -14,6 +14,16 @@ import { render, waitFor } from '@testing-library/react-native';
 type FromOp = 'select' | 'upsert';
 type FromCall = { table: string; op: FromOp };
 
+/**
+ * Ordering log, so the timing this test depends on is asserted rather than
+ * assumed. `getDailyTrainingContext` is mocked SLOWER than the store's own
+ * fetch below (2-3 real round trips vs. one), which is the production
+ * relationship -- and the one the original version of this test had backwards.
+ */
+const mockOrder: string[] = [];
+/** Longer than the store's mocked fetch, which resolves on microtasks. */
+const MOCK_CTX_DELAY_MS = 50;
+
 // Referenced inside the jest.mock factory below -- must be prefixed with
 // "mock" so Babel's jest-hoist allows the reference across the hoist boundary
 // (same convention already used by __tests__/app/offlinePlanScreens.test.tsx).
@@ -26,7 +36,11 @@ jest.mock('@/lib/supabase', () => ({
     from: (table: string) => {
       let recorded = false;
       const record = (op: FromOp) => {
-        if (!recorded) { recorded = true; mockFromCalls.push({ table, op }); }
+        if (!recorded) {
+          recorded = true;
+          mockFromCalls.push({ table, op });
+          mockOrder.push(`${table}:${op}`);
+        }
       };
       const chain: any = {};
       chain.select = (..._args: any[]) => { record('select'); return chain; };
@@ -86,17 +100,32 @@ jest.mock('@/components/ui/FoodEntryEditModal', () => ({ FoodEntryEditModal: () 
 jest.mock('@/components/ui/CopyMealFromDayModal', () => ({ CopyMealFromDayModal: () => null }));
 jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn(), appPrompt: jest.fn() }));
 
+// PRODUCTION TIMING, not test-convenient timing. `getDailyTrainingContext`
+// makes 2-3 real network round trips (hundreds of ms); the store's own
+// `nutrition_logs` + `food_entries` read is a single, faster one. The earlier
+// version of this mock resolved instantly, which quietly guaranteed the
+// favourable ordering: `loadData()`'s own `refresh()` landed while the focus
+// effect's fetch was still in flight and joined it. In production the focus
+// effect's fetch had usually already FINISHED and cleared `inFlight` by then,
+// so `loadData()` issued a genuinely second `nutrition_logs` read -- the exact
+// regression this file exists to pin. The delay below reproduces that.
 jest.mock('@/lib/dailyTrainingContext', () => ({
-  getDailyTrainingContext: jest.fn().mockResolvedValue({
-    inferred_load: 'easy', planned_sessions: [], phase: null, phase_guidance: '', source_label: null, stacked: false,
-  }),
+  getDailyTrainingContext: jest.fn(
+    () => new Promise((resolve) => setTimeout(() => {
+      mockOrderPush('ctx-resolved');
+      resolve({
+        inferred_load: 'easy', planned_sessions: [], phase: null, phase_guidance: '', source_label: null, stacked: false,
+      });
+    }, MOCK_CTX_DELAY_MS)),
+  ),
 }));
 
-// Task 6: the screen's focus effect also kicks off recentFoods' own refresh
-// (its own `nutrition_logs` + `food_entries` reads, for an unrelated cache).
-// That's orthogonal to what THIS test pins -- nutritionDay's specific
-// mount-vs-focus double-read bug -- so it's stubbed out here rather than
-// left to add a second, unrelated `nutrition_logs` SELECT to the count below.
+function mockOrderPush(entry: string) { mockOrder.push(entry); }
+
+// recentFoods' store no longer has any call site (the final review pass
+// removed its two triggers -- nothing in the app reads it yet), so it is
+// stubbed only so an accidental re-introduction can't quietly add a second,
+// unrelated `nutrition_logs` SELECT to the counts below.
 jest.mock('@/store/recentFoods', () => ({ useRecentFoods: { getState: () => ({ refresh: jest.fn() }) } }));
 
 import NutritionScreen from '@/app/(app)/(tabs)/nutrition';
@@ -106,6 +135,7 @@ const today = new Date().toISOString().split('T')[0];
 
 beforeEach(() => {
   mockFromCalls.length = 0;
+  mockOrder.length     = 0;
   // Pre-seed today's entry with a STABLE array reference (rather than leaving
   // `days` empty) purely so the screen's `s.days[today]?.entries ?? []`
   // selector doesn't manufacture a brand-new `[]` on every render before the
@@ -136,5 +166,14 @@ describe('Nutrition screen -- single nutrition_logs read per load', () => {
 
     const writes = mockFromCalls.filter((c) => c.table === 'nutrition_logs' && c.op === 'upsert');
     expect(writes.length).toBe(1);
+
+    // Proof the UNFAVOURABLE ordering was actually exercised: the store's read
+    // was started (and, being faster, finished) before the training context
+    // resolved. That is the arrangement under which the old code fired its
+    // second read, so a test passing here is a test that would have caught it.
+    expect(mockOrder.indexOf('nutrition_logs:select')).toBeGreaterThanOrEqual(0);
+    expect(mockOrder.indexOf('ctx-resolved')).toBeGreaterThan(
+      mockOrder.indexOf('nutrition_logs:select'),
+    );
   });
 });

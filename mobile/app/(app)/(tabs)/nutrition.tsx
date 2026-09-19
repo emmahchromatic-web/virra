@@ -16,7 +16,6 @@ import { useIsPro } from '@/lib/pro';
 import { ProLockedCard } from '@/components/ui/ProLockedCard';
 import { getDailyTrainingContext, type DailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { useNutritionDay } from '@/store/nutritionDay';
-import { useRecentFoods } from '@/store/recentFoods';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -285,19 +284,33 @@ export default function NutritionScreen() {
   useFocusEffect(useCallback(() => {
     if (!session) return;
     void useNutritionDay.getState().refresh(today);
-    // Task 6 (recipes/recentFoods stores): this is "the nutrition tab's own
-    // entry flow" half of recentFoods' "after any food entry write" trigger.
-    // Every food_entries write path that isn't recipes.ts's logRecipe
-    // (food-search.tsx, describe-meal.tsx, CopyMealFromDayModal.tsx) leaves
-    // the user back on this tab, which already refreshes on focus -- so this
-    // one extra call is the pragmatic way to cover them without rewriting
-    // those files. See recentFoods.ts's header comment for the full decision.
-    void useRecentFoods.getState().refresh();
+    // `useRecentFoods.refresh()` used to be called here too (Task 6's "after
+    // any food entry write" trigger). It was removed in the final review
+    // pass: NOTHING in the app reads that store yet, so every focus of this
+    // tab was paying for a 365-day `nutrition_logs` scan plus a 1000-row
+    // `food_entries` fetch to fill a cache with no reader. See
+    // recentFoods.ts's header for why it's parked rather than deleted, and
+    // re-add this line when a real consumer is wired up.
   }, [session, today]));
 
   async function loadData() {
     if (!session) return;
     setLoading(true);
+
+    // Kick the store's own fetch off FIRST, in this function's synchronous
+    // prefix, before any await. `refresh()` registers its in-flight promise
+    // synchronously, so the focus effect (which runs after this effect) always
+    // JOINS this fetch instead of starting a second one.
+    //
+    // Ordering here is structural, not timing-dependent, and that is the whole
+    // point. When this call sat AFTER the `getDailyTrainingContext` await, the
+    // two racing calls only merged if the context resolved faster than the
+    // store's fetch. That holds in tests (where the context is a mock that
+    // resolves immediately) and fails in production, where the context makes
+    // 2-3 real round trips and the store's single `nutrition_logs` +
+    // `food_entries` read finishes first -- clearing `inFlight` before this
+    // function got there, so it issued a genuinely second read of the same row.
+    const dayPromise = useNutritionDay.getState().refresh(today);
 
     let ctx: DailyTrainingContext | null = null;
     try {
@@ -311,14 +324,12 @@ export default function NutritionScreen() {
       // Network error: fall back to 'easy' default, no label shown
     }
 
-    // Fetch (or join an already-in-flight fetch kicked off by the focus
-    // effect below, for this exact day) today's nutrition_logs + food_entries
-    // via the store. This used to be a SEPARATE direct `nutrition_logs`
-    // select just for the override check below, on top of the store's own
-    // read for display -- two reads of the same row. Now there's one: the
-    // override check consumes the SAME fetched row the store's cache-first
-    // `entries` selector renders from.
-    await useNutritionDay.getState().refresh(today);
+    // Today's nutrition_logs + food_entries, via the store (started above).
+    // This used to be a SEPARATE direct `nutrition_logs` select just for the
+    // override check below, on top of the store's own read for display -- two
+    // reads of the same row. Now there's one: the override check consumes the
+    // SAME fetched row the store's cache-first `entries` selector renders from.
+    await dayPromise;
     const cachedDay = useNutritionDay.getState().days[today];
 
     // A load the user picked by hand outlives the inference. We can tell the
