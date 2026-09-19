@@ -37,6 +37,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_', 'virra:pending_completions:', 'virra:outbox:', 'virra:outbox_failed:', 'virra:workout_draft:v1:'];
 export const USER_CACHE_KEYS = [
   'virra:sessions:v1',
+  'virra:profile:v1',
   'virra:equipment_preference_asked',
   'virra:recipes_dietary_asked',
 ];

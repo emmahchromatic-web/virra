@@ -1,8 +1,12 @@
 import type { InjuryLevel } from '@/lib/injuryLevels';
 import type { Sex } from '@/lib/nutritionTargets';
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import type { PhaseBands } from '@/lib/weightBand';
+import { asyncStorageAdapter } from './persistAdapter';
+
+const STORE_NAME = 'virra:profile:v1';
 
 export type WorkoutPreference = 'gym_full' | 'home_dumbbells' | 'home_bodyweight';
 
@@ -49,6 +53,10 @@ interface ProfileState {
   // Incremented after a HK weight import finishes so chart screens re-fetch.
   weightDataVersion:               number;
   isLoaded:                        boolean;
+  // Timestamp of the last successful `load()`. `null` until one succeeds.
+  // Stamped only on success so a failed/offline load never claims freshness
+  // it doesn't have.
+  fetchedAt:                       string | null;
   load:                            (userId: string) => Promise<void>;
   save:                            (userId: string, patch: ProfilePatch) => Promise<void>;
   setLocal:                        (patch: ProfilePatch) => void;
@@ -56,7 +64,9 @@ interface ProfileState {
   acknowledgeHaikuDisclosure:      (userId: string) => Promise<void>;
 }
 
-export const useProfileStore = create<ProfileState>((set) => ({
+export const useProfileStore = create<ProfileState>()(
+  persist(
+    (set) => ({
   firstName:                     '',
   lastName:                      '',
   avatarUrl:                     null,
@@ -76,36 +86,46 @@ export const useProfileStore = create<ProfileState>((set) => ({
   weightSteadyBaselineComputedAt: null,
   weightDataVersion:              0,
   isLoaded:                       false,
+  fetchedAt:                      null,
 
   load: async (userId) => {
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, height_cm, date_of_birth, sex, injury_history, injury_level, weight_baseline_kg, weight_phase_bands, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
-      .eq('id', userId)
-      .maybeSingle();
-    if (data) {
-      set({
-        firstName:                      data.first_name   ?? '',
-        lastName:                       data.last_name    ?? '',
-        avatarUrl:                      data.avatar_url   ?? null,
-        stepsTarget:                    data.steps_target ?? 8000,
-        workoutPreference:              (data.workout_preference as WorkoutPreference | null) ?? null,
-        haikuDisclosureAcknowledgedAt:  data.haiku_disclosure_acknowledged_at ?? null,
-        trackWeight:                    data.track_weight ?? false,
-        heightCm:                       data.height_cm ?? null,
-        dateOfBirth:                    data.date_of_birth ?? null,
-        sex:                            (data.sex as Sex | null) ?? null,
-        injuryHistory:                  data.injury_history ?? null,
-        injuryLevel:                    (data.injury_level as InjuryLevel | null) ?? null,
-        weightBaselineKg:               data.weight_baseline_kg ?? null,
-        weightPhaseBands:               (data.weight_phase_bands as PhaseBands | null) ?? null,
-        weightExplainerDismissedAt:     data.weight_explainer_dismissed_at ?? null,
-        weightSteadyBaselineKg:         data.weight_steady_baseline_kg ?? null,
-        weightSteadyBaselineComputedAt: data.weight_steady_baseline_computed_at ?? null,
-        isLoaded:                       true,
-      });
-    } else {
-      set({ isLoaded: true });
+    // Failure-safe: a thrown/rejected Supabase call must leave all existing
+    // state (including `fetchedAt`) exactly as it was -- this is what makes
+    // cached, cold-started data survive an offline `load()` call instead of
+    // being silently wiped. Only a genuinely successful read reaches `set()`.
+    try {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('first_name, last_name, avatar_url, steps_target, workout_preference, haiku_disclosure_acknowledged_at, track_weight, height_cm, date_of_birth, sex, injury_history, injury_level, weight_baseline_kg, weight_phase_bands, weight_explainer_dismissed_at, weight_steady_baseline_kg, weight_steady_baseline_computed_at')
+        .eq('id', userId)
+        .maybeSingle();
+      if (data) {
+        set({
+          firstName:                      data.first_name   ?? '',
+          lastName:                       data.last_name    ?? '',
+          avatarUrl:                      data.avatar_url   ?? null,
+          stepsTarget:                    data.steps_target ?? 8000,
+          workoutPreference:              (data.workout_preference as WorkoutPreference | null) ?? null,
+          haikuDisclosureAcknowledgedAt:  data.haiku_disclosure_acknowledged_at ?? null,
+          trackWeight:                    data.track_weight ?? false,
+          heightCm:                       data.height_cm ?? null,
+          dateOfBirth:                    data.date_of_birth ?? null,
+          sex:                            (data.sex as Sex | null) ?? null,
+          injuryHistory:                  data.injury_history ?? null,
+          injuryLevel:                    (data.injury_level as InjuryLevel | null) ?? null,
+          weightBaselineKg:               data.weight_baseline_kg ?? null,
+          weightPhaseBands:               (data.weight_phase_bands as PhaseBands | null) ?? null,
+          weightExplainerDismissedAt:     data.weight_explainer_dismissed_at ?? null,
+          weightSteadyBaselineKg:         data.weight_steady_baseline_kg ?? null,
+          weightSteadyBaselineComputedAt: data.weight_steady_baseline_computed_at ?? null,
+          isLoaded:                       true,
+          fetchedAt:                      new Date().toISOString(),
+        });
+      } else {
+        set({ isLoaded: true });
+      }
+    } catch (e) {
+      console.warn('[profile] load() failed, keeping cached state:', e instanceof Error ? e.message : String(e));
     }
   },
 
@@ -182,7 +202,46 @@ export const useProfileStore = create<ProfileState>((set) => ({
       console.warn('[profile] failed to persist haiku disclosure ack:', error.message);
     }
   },
-}));
+    }),
+    {
+      name: STORE_NAME,
+      storage: createJSONStorage(() => asyncStorageAdapter),
+      // Everything except the five function fields and the `isLoaded` runtime
+      // flag (mirrors sessionStore's exclusion of fetching/hasHydrated/lastError).
+      // `isLoaded` means "an online load() has completed this session" -- it is
+      // not data and must not be replayed as `true` from a stale cache on a
+      // cold start where load() hasn't run yet.
+      //
+      // No separate `hasHydrated` flag: unlike sessionStore (which gates
+      // clearCache/refresh logic on it), nothing here needs to distinguish
+      // "rehydrating" from "still at defaults" -- screens already treat
+      // `isLoaded` as the readiness signal for a real profile, and `fetchedAt`
+      // tells a caller whether what's showing is cache or a fresh fetch.
+      partialize: (s) => ({
+        firstName:                      s.firstName,
+        lastName:                       s.lastName,
+        avatarUrl:                      s.avatarUrl,
+        stepsTarget:                    s.stepsTarget,
+        workoutPreference:              s.workoutPreference,
+        haikuDisclosureAcknowledgedAt:  s.haikuDisclosureAcknowledgedAt,
+        trackWeight:                    s.trackWeight,
+        heightCm:                       s.heightCm,
+        dateOfBirth:                    s.dateOfBirth,
+        sex:                            s.sex,
+        injuryHistory:                  s.injuryHistory,
+        injuryLevel:                    s.injuryLevel,
+        weightBaselineKg:               s.weightBaselineKg,
+        weightPhaseBands:               s.weightPhaseBands,
+        weightExplainerDismissedAt:     s.weightExplainerDismissedAt,
+        weightSteadyBaselineKg:         s.weightSteadyBaselineKg,
+        weightSteadyBaselineComputedAt: s.weightSteadyBaselineComputedAt,
+        weightDataVersion:              s.weightDataVersion,
+        fetchedAt:                      s.fetchedAt,
+      }),
+      version: 1,
+    },
+  ),
+);
 
 /**
  * Raw fields the nutrition engine needs, with the correct weight-source
