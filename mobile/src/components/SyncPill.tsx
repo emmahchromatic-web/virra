@@ -61,14 +61,14 @@ export function SyncPill() {
 const styles = StyleSheet.create({
   pill: {
     position:        'absolute',
-    top:              8,
+    top:              spacing.sm,
     alignSelf:        'center',
     flexDirection:    'row',
     alignItems:       'center',
     gap:              spacing.xs,
     backgroundColor:  colors.mist,
     paddingHorizontal: spacing.sm,
-    paddingVertical:  4,
+    paddingVertical:  spacing.xs,
     borderRadius:     radius.full,
     zIndex:           50,
   },
