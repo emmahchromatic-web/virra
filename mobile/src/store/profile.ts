@@ -62,31 +62,49 @@ interface ProfileState {
   setLocal:                        (patch: ProfilePatch) => void;
   bumpWeightDataVersion:           () => void;
   acknowledgeHaikuDisclosure:      (userId: string) => Promise<void>;
+  /**
+   * Drop every cached field back to its initial value. Called from the auth
+   * store's `signOut()`: clearing STORAGE is not clearing the app -- this
+   * store keeps its contents in memory and nothing reloads between sign-out
+   * and the next sign-in, so without this the next account on the device sees
+   * the previous user's name, avatar and weight settings until its own
+   * `load()` happens to overwrite them. Same shape and reason as
+   * `sessionStore`'s `clearCache()`.
+   */
+  clear:                           () => void;
 }
+
+/** Initial values for every non-function field, shared by the store's own
+ *  definition and by `clear()` so the two can't drift apart. */
+const INITIAL_PROFILE_DATA = {
+  firstName:                     '',
+  lastName:                      '',
+  avatarUrl:                     null as string | null,
+  stepsTarget:                   8000,
+  workoutPreference:             null as WorkoutPreference | null,
+  haikuDisclosureAcknowledgedAt: null as string | null,
+  trackWeight:                    false,
+  heightCm:                       null as number | null,
+  dateOfBirth:                    null as string | null,
+  sex:                            null as Sex | null,
+  injuryHistory:                  null as string | null,
+  injuryLevel:                    null as InjuryLevel | null,
+  weightBaselineKg:               null as number | null,
+  weightPhaseBands:               null as PhaseBands | null,
+  weightExplainerDismissedAt:     null as string | null,
+  weightSteadyBaselineKg:         null as number | null,
+  weightSteadyBaselineComputedAt: null as string | null,
+  weightDataVersion:              0,
+  isLoaded:                       false,
+  fetchedAt:                      null as string | null,
+};
 
 export const useProfileStore = create<ProfileState>()(
   persist(
     (set) => ({
-  firstName:                     '',
-  lastName:                      '',
-  avatarUrl:                     null,
-  stepsTarget:                   8000,
-  workoutPreference:             null,
-  haikuDisclosureAcknowledgedAt: null,
-  trackWeight:                    false,
-  heightCm:                       null,
-  dateOfBirth:                    null,
-  sex:                            null,
-  injuryHistory:                  null,
-  injuryLevel:                    null,
-  weightBaselineKg:               null,
-  weightPhaseBands:               null,
-  weightExplainerDismissedAt:     null,
-  weightSteadyBaselineKg:         null,
-  weightSteadyBaselineComputedAt: null,
-  weightDataVersion:              0,
-  isLoaded:                       false,
-  fetchedAt:                      null,
+  ...INITIAL_PROFILE_DATA,
+
+  clear: () => set({ ...INITIAL_PROFILE_DATA }),
 
   load: async (userId) => {
     // Failure-safe: a thrown/rejected Supabase call must leave all existing

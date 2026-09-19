@@ -248,11 +248,12 @@ function mockSupabaseFrom(overrides: {
     has_placebo_week: boolean | null; current_pack_start: string | null;
   } | null;
   recentRows?: { period_start: string; period_length_days: number | null }[];
+  recentRowsError?: { message: string };
 }) {
   const { supabase } = require('@/lib/supabase');
   supabase.from = (table: string) => {
     if (table === 'user_profiles') {
-      return { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: overrides.profileRow ?? null }) }) }) };
+      return { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: overrides.profileRow ?? null, error: null }) }) }) };
     }
     // 'cycle_logs' is queried twice: once `.limit(1).maybeSingle()` for the
     // current cycle, once `.limit(12)` (no maybeSingle) for recent lengths.
@@ -262,8 +263,40 @@ function mockSupabaseFrom(overrides: {
           order: () => ({
             order: () => ({
               limit: (n: number) => (n === 1
-                ? { maybeSingle: () => Promise.resolve({ data: overrides.cycleLogsRow ?? null }) }
-                : Promise.resolve({ data: overrides.recentRows ?? [], error: null })),
+                ? { maybeSingle: () => Promise.resolve({ data: overrides.cycleLogsRow ?? null, error: null }) }
+                : Promise.resolve({
+                    data:  overrides.recentRowsError ? null : (overrides.recentRows ?? []),
+                    error: overrides.recentRowsError ?? null,
+                  })),
+            }),
+          }),
+        }),
+      }),
+    };
+  };
+}
+
+/**
+ * How Supabase ACTUALLY behaves with no signal: every query RESOLVES with
+ * `{ data: null, error: { message: 'Network request failed' }, status: 0 }`.
+ * Nothing rejects, so a try/catch alone sees a perfectly ordinary "no rows"
+ * result.
+ */
+function mockSupabaseErroring() {
+  const { supabase } = require('@/lib/supabase');
+  const err = { message: 'Network request failed' };
+  supabase.from = (table: string) => {
+    if (table === 'user_profiles') {
+      return { select: () => ({ eq: () => ({ maybeSingle: () => Promise.resolve({ data: null, error: err }) }) }) };
+    }
+    return {
+      select: () => ({
+        eq: () => ({
+          order: () => ({
+            order: () => ({
+              limit: (n: number) => (n === 1
+                ? { maybeSingle: () => Promise.resolve({ data: null, error: err }) }
+                : Promise.resolve({ data: null, error: err })),
             }),
           }),
         }),
@@ -373,7 +406,64 @@ describe('cycle store persistence', () => {
     expect(useCycleStore.getState().isLoading).toBe(false);
   });
 
-  it('a failed loadFromSupabase() leaves fetchedAt and existing raw fields untouched', async () => {
+  // THE failure mode that actually happens offline. PostgREST does not reject
+  // on a network failure -- it RESOLVES with `{ data: null, error, status: 0 }`.
+  // The old implementation only had a try/catch, which never fired, so every
+  // offline launch read `data: null` as "this user has no cycle data", wiped
+  // periodStart/cycleProfile/contraceptionType/cycleInfo, stamped fetchedAt as
+  // if the load had succeeded and re-persisted the emptied state to disk.
+  it('a loadFromSupabase() whose queries RESOLVE with an error leaves every cached field byte-identical', async () => {
+    const before = {
+      periodStart:       new Date('2026-09-01'),
+      cycleProfile:      'hormonal' as const,
+      contraceptionType: 'combined_pill' as const,
+      hasPlaceboWeek:    true,
+      currentPackStart:  new Date('2026-08-20'),
+      cycleLength:       27,
+      periodDays:        6,
+      cycleMode:         'pack' as const,
+      fetchedAt:         '2026-09-01T00:00:00.000Z',
+    };
+    useCycleStore.setState({ ...before });
+    mockSupabaseErroring();
+
+    await useCycleStore.getState().loadFromSupabase('user-1', new Date('2026-09-20')).catch(() => {});
+
+    const after = useCycleStore.getState();
+    expect(after.periodStart).toEqual(before.periodStart);
+    expect(after.cycleProfile).toBe('hormonal');
+    expect(after.contraceptionType).toBe('combined_pill');
+    expect(after.hasPlaceboWeek).toBe(true);
+    expect(after.currentPackStart).toEqual(before.currentPackStart);
+    expect(after.cycleLength).toBe(27);
+    expect(after.periodDays).toBe(6);
+    expect(after.cycleMode).toBe('pack');
+    expect(after.fetchedAt).toBe('2026-09-01T00:00:00.000Z');
+    // Only the spinner flag moves, so the UI doesn't hang on a load that
+    // isn't coming.
+    expect(after.isLoading).toBe(false);
+  });
+
+  // Idempotence: a second (third, nth) offline call must not degrade what the
+  // first one preserved.
+  it('repeated failing loads stay idempotent -- the cache is preserved every time', async () => {
+    useCycleStore.setState({
+      periodStart: new Date('2026-09-01'), cycleLength: 27, fetchedAt: '2026-09-01T00:00:00.000Z',
+    });
+    mockSupabaseErroring();
+
+    await useCycleStore.getState().loadFromSupabase('user-1', new Date('2026-09-20'));
+    await useCycleStore.getState().loadFromSupabase('user-1', new Date('2026-09-20'));
+    await useCycleStore.getState().loadFromSupabase('user-1', new Date('2026-09-20'));
+
+    expect(useCycleStore.getState().periodStart).toEqual(new Date('2026-09-01'));
+    expect(useCycleStore.getState().cycleLength).toBe(27);
+    expect(useCycleStore.getState().fetchedAt).toBe('2026-09-01T00:00:00.000Z');
+  });
+
+  // Defense-in-depth: a genuine synchronous throw (not what Supabase does,
+  // but cheap to keep covered) must behave the same way.
+  it('a loadFromSupabase() that genuinely throws also leaves fetchedAt and existing raw fields untouched', async () => {
     useCycleStore.setState({
       periodStart: new Date('2026-09-01'), cycleLength: 28, fetchedAt: '2026-09-01T00:00:00.000Z',
     });
@@ -386,5 +476,21 @@ describe('cycle store persistence', () => {
     expect(useCycleStore.getState().cycleLength).toBe(28);
     expect(useCycleStore.getState().fetchedAt).toBe('2026-09-01T00:00:00.000Z');
     expect(useCycleStore.getState().isLoading).toBe(false);
+  });
+
+  // The card-304 lengths query is the one failure that IS tolerated: it has
+  // its own query precisely so a database without that migration costs only
+  // the default period length instead of failing the whole cycle load.
+  it('still loads when only the (deliberately tolerated) period-lengths query errors', async () => {
+    mockSupabaseFrom({
+      cycleLogsRow: { period_start: '2026-09-01', cycle_length_days: 28 },
+      profileRow: { cycle_profile: 'natural', contraception_type: null, has_placebo_week: null, current_pack_start: null },
+      recentRowsError: { message: 'column does not exist' },
+    });
+
+    await useCycleStore.getState().loadFromSupabase('user-1', new Date('2026-09-20'));
+
+    expect(useCycleStore.getState().periodStart).toEqual(new Date('2026-09-01'));
+    expect(useCycleStore.getState().fetchedAt).not.toBeNull();
   });
 });

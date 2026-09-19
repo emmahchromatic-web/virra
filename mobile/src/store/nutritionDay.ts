@@ -39,6 +39,15 @@ interface NutritionDayState {
    *  server) -- avoids waiting on a round trip through `refresh()` just to
    *  reflect a change the screen already knows happened. */
   removeEntryLocal: (recordedOn: string, entryId: string) => void;
+  /**
+   * Drop every cached day back to empty. Called from the auth store's
+   * `signOut()`: clearing STORAGE is not clearing the app -- this store keeps
+   * its days in memory and nothing reloads between sign-out and the next
+   * sign-in, so without this the next account on the device sees the previous
+   * user's food entries. Same shape and reason as `sessionStore`'s
+   * `clearCache()`.
+   */
+  clear: () => void;
 }
 
 /** Raw fields persisted to AsyncStorage. `inFlight` is an in-progress-request
@@ -112,6 +121,8 @@ export const useNutritionDay = create<NutritionDayState>()(
           },
         });
       },
+
+      clear: () => set({ days: {}, inFlight: {} }),
     }),
     {
       name: STORE_NAME,

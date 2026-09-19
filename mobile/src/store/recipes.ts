@@ -34,6 +34,18 @@ interface RecipesState {
    * full `refreshFavourites()` round trip to reflect what the user just did.
    */
   toggleFavourite: (userId: string, recipeId: string, next: boolean) => Promise<boolean>;
+  /**
+   * Drop the cached list, details and favourites back to empty. Called from
+   * the auth store's `signOut()`.
+   *
+   * `favouriteIds` is the reason this matters most here: `refreshFavourites`
+   * keeps the old cache on a non-empty -> empty transition (the
+   * suspected-failure guard documented in this file's header). Without a reset
+   * at sign-out, account B's genuine "no favourites yet" result looks exactly
+   * like that failure, so account A's favourites would be kept FOREVER --
+   * nothing else ever overwrites them unless B happens to favourite something.
+   */
+  clear: () => void;
 }
 
 interface PersistedRecipesState {
@@ -130,6 +142,11 @@ export const useRecipesStore = create<RecipesState>()(
         }
         return result;
       },
+
+      clear: () => set({
+        list: [], listFetchedAt: null, details: {},
+        favouriteIds: [], favouritesFetchedAt: null,
+      }),
     }),
     {
       name: STORE_NAME,

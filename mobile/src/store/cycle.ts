@@ -52,7 +52,34 @@ interface CycleState {
   setHormonalSubData:   (patch: { contraceptionType: ContraceptionType; hasPlaceboWeek: boolean | null; currentPackStart: Date | null }) => void;
   refreshPhase:         (today?: Date) => void;
   loadFromSupabase:     (userId: string, today?: Date) => Promise<void>;
+  /**
+   * Drop every cached field back to its initial value. Called from the auth
+   * store's `signOut()`: clearing STORAGE is not clearing the app -- persisted
+   * stores keep their contents in memory and nothing reloads between sign-out
+   * and the next sign-in, so without this the next account on the device sees
+   * the previous user's cycle phase. Same shape and the same reason as
+   * `sessionStore`'s `clearCache()`; see auth.ts for the ordering rationale.
+   */
+  clear:                () => void;
 }
+
+/** Initial values for every non-function field, shared by the store's own
+ *  definition and by `clear()` so the two can't drift apart. */
+const INITIAL_CYCLE_DATA = {
+  cycleProfile:      'natural' as CycleProfile,
+  periodStart:       null as Date | null,
+  cycleLength:       28,
+  periodDays:        DEFAULT_PERIOD_DAYS,
+  periodDaysLogged:  false,
+  recentPeriodDays:  [] as number[],
+  cycleInfo:         null as CycleInfo | null,
+  cycleMode:         'flow' as CycleMode,
+  contraceptionType: null as ContraceptionType | null,
+  hasPlaceboWeek:    null as boolean | null,
+  currentPackStart:  null as Date | null,
+  isLoading:         true,
+  fetchedAt:         null as string | null,
+};
 
 function computeForProfile(
   profile:          CycleProfile,
@@ -105,19 +132,9 @@ interface PersistedCycleState {
 export const useCycleStore = create<CycleState>()(
   persist(
     (set, get) => ({
-  cycleProfile:      'natural',
-  periodStart:       null,
-  cycleLength:       28,
-  periodDays:        DEFAULT_PERIOD_DAYS,
-  periodDaysLogged:  false,
-  recentPeriodDays:  [],
-  cycleInfo:         null,
-  cycleMode:         'flow',
-  contraceptionType: null,
-  hasPlaceboWeek:    null,
-  currentPackStart:  null,
-  isLoading:         true,
-  fetchedAt:         null,
+  ...INITIAL_CYCLE_DATA,
+
+  clear: () => set({ ...INITIAL_CYCLE_DATA }),
 
   setCycleProfile: (profile) =>
     set((s) => {
@@ -206,13 +223,26 @@ export const useCycleStore = create<CycleState>()(
 
   loadFromSupabase: async (userId, today = new Date()) => {
     set({ isLoading: true });
-    // Failure-safe: a thrown/rejected Supabase call must leave all existing
-    // state (including `fetchedAt` and every raw field) exactly as it was --
-    // this is what makes cached, cold-started data survive an offline
+    // Failure-safe: a failed Supabase call must leave all existing state
+    // (including `fetchedAt` and every raw field) exactly as it was -- this is
+    // what makes cached, cold-started data survive an offline
     // `loadFromSupabase()` call instead of being silently wiped. Only a
     // genuinely successful read reaches the final `set()`. `isLoading` is
     // still reset on failure so the UI doesn't get stuck showing a spinner
     // forever.
+    //
+    // BOTH failure modes are handled, and the one that actually happens
+    // offline is the second: PostgREST does NOT reject on a network failure,
+    // it RESOLVES with `{ data: null, error: {...}, status: 0 }`. A try/catch
+    // alone therefore catches nothing, and the old code went on to treat
+    // `data: null` as "this user has no cycle data", wiping periodStart,
+    // cycleProfile, contraceptionType and cycleInfo and re-persisting the
+    // emptied state to disk -- exactly the cache this store exists to keep.
+    // Hence the explicit `error` checks below.
+    //
+    // Idempotent under repeated failure: a second (third, nth) offline call
+    // takes the same early return, so nothing beyond `isLoading` is ever
+    // written and already-cached state cannot degrade further.
     try {
       const [cycleRes, profileRes, lengthsRes] = await Promise.all([
         supabase
@@ -247,6 +277,21 @@ export const useCycleStore = create<CycleState>()(
           .order('created_at',   { ascending: false })
           .limit(12),
       ]);
+
+      // `lengthsRes.error` is deliberately NOT checked here: card 304's query
+      // is tolerated failing (it 42703s on a database the migration hasn't
+      // reached) and costs only the default period length, which is why it is
+      // its own query in the first place. The two below are different -- their
+      // data IS the cycle, so a failure must keep the cache rather than
+      // overwrite it with nothing.
+      if (cycleRes.error || profileRes.error) {
+        console.warn(
+          '[cycle] loadFromSupabase() failed, keeping cached state:',
+          cycleRes.error?.message ?? profileRes.error?.message ?? 'unknown error',
+        );
+        set({ isLoading: false });
+        return;
+      }
 
       const cycleProfile      = (profileRes.data?.cycle_profile      as CycleProfile      | undefined) ?? 'natural';
       const contraceptionType = (profileRes.data?.contraception_type as ContraceptionType | undefined) ?? null;

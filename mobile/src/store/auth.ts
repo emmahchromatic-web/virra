@@ -8,6 +8,11 @@ import { cancelAllNotifications } from '@/lib/notifications';
 import { useNotificationsStore } from '@/store/notifications';
 import { useSessionStore } from '@/store/sessionStore';
 import { useSubscriptionStore } from '@/store/subscription';
+import { useProfileStore } from '@/store/profile';
+import { useCycleStore } from '@/store/cycle';
+import { useNutritionDay } from '@/store/nutritionDay';
+import { useRecipesStore } from '@/store/recipes';
+import { useRecentFoods } from '@/store/recentFoods';
 
 interface AuthState {
   session:    Session | null;
@@ -93,12 +98,39 @@ export const useAuthStore = create<AuthState>((set) => ({
       // Never block sign-out on the billing SDK.
     }
 
-    try {
-      useNotificationsStore.getState().reset();
-      await useSessionStore.getState().clearCache();
-    } catch {
-      // Same rule as the notification cancel above: a store that will not
-      // reset must not leave someone signed in.
+    // J2 reads added five more persisted stores with exactly the same shape as
+    // the session store -- contents held in memory, nothing reloading between
+    // sign-out and the next sign-in. They are reset here alongside it, and
+    // BEFORE the storage sweep below, for the reason spelled out above: a
+    // `persist` reset writes the emptied state straight back to its key, so
+    // the sweep has to come afterwards to remove what the reset just
+    // recreated.
+    //
+    // `recipes` is the one that leaks PERMANENTLY without this, not just until
+    // the next refresh: `refreshFavourites` keeps the old cache whenever a
+    // non-empty list comes back empty (its suspected-failure guard), and
+    // account B's genuine empty favourites list is indistinguishable from that
+    // -- so A's favourites would survive every subsequent refresh B triggers.
+    //
+    // Each reset is guarded on its own: one store refusing to reset must not
+    // skip the others (they are the difference between accounts on a shared
+    // device), and must not leave someone signed in either.
+    const resets: (() => void | Promise<void>)[] = [
+      () => useNotificationsStore.getState().reset(),
+      () => useSessionStore.getState().clearCache(),
+      () => useProfileStore.getState().clear(),
+      () => useCycleStore.getState().clear(),
+      () => useNutritionDay.getState().clear(),
+      () => useRecipesStore.getState().clear(),
+      () => useRecentFoods.getState().clear(),
+    ];
+    for (const reset of resets) {
+      try {
+        await reset();
+      } catch {
+        // Same rule as the notification cancel above: a store that will not
+        // reset must not leave someone signed in.
+      }
     }
 
     // Drop this user's cached data so the next account on this device starts
