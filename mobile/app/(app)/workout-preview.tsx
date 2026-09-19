@@ -1028,6 +1028,12 @@ function WorkoutPreviewScreen() {
         setRows,
         details:   detailsRow,
       });
+      if (sessionId) {
+        useSessionStore.getState().applyLocalCompletion(
+          sessionId,
+          `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        );
+      }
       deleteWorkoutDraft(session.user.id).catch(() => {});
       cancelTrainingReminderToday();
       // Close the sheet BEFORE alerting, or this alert is invisible for exactly

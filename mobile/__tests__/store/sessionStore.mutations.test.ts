@@ -135,6 +135,21 @@ describe('sessionStore.linkActivity', () => {
   });
 });
 
+describe('sessionStore.applyLocalCompletion', () => {
+  it('flips status to completed locally with no remote call', () => {
+    useSessionStore.getState().applyLocalCompletion('s1', 'local-act-1');
+    const row = useSessionStore.getState().byId['s1'];
+    expect(row.status).toBe('completed');
+    expect(row.activity_id).toBe('local-act-1');
+    expect(mockCommitLink).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for a session not in the cache', () => {
+    useSessionStore.getState().applyLocalCompletion('does-not-exist', 'x');
+    expect(useSessionStore.getState().byId['does-not-exist']).toBeUndefined();
+  });
+});
+
 describe('sessionStore.reconcileFromActivities', () => {
   it('returns linked: 0 with no unlinked activities (orchestration smoke test)', async () => {
     const result = await useSessionStore.getState().reconcileFromActivities();

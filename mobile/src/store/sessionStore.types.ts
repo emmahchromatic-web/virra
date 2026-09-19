@@ -43,6 +43,14 @@ export interface SessionStoreActions {
 
   // mutations
   markComplete(sessionId: SessionId, activityId: string): Promise<void>;
+  /**
+   * Marks a session completed in the local cache only, with no remote write.
+   * Used when a completion has been queued to the outbox rather than
+   * confirmed by the server — the activity id is a local placeholder, and
+   * the next `refresh()` of this date range replaces the row with server
+   * truth (real id included).
+   */
+  applyLocalCompletion(sessionId: SessionId, activityId: string): void;
   dropSession(sessionId: SessionId):                      Promise<void>;
   moveSession(sessionId: SessionId, newDate: DateISO):    Promise<SessionId>;
   linkActivity(activityId: string, sessionId: SessionId): Promise<void>;
