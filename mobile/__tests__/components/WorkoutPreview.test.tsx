@@ -1,6 +1,7 @@
 import React from 'react';
 import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 import { Alert, NativeModules } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ sessionId: 'ps-1' }),
@@ -155,7 +156,12 @@ function clearInserts() {
 }
 
 describe('WorkoutPreviewScreen — strength logging', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // This screen exercises the real workoutDrafts module (only @/lib/supabase
+    // is mocked here), which now writes/reads real AsyncStorage as its
+    // local-first store. Clear it so a draft saved by one test doesn't leak
+    // into the next via that real local-storage layer.
+    await AsyncStorage.clear();
     jest.clearAllMocks();
     clearInserts();
     supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });
@@ -408,7 +414,9 @@ describe('WorkoutPreviewScreen — strength logging', () => {
 });
 
 describe('WorkoutPreviewScreen — timer-only (no structure)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // See the strength-logging describe block above for why this is needed.
+    await AsyncStorage.clear();
     jest.clearAllMocks();
     jest.useFakeTimers();
     clearInserts();
@@ -462,7 +470,9 @@ describe('WorkoutPreviewScreen — timer-only (no structure)', () => {
 });
 
 describe('WorkoutPreviewScreen — draft persistence', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // See the strength-logging describe block above for why this is needed.
+    await AsyncStorage.clear();
     jest.clearAllMocks();
     clearInserts();
     supabaseMock.__selectSingle.mockResolvedValue({ data: STRENGTH_ROW, error: null });

@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor, act } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ sessionId: 'ps-1' }),
@@ -91,7 +92,12 @@ function typeInto(utils: ReturnType<typeof render>, label: string, text: string)
   }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  // This screen exercises the real workoutDrafts module (only @/lib/supabase
+  // is mocked here), which now writes/reads real AsyncStorage as its
+  // local-first store. Clear it so a draft saved by one test doesn't leak
+  // into the next via that real local-storage layer.
+  await AsyncStorage.clear();
   mockRow = SQUAT_ROW;
   alertMock.mockClear();
   for (const k of Object.keys(inserted)) delete inserted[k];
@@ -206,6 +212,10 @@ describe('big jump from last time', () => {
     expect(alertMock).not.toHaveBeenCalled();
     utils.unmount();
 
+    // This test intentionally remounts as an independent second session, not
+    // a resume — clear the real local-first draft the first mount wrote to
+    // AsyncStorage so the remount starts fresh instead of resuming into it.
+    await AsyncStorage.clear();
     utils = await open({});
     await waitFor(() => expect(utils.getByLabelText(W1)).toBeTruthy());
     typeInto(utils, W1, '200');
