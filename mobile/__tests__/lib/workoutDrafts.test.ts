@@ -17,6 +17,11 @@ describe('saveWorkoutDraft', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
     jest.clearAllMocks();
+    // `jest.clearAllMocks()` clears call history, not installed
+    // implementations — an explicit default here means every test in every
+    // describe below starts from a known-good upsert, not whatever the
+    // previously-run describe block last set via `mockResolvedValue`.
+    mockUpsert.mockResolvedValue({ error: null });
   });
 
   it('upserts on user_id with the mapped column names', async () => {
@@ -61,6 +66,9 @@ describe('loadWorkoutDraft', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
     jest.clearAllMocks();
+    // See `saveWorkoutDraft`'s beforeEach: this describe's last test calls
+    // `saveWorkoutDraft` as setup, which fires the real upsert mock.
+    mockUpsert.mockResolvedValue({ error: null });
   });
 
   it('returns null when no draft exists', async () => {
@@ -103,6 +111,9 @@ describe('deleteWorkoutDraft', () => {
   beforeEach(async () => {
     await AsyncStorage.clear();
     jest.clearAllMocks();
+    // See `saveWorkoutDraft`'s beforeEach: this describe's last test calls
+    // `saveWorkoutDraft` as setup, which fires the real upsert mock.
+    mockUpsert.mockResolvedValue({ error: null });
   });
 
   it('deletes by user_id', async () => {

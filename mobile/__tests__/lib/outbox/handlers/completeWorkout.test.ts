@@ -127,6 +127,10 @@ describe('handleCompleteWorkout', () => {
       runDetails: { avg_pace_seconds_per_km: 300 },
     };
     await handleCompleteWorkout(item);
+    expect(mockUpsertOther).toHaveBeenCalledWith(
+      { avg_pace_seconds_per_km: 300, activity_id: 'act-2' },
+      { onConflict: 'activity_id' },
+    );
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import {
   enqueue, drain, readOutbox, readDeadLetters, dismissDeadLetter, registerHandler,
   type MutationPayloadMap,
 } from '@/lib/outbox';
+import { SupabaseWriteError } from '@/lib/outbox/errors';
 
 const okHandler = jest.fn().mockResolvedValue(undefined);
 const networkErrorHandler = jest.fn().mockRejectedValue(new Error('Network request failed'));
@@ -118,6 +119,36 @@ describe('outbox — enqueue and drain', () => {
       expect(result.sent).toBe(0);
       expect(result.left).toBe(0);
       expect(result.failed).toBe(1);
+      expect(result.deadLettered).toHaveLength(1);
+      expect(await readDeadLetters('u1')).toHaveLength(1);
+    });
+  });
+
+  /**
+   * `isPermanentError` treats 401/408/425/429 as retryable despite being in
+   * the 4xx range (expired token / rate limit, both of which clear on their
+   * own) and everything else 4xx as permanent. That boundary had zero direct
+   * coverage before this — the tests above exercise message/code-based
+   * classification but never a bare status code.
+   */
+  describe('retryable vs permanent status boundary', () => {
+    async function drainRejectingWithStatus(status: number) {
+      const handler = jest.fn().mockRejectedValue(new SupabaseWriteError('x', { status }));
+      registerHandler('completeWorkout', handler as unknown as (p: MutationPayloadMap['completeWorkout']) => Promise<void>);
+      await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+      return drain('u1');
+    }
+
+    it.each([401, 408, 425, 429])('treats a %i as retryable, not permanent', async (status) => {
+      const result = await drainRejectingWithStatus(status);
+      expect(result.deadLettered).toHaveLength(0);
+      expect(result.left).toBe(1);
+      expect(await readDeadLetters('u1')).toHaveLength(0);
+    });
+
+    it.each([400, 403, 404, 422])('treats a %i as permanent', async (status) => {
+      const result = await drainRejectingWithStatus(status);
+      expect(result.left).toBe(0);
       expect(result.deadLettered).toHaveLength(1);
       expect(await readDeadLetters('u1')).toHaveLength(1);
     });
