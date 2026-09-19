@@ -26,7 +26,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // virra:pending_completions:v1:<userId> holds workouts finished with no signal
 // and not yet synced. Keyed by user id, so the next account on this phone must
 // never inherit them. Card 253.
-export const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_', 'virra:pending_completions:'];
+//
+// virra:outbox:v1:<userId> / virra:outbox_failed:v1:<userId> supersede
+// virra:pending_completions:v1:<userId> (card 253) as of the J1 outbox.
+// Same rule: per-user, must never survive to the next account.
+export const USER_CACHE_PREFIXES = ['readiness_', 'hk_', 'notif_', 'virra:pending_completions:', 'virra:outbox:', 'virra:outbox_failed:'];
 export const USER_CACHE_KEYS = [
   'virra:sessions:v1',
   'virra:equipment_preference_asked',
