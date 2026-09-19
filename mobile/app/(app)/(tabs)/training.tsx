@@ -138,6 +138,12 @@ export default function TrainingScreen() {
   // Card 295. True when the last attempt to read the plan failed (no signal).
   // What was last known stays on screen; this only decides whether to say so.
   const [planLoadFailed, setPlanLoadFailed] = useState(false);
+  // Card 7 (offline sweep). Same "keep what was last known, only say so on
+  // failure" treatment for the two other direct reads this screen makes:
+  // the season chain (seasons/user_events/planned_sessions-phase, none of
+  // which sessionStore carries) and recent activity.
+  const [seasonLoadFailed,     setSeasonLoadFailed]     = useState(false);
+  const [activitiesLoadFailed, setActivitiesLoadFailed] = useState(false);
   const { days: thisWeek } = useWeekSessions(mondayOfLocal(new Date()));
   const cachedWeek = React.useMemo(() => cachedWeekRows(thisWeek, new Date()), [thisWeek]);
 
@@ -206,28 +212,35 @@ export default function TrainingScreen() {
     return () => { cancelled = true; };
   }, [session, todayPlanned]);
 
+  // Card 7 (offline sweep). Three direct reads live in here (seasons,
+  // user_events, a phase-only planned_sessions query), none backed by any
+  // store. A failed read used to be indistinguishable from "no season" —
+  // both fell through to `return null` and the card just didn't appear.
+  // `failed` lets the caller tell the two apart and say so.
   async function loadSeasonSummary(
     userId: string,
     cyclePhase: string | null,
-  ): Promise<SeasonChainSummary | null> {
-    const { data: season } = await supabase
+  ): Promise<{ summary: SeasonChainSummary | null; failed: boolean }> {
+    const { data: season, error: seasonErr } = await supabase
       .from('seasons')
       .select('id, name, starts_on, ends_on')
       .eq('user_id', userId)
       .eq('status', 'active')
       .maybeSingle();
-    if (!season) return null;
+    if (seasonErr) return { summary: null, failed: true };
+    if (!season) return { summary: null, failed: false };
 
     const todayISO = new Date().toLocaleDateString('en-CA');
 
-    const { data: events } = await supabase
+    const { data: events, error: eventsErr } = await supabase
       .from('user_events')
       .select('id, name, event_date')
       .eq('season_id', season.id)
       .gte('event_date', todayISO)
       .order('event_date');
 
-    if (!events || events.length === 0) return null;
+    if (eventsErr) return { summary: null, failed: true };
+    if (!events || events.length === 0) return { summary: null, failed: false };
 
     // Bypass sessionStore on purpose: this read needs the `phase` column
     // (block_phase: base/build/peak/taper/race/recovery) which isn't part
@@ -240,13 +253,15 @@ export default function TrainingScreen() {
     // outright on more than one row. The error was never checked, so the season
     // card quietly reported phase 'rest' on exactly the double days the
     // multi-track model creates.
-    const { data: todaySessions } = await supabase
+    const { data: todaySessions, error: sessionsErr } = await supabase
       .from('planned_sessions')
       .select('phase, block_id, modality')
       .eq('user_id', userId)
       .eq('scheduled_date', todayISO)
       .neq('status', 'moved')
       .neq('status', 'dropped');
+
+    if (sessionsErr) return { summary: null, failed: true };
 
     // A season is built around races, so the run block's phase is the one that
     // describes where the season is. Fall back to any session carrying a phase.
@@ -295,15 +310,18 @@ export default function TrainingScreen() {
     });
 
     return {
-      season_name:         season.name,
-      total_weeks:         totalWeeks,
-      current_week:        currentWeek,
-      current_phase:       currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1),
-      current_cycle_phase: cyclePhase ? cyclePhase.charAt(0).toUpperCase() + cyclePhase.slice(1) : null,
-      next_event_name:     next.name,
-      next_event_in_weeks: nextInWeeks,
-      next_event_date:     next.event_date,
-      later_events:        laterEvents,
+      summary: {
+        season_name:         season.name,
+        total_weeks:         totalWeeks,
+        current_week:        currentWeek,
+        current_phase:       currentPhase.charAt(0).toUpperCase() + currentPhase.slice(1),
+        current_cycle_phase: cyclePhase ? cyclePhase.charAt(0).toUpperCase() + cyclePhase.slice(1) : null,
+        next_event_name:     next.name,
+        next_event_in_weeks: nextInWeeks,
+        next_event_date:     next.event_date,
+        later_events:        laterEvents,
+      },
+      failed: false,
     };
   }
 
@@ -312,7 +330,7 @@ export default function TrainingScreen() {
     // A weekly mobility session is written eight weeks ahead and topped up here,
     // so the habit never quietly runs out (card 264).
     await topUpMobilitySchedule(session!.user.id).catch(() => 0);
-    const [blocksRes, planRes, activityRes, season] = await Promise.all([
+    const [blocksRes, planRes, activityRes, seasonRes] = await Promise.all([
       fetchActiveBlocks(session!.user.id),
       supabase
         .from('user_plans')
@@ -336,8 +354,12 @@ export default function TrainingScreen() {
       setActiveBlocks(await attachMobilityLabels(blocksRes.blocks));
       setActivePlan(planRes.data as UserPlan | null);
     }
+    // Card 7. Same treatment for recent activity and the season chain: on
+    // failure, keep whatever was last known and only flip the signal flag.
+    setActivitiesLoadFailed(Boolean(activityRes.error));
     if (!activityRes.error) setRecentActivities((activityRes.data ?? []) as Activity[]);
-    setSeasonSummary(season);
+    setSeasonLoadFailed(seasonRes.failed);
+    if (!seasonRes.failed) setSeasonSummary(seasonRes.summary);
     setLoading(false);
   }
 
@@ -375,8 +397,19 @@ export default function TrainingScreen() {
           </VirraCard>
         )}
 
-        {/* Season chain overview */}
-        {isPro && <SeasonTimeline summary={seasonSummary} />}
+        {/* Season chain overview. Card 7: a failed read used to look
+            identical to "no season yet" (the card just silently didn't
+            appear); say so instead when there's nothing cached to show. */}
+        {isPro && (seasonLoadFailed && !seasonSummary ? (
+          <NeedsSignal
+            title="Your season needs signal to load."
+            detail="Nothing about your season is saved on this phone yet. It will show once you are back online."
+            onRetry={loadData}
+            retrying={loading}
+          />
+        ) : (
+          <SeasonTimeline summary={seasonSummary} />
+        ))}
 
         {/* Card 029. When there is no season yet, say what would make one.
             Without this the concept is invisible until it already exists. */}
@@ -557,6 +590,13 @@ export default function TrainingScreen() {
                 </View>
               ))}
             </VirraCard>
+          ) : activitiesLoadFailed ? (
+            <NeedsSignal
+              title="Recent activity needs signal to load."
+              detail="Nothing from your activity history is saved on this phone yet. It will show once you are back online."
+              onRetry={loadData}
+              retrying={loading}
+            />
           ) : (
             <VirraText variant="body" size={13} color={colors.muted}>
               No activities yet. Complete a run to see it here.

@@ -84,6 +84,35 @@ describe('Training tab with no signal', () => {
     const utils = render(<TrainingScreen />);
     await waitFor(() => expect(utils.getByText("You don't have an active plan yet.")).toBeTruthy());
     expect(utils.queryByText('Your plan needs signal to load.')).toBeNull();
+    expect(utils.queryByText('Your season needs signal to load.')).toBeNull();
+    expect(utils.queryByText('Recent activity needs signal to load.')).toBeNull();
+  });
+
+  /**
+   * Card 7. The season chain (seasons / user_events / a phase-only
+   * planned_sessions query) and recent activity are two more direct reads
+   * on this screen that used to fail silently: a failed season read looked
+   * exactly like "no season yet" (the card just didn't render), and a
+   * failed activities read looked exactly like "no activities yet".
+   */
+  it('also says the season and recent-activity reads need signal, never a false empty', async () => {
+    const utils = render(<TrainingScreen />);
+    await waitFor(() => expect(utils.getByText('Your season needs signal to load.')).toBeTruthy());
+    expect(utils.getByText('Recent activity needs signal to load.')).toBeTruthy();
+    expect(utils.queryByText('No activities yet. Complete a run to see it here.')).toBeNull();
+  });
+
+  it('retrying with signal restored clears the season and activity signals too', async () => {
+    const utils = render(<TrainingScreen />);
+    await waitFor(() => expect(utils.getByText('Recent activity needs signal to load.')).toBeTruthy());
+
+    mockNet.offline = false;
+    const retryButtons = utils.getAllByText('Try again');
+    await act(async () => { fireEvent.press(retryButtons[0]); });
+
+    await waitFor(() => expect(utils.queryByText('Recent activity needs signal to load.')).toBeNull());
+    expect(utils.queryByText('Your season needs signal to load.')).toBeNull();
+    expect(utils.getByText('No activities yet. Complete a run to see it here.')).toBeTruthy();
   });
 });
 
