@@ -16,9 +16,39 @@ jest.mock('@/lib/healthKitWeight', () => ({
 jest.mock('@/components/ui/BreakModal', () => ({ BreakModal: () => null }));
 jest.mock('@/components/ui/WeightExplainerModal', () => ({ WeightExplainerModal: () => null }));
 
-jest.mock('@/store/auth', () => ({
-  useAuthStore: () => ({ session: { user: { id: 'user-1', email: 'a@b.com' } }, signOut: jest.fn() }),
-}));
+// Not mounted here (only <ProfileScreen /> renders, not a <VirraAlertHost />),
+// so appAlert is mocked directly to inspect what it was called with and to
+// simulate pressing one of its buttons.
+jest.mock('@/components/ui/VirraAlert', () => {
+  const appAlert = jest.fn();
+  return { appAlert, __appAlert: appAlert };
+});
+
+jest.mock('@/lib/outbox', () => {
+  const readOutbox = jest.fn().mockResolvedValue([]);
+  const drain      = jest.fn().mockResolvedValue({ sent: 0, left: 0, failed: 0 });
+  return { readOutbox, drain, __readOutbox: readOutbox, __drain: drain };
+});
+
+jest.mock('@/store/network', () => {
+  // `state` is a shared, mutable object so tests can flip `isOnline` and have
+  // `useNetworkStore.getState()` (a static-property access, not a hook call,
+  // from profile.tsx's non-component code) see the change immediately.
+  const state = { isOnline: true };
+  const useNetworkStore = Object.assign(() => state, { getState: () => state });
+  return { useNetworkStore, __networkState: state };
+});
+
+jest.mock('@/store/auth', () => {
+  // A stable, capturable mock so sign-out-guard tests can assert whether it
+  // was called — a fresh jest.fn() per render (the old pattern) can't be
+  // inspected after the fact.
+  const signOut = jest.fn().mockResolvedValue(undefined);
+  return {
+    useAuthStore: () => ({ session: { user: { id: 'user-1', email: 'a@b.com' } }, signOut }),
+    __signOut: signOut,
+  };
+});
 jest.mock('@/store/subscription', () => ({ useSubscriptionStore: () => ({ status: 'active' }) }));
 jest.mock('@/store/cycle', () => ({
   useCycleStore: () => ({
@@ -62,6 +92,16 @@ jest.mock('@/lib/supabase', () => {
 const saveProfile = require('@/store/profile').__save;
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const invoke      = require('@/lib/supabase').__invoke;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const signOut     = require('@/store/auth').__signOut;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const appAlertMock = require('@/components/ui/VirraAlert').__appAlert;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const outboxMock  = require('@/lib/outbox');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const networkState = require('@/store/network').__networkState;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { router } = require('expo-router');
 
 import ProfileScreen from '@/app/(app)/(tabs)/profile';
 
@@ -160,5 +200,54 @@ describe('Profile — delete account', () => {
     await waitFor(() => expect(utils.queryByPlaceholderText('DELETE')).toBeNull());
     expect(utils.getByText(/permanently erases your Virra account/i)).toBeTruthy();
     expect(invoke).not.toHaveBeenCalled();
+  });
+});
+
+describe('Profile — sign-out guard', () => {
+  beforeEach(() => {
+    signOut.mockClear();
+    appAlertMock.mockClear();
+    router.replace.mockClear();
+    outboxMock.readOutbox.mockReset().mockResolvedValue([]);
+    outboxMock.drain.mockReset().mockResolvedValue({ sent: 0, left: 0, failed: 0 });
+    networkState.isOnline = true;
+  });
+
+  it('warns before signing out with unsynced changes, and cancelling keeps them', async () => {
+    networkState.isOnline = false; // offline: drain must be skipped
+    outboxMock.readOutbox.mockResolvedValue([
+      { id: 'ob_1', kind: 'completeWorkout', payload: {}, createdAt: new Date().toISOString(), attempts: 0 },
+    ]);
+
+    const utils = await renderProfile();
+    await act(async () => { fireEvent.press(utils.getByRole('button', { name: 'Sign out' })); });
+
+    expect(outboxMock.drain).not.toHaveBeenCalled();
+    expect(appAlertMock).toHaveBeenCalledTimes(1);
+    const [, message, buttons] = appAlertMock.mock.calls[0];
+    expect(message).toMatch(/1/);
+    expect(message).toMatch(/haven't synced/i);
+    expect(signOut).not.toHaveBeenCalled();
+
+    // Cancel is a no-op: no onPress at all, so pressing it leaves the user signed in.
+    const cancelBtn = buttons.find((b: { text: string }) => b.text === 'Cancel');
+    cancelBtn.onPress?.();
+    expect(signOut).not.toHaveBeenCalled();
+
+    const signOutAnywayBtn = buttons.find((b: { text: string }) => b.text === 'Sign Out Anyway');
+    await act(async () => { await signOutAnywayBtn.onPress(); });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledWith('/(auth)');
+  });
+
+  it('signs out immediately with no alert when the outbox is empty', async () => {
+    outboxMock.readOutbox.mockResolvedValue([]);
+
+    const utils = await renderProfile();
+    await act(async () => { fireEvent.press(utils.getByRole('button', { name: 'Sign out' })); });
+
+    expect(appAlertMock).not.toHaveBeenCalled();
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(router.replace).toHaveBeenCalledWith('/(auth)');
   });
 });

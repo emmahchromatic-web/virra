@@ -29,6 +29,8 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { BreakModal } from '@/components/ui/BreakModal';
 import { WeightExplainerModal } from '@/components/ui/WeightExplainerModal';
 import { getActiveBlocks, type TrainingBlock } from '@/lib/trainingBlocks';
+import { readOutbox, drain } from '@/lib/outbox';
+import { useNetworkStore } from '@/store/network';
 import type { Sex } from '@/lib/nutritionTargets';
 import { enableWeightTracking, readWeightSyncDiagnostic, type WeightSyncDiagnostic } from '@/lib/healthKitWeight';
 import { tracksCycle } from '@/lib/cycleEngine';
@@ -303,6 +305,28 @@ export default function ProfileScreen() {
   }
 
   async function handleSignOut() {
+    const userId = session?.user.id;
+    if (userId) {
+      if (useNetworkStore.getState().isOnline) {
+        await drain(userId).catch(() => {});
+      }
+      const pending = await readOutbox(userId);
+      if (pending.length > 0) {
+        appAlert(
+          'Changes have not synced yet',
+          `${pending.length} change${pending.length === 1 ? '' : 's'} haven't synced yet. Signing out will discard ${pending.length === 1 ? 'it' : 'them'}.`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Sign Out Anyway',
+              style: 'destructive',
+              onPress: async () => { await signOut(); router.replace('/(auth)'); },
+            },
+          ],
+        );
+        return;
+      }
+    }
     await signOut();
     router.replace('/(auth)');
   }
