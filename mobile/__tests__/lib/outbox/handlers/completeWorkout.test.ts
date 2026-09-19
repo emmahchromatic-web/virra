@@ -51,6 +51,9 @@ describe('handleCompleteWorkout', () => {
 
     expect(mockUpsertAct).toHaveBeenCalledWith(item.activity, { onConflict: 'user_id,started_at' });
     expect(mockInsert).toHaveBeenCalledWith([{ exercise: 'squat', reps: 8, activity_id: 'act-1' }]);
+    // Same reasoning as the run case below: pin the table, not just the payload.
+    expect(mockFrom).toHaveBeenCalledWith('strength_details');
+    expect(mockFrom).not.toHaveBeenCalledWith('run_details');
     expect(mockUpsertOther).toHaveBeenCalledWith({ session_type: 'lower', activity_id: 'act-1' }, { onConflict: 'activity_id' });
     expect(mockUpdate).toHaveBeenCalledWith({ status: 'completed', activity_id: 'act-1' });
     expect(mockEqUpdate).toHaveBeenCalledWith('id', 'sess-1');
@@ -127,6 +130,11 @@ describe('handleCompleteWorkout', () => {
       runDetails: { avg_pace_seconds_per_km: 300 },
     };
     await handleCompleteWorkout(item);
+    // Right table AND right payload. `mockUpsertOther` is shared by every
+    // table that isn't `activities` or `planned_sessions`, so the payload
+    // assertion alone would still pass if the run details were written to
+    // `strength_details` by mistake.
+    expect(mockFrom).toHaveBeenCalledWith('run_details');
     expect(mockUpsertOther).toHaveBeenCalledWith(
       { avg_pace_seconds_per_km: 300, activity_id: 'act-2' },
       { onConflict: 'activity_id' },

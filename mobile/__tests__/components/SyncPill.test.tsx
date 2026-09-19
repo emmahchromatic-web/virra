@@ -24,8 +24,15 @@ describe('SyncPill', () => {
     expect(getByText('Offline')).toBeTruthy();
   });
 
-  it('shows Syncing while a drain is running with items left', () => {
-    useOutboxStatus.setState({ syncing: true, pendingCount: 2 });
+  /**
+   * `pendingCount > 0` ALONE is the signal, deliberately without `syncing`.
+   * `syncing` is true only for the literal duration of a `drain()` call, and a
+   * retryable failure halts the drain with real unsynced work still queued --
+   * so asserting this with `syncing: true` set would pass even if that fix
+   * were reverted, which is exactly the blind spot this covers.
+   */
+  it('shows Syncing when work is pending, even with no drain literally running', () => {
+    useOutboxStatus.setState({ syncing: false, pendingCount: 2 });
     const { getByText } = render(<SyncPill />);
     expect(getByText('Syncing')).toBeTruthy();
   });

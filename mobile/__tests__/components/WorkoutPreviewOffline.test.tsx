@@ -56,8 +56,14 @@ const mockById: Record<string, unknown> = {};
 const mockApplyLocalCompletion = jest.fn();
 jest.mock('@/store/sessionStore', () => ({
   useSessionStore: { getState: () => ({ byId: mockById, applyLocalCompletion: mockApplyLocalCompletion }) },
-  LOCAL_ACTIVITY_PREFIX: 'local_',
+  // The REAL constant, not a copy of it: the `local_` prefix is the entire
+  // contract between `applyLocalCompletion` (this screen) and
+  // `revertLocalCompletion`/`refresh` (the store). A hardcoded literal here
+  // would keep passing against its own stale copy if that contract ever moved.
+  LOCAL_ACTIVITY_PREFIX: jest.requireActual('@/store/sessionStore').LOCAL_ACTIVITY_PREFIX,
 }));
+
+const { LOCAL_ACTIVITY_PREFIX } = jest.requireActual<typeof import('@/store/sessionStore')>('@/store/sessionStore');
 
 const CACHED_ROW = {
   id: 'ps-1',
@@ -155,9 +161,12 @@ describe('finishing a workout with no signal', () => {
 
     const [sessionIdArg, activityIdArg] = mockApplyLocalCompletion.mock.calls[0];
     expect(sessionIdArg).toBe('ps-1');
-    // A placeholder id is required, but its exact shape belongs to
-    // sessionStore.mutations.test.ts, not here.
+    // The `local_` prefix is the contract: `refresh()` preserves the row and
+    // `revertLocalCompletion` is willing to undo it only while the id still
+    // carries it. Asserted against the real exported constant so this screen's
+    // producer output stays tied to the consumer's expectation.
     expect(typeof activityIdArg).toBe('string');
-    expect(activityIdArg.length).toBeGreaterThan(0);
+    expect(activityIdArg.startsWith(LOCAL_ACTIVITY_PREFIX)).toBe(true);
+    expect(activityIdArg.length).toBeGreaterThan(LOCAL_ACTIVITY_PREFIX.length);
   });
 });
