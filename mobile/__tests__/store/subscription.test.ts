@@ -1,5 +1,6 @@
 // mobile/__tests__/store/subscription.test.ts
 import { act, renderHook } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSubscriptionStore } from '@/store/subscription';
 
 describe('useSubscriptionStore', () => {
@@ -79,5 +80,70 @@ describe('devOverride', () => {
     expect(useSubscriptionStore.getState()).toMatchObject({ devOverride: 'active', isActive: true });
     await useSubscriptionStore.getState().setDevOverride(null);
     expect(useSubscriptionStore.getState()).toMatchObject({ devOverride: null, status: 'unknown', isActive: false });
+  });
+});
+
+// ── Persistence (display only) ────────────────────────────────────────────
+// Only `status`/`trialEnd` persist, for showing something ("Trial ends in 3
+// days") immediately on a cold start. `isActive` is never trusted from disk --
+// it is always recomputed from `status` via ACTIVE_STATUSES.includes(status),
+// both at setStatus() time (unchanged) and after rehydration (new). Gating
+// stays on RevenueCat, entirely untouched by this.
+describe('subscription store persistence (display only)', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    useSubscriptionStore.setState({
+      status: 'unknown', isActive: false, trialEnd: null, devOverride: null, showProFeatures: true,
+    });
+  });
+
+  it('persists status and trialEnd, not isActive/devOverride/showProFeatures', async () => {
+    useSubscriptionStore.getState().setStatus('trial', new Date('2026-10-01'));
+    await new Promise((r) => setTimeout(r, 0));
+    const raw = await AsyncStorage.getItem('virra:subscription:v1');
+    expect(raw).not.toBeNull();
+    const parsed = JSON.parse(raw!);
+    expect(parsed.state.status).toBe('trial');
+    expect(parsed.state.trialEnd).toBe('2026-10-01T00:00:00.000Z');
+    expect(parsed.state.isActive).toBeUndefined();
+    expect(parsed.state.devOverride).toBeUndefined();
+    expect(parsed.state.showProFeatures).toBeUndefined();
+  });
+
+  it('re-derives isActive from the persisted status on rehydration, does not trust a stale cached isActive', async () => {
+    // Plant a status of 'active' with a deliberately WRONG isActive on disk --
+    // if rehydration ever trusted the persisted isActive rather than
+    // recomputing it, this would come back false.
+    await AsyncStorage.setItem('virra:subscription:v1', JSON.stringify({
+      state: { status: 'active', isActive: false, trialEnd: null },
+      version: 1,
+    }));
+
+    await useSubscriptionStore.persist.rehydrate();
+
+    expect(useSubscriptionStore.getState().status).toBe('active');
+    expect(useSubscriptionStore.getState().isActive).toBe(true);
+  });
+
+  it('rehydrates trialEnd back into a real Date instance, not a string', async () => {
+    const date = new Date('2026-11-15T00:00:00.000Z');
+    useSubscriptionStore.getState().setStatus('trial', date);
+    await new Promise((r) => setTimeout(r, 0));
+    const raw = await AsyncStorage.getItem('virra:subscription:v1');
+    expect(typeof JSON.parse(raw!).state.trialEnd).toBe('string');
+
+    // Simulate a genuinely fresh cold start with a different persisted value.
+    const otherDate = new Date('2027-01-01T00:00:00.000Z');
+    await AsyncStorage.setItem('virra:subscription:v1', JSON.stringify({
+      state: { status: 'trial', trialEnd: otherDate.toISOString() },
+      version: 1,
+    }));
+
+    await useSubscriptionStore.persist.rehydrate();
+
+    const rehydrated = useSubscriptionStore.getState().trialEnd;
+    expect(rehydrated).toBeInstanceOf(Date);
+    expect(rehydrated?.toISOString()).toBe(otherDate.toISOString());
+    expect(useSubscriptionStore.getState().isActive).toBe(true);
   });
 });
