@@ -3,6 +3,7 @@ import type { CyclePhase } from '@/store/cycle';
 import type { TrainingLoad } from './nutritionTargets';
 import { getActiveBlocks, computeBlockLoad } from './trainingBlocks';
 import { sessionLabelText } from '@/lib/sessionLabels';
+import { useSessionStore } from '@/store/sessionStore';
 
 export interface PlannedSessionSummary {
   id:            string;
@@ -102,19 +103,44 @@ const PHASE_GUIDANCE: Record<CyclePhase, string> = {
   luteal:     'Hold the work, honour fatigue.',
 };
 
+/**
+ * Builds `sessions` from the shared session-store cache when the live
+ * `planned_sessions` query fails, matching the query's own filters (this
+ * date, status planned or completed) so a network blip degrades to
+ * yesterday's-known-plan rather than to an empty "rest day".
+ */
+function sessionsFromCache(dateISO: string): PlannedSessionSummary[] {
+  const { byId } = useSessionStore.getState();
+  return Object.values(byId)
+    .filter((r) => r.scheduled_date === dateISO && (r.status === 'planned' || r.status === 'completed'))
+    .map((r) => ({
+      id:            r.id,
+      session_label: r.session_label ?? '',
+      modality:      r.modality,
+      status:        r.status,
+      activity_id:   r.activity_id,
+    })) as PlannedSessionSummary[];
+}
+
 export async function getDailyTrainingContext(
   userId:  string,
   dateISO: string,
   phase:   CyclePhase | null,
 ): Promise<DailyTrainingContext> {
-  const { data } = await supabase
-    .from('planned_sessions')
-    .select('id, session_label, modality, status, activity_id')
-    .eq('user_id', userId)
-    .eq('scheduled_date', dateISO)
-    .in('status', ['planned', 'completed']);
+  let sessions: PlannedSessionSummary[];
+  try {
+    const { data } = await supabase
+      .from('planned_sessions')
+      .select('id, session_label, modality, status, activity_id')
+      .eq('user_id', userId)
+      .eq('scheduled_date', dateISO)
+      .in('status', ['planned', 'completed']);
 
-  const sessions = (data ?? []) as PlannedSessionSummary[];
+    sessions = (data ?? []) as PlannedSessionSummary[];
+  } catch (e) {
+    console.error('[dailyTrainingContext] planned_sessions fetch:', e);
+    sessions = sessionsFromCache(dateISO);
+  }
 
   // Unplanned work counts too. An activity already matched to one of today's
   // planned sessions is that session, so counting both would double up.

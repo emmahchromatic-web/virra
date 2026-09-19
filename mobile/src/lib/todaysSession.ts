@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { modulateForCycle, modulateRunStructure, type SessionType } from './cycleModulation';
 import { summariseRunStructure, summariseStrengthStructure } from './workoutStructure';
 import { useCycleStore } from '@/store/cycle';
+import { useSessionStore } from '@/store/sessionStore';
 import { hydratePlannedSessionStructures, persistHydratedRows } from './hydratePlannedSessions';
 
 export interface TodaysSession {
@@ -50,14 +51,42 @@ interface ActivityRow {
 }
 
 /**
+ * Reads today's planned-session rows straight out of the shared session-store
+ * cache, applying the same filters as the direct query below (excludes
+ * 'moved' and 'dropped'). Returns null -- not an empty array -- when the
+ * store has no data cached for `today` at all yet (e.g. right after a fresh
+ * sign-in before any date range has loaded), so the caller knows to fall
+ * back to a direct query rather than mistaking "not loaded" for "nothing
+ * planned".
+ */
+function readCachedTodaySessions(today: string): PlannedSessionRow[] | null {
+  const { byId, idsByDate } = useSessionStore.getState();
+  const ids = idsByDate[today];
+  if (!ids) return null;
+  return ids
+    .map((id) => byId[id])
+    .filter((r) => !!r && r.status !== 'moved' && r.status !== 'dropped') as unknown as PlannedSessionRow[];
+}
+
+/**
  * Returns the user's planned sessions for today, with linked activity metrics
  * hydrated when the session has been completed. Excludes 'moved' (which leaves
  * a placeholder pointing to a replacement row) and 'dropped' (intentionally
  * abandoned). The caller decides how to render an empty list; e.g. "Rest day"
  * or "No session planned".
+ *
+ * Cache-first: reads today's rows from the shared session-store cache when
+ * it has already loaded a range covering today, so a warm dashboard doesn't
+ * re-issue a query the store already answered. Falls back to a direct query
+ * only when the store has nothing cached for today yet.
  */
 export async function getTodaysSessions(userId: string): Promise<TodaysSession[]> {
   const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+
+  const cached = readCachedTodaySessions(today);
+  if (cached) {
+    return enrichTodaysSessions(userId, cached);
+  }
 
   const { data: planned, error } = await supabase
     .from('planned_sessions')
@@ -70,6 +99,57 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
   if (error || !planned?.length) return [];
 
   return enrichTodaysSessions(userId, planned as PlannedSessionRow[]);
+}
+
+/** Fallback shape used when the activities-by-id lookup fails: same empty
+ * shape the code already falls through to when there are no linked ids. */
+async function fetchActivitiesByIds(ids: string[]): Promise<{ data: ActivityRow[] }> {
+  if (!ids.length) return { data: [] };
+  try {
+    const res = await supabase
+      .from('activities')
+      .select('id, activity_type, distance_meters, duration_seconds')
+      .in('id', ids);
+    return { data: (res.data ?? []) as ActivityRow[] };
+  } catch {
+    return { data: [] };
+  }
+}
+
+/** Fallback shape used when the profile lookup fails: `data: null`, so the
+ * existing `?? 360` / `?? 30` defaults below take over exactly as they do
+ * when a user legitimately has no profile row yet. */
+async function fetchProfileBaseline(
+  userId: string,
+): Promise<{ data: { baseline_pace_seconds_per_km: number | null; weekly_mileage_km: number | null } | null }> {
+  try {
+    const res = await supabase
+      .from('user_profiles')
+      .select('baseline_pace_seconds_per_km, weekly_mileage_km')
+      .eq('id', userId)
+      .maybeSingle();
+    return { data: res.data ?? null };
+  } catch {
+    return { data: null };
+  }
+}
+
+type TodayActivityRow = ActivityRow & { planned_session_id: string | null; started_at: string };
+
+/** Fallback shape used when today's-activities lookup fails: same empty
+ * array the code already handles via `?? []` below. */
+async function fetchTodayActivities(userId: string, today: string): Promise<{ data: TodayActivityRow[] }> {
+  try {
+    const res = await supabase
+      .from('activities')
+      .select('id, activity_type, distance_meters, duration_seconds, planned_session_id, started_at')
+      .eq('user_id', userId)
+      .gte('started_at', `${today}T00:00:00`)
+      .lt('started_at',  `${today}T23:59:59`);
+    return { data: (res.data ?? []) as TodayActivityRow[] };
+  } catch {
+    return { data: [] };
+  }
 }
 
 /**
@@ -87,25 +167,15 @@ export async function enrichTodaysSessions(
   const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
   const activityIds = rows.map((r) => r.activity_id).filter((id): id is string => !!id);
 
-  // Fetch baseline pace and activity data in parallel
+  // Fetch baseline pace and activity data in parallel. Each call is wrapped
+  // independently so a single rejection (a real network failure -- Postgrest
+  // errors resolve rather than reject and are handled the same as before)
+  // can't sink the other two's data: previously these were combined in one
+  // Promise.all, so one dropped connection blanked out all three.
   const [activityResult, profileResult, todayActsResult] = await Promise.all([
-    activityIds.length
-      ? supabase
-          .from('activities')
-          .select('id, activity_type, distance_meters, duration_seconds')
-          .in('id', activityIds)
-      : Promise.resolve({ data: [] }),
-    supabase
-      .from('user_profiles')
-      .select('baseline_pace_seconds_per_km, weekly_mileage_km')
-      .eq('id', userId)
-      .maybeSingle(),
-    supabase
-      .from('activities')
-      .select('id, activity_type, distance_meters, duration_seconds, planned_session_id, started_at')
-      .eq('user_id', userId)
-      .gte('started_at', `${today}T00:00:00`)
-      .lt('started_at',  `${today}T23:59:59`),
+    fetchActivitiesByIds(activityIds),
+    fetchProfileBaseline(userId),
+    fetchTodayActivities(userId, today),
   ]);
 
   const activityMap: Record<string, ActivityRow> = Object.fromEntries(
