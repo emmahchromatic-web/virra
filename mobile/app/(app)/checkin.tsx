@@ -12,6 +12,8 @@ import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
+import { enqueue } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
 
 const SYMPTOMS = [
   'Cramps', 'Spotting', 'Headache', 'Bloating',
@@ -98,7 +100,7 @@ export default function CheckInScreen() {
   async function handleSave() {
     if (!session) return;
     setSaving(true);
-    const { error } = await supabase.from('symptom_logs').upsert({
+    const payload = {
       user_id:       session.user.id,
       recorded_on:   new Date().toISOString().split('T')[0],
       energy,
@@ -106,11 +108,31 @@ export default function CheckInScreen() {
       sleep_quality: sleep,
       symptoms:      Array.from(symptoms),
       notes:         notes.trim() || null,
-    }, { onConflict: 'user_id,recorded_on' });
+    };
+    const { error } = await supabase.from('symptom_logs').upsert(
+      payload, { onConflict: 'user_id,recorded_on' },
+    );
 
     setSaving(false);
     if (error) {
-      appAlert('Could not save', error.message);
+      // Card 253 / J3a. The write can fail offline (or on a transient server
+      // blip) same as a workout completion — queue it and let her carry on
+      // rather than stranding her on the screen with a dead-end alert.
+      await enqueue(session.user.id, 'checkIn', payload);
+      // Fire-and-forget, same as `run.tsx`/`workout-preview.tsx`: surfaces the
+      // pending item on the sync pill immediately and retries at once if the
+      // device is actually online.
+      syncPending(session.user.id);
+      setHasExisting(true);
+      cancelCheckinReminderToday();
+      // Close before alerting, same as `workout-preview.tsx`'s offline path:
+      // once this screen's own host has unmounted, the alert renders on the
+      // screen underneath instead of racing this modal's dismiss animation.
+      router.back();
+      appAlert(
+        'Saved on your phone',
+        'You are offline, so this check-in will sync as soon as you have signal. Nothing is lost.',
+      );
     } else {
       setHasExisting(true);
       cancelCheckinReminderToday();

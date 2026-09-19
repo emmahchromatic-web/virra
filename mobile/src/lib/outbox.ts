@@ -16,10 +16,19 @@ const OUTBOX_PREFIX        = 'virra:outbox:v1:';
 const DEAD_LETTER_PREFIX   = 'virra:outbox_failed:v1:';
 const LEGACY_QUEUE_PREFIX  = 'virra:pending_completions:v1:';
 
-export type MutationKind = 'completeWorkout';
+export type MutationKind = 'completeWorkout' | 'checkIn';
 
 export interface MutationPayloadMap {
   completeWorkout: PendingCompletion;
+  checkIn: {
+    user_id:       string;
+    recorded_on:   string;
+    energy:        number;
+    mood:          number;
+    sleep_quality: number;
+    symptoms:      string[];
+    notes:         string | null;
+  };
 }
 
 export interface OutboxItem<K extends MutationKind = MutationKind> {

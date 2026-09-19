@@ -5,6 +5,11 @@ import {
 } from '@/lib/outbox';
 import { SupabaseWriteError } from '@/lib/outbox/errors';
 
+// Every payload enqueued in this file is `completeWorkout`; narrow the
+// `MutationPayloadMap[MutationKind]` union `.payload` comes back as (now that
+// `checkIn` is a second member) back down to the shape these assertions need.
+const asCompleteWorkout = (p: unknown) => p as MutationPayloadMap['completeWorkout'];
+
 const okHandler = jest.fn().mockResolvedValue(undefined);
 const networkErrorHandler = jest.fn().mockRejectedValue(new Error('Network request failed'));
 const permanentErrorHandler = jest.fn().mockRejectedValue(new Error('row-level security violation'));
@@ -66,7 +71,7 @@ describe('outbox — enqueue and drain', () => {
     await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
     const result = await drain('u1');
     expect(result.deadLettered).toHaveLength(1);
-    expect(result.deadLettered[0].payload.activity.started_at).toBe('2026-09-19T08:00:00Z');
+    expect(asCompleteWorkout(result.deadLettered[0].payload).activity.started_at).toBe('2026-09-19T08:00:00Z');
   });
 
   it('dismissing a dead letter removes only that item', async () => {
@@ -179,7 +184,7 @@ describe('outbox — enqueue and drain', () => {
     expect(result.sent).toBe(1);
     const remaining = await readOutbox('u1');
     expect(remaining).toHaveLength(1);
-    expect(remaining[0].payload.activity.started_at).toBe('2026-09-19T18:00:00Z');
+    expect(asCompleteWorkout(remaining[0].payload).activity.started_at).toBe('2026-09-19T18:00:00Z');
     expect(result.left).toBe(1);
   });
 
@@ -208,7 +213,7 @@ describe('outbox — enqueue and drain', () => {
     await drainPromise;
 
     const remaining = await readOutbox('u1');
-    const startedAts = remaining.map((i) => i.payload.activity.started_at).sort();
+    const startedAts = remaining.map((i) => asCompleteWorkout(i.payload).activity.started_at).sort();
     expect(startedAts).toEqual(['2026-09-19T09:00:00Z', '2026-09-19T10:00:00Z', '2026-09-19T11:00:00Z']);
   });
 
@@ -223,7 +228,7 @@ describe('outbox — enqueue and drain', () => {
 
     const items = await readOutbox('u1');
     expect(items).toHaveLength(1);
-    expect(items[0].payload.activity.started_at).toBe('2026-09-19T08:00:00Z');
+    expect(asCompleteWorkout(items[0].payload).activity.started_at).toBe('2026-09-19T08:00:00Z');
 
     // A genuinely different workout still queues.
     await enqueue('u1', 'completeWorkout', payload('2026-09-19T18:00:00Z'));
@@ -251,7 +256,7 @@ describe('outbox — enqueue and drain', () => {
 
     const remaining = await readOutbox('u1');
     expect(remaining).toHaveLength(1);
-    expect(remaining[0].payload.activity.started_at).toBe('2026-09-19T08:00:00Z');
+    expect(asCompleteWorkout(remaining[0].payload).activity.started_at).toBe('2026-09-19T08:00:00Z');
   });
 
   it('keeps an item whose kind has no registered handler, rather than dropping it', async () => {
