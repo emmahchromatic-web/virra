@@ -1,8 +1,37 @@
 import { supabase } from '@/lib/supabase';
-import { resolveTargetsForTier, type PersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
+import { resolveTargetsForTier, type NutritionTargets, type PersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import type { CyclePhase } from '@/store/cycle';
 
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type FoodEntrySource = 'manual' | 'common' | 'off' | 'barcode' | 'haiku' | 'recipe';
+
+/** Mirrors the columns the Nutrition tab has always selected off `food_entries`. */
+export interface FoodEntryRow {
+  id:            string;
+  meal_type:     MealType;
+  food_name:     string;
+  calories:      number;
+  carbs_g:       number;
+  protein_g:     number;
+  fat_g:         number;
+  fibre_g:       number;
+  quantity_g:    number | null;
+  quantity_unit: string | null;
+  source:        FoodEntrySource;
+  haiku_input:   string | null;
+  log_id:        string;
+}
+
+const FOOD_ENTRY_COLUMNS =
+  'id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, quantity_unit, source, haiku_input, log_id';
+
+export interface NutritionDaySnapshot {
+  logId:        string | null;
+  trainingLoad: TrainingLoad | null;
+  inferredLoad: TrainingLoad | null;
+  targetsJson:  NutritionTargets | null;
+  entries:      FoodEntryRow[];
+}
 
 /**
  * Pick a sensible default meal slot from the time of day, so a quick-log from
@@ -68,4 +97,47 @@ export async function getOrCreateTodayLogId(ctx: TodayLogContext): Promise<strin
     return null;
   }
   return data?.id ?? null;
+}
+
+/**
+ * Pure READ of one day's `nutrition_logs` row (if any) plus its `food_entries`
+ * -- the query the Nutrition tab has always run for display, extracted here
+ * so `nutritionDay.ts`'s store can wrap it as a cache-first refresh without
+ * duplicating the query logic, and without going anywhere near
+ * `getOrCreateTodayLogId`'s upsert.
+ *
+ * A day with no logged row yet is a legitimate, successful "nothing here"
+ * result -- not an error -- and resolves with `logId: null` and `entries: []`.
+ * A genuine Supabase error throws, so a caller (the store's `refresh()`) can
+ * tell "no data" apart from "the read failed" and leave its cache untouched
+ * on the latter.
+ */
+export async function getNutritionDay(userId: string, recordedOn: string): Promise<NutritionDaySnapshot> {
+  const { data: log, error: logError } = await supabase
+    .from('nutrition_logs')
+    .select('id, training_load, inferred_load, targets_json')
+    .eq('user_id', userId)
+    .eq('recorded_on', recordedOn)
+    .maybeSingle();
+
+  if (logError) throw new Error(logError.message);
+
+  if (!log) {
+    return { logId: null, trainingLoad: null, inferredLoad: null, targetsJson: null, entries: [] };
+  }
+
+  const { data: entries, error: entriesError } = await supabase
+    .from('food_entries')
+    .select(FOOD_ENTRY_COLUMNS)
+    .eq('log_id', log.id);
+
+  if (entriesError) throw new Error(entriesError.message);
+
+  return {
+    logId:        log.id,
+    trainingLoad: (log.training_load as TrainingLoad | null) ?? null,
+    inferredLoad: (log.inferred_load as TrainingLoad | null) ?? null,
+    targetsJson:  (log.targets_json as NutritionTargets | null) ?? null,
+    entries:      (entries ?? []) as unknown as FoodEntryRow[],
+  };
 }

@@ -40,6 +40,7 @@ export const USER_CACHE_KEYS = [
   'virra:profile:v1',
   'virra:cycle:v1',
   'virra:subscription:v1',
+  'virra:nutrition:v1',
   'virra:equipment_preference_asked',
   'virra:recipes_dietary_asked',
 ];

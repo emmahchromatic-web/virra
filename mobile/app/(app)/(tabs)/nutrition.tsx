@@ -15,6 +15,8 @@ import { resolveTargetsForTier, buildPersonalMetrics, LOAD_LABELS, type Training
 import { useIsPro } from '@/lib/pro';
 import { ProLockedCard } from '@/components/ui/ProLockedCard';
 import { getDailyTrainingContext, type DailyTrainingContext } from '@/lib/dailyTrainingContext';
+import { useNutritionDay } from '@/store/nutritionDay';
+import { formatRelativeTime } from '@/lib/relativeTime';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
 import { VirraText } from '@/components/ui/VirraText';
@@ -244,7 +246,6 @@ export default function NutritionScreen() {
   const isPro   = useIsPro();
 
   const [load,    setLoad]    = useState<TrainingLoad>('easy');
-  const [entries, setEntries] = useState<FoodEntry[]>([]);
   const [logId,   setLogId]   = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dailyContext, setDailyContext] = useState<DailyTrainingContext | null>(null);
@@ -253,6 +254,13 @@ export default function NutritionScreen() {
 
   const today   = new Date().toISOString().split('T')[0];
   const targets = resolveTargetsForTier(isPro, metrics, cycleInfo?.phase ?? null, load);
+
+  // Cache-first: entries render from the store immediately on mount (from
+  // whatever was persisted last session), while refresh() below reconciles
+  // with the server in the background.
+  const entries   = useNutritionDay((s) => s.days[today]?.entries ?? []);
+  const fetchedAt = useNutritionDay((s) => s.days[today]?.fetchedAt ?? null);
+  const isStale   = !!fetchedAt && Date.now() - new Date(fetchedAt).getTime() > 24 * 60 * 60 * 1000;
 
   const totals = entries.reduce(
     (acc, e) => ({
@@ -274,14 +282,9 @@ export default function NutritionScreen() {
   }, [session, today, isPro]);
 
   useFocusEffect(useCallback(() => {
-    if (session && logId) {
-      supabase
-        .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, quantity_unit, source, haiku_input, log_id')
-        .eq('log_id', logId)
-        .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
-    }
-  }, [logId]));
+    if (!session) return;
+    void useNutritionDay.getState().refresh(today);
+  }, [session, today]));
 
   async function loadData() {
     if (!session) return;
@@ -336,12 +339,12 @@ export default function NutritionScreen() {
 
     if (log) {
       setLogId(log.id);
-      const { data: food } = await supabase
-        .from('food_entries')
-        .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, quantity_unit, source, haiku_input, log_id')
-        .eq('log_id', log.id);
-      setEntries((food as FoodEntry[]) ?? []);
     }
+    // Entries for display come from the cache-first store, not a direct read
+    // here -- refresh() re-fetches today's food_entries (and re-derives them
+    // from whatever nutrition_logs row exists) independently of the upsert
+    // above.
+    void useNutritionDay.getState().refresh(today);
     setLoading(false);
   }
 
@@ -415,23 +418,23 @@ export default function NutritionScreen() {
 
   async function handleDeleteEntry(entry: FoodEntry) {
     await supabase.from('food_entries').delete().eq('id', entry.id);
-    // Optimistically remove from local state for instant feedback
-    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    // Optimistically remove from the cache for instant feedback
+    useNutritionDay.getState().removeEntryLocal(today, entry.id);
   }
 
   function reloadEntries() {
-    if (!logId) return;
-    supabase
-      .from('food_entries')
-      .select('id, meal_type, food_name, calories, carbs_g, protein_g, fat_g, fibre_g, quantity_g, quantity_unit, source, haiku_input, log_id')
-      .eq('log_id', logId)
-      .then(({ data }) => setEntries((data as FoodEntry[]) ?? []));
+    void useNutritionDay.getState().refresh(today);
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaView style={styles.safe}>
       <AppHeader title="Nutrition" />
+      {isStale && (
+        <VirraText variant="mono" size={10} color={colors.muted} style={styles.staleLine}>
+          LAST UPDATED {formatRelativeTime(fetchedAt!)}
+        </VirraText>
+      )}
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         {/* Training load selector */}
@@ -585,6 +588,7 @@ export default function NutritionScreen() {
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: colors.mile },
   scroll:       { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+  staleLine:    { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, letterSpacing: 1 },
   loadRow:      { gap: spacing.sm },
   loadLabel:    { letterSpacing: 1.5 },
   loadChips:    { flexDirection: 'row', gap: spacing.sm },
