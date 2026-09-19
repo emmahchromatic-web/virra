@@ -150,6 +150,34 @@ describe('sessionStore.applyLocalCompletion', () => {
   });
 });
 
+describe('sessionStore.revertLocalCompletion', () => {
+  it('flips a locally-completed session back to planned', () => {
+    useSessionStore.getState().applyLocalCompletion('s1', 'local_123_abc');
+    useSessionStore.getState().revertLocalCompletion('s1');
+    const row = useSessionStore.getState().byId['s1'];
+    expect(row.status).toBe('planned');
+    expect(row.activity_id).toBeNull();
+  });
+
+  it('does nothing to a session the server has already confirmed', () => {
+    useSessionStore.getState().markComplete('s1', 'real-server-id').catch(() => {});
+    // markComplete sets activity_id to a real id, not a local_ placeholder --
+    // revertLocalCompletion must never touch that.
+    useSessionStore.setState({
+      byId: { ...useSessionStore.getState().byId, s1: { ...useSessionStore.getState().byId['s1'], activity_id: 'real-server-id', status: 'completed' } },
+    });
+    useSessionStore.getState().revertLocalCompletion('s1');
+    const row = useSessionStore.getState().byId['s1'];
+    expect(row.status).toBe('completed');
+    expect(row.activity_id).toBe('real-server-id');
+  });
+
+  it('is a no-op for a session not in the cache', () => {
+    useSessionStore.getState().revertLocalCompletion('does-not-exist');
+    expect(useSessionStore.getState().byId['does-not-exist']).toBeUndefined();
+  });
+});
+
 describe('sessionStore.reconcileFromActivities', () => {
   it('returns linked: 0 with no unlinked activities (orchestration smoke test)', async () => {
     const result = await useSessionStore.getState().reconcileFromActivities();

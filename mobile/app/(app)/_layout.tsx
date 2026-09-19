@@ -204,7 +204,7 @@ export default function AppLayout() {
         // setting the count afterwards left it at 0 for the whole drain, so the
         // state was unreachable on the ordinary reconnect-and-succeed path.
         useOutboxStatus.getState().setSyncing(true);
-        const result = await drain(session.user.id).catch(() => ({ sent: 0, left: pendingBefore.length, failed: 0 }));
+        const result = await drain(session.user.id).catch(() => ({ sent: 0, left: pendingBefore.length, failed: 0, deadLettered: [] }));
         const deadLetters = await readDeadLetters(session.user.id);
         useOutboxStatus.getState().setCounts(result.left, deadLetters.length);
         useOutboxStatus.getState().setSyncing(false);

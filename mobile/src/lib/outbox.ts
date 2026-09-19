@@ -31,7 +31,7 @@ export interface OutboxItem<K extends MutationKind = MutationKind> {
   lastError?: string;
 }
 
-export interface Drain { sent: number; left: number; failed: number }
+export interface Drain { sent: number; left: number; failed: number; deadLettered: OutboxItem[] }
 
 export type Handler<K extends MutationKind> = (payload: MutationPayloadMap[K]) => Promise<void>;
 
@@ -264,7 +264,7 @@ export async function drain(userId: string): Promise<Drain> {
       await writeList(deadLetterKey(userId), [...currentDead, ...newDeadLetters]);
     }
 
-    return { sent, left: remaining.length, failed };
+    return { sent, left: remaining.length, failed, deadLettered: newDeadLetters };
   })();
 
   inFlight.set(userId, promise);

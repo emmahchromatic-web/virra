@@ -26,7 +26,7 @@ describe('outbox — enqueue and drain', () => {
     expect(await readOutbox('u1')).toHaveLength(2);
 
     const result = await drain('u1');
-    expect(result).toEqual({ sent: 2, left: 0, failed: 0 });
+    expect(result).toEqual({ sent: 2, left: 0, failed: 0, deadLettered: [] });
     expect(okHandler).toHaveBeenNthCalledWith(1, expect.objectContaining({ activity: expect.objectContaining({ started_at: '2026-09-19T08:00:00Z' }) }));
     expect(okHandler).toHaveBeenNthCalledWith(2, expect.objectContaining({ activity: expect.objectContaining({ started_at: '2026-09-19T18:00:00Z' }) }));
     expect(await readOutbox('u1')).toHaveLength(0);
@@ -38,7 +38,7 @@ describe('outbox — enqueue and drain', () => {
     await enqueue('u1', 'completeWorkout', payload('2026-09-19T18:00:00Z'));
 
     const result = await drain('u1');
-    expect(result).toEqual({ sent: 0, left: 2, failed: 0 });
+    expect(result).toEqual({ sent: 0, left: 2, failed: 0, deadLettered: [] });
     expect(networkErrorHandler).toHaveBeenCalledTimes(1);
     const remaining = await readOutbox('u1');
     expect(remaining[0].attempts).toBe(1);
@@ -50,11 +50,22 @@ describe('outbox — enqueue and drain', () => {
     await enqueue('u1', 'completeWorkout', payload('2026-09-19T18:00:00Z'));
 
     const result = await drain('u1');
-    expect(result).toEqual({ sent: 0, left: 0, failed: 2 });
+    expect(result.sent).toBe(0);
+    expect(result.left).toBe(0);
+    expect(result.failed).toBe(2);
+    expect(result.deadLettered).toHaveLength(2);
     expect(await readOutbox('u1')).toHaveLength(0);
     const deadLetters = await readDeadLetters('u1');
     expect(deadLetters).toHaveLength(2);
     expect(deadLetters[0].lastError).toMatch(/row-level security/);
+  });
+
+  it('reports which items it dead-lettered in this call, not the whole dead-letter list', async () => {
+    registerHandler('completeWorkout', permanentErrorHandler as unknown as (p: MutationPayloadMap['completeWorkout']) => Promise<void>);
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+    const result = await drain('u1');
+    expect(result.deadLettered).toHaveLength(1);
+    expect(result.deadLettered[0].payload.activity.started_at).toBe('2026-09-19T08:00:00Z');
   });
 
   it('dismissing a dead letter removes only that item', async () => {
@@ -83,20 +94,20 @@ describe('outbox — enqueue and drain', () => {
       const result = await drainRejectingWith(
         Object.assign(new Error('Internal Server Error'), { status: 500, code: '57P01' }),
       );
-      expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+      expect(result).toEqual({ sent: 0, left: 1, failed: 0, deadLettered: [] });
       expect(await readDeadLetters('u1')).toHaveLength(0);
       expect((await readOutbox('u1'))[0].attempts).toBe(1);
     });
 
     it('retries an expired refresh token instead of dead-lettering it', async () => {
       const result = await drainRejectingWith(new Error('Invalid Refresh Token: Refresh Token Not Found'));
-      expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+      expect(result).toEqual({ sent: 0, left: 1, failed: 0, deadLettered: [] });
       expect(await readDeadLetters('u1')).toHaveLength(0);
     });
 
     it('retries an unrecognised error instead of dead-lettering it', async () => {
       const result = await drainRejectingWith(new Error('something nobody has seen before'));
-      expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+      expect(result).toEqual({ sent: 0, left: 1, failed: 0, deadLettered: [] });
       expect(await readDeadLetters('u1')).toHaveLength(0);
     });
 
@@ -104,7 +115,10 @@ describe('outbox — enqueue and drain', () => {
       const result = await drainRejectingWith(
         Object.assign(new Error('permission denied for table activities'), { status: 403, code: '42501' }),
       );
-      expect(result).toEqual({ sent: 0, left: 0, failed: 1 });
+      expect(result.sent).toBe(0);
+      expect(result.left).toBe(0);
+      expect(result.failed).toBe(1);
+      expect(result.deadLettered).toHaveLength(1);
       expect(await readDeadLetters('u1')).toHaveLength(1);
     });
   });
@@ -186,7 +200,7 @@ describe('outbox — enqueue and drain', () => {
     ]));
 
     const result = await drain('u1');
-    expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+    expect(result).toEqual({ sent: 0, left: 1, failed: 0, deadLettered: [] });
     const remaining = await readOutbox('u1');
     expect(remaining).toHaveLength(1);
     expect(remaining[0].id).toBe('ob_unknown');

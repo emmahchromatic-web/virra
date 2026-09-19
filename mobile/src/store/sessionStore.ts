@@ -163,6 +163,14 @@ export const useSessionStore = create<SessionStore>()(
           byId: { ...get().byId, [sessionId]: { ...prev, status: 'completed', activity_id: activityId } },
         });
       },
+      revertLocalCompletion: (sessionId) => {
+        const prev = get().byId[sessionId];
+        if (!prev) return;
+        if (typeof prev.activity_id !== 'string' || !prev.activity_id.startsWith(LOCAL_ACTIVITY_PREFIX)) return;
+        set({
+          byId: { ...get().byId, [sessionId]: { ...prev, status: 'planned', activity_id: null } },
+        });
+      },
       dropSession: async (sessionId) => {
         const prev = get().byId[sessionId];
         if (!prev) return;

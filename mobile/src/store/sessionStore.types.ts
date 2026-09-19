@@ -51,6 +51,14 @@ export interface SessionStoreActions {
    * truth (real id included).
    */
   applyLocalCompletion(sessionId: SessionId, activityId: string): void;
+  /**
+   * The inverse of `applyLocalCompletion`: reverts a session's optimistic
+   * local completion back to `planned`, and clears the placeholder
+   * `activity_id`. A no-op if the row's activity_id is no longer a local
+   * placeholder (the server has since confirmed it) -- this must never
+   * undo a real completion.
+   */
+  revertLocalCompletion(sessionId: SessionId): void;
   dropSession(sessionId: SessionId):                      Promise<void>;
   moveSession(sessionId: SessionId, newDate: DateISO):    Promise<SessionId>;
   linkActivity(activityId: string, sessionId: SessionId): Promise<void>;
