@@ -18,6 +18,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 import { enqueue } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
 
 function formatDuration(s: number): string {
   const h  = Math.floor(s / 3600);
@@ -230,6 +231,13 @@ export default function RunTrackerScreen() {
           `${LOCAL_ACTIVITY_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         );
       }
+      // Fire-and-forget, same as `_layout.tsx`'s three trigger sites. When the
+      // device is genuinely offline this just makes the pill say so at once;
+      // when the write failed transiently on a NOMINALLY online device (a 5xx,
+      // a dropped connection), it both surfaces the pending work immediately
+      // -- otherwise the pill stays silent until the next foreground or
+      // reconnect, which may never come this session -- and retries now.
+      syncPending(session.user.id);
       setSaving(false);
       appAlert(
         'Saved on your phone',
