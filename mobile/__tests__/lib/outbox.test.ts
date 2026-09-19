@@ -66,9 +66,131 @@ describe('outbox — enqueue and drain', () => {
     expect(await readDeadLetters('u1')).toHaveLength(0);
   });
 
+  /**
+   * An hour's workout is never discarded by a guess. Anything we cannot
+   * confidently call non-retryable stays queued, so the safe answer is the
+   * default rather than the exception.
+   */
+  describe('error classification defaults to retry', () => {
+    async function drainRejectingWith(e: unknown) {
+      const handler = jest.fn().mockRejectedValue(e);
+      registerHandler('completeWorkout', handler as unknown as (p: MutationPayloadMap['completeWorkout']) => Promise<void>);
+      await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+      return drain('u1');
+    }
+
+    it('retries a 5xx from PostgREST instead of dead-lettering it', async () => {
+      const result = await drainRejectingWith(
+        Object.assign(new Error('Internal Server Error'), { status: 500, code: '57P01' }),
+      );
+      expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+      expect(await readDeadLetters('u1')).toHaveLength(0);
+      expect((await readOutbox('u1'))[0].attempts).toBe(1);
+    });
+
+    it('retries an expired refresh token instead of dead-lettering it', async () => {
+      const result = await drainRejectingWith(new Error('Invalid Refresh Token: Refresh Token Not Found'));
+      expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+      expect(await readDeadLetters('u1')).toHaveLength(0);
+    });
+
+    it('retries an unrecognised error instead of dead-lettering it', async () => {
+      const result = await drainRejectingWith(new Error('something nobody has seen before'));
+      expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+      expect(await readDeadLetters('u1')).toHaveLength(0);
+    });
+
+    it('still dead-letters what it can positively identify as permanent', async () => {
+      const result = await drainRejectingWith(
+        Object.assign(new Error('permission denied for table activities'), { status: 403, code: '42501' }),
+      );
+      expect(result).toEqual({ sent: 0, left: 0, failed: 1 });
+      expect(await readDeadLetters('u1')).toHaveLength(1);
+    });
+  });
+
+  it('does not lose an item enqueued while a drain is in flight', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const slowHandler = jest.fn().mockImplementation(() => gate);
+    registerHandler('completeWorkout', slowHandler as unknown as (p: MutationPayloadMap['completeWorkout']) => Promise<void>);
+
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+    const draining = drain('u1');
+    // The handler having been entered is the proof the drain has taken its
+    // snapshot, so the enqueue below is unambiguously mid-flight.
+    while (slowHandler.mock.calls.length === 0) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 0));
+    }
+
+    // The user finishes a second workout mid-drain. `enqueue` appends it to
+    // disk; the drain must not write its pre-drain snapshot over the top.
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T18:00:00Z'));
+
+    release();
+    const result = await draining;
+
+    expect(result.sent).toBe(1);
+    const remaining = await readOutbox('u1');
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].payload.activity.started_at).toBe('2026-09-19T18:00:00Z');
+    expect(result.left).toBe(1);
+  });
+
   it('is isolated per user', async () => {
     await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
     expect(await readOutbox('u2')).toHaveLength(0);
+  });
+
+  it('dedupes a double-tapped Finish: the same workout enqueued twice is one item', async () => {
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+
+    const items = await readOutbox('u1');
+    expect(items).toHaveLength(1);
+    expect(items[0].payload.activity.started_at).toBe('2026-09-19T08:00:00Z');
+
+    // A genuinely different workout still queues.
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T18:00:00Z'));
+    expect(await readOutbox('u1')).toHaveLength(2);
+  });
+
+  it('keeps a re-tapped Finish queued even when the drain that sent it is still in flight', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const slowHandler = jest.fn().mockImplementation(() => gate);
+    registerHandler('completeWorkout', slowHandler as unknown as (p: MutationPayloadMap['completeWorkout']) => Promise<void>);
+
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+    const draining = drain('u1');
+    while (slowHandler.mock.calls.length === 0) {
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 0));
+    }
+
+    // Same workout, re-submitted mid-drain. It must not create a second item,
+    // and it must not be swept away by the drain removing the id it replaced.
+    await enqueue('u1', 'completeWorkout', payload('2026-09-19T08:00:00Z'));
+    release();
+    await draining;
+
+    const remaining = await readOutbox('u1');
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].payload.activity.started_at).toBe('2026-09-19T08:00:00Z');
+  });
+
+  it('keeps an item whose kind has no registered handler, rather than dropping it', async () => {
+    await AsyncStorage.setItem('virra:outbox:v1:u1', JSON.stringify([
+      { id: 'ob_unknown', kind: 'notAKindYet', payload: {}, createdAt: '2026-09-19T09:00:00Z', attempts: 0 },
+    ]));
+
+    const result = await drain('u1');
+    expect(result).toEqual({ sent: 0, left: 1, failed: 0 });
+    const remaining = await readOutbox('u1');
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].id).toBe('ob_unknown');
+    expect(await readDeadLetters('u1')).toHaveLength(0);
   });
 
   it('migrates the legacy card-253 queue on first read, then deletes it', async () => {

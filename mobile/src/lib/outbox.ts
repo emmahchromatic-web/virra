@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PendingCompletion } from '@/lib/pendingCompletions';
+import { describeError } from '@/lib/outbox/errors';
 
 /**
  * Generalises the card-253 `pendingCompletions` queue (one kind: finishing a
@@ -103,19 +104,102 @@ export async function dismissDeadLetter(userId: string, id: string): Promise<voi
   await writeList(deadLetterKey(userId), items.filter((i) => i.id !== id));
 }
 
+/**
+ * Per-kind identity: two payloads with the same key are the same logical
+ * mutation, however many times a screen asked for it.
+ *
+ * WHY. The card-253 queue deduped finished workouts on `(kind, started_at)`
+ * precisely because a double-tap on Finish — or a retry after what looked like
+ * a hang — queued the same workout twice. Making one item's replay idempotent
+ * (see the completeWorkout handler) does not help there: two *separate* items
+ * each write their own set rows. The guard has to live here, on the one path
+ * every caller goes through.
+ *
+ * A kind with no entry here simply never dedupes, which is the right default
+ * for J2/J3 kinds where every call is a distinct intent.
+ */
+const dedupeKeys: { [K in MutationKind]?: (payload: MutationPayloadMap[K]) => string | null } = {
+  completeWorkout: (p) => {
+    const startedAt = p.activity?.started_at;
+    return startedAt ? `${p.kind}:${String(startedAt)}` : null;
+  },
+};
+
+function dedupeKeyFor(kind: MutationKind, payload: unknown): string | null {
+  const fn = dedupeKeys[kind] as ((p: unknown) => string | null) | undefined;
+  if (!fn) return null;
+  try {
+    return fn(payload);
+  } catch {
+    // A malformed payload must never stop someone finishing a workout; it just
+    // does not dedupe.
+    return null;
+  }
+}
+
 export async function enqueue<K extends MutationKind>(
   userId: string, kind: K, payload: MutationPayloadMap[K],
 ): Promise<OutboxItem<K>> {
   const items = await readOutbox(userId);
+
+  const key = dedupeKeyFor(kind, payload);
+  if (key) {
+    const existing = items.find((i) => i.kind === kind && dedupeKeyFor(i.kind, i.payload) === key);
+    if (existing) {
+      // Replace in place: same queue position, same attempt count, but the
+      // newest payload wins (a second Finish tap can carry a corrected set).
+      //
+      // The id changes only when a drain is running, because that drain may
+      // already have sent the item it is replacing and will remove that id when
+      // it finishes -- taking this newer payload with it. A fresh id survives
+      // that, and replaying it is free: every write in the handler is
+      // idempotent on (user_id, started_at).
+      const id = inFlight.has(userId) ? makeOutboxId() : existing.id;
+      const replaced = { ...existing, id, payload } as OutboxItem<K>;
+      await writeList(outboxKey(userId), items.map((i) => (i.id === existing.id ? replaced : i)) as OutboxItem[]);
+      return replaced;
+    }
+  }
+
   const item: OutboxItem<K> = { id: makeOutboxId(), kind, payload, createdAt: new Date().toISOString(), attempts: 0 };
   await writeList(outboxKey(userId), [...items, item] as OutboxItem[]);
   return item;
 }
 
-/** Network failures are retried; everything else is a permanent rejection. */
-function isNetworkError(e: unknown): boolean {
-  const message = e instanceof Error ? e.message : String(e);
-  return /network|fetch|timeout|abort/i.test(message);
+/**
+ * Retryable unless we are *confident* the write can never succeed.
+ *
+ * WHY THE DEFAULT IS RETRY. This used to be the other way round: only
+ * /network|fetch|timeout|abort/ was retried and everything else was
+ * dead-lettered on the first attempt. That discarded a finished workout on an
+ * ordinary Postgres 5xx, and on an expired refresh token ("Invalid Refresh
+ * Token: Refresh Token Not Found"), both of which succeed on the next try. The
+ * plan's global constraint is explicit: an hour's workout is never discarded by
+ * a counter, and it should not be discarded by an unrecognised error message
+ * either. Retrying forever is recoverable; dead-lettering silently is not.
+ *
+ * 401 and 429 are deliberately NOT permanent despite being 4xx: 401 is what an
+ * expired access token looks like and the next drain runs after
+ * `getSession()` has refreshed it, and 429 is a rate limit that clears itself.
+ * The spec's "401 after a successful token refresh is permanent" needs the
+ * re-auth flow that J1 does not have yet.
+ */
+const RETRYABLE_STATUSES = new Set([401, 408, 425, 429]);
+
+/** SQLSTATE classes that can never succeed on replay: data exception (22),
+ *  integrity constraint violation (23), syntax error / access rule violation
+ *  (42, which includes 42501 insufficient_privilege). */
+const PERMANENT_CODE = /^(22|23|42)/;
+
+const PERMANENT_MESSAGE =
+  /row-level security|permission denied|insufficient[_ ]privilege|violates (unique|foreign key|check|not-null|exclusion) constraint|duplicate key value/i;
+
+function isPermanentError(e: unknown): boolean {
+  const { message, status, code } = describeError(e);
+  if (typeof status === 'number' && status >= 400 && status < 500 && !RETRYABLE_STATUSES.has(status)) return true;
+  if (code && PERMANENT_CODE.test(code)) return true;
+  if (PERMANENT_MESSAGE.test(message)) return true;
+  return false;
 }
 
 const inFlight = new Map<string, Promise<Drain>>();
@@ -127,48 +211,60 @@ export async function drain(userId: string): Promise<Drain> {
 
   const promise = (async (): Promise<Drain> => {
     const items = await readOutbox(userId);
-    const deadLetters = await readList(deadLetterKey(userId));
-    let sent = 0;
-    let failed = 0;
 
-    for (let i = 0; i < items.length; i += 1) {
-      const item = items[i];
+    // Every exit path below re-reads the outbox before writing, and removes
+    // only the items THIS call actually finished with.
+    //
+    // WHY. `items` is a snapshot taken before the first handler is awaited, and
+    // a drain takes as long as the network does. If someone finishes a workout
+    // mid-drain, `enqueue` appends it to disk correctly -- and the old code
+    // then wrote back a slice of the stale snapshot over the top of it, losing
+    // it silently. Ids, not slices.
+    const processed = new Set<string>();       // sent or dead-lettered
+    const newDeadLetters: OutboxItem[] = [];
+    let   bumped: OutboxItem | null = null;    // the item a retryable error halted on
+    let   sent = 0;
+    let   failed = 0;
+
+    for (const item of items) {
       const handler = handlers[item.kind];
       if (!handler) {
         // No handler registered yet (e.g. app cold-started mid-migration).
-        // Halt here, same as a network error, so this item and everything
-        // behind it stay queued in order for the next drain -- `continue`
-        // would silently drop them once the loop clears the outbox below.
-        const remaining = items.slice(i);
-        await writeList(outboxKey(userId), remaining);
-        await writeList(deadLetterKey(userId), deadLetters);
-        return { sent, left: remaining.length, failed };
+        // Halt here, same as a retryable error, so this item and everything
+        // behind it stay queued in order for the next drain.
+        break;
       }
 
       try {
         // eslint-disable-next-line no-await-in-loop
         await handler(item.payload as never);
         sent += 1;
+        processed.add(item.id);
       } catch (e) {
-        if (isNetworkError(e)) {
-          const bumped: OutboxItem = {
-            ...item, attempts: item.attempts + 1, lastError: e instanceof Error ? e.message : String(e),
-          };
-          const remaining = [bumped, ...items.slice(i + 1)];
-          await writeList(outboxKey(userId), remaining);
-          await writeList(deadLetterKey(userId), deadLetters);
-          return { sent, left: remaining.length, failed };
+        const { message } = describeError(e);
+        if (isPermanentError(e)) {
+          failed += 1;
+          processed.add(item.id);
+          newDeadLetters.push({ ...item, attempts: item.attempts + 1, lastError: message });
+          continue;
         }
-        failed += 1;
-        deadLetters.push({
-          ...item, attempts: item.attempts + 1, lastError: e instanceof Error ? e.message : String(e),
-        });
+        bumped = { ...item, attempts: item.attempts + 1, lastError: message };
+        break;
       }
     }
 
-    await writeList(outboxKey(userId), []);
-    await writeList(deadLetterKey(userId), deadLetters);
-    return { sent, left: 0, failed };
+    const current   = await readList(outboxKey(userId));
+    const remaining = current
+      .filter((i) => !processed.has(i.id))
+      .map((i) => (bumped && i.id === bumped.id ? bumped : i));
+    await writeList(outboxKey(userId), remaining);
+
+    if (newDeadLetters.length > 0) {
+      const currentDead = await readList(deadLetterKey(userId));
+      await writeList(deadLetterKey(userId), [...currentDead, ...newDeadLetters]);
+    }
+
+    return { sent, left: remaining.length, failed };
   })();
 
   inFlight.set(userId, promise);
