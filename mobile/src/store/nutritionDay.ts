@@ -22,7 +22,18 @@ export interface NutritionDayData {
 
 interface NutritionDayState {
   days:     Record<string, NutritionDayData>;
-  fetching: Set<string>;
+  /**
+   * One entry per `recordedOn` currently being fetched, holding the SHARED
+   * in-flight promise for that day rather than a bare boolean flag. Two
+   * legitimate call sites ask for the same day at nearly the same moment --
+   * the screen's own load effect and its focus effect -- and both need the
+   * SAME network round trip's result, not "whoever loses the race gets
+   * nothing." A caller that arrives while a fetch is already running awaits
+   * that same promise instead of starting a second one, so `refresh()`
+   * resolving is always a reliable signal that `days[recordedOn]` reflects
+   * the latest attempt (fresh data on success, untouched cache on failure).
+   */
+  inFlight: Record<string, Promise<void> | undefined>;
   refresh:          (recordedOn: string) => Promise<void>;
   /** Optimistic local removal (e.g. after a delete already committed to the
    *  server) -- avoids waiting on a round trip through `refresh()` just to
@@ -30,9 +41,9 @@ interface NutritionDayState {
   removeEntryLocal: (recordedOn: string, entryId: string) => void;
 }
 
-/** Raw fields persisted to AsyncStorage. `fetching` is an in-flight-request
- *  flag, not data, and must never be replayed as "fetching" from a stale
- *  cache on cold start. */
+/** Raw fields persisted to AsyncStorage. `inFlight` is an in-progress-request
+ *  map, not data, and must never be replayed as "still fetching" from a
+ *  stale cache on cold start. */
 interface PersistedNutritionDayState {
   days: Record<string, NutritionDayData>;
 }
@@ -41,42 +52,53 @@ export const useNutritionDay = create<NutritionDayState>()(
   persist(
     (set, get) => ({
       days:     {},
-      fetching: new Set<string>(),
+      inFlight: {},
 
       refresh: async (recordedOn) => {
-        if (get().fetching.has(recordedOn)) return;
-        const nextFetching = new Set(get().fetching);
-        nextFetching.add(recordedOn);
-        set({ fetching: nextFetching });
+        const existing = get().inFlight[recordedOn];
+        if (existing) {
+          // A fetch for this exact day is already running (e.g. kicked off by
+          // the screen's focus effect a tick earlier) -- join it instead of
+          // firing a second, redundant `nutrition_logs` + `food_entries` read.
+          await existing;
+          return;
+        }
 
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) return;
+        const fetchPromise = (async () => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
 
-          const snapshot = await getNutritionDay(user.id, recordedOn);
+            const snapshot = await getNutritionDay(user.id, recordedOn);
 
-          // Only a genuinely successful read reaches this `set()` -- a
-          // thrown/rejected call below is caught and leaves the existing
-          // cached day (if any) exactly as it was.
-          set({
-            days: {
-              ...get().days,
-              [recordedOn]: {
-                logId:        snapshot.logId,
-                trainingLoad: snapshot.trainingLoad,
-                inferredLoad: snapshot.inferredLoad,
-                targetsJson:  snapshot.targetsJson,
-                entries:      snapshot.entries,
-                fetchedAt:    new Date().toISOString(),
+            // Only a genuinely successful read reaches this `set()` -- a
+            // thrown/rejected call below is caught and leaves the existing
+            // cached day (if any) exactly as it was.
+            set({
+              days: {
+                ...get().days,
+                [recordedOn]: {
+                  logId:        snapshot.logId,
+                  trainingLoad: snapshot.trainingLoad,
+                  inferredLoad: snapshot.inferredLoad,
+                  targetsJson:  snapshot.targetsJson,
+                  entries:      snapshot.entries,
+                  fetchedAt:    new Date().toISOString(),
+                },
               },
-            },
-          });
-        } catch (e) {
-          console.warn('[nutritionDay] refresh() failed, keeping cached state:', e instanceof Error ? e.message : String(e));
+            });
+          } catch (e) {
+            console.warn('[nutritionDay] refresh() failed, keeping cached state:', e instanceof Error ? e.message : String(e));
+          }
+        })();
+
+        set({ inFlight: { ...get().inFlight, [recordedOn]: fetchPromise } });
+        try {
+          await fetchPromise;
         } finally {
-          const after = new Set(get().fetching);
-          after.delete(recordedOn);
-          set({ fetching: after });
+          const next = { ...get().inFlight };
+          delete next[recordedOn];
+          set({ inFlight: next });
         }
       },
 
@@ -97,7 +119,7 @@ export const useNutritionDay = create<NutritionDayState>()(
       version: 1,
       partialize: (s): PersistedNutritionDayState => ({
         days: s.days,
-        // `fetching` excluded deliberately -- see PersistedNutritionDayState's
+        // `inFlight` excluded deliberately -- see PersistedNutritionDayState's
         // doc comment above.
       }),
     },

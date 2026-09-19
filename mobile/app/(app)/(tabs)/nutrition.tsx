@@ -302,22 +302,25 @@ export default function NutritionScreen() {
       // Network error: fall back to 'easy' default, no label shown
     }
 
+    // Fetch (or join an already-in-flight fetch kicked off by the focus
+    // effect below, for this exact day) today's nutrition_logs + food_entries
+    // via the store. This used to be a SEPARATE direct `nutrition_logs`
+    // select just for the override check below, on top of the store's own
+    // read for display -- two reads of the same row. Now there's one: the
+    // override check consumes the SAME fetched row the store's cache-first
+    // `entries` selector renders from.
+    await useNutritionDay.getState().refresh(today);
+    const cachedDay = useNutritionDay.getState().days[today];
+
     // A load the user picked by hand outlives the inference. We can tell the
     // two apart because the row records both: when the stored training_load
     // has drifted from the inferred_load stored beside it, she moved it.
-    const { data: existing } = await supabase
-      .from('nutrition_logs')
-      .select('training_load, inferred_load')
-      .eq('user_id', session.user.id)
-      .eq('recorded_on', today)
-      .maybeSingle();
-
     const overridden =
-      !!existing?.training_load &&
-      existing.training_load !== existing.inferred_load;
+      !!cachedDay?.trainingLoad &&
+      cachedDay.trainingLoad !== cachedDay.inferredLoad;
 
     const effectiveLoad: TrainingLoad = overridden
-      ? (existing!.training_load as TrainingLoad)
+      ? (cachedDay!.trainingLoad as TrainingLoad)
       : (ctx?.inferred_load ?? load);
     setLoad(effectiveLoad);
 
@@ -340,11 +343,11 @@ export default function NutritionScreen() {
     if (log) {
       setLogId(log.id);
     }
-    // Entries for display come from the cache-first store, not a direct read
-    // here -- refresh() re-fetches today's food_entries (and re-derives them
-    // from whatever nutrition_logs row exists) independently of the upsert
-    // above.
-    void useNutritionDay.getState().refresh(today);
+    // Entries for display already came from the cache-first store's refresh()
+    // above -- the upsert above only touches `nutrition_logs` columns
+    // (training_load/inferred_load/targets_json), never `food_entries`, so a
+    // second refresh() here would just be another redundant read of data that
+    // hasn't changed.
     setLoading(false);
   }
 

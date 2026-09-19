@@ -31,7 +31,7 @@ beforeEach(async () => {
   mockGetNutritionDay.mockReset();
   mockGetUser.mockReset();
   mockGetUser.mockResolvedValue({ data: { user: { id: 'u1' } } } as any);
-  useNutritionDay.setState({ days: {}, fetching: new Set() });
+  useNutritionDay.setState({ days: {}, inFlight: {} });
 });
 
 describe('nutritionDay store persistence', () => {
@@ -56,7 +56,7 @@ describe('nutritionDay store persistence', () => {
     expect(mockGetNutritionDay).not.toHaveBeenCalled();
   });
 
-  it('persists the days map and excludes the in-flight fetching set', async () => {
+  it('persists the days map and excludes the in-flight request map', async () => {
     mockGetNutritionDay.mockResolvedValue({
       logId: 'log1', trainingLoad: 'easy', inferredLoad: 'easy',
       targetsJson: null, entries: [entryA],
@@ -68,7 +68,7 @@ describe('nutritionDay store persistence', () => {
     expect(raw).not.toBeNull();
     const parsed = JSON.parse(raw!);
     expect(parsed.state.days['2026-09-19'].entries).toEqual([entryA]);
-    expect(parsed.state.fetching).toBeUndefined();
+    expect(parsed.state.inFlight).toBeUndefined();
   });
 });
 
