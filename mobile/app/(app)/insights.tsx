@@ -19,6 +19,7 @@ import { AddEventModal } from '@/components/ui/AddEventModal';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { Shimmer } from '@/components/ui/Shimmer';
 import { ProScreen } from '@/components/ui/ProScreen';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
 
 const PHASE_COLOR: Record<string, string> = {
   menstrual:  colors.heat,
@@ -69,6 +70,17 @@ function InsightsScreen() {
   const [loadingMetrics,   setLoadingMetrics]   = useState(true);
   const [loadingNarrative, setLoadingNarrative] = useState(true);
   const [showAddEvent,     setShowAddEvent]     = useState(false);
+  // Card 7 (offline sweep). computeInsightMetrics already throws on any of its
+  // own reads failing; what was missing was this screen doing anything with
+  // that beyond swallowing it. With no signal, metrics stayed null but
+  // loadingMetrics still flipped to false, so every tile read `?? 0` --
+  // a 0-day streak and 0km weeks are a real, alarming claim, not "unknown".
+  const [metricsLoadFailed,   setMetricsLoadFailed]   = useState(false);
+  // The Haiku narrative invoke returning an error, or throwing outright, used
+  // to fall through to the same copy as a genuinely new account: "Log
+  // activities to unlock your personal insight." A failed edge function call
+  // is not the same fact as "you haven't logged anything yet".
+  const [narrativeLoadFailed, setNarrativeLoadFailed] = useState(false);
 
   const today    = useMemo(() => new Date().toLocaleDateString('en-CA'), []);
   const future14 = useMemo(() => new Date(Date.now() + 14 * 86400000).toLocaleDateString('en-CA'), []);
@@ -91,7 +103,9 @@ function InsightsScreen() {
     setLoadingNarrative(true);
 
     const [metricsResult, cacheResult, eventsResult] = await Promise.all([
-      computeInsightMetrics(session.user.id).catch(() => null),
+      computeInsightMetrics(session.user.id)
+        .then((m) => ({ metrics: m, failed: false }))
+        .catch(() => ({ metrics: null, failed: true })),
 
       supabase
         .from('insights_cache')
@@ -109,7 +123,8 @@ function InsightsScreen() {
         .order('event_date'),
     ]);
 
-    if (metricsResult) setMetrics(metricsResult);
+    setMetricsLoadFailed(metricsResult.failed);
+    if (metricsResult.metrics) setMetrics(metricsResult.metrics);
     setUpcomingEvents(eventsResult.data ?? []);
     setLoadingMetrics(false);
 
@@ -119,6 +134,7 @@ function InsightsScreen() {
       setTrainingText(cached.training_text ?? null);
       setNutritionText(cached.nutrition_text ?? null);
       setGeneratedAt(cached.generated_at);
+      setNarrativeLoadFailed(false);
       setLoadingNarrative(false);
       return;
     }
@@ -135,7 +151,7 @@ function InsightsScreen() {
           // is deliberate: the two numbers are then the same window by
           // construction, instead of two implementations that agree until one
           // of them drifts.
-          week_start:    metricsResult?.weekStartISO,
+          week_start:    metricsResult.metrics?.weekStartISO,
         },
       });
       if (!error && data) {
@@ -143,9 +159,16 @@ function InsightsScreen() {
         setTrainingText(data.training_text  ?? null);
         setNutritionText(data.nutrition_text ?? null);
         setGeneratedAt(data.generated_at ?? new Date().toISOString());
+        setNarrativeLoadFailed(false);
+      } else {
+        // supabase-js resolves rather than throws on a non-2xx or network
+        // failure here; keep whatever narrative was last known and only say
+        // the fresh attempt failed.
+        setNarrativeLoadFailed(true);
       }
     } catch {
       // Retain stale content if present
+      setNarrativeLoadFailed(true);
     } finally {
       setLoadingNarrative(false);
     }
@@ -202,63 +225,86 @@ function InsightsScreen() {
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
-        {/* THIS WEEK: Haiku narrative */}
-        <VirraCard style={styles.narrativeCard}>
-          <SectionLabel style={styles.sectionLabel}>THIS WEEK</SectionLabel>
-          {loadingNarrative && !overallText ? (
-            <Shimmer height={20} lines={3} />
-          ) : overallText ? (
-            <VirraText variant="serif" size={16} color={colors.breath} style={styles.narrativeBody}>
-              {overallText}
-            </VirraText>
-          ) : (
-            <VirraText variant="body" size={13} color={colors.muted} style={{ lineHeight: 20 }}>
-              {trainingText ?? 'Log activities to unlock your personal insight.'}
-            </VirraText>
-          )}
-        </VirraCard>
+        {/* THIS WEEK: Haiku narrative. Card 7: a failed invoke used to fall
+            through to the same "log activities" copy a brand-new account
+            sees, which is not what happened. */}
+        {narrativeLoadFailed && !overallText && !trainingText ? (
+          <NeedsSignal
+            title="This week's insight needs signal to load."
+            detail="Nothing about your week is saved on this phone yet. It will show once you are back online."
+            onRetry={load}
+            retrying={loadingNarrative}
+          />
+        ) : (
+          <VirraCard style={styles.narrativeCard}>
+            <SectionLabel style={styles.sectionLabel}>THIS WEEK</SectionLabel>
+            {loadingNarrative && !overallText ? (
+              <Shimmer height={20} lines={3} />
+            ) : overallText ? (
+              <VirraText variant="serif" size={16} color={colors.breath} style={styles.narrativeBody}>
+                {overallText}
+              </VirraText>
+            ) : (
+              <VirraText variant="body" size={13} color={colors.muted} style={{ lineHeight: 20 }}>
+                {trainingText ?? 'Log activities to unlock your personal insight.'}
+              </VirraText>
+            )}
+          </VirraCard>
+        )}
 
-        {/* Metric grid */}
-        <VirraCard style={styles.metricsCard}>
-          <SectionLabel style={styles.sectionLabel}>YOUR NUMBERS</SectionLabel>
-          <View style={styles.metricsGrid}>
-            <MetricTile label="DAY STREAK"  value={loadingMetrics ? '·' : String(metrics?.streakDays ?? 0)} />
-            <View style={styles.metricDividerV} />
-            <MetricTile label="RUN · WEEK"  value={loadingMetrics ? '·' : String(metrics?.weeklyKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
-            <View style={styles.metricDividerV} />
-            <MetricTile label="RUN · MONTH" value={loadingMetrics ? '·' : String(metrics?.monthlyKm ?? 0)} unit={loadingMetrics ? undefined : 'km'} />
-          </View>
-          <View style={styles.metricDividerH} />
-          <View style={styles.metricsGrid}>
-            <MetricTile
-              label="ADHERENCE"
-              value={loadingMetrics ? '·' : metrics?.trainingAdherencePct != null ? String(metrics.trainingAdherencePct) : '·'}
-              unit={!loadingMetrics && metrics?.trainingAdherencePct != null ? '%' : undefined}
-              sub="LAST 28 DAYS"
-            />
-            <View style={styles.metricDividerV} />
-            <MetricTile label="RUN · YEAR"  value={loadingMetrics ? '·' : String(metrics?.yearKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
-            <View style={styles.metricDividerV} />
-            <MetricTile
-              label="NUTRITION"
-              value={loadingMetrics ? '·' : metrics?.nutritionCompliancePct != null ? String(metrics.nutritionCompliancePct) : '·'}
-              unit={!loadingMetrics && metrics?.nutritionCompliancePct != null ? '%' : undefined}
-              sub="COMPLIANCE"
-            />
-          </View>
-          {metrics?.droppedByModality && (
-            <VirraText
-              variant="mono"
-              size={11}
-              color={colors.muted}
-              style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}
-            >
-              {Object.entries(metrics.droppedByModality)
-                .map(([mod, count]) => `${count} ${mod}`)
-                .join(' · ')}{' dropped'}
-            </VirraText>
-          )}
-        </VirraCard>
+        {/* Metric grid. Card 7: computeInsightMetrics already throws its own
+            read errors; a failed load used to still flip loadingMetrics to
+            false and every tile then read `?? 0` -- a 0-day streak and 0km
+            weeks read as fact, not "unknown". */}
+        {metricsLoadFailed && !metrics ? (
+          <NeedsSignal
+            title="Your numbers need signal to load."
+            detail="Nothing about your training and nutrition numbers is saved on this phone yet. It will show once you are back online."
+            onRetry={load}
+            retrying={loadingMetrics}
+          />
+        ) : (
+          <VirraCard style={styles.metricsCard}>
+            <SectionLabel style={styles.sectionLabel}>YOUR NUMBERS</SectionLabel>
+            <View style={styles.metricsGrid}>
+              <MetricTile label="DAY STREAK"  value={loadingMetrics ? '·' : String(metrics?.streakDays ?? 0)} />
+              <View style={styles.metricDividerV} />
+              <MetricTile label="RUN · WEEK"  value={loadingMetrics ? '·' : String(metrics?.weeklyKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
+              <View style={styles.metricDividerV} />
+              <MetricTile label="RUN · MONTH" value={loadingMetrics ? '·' : String(metrics?.monthlyKm ?? 0)} unit={loadingMetrics ? undefined : 'km'} />
+            </View>
+            <View style={styles.metricDividerH} />
+            <View style={styles.metricsGrid}>
+              <MetricTile
+                label="ADHERENCE"
+                value={loadingMetrics ? '·' : metrics?.trainingAdherencePct != null ? String(metrics.trainingAdherencePct) : '·'}
+                unit={!loadingMetrics && metrics?.trainingAdherencePct != null ? '%' : undefined}
+                sub="LAST 28 DAYS"
+              />
+              <View style={styles.metricDividerV} />
+              <MetricTile label="RUN · YEAR"  value={loadingMetrics ? '·' : String(metrics?.yearKm ?? 0)}  unit={loadingMetrics ? undefined : 'km'} />
+              <View style={styles.metricDividerV} />
+              <MetricTile
+                label="NUTRITION"
+                value={loadingMetrics ? '·' : metrics?.nutritionCompliancePct != null ? String(metrics.nutritionCompliancePct) : '·'}
+                unit={!loadingMetrics && metrics?.nutritionCompliancePct != null ? '%' : undefined}
+                sub="COMPLIANCE"
+              />
+            </View>
+            {metrics?.droppedByModality && (
+              <VirraText
+                variant="mono"
+                size={11}
+                color={colors.muted}
+                style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}
+              >
+                {Object.entries(metrics.droppedByModality)
+                  .map(([mod, count]) => `${count} ${mod}`)
+                  .join(' · ')}{' dropped'}
+              </VirraText>
+            )}
+          </VirraCard>
+        )}
 
         {/* Training narrative */}
         {loadingNarrative && !trainingText ? (

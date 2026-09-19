@@ -29,6 +29,7 @@ import { gymWeekPhase } from '@/lib/dailyTrainingContext';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { appAlert } from '@/components/ui/VirraAlert';
 import { ProScreen } from '@/components/ui/ProScreen';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
 
 interface WeekSession {
   week:     number;
@@ -269,9 +270,14 @@ function PlanDetailScreen() {
   // static pills and the only action was "Switch plan". Adjusting is now a
   // mode: the same controls, unfrozen, seeded with what you actually have.
   const [adjusting,            setAdjusting]            = useState(false);
+  // Card 7 (offline sweep). A failed read of the template itself used to look
+  // exactly like "Plan not found." -- a 404 copy for what was actually a
+  // network failure. This lets the two be told apart.
+  const [planLoadFailed,       setPlanLoadFailed]       = useState(false);
 
-  useEffect(() => {
+  function loadPlan() {
     if (!id || !session) return;
+    setLoading(true);
 
     Promise.all([
       supabase
@@ -300,7 +306,8 @@ function PlanDetailScreen() {
       setRunTemplates((runRes.data ?? []) as RunTemplateRef[]);
       const t = templateRes.data as PlanTemplate;
       const p = planRes.data as UserPlan | null;
-      setPlan(t);
+      setPlanLoadFailed(Boolean(templateRes.error));
+      if (!templateRes.error) setPlan(t);
       setUserPlan(p);
       if (t?.sessions_json?.length) {
         const defaultCount = (t.sessions_json as WeekSession[])[0]?.sessions?.length ?? 1;
@@ -332,6 +339,11 @@ function PlanDetailScreen() {
 
       setLoading(false);
     });
+  }
+
+  useEffect(() => {
+    loadPlan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, session]);
 
   const mondayISO = (() => {
@@ -740,9 +752,26 @@ function PlanDetailScreen() {
   if (!plan) {
     return (
       <SafeAreaView style={styles.safe}>
-        <VirraText variant="body" color={colors.muted} style={{ margin: spacing.lg }}>
-          Plan not found.
-        </VirraText>
+        <View style={styles.header}>
+          <Pressable style={styles.backBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back">
+            <SymbolView name="chevron.left" size={18} tintColor={colors.breath} />
+          </Pressable>
+          <View style={{ width: 32 }} />
+        </View>
+        {planLoadFailed ? (
+          <View style={{ margin: spacing.lg }}>
+            <NeedsSignal
+              title="This plan needs signal to load."
+              detail="Nothing about this plan is saved on this phone yet. It will show once you are back online."
+              onRetry={loadPlan}
+              retrying={loading}
+            />
+          </View>
+        ) : (
+          <VirraText variant="body" color={colors.muted} style={{ margin: spacing.lg }}>
+            Plan not found.
+          </VirraText>
+        )}
       </SafeAreaView>
     );
   }

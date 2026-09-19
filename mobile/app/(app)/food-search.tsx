@@ -18,6 +18,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
 
 interface FavouriteEntry {
   food_name:     string;
@@ -276,6 +277,14 @@ export default function FoodSearchScreen() {
   // Card 298. Manual logging is free; the Haiku estimate costs money per call.
   const { isPro, showLocked } = useProGate();
   const [remoteSearching, setRemoteSearching] = useState(false);
+  // Card 7 (offline sweep). Open Food Facts is a live remote search with no
+  // local cache -- see the plan's scope note. A network failure used to clear
+  // remoteResults exactly like a genuine zero-match search, so "No results for
+  // {query}" quietly lied about there being nothing on OFF for that food.
+  const [remoteSearchFailed, setRemoteSearchFailed] = useState(false);
+  // Bumped by the NeedsSignal retry to force the search effect to run again
+  // for the same query, since setQuery(sameValue) would not re-trigger it.
+  const [retryNonce, setRetryNonce] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const [favourites, setFavourites] = useState<FavouriteEntry[]>([]);
   const [combos,     setCombos]     = useState<MealCombo[]>([]);
@@ -351,6 +360,7 @@ export default function FoodSearchScreen() {
     if (q.length < 3 || localResults.length >= 5) {
       setRemoteResults([]);
       setRemoteSearching(false);
+      setRemoteSearchFailed(false);
       return;
     }
     const ctrl = new AbortController();
@@ -362,17 +372,19 @@ export default function FoodSearchScreen() {
           if (ctrl.signal.aborted) return;
           setRemoteResults(res);
           setRemoteSearching(false);
+          setRemoteSearchFailed(false);
         })
         .catch((e: unknown) => {
           if (ctrl.signal.aborted || (e instanceof Error && e.name === 'AbortError')) return;
           setRemoteResults([]);
           setRemoteSearching(false);
+          setRemoteSearchFailed(true);
         });
     }, 300);
     return () => { clearTimeout(timer); ctrl.abort(); };
     // localResults.length is derived from query; query alone is the right dependency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query]);
+  }, [query, retryNonce]);
 
   async function handleAdd(food: VirraFood, grams: number) {
     if (!logId) return;
@@ -757,11 +769,20 @@ export default function FoodSearchScreen() {
               )}
 
               {myResults.length === 0 && localResults.length === 0 && remoteResults.length === 0 && !remoteSearching && query.trim().length > 0 && (
-                <VirraCard style={styles.resultsCard}>
-                  <VirraText variant="body" size={14} color={colors.muted} style={styles.empty}>
-                    No results for "{query}"
-                  </VirraText>
-                </VirraCard>
+                remoteSearchFailed ? (
+                  <NeedsSignal
+                    title="Search needs signal to load."
+                    detail="Couldn't reach Open Food Facts to search. Check your connection and try again, or log this one manually."
+                    onRetry={() => setRetryNonce((n) => n + 1)}
+                    retrying={remoteSearching}
+                  />
+                ) : (
+                  <VirraCard style={styles.resultsCard}>
+                    <VirraText variant="body" size={14} color={colors.muted} style={styles.empty}>
+                      No results for "{query}"
+                    </VirraText>
+                  </VirraCard>
+                )
               )}
 
               <VirraText variant="mono" size={10} color={colors.muted} style={styles.offAttribution}>

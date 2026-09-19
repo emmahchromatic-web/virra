@@ -13,6 +13,7 @@ import { WeightSteadyChart, type WeightReading } from '@/components/ui/WeightSte
 import { CycleWeightChart } from '@/components/ui/CycleWeightChart';
 import { AddWeightModal } from '@/components/ui/AddWeightModal';
 import { SectionLabel } from '@/components/ui/SectionLabel';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
 import { classifyReading, classifySteady, STEADY_BAND, type BandPosition } from '@/lib/weightBand';
 import type { CyclePhase } from '@/lib/cycleEngine';
 import { tracksCycle } from '@/lib/cycleEngine';
@@ -65,22 +66,35 @@ export default function WeightScreen() {
   const [readings, setReadings] = useState<WeightReading[]>([]);
   const [addOpen,  setAddOpen]  = useState(false);
   const [howOpen,  setHowOpen]  = useState(false);
+  // Card 7 (offline sweep). A failed read used to fall through to `data ?? []`,
+  // which left `latestKg` null and the pill read CALIBRATING -- exactly the
+  // copy a genuinely new, not-yet-baselined user sees, not "we couldn't reach
+  // the server". Only matters once there are no readings already on screen;
+  // a failed refresh otherwise keeps showing what was last loaded.
+  const [readingsLoadFailed, setReadingsLoadFailed] = useState(false);
+  const [readingsLoading,    setReadingsLoading]    = useState(false);
+  const [reloadNonce,        setReloadNonce]        = useState(0);
 
   useEffect(() => {
     if (!session || !trackWeight) { setReadings([]); return; }
     let cancelled = false;
+    setReadingsLoading(true);
     (async () => {
       const cutoff = new Date(Date.now() - 90 * 86400000).toLocaleDateString('en-CA');
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('body_weights')
         .select('recorded_on, weight_kg')
         .eq('user_id', session.user.id)
         .gte('recorded_on', cutoff)
         .order('recorded_on', { ascending: true });
-      if (!cancelled) setReadings((data ?? []) as WeightReading[]);
+      if (cancelled) return;
+      setReadingsLoading(false);
+      if (error) { setReadingsLoadFailed(true); return; }
+      setReadingsLoadFailed(false);
+      setReadings((data ?? []) as WeightReading[]);
     })();
     return () => { cancelled = true; };
-  }, [session?.user.id, trackWeight, addOpen, weightDataVersion]);
+  }, [session?.user.id, trackWeight, addOpen, weightDataVersion, reloadNonce]);
 
   // Mirror WeightGlanceCard: a cycling user's weight is read against the
   // phase-shaped expected band, not a flat steady line. This screen used to be
@@ -125,6 +139,13 @@ export default function WeightScreen() {
               Weight tracking is off. Turn it on in Profile → Body Metrics.
             </VirraText>
           </VirraCard>
+        ) : readingsLoadFailed && readings.length === 0 ? (
+          <NeedsSignal
+            title="Your weight needs signal to load."
+            detail="Nothing about your weight is saved on this phone yet. It will show once you are back online."
+            onRetry={() => setReloadNonce((n) => n + 1)}
+            retrying={readingsLoading}
+          />
         ) : (
           <>
             <VirraCard>

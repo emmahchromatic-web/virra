@@ -9,6 +9,7 @@ import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
 
 interface Group { label: string; activities: Activity[] }
 
@@ -39,19 +40,35 @@ export default function TimelineScreen() {
   const [loading, setLoading]     = useState(true);
   const [page,    setPage]        = useState(0);
   const [hasMore, setHasMore]     = useState(true);
+  // Card 7 (offline sweep). A failed read of the first page used to fall
+  // through to `data ?? []`, which read identically to a brand-new account:
+  // "No activities yet. Complete a run or sync Apple Health to see your
+  // history here." is a claim about the account, not a fact about the
+  // network. Only the initial (reset) page tracks this -- a failed LOAD MORE
+  // simply leaves what's on screen and the page counter unmoved, so tapping
+  // it again retries the same page without a separate signal affordance.
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(async (reset = false) => {
     if (!session) return;
+    if (reset) setLoading(true);
     const offset = reset ? 0 : page * PAGE_SIZE;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('activities')
       .select('id, activity_type, sub_type, started_at, duration_seconds, distance_meters, phase_at_time, run_details(avg_pace_seconds_per_km)')
       .eq('user_id', session.user.id)
       .order('started_at', { ascending: false })
       .range(offset, offset + PAGE_SIZE - 1);
 
+    if (error) {
+      if (reset) setLoadFailed(true);
+      setLoading(false);
+      return;
+    }
+
     const rows = (data ?? []) as Activity[];
     setHasMore(rows.length === PAGE_SIZE);
+    if (reset) setLoadFailed(false);
     setGroups((prev) => {
       const all = reset ? rows : [...prev.flatMap((g) => g.activities), ...rows];
       return groupByDate(all);
@@ -79,11 +96,20 @@ export default function TimelineScreen() {
         {loading ? (
           <VirraText variant="mono" size={10} color={colors.muted}>LOADING…</VirraText>
         ) : groups.length === 0 ? (
-          <VirraCard style={styles.empty}>
-            <VirraText variant="serif" size={16} color={colors.breath} style={{ lineHeight: 24 }}>
-              No activities yet. Complete a run or sync Apple Health to see your history here.
-            </VirraText>
-          </VirraCard>
+          loadFailed ? (
+            <NeedsSignal
+              title="Your activity history needs signal to load."
+              detail="Nothing from your activity history is saved on this phone yet. It will show once you are back online."
+              onRetry={() => load(true)}
+              retrying={loading}
+            />
+          ) : (
+            <VirraCard style={styles.empty}>
+              <VirraText variant="serif" size={16} color={colors.breath} style={{ lineHeight: 24 }}>
+                No activities yet. Complete a run or sync Apple Health to see your history here.
+              </VirraText>
+            </VirraCard>
+          )
         ) : (
           groups.map((group) => (
             <View key={group.label} style={styles.group}>
