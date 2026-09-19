@@ -179,15 +179,26 @@ export default function AppLayout() {
     // halts the drain and leaves the queue exactly where it was; a permanent
     // one dead-letters just that item and the rest still go through.
     const syncPending = async () => {
-      if (!useNetworkStore.getState().isOnline) return;
-      const before = await readOutbox(session.user.id);
-      if (before.length === 0) return;
-      useOutboxStatus.getState().setSyncing(true);
-      const result = await drain(session.user.id).catch(() => ({ sent: 0, left: before.length, failed: 0 }));
-      const deadLetters = await readDeadLetters(session.user.id);
-      useOutboxStatus.getState().setCounts(result.left, deadLetters.length);
-      useOutboxStatus.getState().setSyncing(false);
-      if (result.left === 0 && result.sent > 0) useOutboxStatus.getState().setJustSynced(true);
+      // The whole body is guarded, not just drain(): readOutbox/readDeadLetters
+      // can throw too (readOutbox's legacy-queue migration isn't fully
+      // try/catch'd), and syncPending is called fire-and-forget from three
+      // sites (mount, AppState, network reconnect). This mirrors the "never
+      // throws uncaught" guarantee the old flushPendingCompletions(...).catch()
+      // call had.
+      try {
+        if (!useNetworkStore.getState().isOnline) return;
+        const before = await readOutbox(session.user.id);
+        if (before.length === 0) return;
+        useOutboxStatus.getState().setSyncing(true);
+        const result = await drain(session.user.id).catch(() => ({ sent: 0, left: before.length, failed: 0 }));
+        const deadLetters = await readDeadLetters(session.user.id);
+        useOutboxStatus.getState().setCounts(result.left, deadLetters.length);
+        useOutboxStatus.getState().setSyncing(false);
+        if (result.left === 0 && result.sent > 0) useOutboxStatus.getState().setJustSynced(true);
+      } catch {
+        // Try again next foreground/reconnect; don't leave the pill stuck mid-sync.
+        useOutboxStatus.getState().setSyncing(false);
+      }
     };
 
     runImport();
