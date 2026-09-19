@@ -15,9 +15,10 @@ import { SectionLabel } from '@/components/ui/SectionLabel';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore, personalMetricsFields } from '@/store/profile';
+import { useRecipesStore } from '@/store/recipes';
 import {
-  fetchRecipes, fetchSlotTotals, fetchDietaryPrefs, saveDietaryPrefs,
-  fetchFavouriteIds, groupByCollection, searchRecipesRanked, type Recipe,
+  fetchSlotTotals, fetchDietaryPrefs, saveDietaryPrefs,
+  groupByCollection, searchRecipesRanked, type Recipe,
 } from '@/lib/recipes';
 import {
   rankRecipes, recipesForPhase, remainingForSlot, slotIsCovered, lightestFirst,
@@ -25,6 +26,7 @@ import {
 import { defaultMealSlot, type MealType } from '@/lib/nutritionLog';
 import { resolveNutritionTargets, buildPersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
+import { formatRelativeTime } from '@/lib/relativeTime';
 import { RecipeRow, macroLine, timeLine } from '@/components/recipes/RecipeRow';
 import { useIsPro } from '@/lib/pro';
 import { ProLockedCard } from '@/components/ui/ProLockedCard';
@@ -209,15 +211,27 @@ export default function RecipesScreen() {
   const { cycleInfo } = useCycleStore();
   const profile       = useProfileStore();
 
-  const [recipes,   setRecipes]   = useState<Recipe[]>([]);
-  const [loading,   setLoading]   = useState(true);
+  // Cache-first: `recipes`/`favIds` render from whatever the store already has
+  // persisted (from a previous session) immediately on mount, while the
+  // effects below reconcile with the server in the background. See
+  // nutrition.tsx for the same pattern applied to food entries.
+  const recipes         = useRecipesStore((s) => s.list);
+  const listFetchedAt   = useRecipesStore((s) => s.listFetchedAt);
+  const favIds          = useRecipesStore((s) => s.favouriteIds);
+  const isStale         = !!listFetchedAt && Date.now() - new Date(listFetchedAt).getTime() > 24 * 60 * 60 * 1000;
+
+  const [hasFetchedOnce, setHasFetchedOnce] = useState(false);
   const [query,     setQuery]     = useState('');
   const [load,      setLoad]      = useState<TrainingLoad>('easy');
   const [prefs,     setPrefs]     = useState<string[]>([]);
   const [askDiet,   setAskDiet]   = useState(false);
   const [slotEaten, setSlotEaten] = useState({ calories: 0, carbs_g: 0, protein_g: 0, fat_g: 0 });
-  const [favIds,    setFavIds]    = useState<string[]>([]);
   const isPro = useIsPro();
+
+  // Only a genuinely cold cache (nothing persisted, first fetch still
+  // in flight) shows the spinner -- a warm cache renders immediately and the
+  // refresh below happens silently behind it.
+  const loading = recipes.length === 0 && !hasFetchedOnce;
 
   const slot  = defaultMealSlot();
   const today = new Date().toISOString().split('T')[0];
@@ -227,11 +241,9 @@ export default function RecipesScreen() {
     let cancelled = false;
 
     (async () => {
-      setLoading(true);
-      const rows = await fetchRecipes();
+      await useRecipesStore.getState().refreshList();
       if (cancelled) return;
-      setRecipes(rows);
-      setLoading(false);
+      setHasFetchedOnce(true);
 
       if (!session) return;
 
@@ -265,8 +277,7 @@ export default function RecipesScreen() {
         .then((t) => { if (!cancelled) setSlotEaten(t); });
       // Re-read on focus so a heart tapped on the detail screen is reflected
       // the moment she comes back.
-      fetchFavouriteIds(session.user.id)
-        .then((ids) => { if (!cancelled) setFavIds(ids); });
+      void useRecipesStore.getState().refreshFavourites(session.user.id);
     }
     return () => { cancelled = true; };
   }, [session, today, slot]));
@@ -317,6 +328,11 @@ export default function RecipesScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <AppHeader title="Recipes" showProfile />
+      {isStale && (
+        <VirraText variant="mono" size={10} color={colors.muted} style={styles.staleLine}>
+          LAST UPDATED {formatRelativeTime(listFetchedAt!)}
+        </VirraText>
+      )}
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
         <View style={styles.searchWrap}>
@@ -432,6 +448,8 @@ export default function RecipesScreen() {
 const styles = StyleSheet.create({
   safe:   { flex: 1, backgroundColor: colors.mile },
   scroll: { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
+
+  staleLine: { paddingHorizontal: spacing.lg, paddingTop: spacing.xs, letterSpacing: 1 },
 
   searchWrap: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,

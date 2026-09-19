@@ -3,6 +3,7 @@ import type { CyclePhase } from '@/store/cycle';
 import type { TrainingLoad } from '@/lib/nutritionTargets';
 import type { MealType } from '@/lib/nutritionLog';
 import { toIngredientUnit, type IngredientUnit } from '@/lib/foodUnits';
+import { useRecentFoods } from '@/store/recentFoods';
 
 /**
  * Read-path for the recipe book, over the content tables seeded in migration
@@ -515,6 +516,16 @@ export async function logRecipe(args: {
     console.warn('[recipes] logRecipe failed:', error.message);
     return error.message;
   }
+
+  // recentFoods' "after any food entry write" trigger, for the write path
+  // this function owns. See recentFoods.ts's header comment for the full
+  // design decision -- this is one of two call sites (the other is
+  // nutrition.tsx's existing focus-effect refresh), chosen because it's the
+  // one write path this task can reach without rewriting food-search.tsx /
+  // describe-meal.tsx / CopyMealFromDayModal.tsx, which J3's outbox work will
+  // eventually consolidate onto a single hook instead.
+  void useRecentFoods.getState().refresh();
+
   return null;
 }
 

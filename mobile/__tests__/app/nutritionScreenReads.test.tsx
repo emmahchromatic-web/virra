@@ -92,6 +92,13 @@ jest.mock('@/lib/dailyTrainingContext', () => ({
   }),
 }));
 
+// Task 6: the screen's focus effect also kicks off recentFoods' own refresh
+// (its own `nutrition_logs` + `food_entries` reads, for an unrelated cache).
+// That's orthogonal to what THIS test pins -- nutritionDay's specific
+// mount-vs-focus double-read bug -- so it's stubbed out here rather than
+// left to add a second, unrelated `nutrition_logs` SELECT to the count below.
+jest.mock('@/store/recentFoods', () => ({ useRecentFoods: { getState: () => ({ refresh: jest.fn() }) } }));
+
 import NutritionScreen from '@/app/(app)/(tabs)/nutrition';
 import { useNutritionDay } from '@/store/nutritionDay';
 

@@ -16,6 +16,7 @@ import { useIsPro } from '@/lib/pro';
 import { ProLockedCard } from '@/components/ui/ProLockedCard';
 import { getDailyTrainingContext, type DailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { useNutritionDay } from '@/store/nutritionDay';
+import { useRecentFoods } from '@/store/recentFoods';
 import { formatRelativeTime } from '@/lib/relativeTime';
 import { colors, spacing, radius } from '@/constants/theme';
 import { AppHeader } from '@/components/layout/AppHeader';
@@ -284,6 +285,14 @@ export default function NutritionScreen() {
   useFocusEffect(useCallback(() => {
     if (!session) return;
     void useNutritionDay.getState().refresh(today);
+    // Task 6 (recipes/recentFoods stores): this is "the nutrition tab's own
+    // entry flow" half of recentFoods' "after any food entry write" trigger.
+    // Every food_entries write path that isn't recipes.ts's logRecipe
+    // (food-search.tsx, describe-meal.tsx, CopyMealFromDayModal.tsx) leaves
+    // the user back on this tab, which already refreshes on focus -- so this
+    // one extra call is the pragmatic way to cover them without rewriting
+    // those files. See recentFoods.ts's header comment for the full decision.
+    void useRecentFoods.getState().refresh();
   }, [session, today]));
 
   async function loadData() {

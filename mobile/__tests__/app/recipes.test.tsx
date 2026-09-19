@@ -82,6 +82,7 @@ jest.mock('@/lib/supabase', () => ({ supabase: { from: jest.fn() } }));
 import RecipesScreen from '@/app/(app)/(tabs)/recipes';
 import RecipeDetailScreen from '@/app/(app)/recipe/[slug]';
 import { AppTabBar } from '@/components/layout/AppTabBar';
+import { useRecipesStore } from '@/store/recipes';
 
 function recipe(over: Partial<any> = {}) {
   return {
@@ -105,6 +106,12 @@ beforeEach(() => {
   mockToggleFav.mockImplementation((_u, _r, next) => Promise.resolve(next));
   mockLogRecipe.mockResolvedValue(null);
   mockGetLogId.mockResolvedValue('log-1');
+  // The Recipes tab now reads/writes through the `recipes` store (Task 6),
+  // which is a module-level singleton -- reset it so one test's cached list
+  // or favourites can't leak into the next.
+  useRecipesStore.setState({
+    list: [], listFetchedAt: null, details: {}, favouriteIds: [], favouritesFetchedAt: null,
+  });
 });
 
 const flush = async () => { await act(async () => { await Promise.resolve(); }); };
