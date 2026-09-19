@@ -5,7 +5,7 @@ import { SymbolView } from 'expo-symbols';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
-import { useSessionStore } from '@/store/sessionStore';
+import { useSessionStore, LOCAL_ACTIVITY_PREFIX } from '@/store/sessionStore';
 import { getCycleInfo } from '@/lib/cycleEngine';
 import { cancelTrainingReminderToday } from '@/lib/notifications';
 import { fetchRunHeartRate, type TimeWindow } from '@/lib/healthKitHeartRate';
@@ -227,7 +227,7 @@ export default function RunTrackerScreen() {
       if (sessionId) {
         useSessionStore.getState().applyLocalCompletion(
           sessionId,
-          `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          `${LOCAL_ACTIVITY_PREFIX}${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         );
       }
       setSaving(false);

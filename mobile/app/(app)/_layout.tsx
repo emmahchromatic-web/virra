@@ -17,6 +17,7 @@ import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPre
 import { colors } from '@/constants/theme';
 import { startNetworkListener, useNetworkStore } from '@/store/network';
 import { useOutboxStatus } from '@/store/outboxStatus';
+import { useSessionStore } from '@/store/sessionStore';
 import { drain, readOutbox, readDeadLetters } from '@/lib/outbox';
 import { SyncPill } from '@/components/SyncPill';
 // Registers the completeWorkout outbox handler — must run before any drain().
@@ -186,15 +187,46 @@ export default function AppLayout() {
       // throws uncaught" guarantee the old flushPendingCompletions(...).catch()
       // call had.
       try {
+        // Dead letters first, and unconditionally: they outlive the outbox they
+        // came from. If everything queued on the last run ended up dead-lettered,
+        // the outbox is empty at this launch, and reading them only after the
+        // "nothing to send" return meant the Unsaved pill could never appear for
+        // the one case it exists to cover.
+        const pendingBefore = await readOutbox(session.user.id);
+        const deadBefore    = await readDeadLetters(session.user.id);
+        useOutboxStatus.getState().setCounts(pendingBefore.length, deadBefore.length);
+
         if (!useNetworkStore.getState().isOnline) return;
-        const before = await readOutbox(session.user.id);
-        if (before.length === 0) return;
+        if (pendingBefore.length === 0) return;
+
+        // The count has to be set BEFORE the drain starts, not after it ends:
+        // the pill only shows "Syncing" while `syncing && pendingCount > 0`, and
+        // setting the count afterwards left it at 0 for the whole drain, so the
+        // state was unreachable on the ordinary reconnect-and-succeed path.
         useOutboxStatus.getState().setSyncing(true);
-        const result = await drain(session.user.id).catch(() => ({ sent: 0, left: before.length, failed: 0 }));
+        const result = await drain(session.user.id).catch(() => ({ sent: 0, left: pendingBefore.length, failed: 0 }));
         const deadLetters = await readDeadLetters(session.user.id);
         useOutboxStatus.getState().setCounts(result.left, deadLetters.length);
         useOutboxStatus.getState().setSyncing(false);
         if (result.left === 0 && result.sent > 0) useOutboxStatus.getState().setJustSynced(true);
+
+        // The server now owns these sessions. `refresh()` deliberately keeps a
+        // locally-completed row until the server agrees it is completed (see
+        // sessionStore.refresh), so pull the real row in now rather than leaving
+        // the placeholder `local_` activity id sitting there until the next
+        // screen focus happens to go stale.
+        if (result.sent > 0) {
+          const dates = new Set(
+            pendingBefore
+              .filter((i) => i.kind === 'completeWorkout')
+              .map((i) => new Date(String((i.payload as { activity?: { started_at?: unknown } }).activity?.started_at ?? '')))
+              .filter((d) => !Number.isNaN(d.getTime()))
+              .map((d) => d.toLocaleDateString('en-CA')),
+          );
+          for (const date of dates) {
+            useSessionStore.getState().refresh(date, date).catch(() => { /* next focus retries */ });
+          }
+        }
       } catch {
         // Try again next foreground/reconnect; don't leave the pill stuck mid-sync.
         useOutboxStatus.getState().setSyncing(false);

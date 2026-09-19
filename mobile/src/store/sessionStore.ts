@@ -21,6 +21,20 @@ function rangeKey(from: DateISO, to: DateISO): string {
   return `${from}..${to}`;
 }
 
+/**
+ * Prefix of the placeholder activity id `applyLocalCompletion` is given when a
+ * workout is finished with no signal and parked in the outbox.
+ *
+ * It is the only tell `refresh()` has that a row is waiting on the outbox,
+ * short of importing the outbox itself -- which would tie this store to the
+ * write layer it is deliberately independent of.
+ */
+export const LOCAL_ACTIVITY_PREFIX = 'local_';
+
+const isLocallyCompleted = (row: PlannedSessionRow | undefined): boolean =>
+  !!row && row.status === 'completed' && typeof row.activity_id === 'string'
+  && row.activity_id.startsWith(LOCAL_ACTIVITY_PREFIX);
+
 function isCovered(ranges: LoadedRange[], from: DateISO, to: DateISO, now: number): boolean {
   return ranges.some((r) =>
     r.from <= from && r.to >= to && now - r.fetchedAt < STALENESS_MS,
@@ -74,18 +88,46 @@ export const useSessionStore = create<SessionStore>()(
           }
           const rows = (data ?? []) as PlannedSessionRow[];
 
-          // Replace any session currently keyed within [from,to] with the fresh server data.
+          // Replace any session currently keyed within [from,to] with the fresh
+          // server data -- EXCEPT rows finished offline and still sitting in the
+          // outbox.
+          //
+          // WHY. `applyLocalCompletion` marks a session completed the moment the
+          // completion is queued, so the dashboard stops lagging behind what the
+          // user just did. A focus-triggered refresh firing before the outbox has
+          // drained would otherwise read "planned" off the server and flip it
+          // straight back, and nothing would put it right again until the 5-minute
+          // staleness window turned over. The spec's rule (§9, Risks): refresh()
+          // keeps any local row still pending in the outbox.
+          //
+          // The moment the server agrees the session is completed the local row is
+          // dropped -- that is what keeps this from pinning the placeholder
+          // `local_` id in the cache forever once the drain has actually landed.
           const existing = get();
           const nextById = { ...existing.byId };
           const nextIdsByDate = { ...existing.idsByDate };
 
+          const serverById = new Map(rows.map((r) => [r.id, r]));
+          const preserved = new Set<string>();
+          for (const [date, ids] of Object.entries(existing.idsByDate)) {
+            if (date < from || date > to) continue;
+            for (const id of ids) {
+              if (!isLocallyCompleted(existing.byId[id])) continue;
+              if (serverById.get(id)?.status === 'completed') continue;  // server caught up
+              preserved.add(id);
+            }
+          }
+
           for (const [date, ids] of Object.entries(existing.idsByDate)) {
             if (date >= from && date <= to) {
-              for (const id of ids) delete nextById[id];
-              delete nextIdsByDate[date];
+              const kept = ids.filter((id) => preserved.has(id));
+              for (const id of ids) if (!preserved.has(id)) delete nextById[id];
+              if (kept.length > 0) nextIdsByDate[date] = kept;
+              else delete nextIdsByDate[date];
             }
           }
           for (const r of rows) {
+            if (preserved.has(r.id)) continue;
             nextById[r.id] = r;
             (nextIdsByDate[r.scheduled_date] ??= []).push(r.id);
           }
