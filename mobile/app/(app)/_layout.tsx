@@ -16,6 +16,7 @@ import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
 import { flushPendingCompletions } from '@/lib/pendingCompletions';
+import { SyncPill } from '@/components/SyncPill';
 // Registers the completeWorkout outbox handler — must run before any drain().
 import '@/lib/outbox/handlers/completeWorkout';
 
@@ -219,28 +220,31 @@ export default function AppLayout() {
   }, [session?.user.id, periodStart, cycleLength, periodDays, trackWeight]);
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="checkin"         options={{ presentation: 'modal' }} />
-      <Stack.Screen name="plan/[id]"       options={{ presentation: 'card'  }} />
-      <Stack.Screen name="plans/browse"    options={{ presentation: 'card'  }} />
-      <Stack.Screen name="mobility"        options={{ presentation: 'card'  }} />
-      <Stack.Screen name="run"             options={{ presentation: 'modal' }} />
-      <Stack.Screen name="timeline"        options={{ presentation: 'card'  }} />
-      <Stack.Screen name="insights"        options={{ presentation: 'card'  }} />
-      <Stack.Screen name="food-search"      options={{ presentation: 'modal' }} />
-      <Stack.Screen name="manual-activity" options={{ presentation: 'modal' }} />
-      <Stack.Screen name="cycle-settings"  options={{ presentation: 'card'  }} />
-      <Stack.Screen name="weight"          options={{ presentation: 'card'  }} />
-      <Stack.Screen name="subscription"    options={{ presentation: 'card'  }} />
-      <Stack.Screen name="breaks"          options={{ presentation: 'card'  }} />
-      <Stack.Screen name="week-ahead"      options={{ presentation: 'card'  }} />
-      <Stack.Screen name="week-move"       options={{ presentation: 'card'  }} />
-      <Stack.Screen name="settings"        options={{ presentation: 'card'  }} />
-      <Stack.Screen name="notifications"   options={{ presentation: 'card'  }} />
-      <Stack.Screen name="achievements"    options={{ presentation: 'card'  }} />
-      <Stack.Screen name="recipe/[slug]"   options={{ presentation: 'card'  }} />
-      <Stack.Screen name="activity/[id]"   options={{ presentation: 'card'  }} />
-    </Stack>
+    <>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.mile } }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="checkin"         options={{ presentation: 'modal' }} />
+        <Stack.Screen name="plan/[id]"       options={{ presentation: 'card'  }} />
+        <Stack.Screen name="plans/browse"    options={{ presentation: 'card'  }} />
+        <Stack.Screen name="mobility"        options={{ presentation: 'card'  }} />
+        <Stack.Screen name="run"             options={{ presentation: 'modal' }} />
+        <Stack.Screen name="timeline"        options={{ presentation: 'card'  }} />
+        <Stack.Screen name="insights"        options={{ presentation: 'card'  }} />
+        <Stack.Screen name="food-search"      options={{ presentation: 'modal' }} />
+        <Stack.Screen name="manual-activity" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="cycle-settings"  options={{ presentation: 'card'  }} />
+        <Stack.Screen name="weight"          options={{ presentation: 'card'  }} />
+        <Stack.Screen name="subscription"    options={{ presentation: 'card'  }} />
+        <Stack.Screen name="breaks"          options={{ presentation: 'card'  }} />
+        <Stack.Screen name="week-ahead"      options={{ presentation: 'card'  }} />
+        <Stack.Screen name="week-move"       options={{ presentation: 'card'  }} />
+        <Stack.Screen name="settings"        options={{ presentation: 'card'  }} />
+        <Stack.Screen name="notifications"   options={{ presentation: 'card'  }} />
+        <Stack.Screen name="achievements"    options={{ presentation: 'card'  }} />
+        <Stack.Screen name="recipe/[slug]"   options={{ presentation: 'card'  }} />
+        <Stack.Screen name="activity/[id]"   options={{ presentation: 'card'  }} />
+      </Stack>
+      <SyncPill />
+    </>
   );
 }
