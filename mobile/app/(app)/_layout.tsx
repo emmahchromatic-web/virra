@@ -15,7 +15,9 @@ import { importNewWorkouts } from '@/lib/healthKitImport';
 import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
-import { flushPendingCompletions } from '@/lib/pendingCompletions';
+import { startNetworkListener, useNetworkStore } from '@/store/network';
+import { useOutboxStatus } from '@/store/outboxStatus';
+import { drain, readOutbox, readDeadLetters } from '@/lib/outbox';
 import { SyncPill } from '@/components/SyncPill';
 // Registers the completeWorkout outbox handler — must run before any drain().
 import '@/lib/outbox/handlers/completeWorkout';
@@ -173,12 +175,19 @@ export default function AppLayout() {
     useNotificationsStore.getState().hydrate().then(reconcilePresented);
     useSubscriptionStore.getState().hydrateProFeatures();
 
-    // Card 253. Workouts finished with no signal are queued locally; this is
-    // where they land. Safe to call every time: anything that fails stays
-    // queued, and `activities` is unique on (user_id, started_at) so a replay
-    // cannot duplicate a session.
-    const syncPending = () => {
-      flushPendingCompletions(session.user.id).catch(() => { /* try again next foreground */ });
+    // Card 253 → the J1 outbox. Safe to call every time: a network error
+    // halts the drain and leaves the queue exactly where it was; a permanent
+    // one dead-letters just that item and the rest still go through.
+    const syncPending = async () => {
+      if (!useNetworkStore.getState().isOnline) return;
+      const before = await readOutbox(session.user.id);
+      if (before.length === 0) return;
+      useOutboxStatus.getState().setSyncing(true);
+      const result = await drain(session.user.id).catch(() => ({ sent: 0, left: before.length, failed: 0 }));
+      const deadLetters = await readDeadLetters(session.user.id);
+      useOutboxStatus.getState().setCounts(result.left, deadLetters.length);
+      useOutboxStatus.getState().setSyncing(false);
+      if (result.left === 0 && result.sent > 0) useOutboxStatus.getState().setJustSynced(true);
     };
 
     runImport();
@@ -199,6 +208,11 @@ export default function AppLayout() {
       appState.current = next;
     });
 
+    const stopNetworkListener = startNetworkListener();
+    const unsubscribeNet = useNetworkStore.subscribe((s, prev) => {
+      if (s.isOnline && !prev.isOnline) syncPending();
+    });
+
     // Capture every delivered notification into the inbox
     const receiveSub = Notifications.addNotificationReceivedListener((event) => {
       const c = event.request.content;
@@ -216,7 +230,13 @@ export default function AppLayout() {
       if (screen === 'week-ahead') router.push('/(app)/week-ahead' as any);
     });
 
-    return () => { sub.remove(); notifSub.remove(); receiveSub.remove(); };
+    return () => {
+      sub.remove();
+      notifSub.remove();
+      receiveSub.remove();
+      stopNetworkListener();
+      unsubscribeNet();
+    };
   }, [session?.user.id, periodStart, cycleLength, periodDays, trackWeight]);
 
   return (

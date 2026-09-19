@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import type { Session } from '@supabase/supabase-js';
@@ -137,6 +137,18 @@ export default function RootLayout() {
   useEffect(() => {
     if (user?.id) configureRevenueCat(user.id);
   }, [user?.id]);
+
+  // supabase-js's auto-refresh timer does not run while backgrounded, so a
+  // user who returns after hours with an expired token hits a failed request
+  // before any refresh happens. Foreground/background it explicitly.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') supabase.auth.startAutoRefresh();
+      else supabase.auth.stopAutoRefresh();
+    });
+    supabase.auth.startAutoRefresh();
+    return () => { sub.remove(); supabase.auth.stopAutoRefresh(); };
+  }, []);
 
   // Hide the native splash once both fonts and session are ready and routing
   // has fired. This is the atomic transition from splash → real UI; without it

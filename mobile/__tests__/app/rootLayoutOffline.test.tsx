@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, waitFor, act } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const mockReplace = jest.fn();
@@ -31,11 +32,15 @@ jest.mock('@/lib/permissionsConfig', () => ({
 
 const mockGetSession = jest.fn();
 const mockMaybeSingle = jest.fn();
+const mockStartAutoRefresh = jest.fn();
+const mockStopAutoRefresh = jest.fn();
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     auth: {
       getSession: () => mockGetSession(),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: jest.fn() } } }),
+      startAutoRefresh: () => mockStartAutoRefresh(),
+      stopAutoRefresh: () => mockStopAutoRefresh(),
     },
     from: () => ({
       select: () => ({ eq: () => ({ maybeSingle: () => mockMaybeSingle() }) }),
@@ -118,5 +123,51 @@ describe('launching with no signal', () => {
     render(<RootLayout />);
 
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(auth)'));
+  });
+});
+
+/**
+ * supabase-js's auto-refresh timer does not run while backgrounded, so a user
+ * who returns after hours with an expired token hits a failed request before
+ * any refresh happens. The root layout ties the refresh timer to app
+ * foreground/background explicitly.
+ */
+describe('auth auto-refresh follows app foreground state', () => {
+  beforeEach(async () => {
+    jest.useRealTimers();
+    mockReplace.mockClear();
+    mockStartAutoRefresh.mockClear();
+    mockStopAutoRefresh.mockClear();
+    await AsyncStorage.clear();
+    mockMaybeSingle.mockResolvedValue({ data: { id: 'user-1' }, error: null });
+    mockGetSession.mockResolvedValue({ data: { session: SESSION } });
+  });
+
+  it('starts auto-refresh when the app foregrounds and stops it when it backgrounds', async () => {
+    render(<RootLayout />);
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(app)/(tabs)'));
+
+    // Mounting itself calls startAutoRefresh once, independent of any
+    // AppState event — clear it so the assertions below isolate the
+    // AppState-driven behaviour.
+    expect(mockStartAutoRefresh).toHaveBeenCalledTimes(1);
+    mockStartAutoRefresh.mockClear();
+
+    const changeCall = (AppState.addEventListener as jest.Mock).mock.calls.find(
+      ([event]) => event === 'change'
+    );
+    expect(changeCall).toBeDefined();
+    const onChange = changeCall![1] as (state: string) => void;
+
+    act(() => onChange('active'));
+    expect(mockStartAutoRefresh).toHaveBeenCalledTimes(1);
+    expect(mockStopAutoRefresh).not.toHaveBeenCalled();
+
+    act(() => onChange('background'));
+    expect(mockStopAutoRefresh).toHaveBeenCalledTimes(1);
+
+    mockStopAutoRefresh.mockClear();
+    act(() => onChange('inactive'));
+    expect(mockStopAutoRefresh).toHaveBeenCalledTimes(1);
   });
 });
