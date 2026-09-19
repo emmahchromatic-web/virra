@@ -16,6 +16,8 @@ import { importNewWeightSamples } from '@/lib/healthKitWeight';
 import { scheduleDailyReminders, scheduleWeeklyPlanReminder, loadNotificationPreferences, cancelTrialReminders, scheduleTrialReminders } from '@/lib/notifications';
 import { colors } from '@/constants/theme';
 import { flushPendingCompletions } from '@/lib/pendingCompletions';
+// Registers the completeWorkout outbox handler — must run before any drain().
+import '@/lib/outbox/handlers/completeWorkout';
 
 function nextMondayISO(): string {
   const now    = new Date();

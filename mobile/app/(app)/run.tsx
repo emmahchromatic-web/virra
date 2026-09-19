@@ -16,7 +16,7 @@ import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
-import { enqueueCompletion } from '@/lib/pendingCompletions';
+import { enqueue } from '@/lib/outbox';
 
 function formatDuration(s: number): string {
   const h  = Math.floor(s / 3600);
@@ -203,7 +203,7 @@ export default function RunTrackerScreen() {
       // else, so closing the app lost it. GPS needs no signal, which is exactly
       // why runs happen in valleys and on trails: the one workout most likely
       // to finish offline was the only one with no local persistence at all.
-      await enqueueCompletion(session.user.id, {
+      await enqueue(session.user.id, 'completeWorkout', {
         kind:      'run',
         queuedAt:  new Date().toISOString(),
         sessionId: sessionId ?? null,

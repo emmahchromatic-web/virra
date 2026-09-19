@@ -45,7 +45,7 @@ import {
 import type { RunWorkoutStructure, AnyStrengthStructure } from '@/lib/workoutStructure';
 import { isStrengthV2 } from '@/lib/workoutStructure';
 import { saveWorkoutDraft, loadWorkoutDraft, deleteWorkoutDraft } from '@/lib/workoutDrafts';
-import { enqueueCompletion } from '@/lib/pendingCompletions';
+import { enqueue } from '@/lib/outbox';
 import { sessionLabelText } from '@/lib/sessionLabels';
 import { limitSetInput, isWithinWeightLimit, isBigJump, formatKg } from '@/lib/setInputLimits';
 import { ProScreen } from '@/components/ui/ProScreen';
@@ -1020,7 +1020,7 @@ function WorkoutPreviewScreen() {
       // Queue the whole completion and let them finish. It replays on the next
       // foreground, and `activities` is unique on (user_id, started_at) so a
       // retry cannot duplicate the session.
-      await enqueueCompletion(session.user.id, {
+      await enqueue(session.user.id, 'completeWorkout', {
         kind:      'strength',
         queuedAt:  new Date().toISOString(),
         sessionId: sessionId ?? null,
