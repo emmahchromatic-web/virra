@@ -9,11 +9,16 @@ import { colors, spacing, radius } from '@/constants/theme';
 type PillState = 'offline' | 'syncing' | 'synced' | 'failed' | null;
 
 function deriveState(
-  isOnline: boolean, syncing: boolean, pendingCount: number, deadLetterCount: number, justSynced: boolean,
+  isOnline: boolean, pendingCount: number, deadLetterCount: number, justSynced: boolean,
 ): PillState {
   if (deadLetterCount > 0) return 'failed';
   if (!isOnline) return 'offline';
-  if (syncing && pendingCount > 0) return 'syncing';
+  // Not `syncing && pendingCount > 0`: syncing is only true for the literal
+  // duration of a drain() call, but a retryable failure halts the drain and
+  // leaves pendingCount > 0 with syncing already back to false -- a queue
+  // that can't currently drain still has real unsynced work, and needs to
+  // stay visible until it does or until it dead-letters.
+  if (pendingCount > 0) return 'syncing';
   if (justSynced) return 'synced';
   return null;
 }
@@ -27,11 +32,10 @@ const CONFIG: Record<Exclude<PillState, null>, { icon: string; label: string }> 
 
 export function SyncPill() {
   const isOnline = useNetworkStore((s) => s.isOnline);
-  const syncing = useOutboxStatus((s) => s.syncing);
   const pendingCount = useOutboxStatus((s) => s.pendingCount);
   const deadLetterCount = useOutboxStatus((s) => s.deadLetterCount);
   const justSynced = useOutboxStatus((s) => s.justSynced);
-  const state = deriveState(isOnline, syncing, pendingCount, deadLetterCount, justSynced);
+  const state = deriveState(isOnline, pendingCount, deadLetterCount, justSynced);
 
   // react-native-reanimated is not a dependency of this app; a single fade
   // does not justify adding a new native module this close to submission,
