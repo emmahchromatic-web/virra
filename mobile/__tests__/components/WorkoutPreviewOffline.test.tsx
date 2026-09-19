@@ -1,6 +1,6 @@
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { render, waitFor } from '@testing-library/react-native';
+import { render, waitFor, fireEvent } from '@testing-library/react-native';
 
 jest.mock('expo-router', () => ({
   useLocalSearchParams: () => ({ sessionId: 'ps-1' }),
@@ -41,13 +41,22 @@ jest.mock('@/lib/supabase', () => {
     update: jest.fn(() => ({ eq: jest.fn().mockResolvedValue(offline) })),
     upsert: jest.fn().mockResolvedValue(offline),
     delete: jest.fn(() => ({ eq: jest.fn().mockResolvedValue(offline) })),
+    // The finish-workout write, exercised below: `.insert(...).select('id').single()`.
+    // Rejecting it the same way every other call in this file rejects is what
+    // drives `saveSession` into the offline/queue branch.
+    insert: jest.fn(() => ({ select: jest.fn(() => ({ single: jest.fn().mockResolvedValue(offline) })) })),
   }));
   return { supabase: { from } };
 });
 
 const mockById: Record<string, unknown> = {};
+// applyLocalCompletion is the thing under test below (offline-completion call
+// site), so it has to be a real spy, not a no-op returned inline — the other
+// two tests in this file never touch it and don't care that it now exists.
+const mockApplyLocalCompletion = jest.fn();
 jest.mock('@/store/sessionStore', () => ({
-  useSessionStore: { getState: () => ({ byId: mockById }) },
+  useSessionStore: { getState: () => ({ byId: mockById, applyLocalCompletion: mockApplyLocalCompletion }) },
+  LOCAL_ACTIVITY_PREFIX: 'local_',
 }));
 
 const CACHED_ROW = {
@@ -105,5 +114,50 @@ describe('starting a workout with no signal', () => {
     const { getByText } = render(<WorkoutPreviewScreen />);
 
     await waitFor(() => expect(getByText(/Could not open this session/i)).toBeTruthy());
+  });
+});
+
+/**
+ * Task 5 of the J1 hardening plan. `saveSession`'s offline branch (the
+ * `activities` insert fails, so the whole completion is queued to the
+ * outbox) also calls `useSessionStore.getState().applyLocalCompletion(...)`
+ * so the session flips to completed on-screen immediately, without waiting
+ * for a drain. That call site had no test asserting on it directly — this
+ * closes that gap by driving the screen through start → finish → save with
+ * the same "every network call fails" mock the file already uses.
+ */
+describe('finishing a workout with no signal', () => {
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    for (const k of Object.keys(mockById)) delete mockById[k];
+    mockApplyLocalCompletion.mockClear();
+  });
+
+  it('applies a local completion for the finished session when the write is queued offline', async () => {
+    mockById['ps-1'] = CACHED_ROW;
+
+    const { getByText } = render(<WorkoutPreviewScreen />);
+
+    // Loads from cache (card 258's path), then start, finish and save it.
+    await waitFor(() => expect(getByText(/Goblet Squat/i)).toBeTruthy());
+
+    fireEvent.press(getByText("LET'S GO"));
+    await waitFor(() => expect(getByText('END WORKOUT')).toBeTruthy());
+
+    fireEvent.press(getByText('END WORKOUT'));
+    await waitFor(() => expect(getByText('SAVE SESSION')).toBeTruthy());
+
+    fireEvent.press(getByText('SAVE SESSION'));
+
+    // The `activities` insert rejects (mocked offline above), which is what
+    // routes `saveSession` into the queue-and-complete-locally branch.
+    await waitFor(() => expect(mockApplyLocalCompletion).toHaveBeenCalledTimes(1));
+
+    const [sessionIdArg, activityIdArg] = mockApplyLocalCompletion.mock.calls[0];
+    expect(sessionIdArg).toBe('ps-1');
+    // A placeholder id is required, but its exact shape belongs to
+    // sessionStore.mutations.test.ts, not here.
+    expect(typeof activityIdArg).toBe('string');
+    expect(activityIdArg.length).toBeGreaterThan(0);
   });
 });
