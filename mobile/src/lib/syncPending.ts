@@ -8,6 +8,25 @@ function isCompleteWorkout(item: OutboxItem): item is OutboxItem<'completeWorkou
 }
 
 /**
+ * Reverts the optimistic local completion behind every dead-lettered
+ * completion in `items`. A dead-lettered item's server row will never report
+ * `completed`, so `refresh()`'s "preserve a locally-completed row" rule would
+ * otherwise hold the phantom forever. See sessionStore.revertLocalCompletion.
+ *
+ * Idempotent by construction: `revertLocalCompletion` only touches rows whose
+ * `activity_id` is still a `local_` placeholder, so re-running it over the
+ * whole on-disk dead-letter list on every launch costs nothing and cannot undo
+ * a real, server-confirmed completion.
+ */
+function revertDeadLetteredCompletions(items: OutboxItem[]): void {
+  for (const item of items) {
+    if (!isCompleteWorkout(item)) continue;
+    const sessionId = item.payload.sessionId;
+    if (sessionId) useSessionStore.getState().revertLocalCompletion(sessionId);
+  }
+}
+
+/**
  * Card 253 -> the J1 outbox. Safe to call every time: a network error halts
  * the drain and leaves the queue exactly where it was; a permanent one
  * dead-letters just that item and the rest still go through.
@@ -26,6 +45,20 @@ export async function syncPending(userId: string): Promise<void> {
     const deadBefore    = await readDeadLetters(userId);
     useOutboxStatus.getState().setCounts(pendingBefore.length, deadBefore.length);
 
+    // Reconcile the FULL on-disk dead-letter list, on every single invocation —
+    // including the ones that return early below (offline, or nothing queued).
+    //
+    // WHY NOT JUST `result.deadLettered`. `drain()` persists a dead letter
+    // inside its locked tail write and only THEN returns it. If the process
+    // dies in that window (an iOS background kill, an OOM, a crash in the
+    // intervening await), the dead letter is on disk, the local `local_`-
+    // prefixed session row is persisted too, and nothing on any later launch
+    // would ever put the two together again -- the phantom "completed" session
+    // this module exists to clear, reached by a second route. This loop is the
+    // actual guarantee; the `result.deadLettered` loop further down is now a
+    // promptness optimisation (react on the same call that dead-letters).
+    revertDeadLetteredCompletions(deadBefore);
+
     if (!useNetworkStore.getState().isOnline) return;
     if (pendingBefore.length === 0) return;
 
@@ -42,15 +75,10 @@ export async function syncPending(userId: string): Promise<void> {
     if (result.left === 0 && result.sent > 0) useOutboxStatus.getState().setJustSynced(true);
 
     // Revert the optimistic local completion for anything that just proved it
-    // can never succeed. The pre-hardening behaviour (a plain refresh) used to
-    // self-correct this the next time the screen focused; a dead-lettered
-    // item's server row never reports `completed`, so nothing else clears it.
-    // See sessionStore.revertLocalCompletion.
-    for (const item of result.deadLettered) {
-      if (!isCompleteWorkout(item)) continue;
-      const sessionId = item.payload.sessionId;
-      if (sessionId) useSessionStore.getState().revertLocalCompletion(sessionId);
-    }
+    // can never succeed, without waiting for the next launch's `deadBefore`
+    // sweep above to notice. Promptness, not correctness: the sweep is what
+    // guarantees this eventually happens even if this process never gets here.
+    revertDeadLetteredCompletions(result.deadLettered);
 
     // The server now owns these sessions. Pull the real row in now rather than
     // leaving the `local_` placeholder sitting there until the next screen
