@@ -26,6 +26,10 @@ let mockActivityByIdRows: any[]      = [];
 let mockProfileRow: any              = null;
 let mockTodayActivityRows: any[]     = [];
 let rejectWhich: 'activities-by-id' | 'user_profiles' | 'today-activities' | 'planned_sessions' | null = null;
+// Separate from `rejectWhich` on purpose: PostgREST does NOT reject on a
+// network failure, it RESOLVES with `{ data: null, error, status: 0 }`. This
+// flag reproduces the failure mode that actually happens offline.
+let errorWhich: 'planned_sessions' | null = null;
 let plannedSessionsFromCalls = 0;
 let activitiesCallCount      = 0;
 
@@ -37,6 +41,7 @@ function mockPlannedSessionsFromCallsInc() { plannedSessionsFromCalls += 1; }
 function mockActivitiesCallCountInc()      { activitiesCallCount += 1; }
 function mockActivitiesCallCountGet()      { return activitiesCallCount; }
 function mockRejectWhichGet()              { return rejectWhich; }
+function mockErrorWhichGet()               { return errorWhich; }
 function mockPlannedDirectRowsGet()        { return mockPlannedDirectRows; }
 function mockActivityByIdRowsGet()         { return mockActivityByIdRows; }
 function mockProfileRowGet()               { return mockProfileRow; }
@@ -65,6 +70,10 @@ jest.mock('@/lib/supabase', () => ({
               return (resolve: any, reject: any) => {
                 if (mockRejectWhichGet() === kind) {
                   reject(new Error(`${kind} failed`));
+                  return;
+                }
+                if (mockErrorWhichGet() === kind) {
+                  resolve({ data: null, error: { message: 'Network request failed' } });
                   return;
                 }
                 let data: any;
@@ -108,6 +117,7 @@ beforeEach(() => {
   mockProfileRow         = null;
   mockTodayActivityRows  = [];
   rejectWhich            = null;
+  errorWhich             = null;
   plannedSessionsFromCalls = 0;
   activitiesCallCount    = 0;
   mockSessionState       = { byId: {}, idsByDate: {} };
@@ -178,6 +188,73 @@ describe('getTodaysSessions — cache-first', () => {
 
     expect(plannedSessionsFromCalls).toBeGreaterThan(0);
     expect(result.map((r) => r.id)).toEqual(['d1']);
+  });
+
+  // The Dashboard contradiction this fixes: on a cold offline launch the
+  // persisted `loadedRanges` are older than the 5-minute staleness window, so
+  // `hasLoadedDate` says false, the direct query is tried, it fails, and
+  // today's hero went blank -- while the week strip on the SAME screen
+  // (`useWeekSessions`, no staleness gate) still rendered those very rows from
+  // the same cache. Staleness may decide whether to refetch; it must never
+  // decide whether cached data may be rendered.
+  it('falls back to stale cached rows when the direct query RESOLVES with an error', async () => {
+    mockTodayIsLoaded = false; // range is loaded but older than the staleness window
+    errorWhich = 'planned_sessions';
+    mockSessionState = {
+      byId: {
+        s1: { id: 's1', scheduled_date: TODAY, modality: 'run',      session_label: 'long',  status: 'planned', activity_id: null, run_structure: null, strength_structure: null },
+        s2: { id: 's2', scheduled_date: TODAY, modality: 'strength', session_label: 'lower', status: 'dropped', activity_id: null, run_structure: null, strength_structure: null },
+      },
+      idsByDate: { [TODAY]: ['s1', 's2'] },
+    };
+
+    const result = await getTodaysSessions('u1');
+
+    expect(plannedSessionsFromCalls).toBeGreaterThan(0); // it did try the network
+    expect(result.map((r) => r.id)).toEqual(['s1']);     // ...and kept the cache when that failed
+  });
+
+  it('falls back to stale cached rows when the direct query genuinely rejects', async () => {
+    mockTodayIsLoaded = false;
+    rejectWhich = 'planned_sessions';
+    mockSessionState = {
+      byId: {
+        s1: { id: 's1', scheduled_date: TODAY, modality: 'run', session_label: 'easy', status: 'planned', activity_id: null, run_structure: null, strength_structure: null },
+      },
+      idsByDate: { [TODAY]: ['s1'] },
+    };
+
+    const result = await getTodaysSessions('u1');
+
+    expect(result.map((r) => r.id)).toEqual(['s1']);
+  });
+
+  it('returns an empty list when the query fails and nothing at all is cached for today', async () => {
+    mockTodayIsLoaded = false;
+    errorWhich = 'planned_sessions';
+    mockSessionState = { byId: {}, idsByDate: {} };
+
+    const result = await getTodaysSessions('u1');
+
+    expect(result).toEqual([]);
+  });
+
+  // The `session_label ?? ''` guard `dailyTrainingContext`'s equivalent cache
+  // read already applies. The column is NOT NULL, so this is belt-and-braces
+  // -- but a null reaching `.toLowerCase()` downstream would throw, and the
+  // two functions reading the same cache should agree on its shape.
+  it('defends against a null session_label coming out of the cache', async () => {
+    mockTodayIsLoaded = true;
+    mockSessionState = {
+      byId: {
+        s1: { id: 's1', scheduled_date: TODAY, modality: 'run', session_label: null, status: 'planned', activity_id: null, run_structure: null, strength_structure: null },
+      },
+      idsByDate: { [TODAY]: ['s1'] },
+    };
+
+    const result = await getTodaysSessions('u1');
+
+    expect(result.map((r) => r.session_label)).toEqual(['']);
   });
 });
 

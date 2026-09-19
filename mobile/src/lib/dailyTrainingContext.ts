@@ -129,14 +129,29 @@ export async function getDailyTrainingContext(
 ): Promise<DailyTrainingContext> {
   let sessions: PlannedSessionSummary[];
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('planned_sessions')
       .select('id, session_label, modality, status, activity_id')
       .eq('user_id', userId)
       .eq('scheduled_date', dateISO)
       .in('status', ['planned', 'completed']);
 
-    sessions = (data ?? []) as PlannedSessionSummary[];
+    // The check that actually fires offline. PostgREST does NOT reject on a
+    // network failure -- it RESOLVES with `{ data: null, error, status: 0 }`.
+    // Without this, `data ?? []` turned "couldn't ask" into "she has nothing
+    // planned", reporting a long-run day as `inferred_load: 'rest'` and
+    // feeding that straight into the Nutrition tab's targets. The catch below
+    // stays as defense-in-depth for a genuine throw; this is the real path.
+    //
+    // Idempotent under repeated failure: the fallback only READS the session
+    // cache, so a second offline call returns the same answer and can't
+    // degrade anything.
+    if (error) {
+      console.warn('[dailyTrainingContext] planned_sessions fetch failed, using cache:', error.message);
+      sessions = sessionsFromCache(dateISO);
+    } else {
+      sessions = (data ?? []) as PlannedSessionSummary[];
+    }
   } catch (e) {
     console.error('[dailyTrainingContext] planned_sessions fetch:', e);
     sessions = sessionsFromCache(dateISO);

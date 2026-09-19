@@ -63,14 +63,33 @@ interface ActivityRow {
  * at least one row, so a confirmed rest day (zero planned sessions, a
  * perfectly valid cached answer) would otherwise look identical to "never
  * fetched" and always force a needless network round trip.
+ *
+ * `ignoreStaleness` splits the two questions the staleness window was being
+ * asked at once. "Is the cache fresh enough to skip the network entirely?" is
+ * a staleness question and stays gated on `hasLoadedDate`. "May I render what
+ * I already have?" is NOT: on a cold offline launch the persisted
+ * `loadedRanges` are hours or days old, so the gated read returned null, the
+ * direct query then failed, and today's hero went blank -- while the week
+ * strip beside it, reading the same `byId`/`idsByDate` with no staleness gate
+ * at all (`useWeekSessions`), still showed those very sessions. One screen,
+ * one cache, two contradictory answers. Stale data may always be rendered;
+ * staleness only decides whether to go back to the network.
  */
-function readCachedTodaySessions(today: string): PlannedSessionRow[] | null {
-  if (!hasLoadedDate(today)) return null;
+function readCachedTodaySessions(
+  today: string,
+  { ignoreStaleness = false }: { ignoreStaleness?: boolean } = {},
+): PlannedSessionRow[] | null {
+  if (!ignoreStaleness && !hasLoadedDate(today)) return null;
   const { byId, idsByDate } = useSessionStore.getState();
   const ids = idsByDate[today] ?? [];
   return ids
     .map((id) => byId[id])
-    .filter((r) => !!r && r.status !== 'moved' && r.status !== 'dropped') as unknown as PlannedSessionRow[];
+    .filter((r) => !!r && r.status !== 'moved' && r.status !== 'dropped')
+    // `session_label` is NOT NULL in the database, so this is belt-and-braces
+    // -- but `dailyTrainingContext.ts`'s equivalent cache read already applies
+    // it (a null reaching `.toLowerCase()` downstream), and two functions
+    // reading the same cache should not disagree about its shape.
+    .map((r) => ({ ...r, session_label: r.session_label ?? '' })) as unknown as PlannedSessionRow[];
 }
 
 /**
@@ -93,17 +112,39 @@ export async function getTodaysSessions(userId: string): Promise<TodaysSession[]
     return enrichTodaysSessions(userId, cached);
   }
 
-  const { data: planned, error } = await supabase
-    .from('planned_sessions')
-    .select('id, modality, session_label, status, activity_id, run_structure, strength_structure')
-    .eq('user_id', userId)
-    .eq('scheduled_date', today)
-    .neq('status', 'moved')
-    .neq('status', 'dropped')
-    .order('created_at');
-  if (error || !planned?.length) return [];
+  let planned: PlannedSessionRow[] | null = null;
+  let failed = false;
+  try {
+    const { data, error } = await supabase
+      .from('planned_sessions')
+      .select('id, modality, session_label, status, activity_id, run_structure, strength_structure')
+      .eq('user_id', userId)
+      .eq('scheduled_date', today)
+      .neq('status', 'moved')
+      .neq('status', 'dropped')
+      .order('created_at');
+    // PostgREST resolves (it does not reject) on a network failure, handing
+    // back `{ data: null, error, status: 0 }` -- so this `error` check, not
+    // the catch below, is what actually fires when the phone has no signal.
+    if (error) failed = true;
+    else planned = (data ?? []) as PlannedSessionRow[];
+  } catch {
+    failed = true;
+  }
 
-  return enrichTodaysSessions(userId, planned as PlannedSessionRow[]);
+  if (failed) {
+    // Last resort before answering "no session today", which would be a
+    // network failure recorded as a fact (spec §6). Anything cached for today
+    // -- however stale the range it came from -- is a better answer than
+    // nothing, and is exactly what the week strip on the same screen is
+    // already showing.
+    const stale = readCachedTodaySessions(today, { ignoreStaleness: true }) ?? [];
+    return stale.length ? enrichTodaysSessions(userId, stale) : [];
+  }
+
+  if (!planned?.length) return [];
+
+  return enrichTodaysSessions(userId, planned);
 }
 
 /** Fallback shape used when the activities-by-id lookup fails: same empty
