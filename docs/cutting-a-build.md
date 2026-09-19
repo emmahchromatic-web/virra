@@ -91,6 +91,8 @@ If `--clean` refuses or you would rather be certain:
 rm -rf ios && npx expo prebuild -p ios
 ```
 
+Adding `@react-native-community/netinfo` (offline J1) means a build cut without a clean prebuild will crash on import — always `expo prebuild --clean` after this change lands.
+
 ### 4. Verify the prebuild actually took
 
 Do not skip this. It is five seconds and it is the difference between finding
