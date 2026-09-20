@@ -442,8 +442,9 @@ export default function NutritionScreen() {
   }
 
   async function handleDeleteEntry(entry: FoodEntry) {
+    if (!session) return;
     const { error } = await supabase.from('food_entries').delete().eq('id', entry.id);
-    if (error && session) {
+    if (error) {
       // Offline (or a transient server blip) -- queue the delete and let her
       // carry on rather than leaving the entry stuck on screen. The local
       // removal below still happens immediately either way, so the UI reads
