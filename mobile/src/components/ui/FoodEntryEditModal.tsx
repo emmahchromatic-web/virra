@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { View, TextInput, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { enqueue } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
+import { useNutritionDay } from '@/store/nutritionDay';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraModal } from './VirraModal';
 import { VirraButton } from './VirraButton';
@@ -25,13 +28,19 @@ export interface FoodEntry {
 }
 
 interface Props {
-  visible:  boolean;
-  entry:    FoodEntry | null;
-  onClose:  () => void;
-  onSaved:  () => void;
+  visible:    boolean;
+  entry:      FoodEntry | null;
+  /** Owner of the entry, needed to queue an offline edit. Null only when no
+   *  session is available yet -- editing an entry always implies one exists. */
+  userId:     string | null;
+  /** The nutrition day this entry belongs to, so a queued edit's optimistic
+   *  local update lands on the right cached day (see `updateEntryLocal`). */
+  recordedOn: string;
+  onClose:    () => void;
+  onSaved:    () => void;
 }
 
-export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) {
+export function FoodEntryEditModal({ visible, entry, userId, recordedOn, onClose, onSaved }: Props) {
   const [gramsText, setGramsText] = useState('');
   const [error,     setError]     = useState<string | null>(null);
   const [saving,    setSaving]    = useState(false);
@@ -65,20 +74,41 @@ export function FoodEntryEditModal({ visible, entry, onClose, onSaved }: Props) 
     }
 
     setSaving(true);
+    const patch = {
+      quantity_g: Math.round(newGrams),
+      calories:   Math.round(entry.calories  * ratio),
+      carbs_g:    Math.round(entry.carbs_g   * ratio * 10) / 10,
+      protein_g:  Math.round(entry.protein_g * ratio * 10) / 10,
+      fat_g:      Math.round(entry.fat_g     * ratio * 10) / 10,
+      fibre_g:    Math.round(entry.fibre_g   * ratio * 10) / 10,
+    };
     try {
       const { error: dbErr } = await supabase
         .from('food_entries')
-        .update({
-          quantity_g: Math.round(newGrams),
-          calories:   Math.round(entry.calories  * ratio),
-          carbs_g:    Math.round(entry.carbs_g   * ratio * 10) / 10,
-          protein_g:  Math.round(entry.protein_g * ratio * 10) / 10,
-          fat_g:      Math.round(entry.fat_g     * ratio * 10) / 10,
-          fibre_g:    Math.round(entry.fibre_g   * ratio * 10) / 10,
-        })
+        .update(patch)
         .eq('id', entry.id);
 
-      if (dbErr) throw dbErr;
+      if (dbErr) {
+        // Offline (or a transient server blip) -- queue the edit and let her
+        // carry on rather than blocking her on a save that can't reach the
+        // server right now. The local update below still happens immediately
+        // either way, so the UI reads as saved regardless of which path
+        // actually did the work.
+        if (userId) {
+          await enqueue(userId, 'updateFoodEntry', {
+            entryId:   entry.id,
+            quantityG: patch.quantity_g,
+            calories:  patch.calories,
+            carbsG:    patch.carbs_g,
+            proteinG:  patch.protein_g,
+            fatG:      patch.fat_g,
+            fibreG:    patch.fibre_g,
+          });
+          syncPending(userId);
+        }
+      }
+
+      useNutritionDay.getState().updateEntryLocal(recordedOn, entry.id, patch);
       onSaved();
       onClose();
     } catch (e: any) {

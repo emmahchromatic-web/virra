@@ -203,3 +203,49 @@ describe('nutritionDay store removeEntryLocal()', () => {
     expect(useNutritionDay.getState().days).toEqual({});
   });
 });
+
+describe('nutritionDay store updateEntryLocal()', () => {
+  it('merges a patch into one cached entry without touching other entries or days', () => {
+    useNutritionDay.setState({
+      days: {
+        '2026-09-19': {
+          logId: 'log1', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null,
+          entries: [entryA, entryB], fetchedAt: '2026-09-19T06:00:00.000Z',
+        },
+        '2026-09-18': {
+          logId: 'log0', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null,
+          entries: [entryA], fetchedAt: '2026-09-18T06:00:00.000Z',
+        },
+      },
+    });
+
+    useNutritionDay.getState().updateEntryLocal('2026-09-19', 'e1', { quantity_g: 150, calories: 225 });
+
+    expect(useNutritionDay.getState().days['2026-09-19'].entries).toEqual([
+      { ...entryA, quantity_g: 150, calories: 225 },
+      entryB,
+    ]);
+    expect(useNutritionDay.getState().days['2026-09-18'].entries).toEqual([entryA]);
+  });
+
+  it('is a no-op for a day with nothing cached', () => {
+    useNutritionDay.setState({ days: {} });
+    expect(() => useNutritionDay.getState().updateEntryLocal('2026-09-19', 'e1', { calories: 1 })).not.toThrow();
+    expect(useNutritionDay.getState().days).toEqual({});
+  });
+
+  it('is a no-op when the entry id is not found in that day', () => {
+    useNutritionDay.setState({
+      days: {
+        '2026-09-19': {
+          logId: 'log1', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null,
+          entries: [entryA], fetchedAt: '2026-09-19T06:00:00.000Z',
+        },
+      },
+    });
+
+    useNutritionDay.getState().updateEntryLocal('2026-09-19', 'does-not-exist', { calories: 1 });
+
+    expect(useNutritionDay.getState().days['2026-09-19'].entries).toEqual([entryA]);
+  });
+});

@@ -600,6 +600,8 @@ export default function NutritionScreen() {
       <FoodEntryEditModal
         visible={editing !== null}
         entry={editing}
+        userId={session?.user.id ?? null}
+        recordedOn={today}
         onClose={() => setEditing(null)}
         onSaved={reloadEntries}
       />

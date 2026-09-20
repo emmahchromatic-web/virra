@@ -16,7 +16,7 @@ const OUTBOX_PREFIX        = 'virra:outbox:v1:';
 const DEAD_LETTER_PREFIX   = 'virra:outbox_failed:v1:';
 const LEGACY_QUEUE_PREFIX  = 'virra:pending_completions:v1:';
 
-export type MutationKind = 'completeWorkout' | 'checkIn' | 'deleteFoodEntry';
+export type MutationKind = 'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry';
 
 export interface MutationPayloadMap {
   completeWorkout: PendingCompletion;
@@ -31,6 +31,15 @@ export interface MutationPayloadMap {
   };
   deleteFoodEntry: {
     entryId: string;
+  };
+  updateFoodEntry: {
+    entryId:   string;
+    quantityG: number;
+    calories:  number;
+    carbsG:    number;
+    proteinG:  number;
+    fatG:      number;
+    fibreG:    number;
   };
 }
 

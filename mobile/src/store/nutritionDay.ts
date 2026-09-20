@@ -39,6 +39,11 @@ interface NutritionDayState {
    *  server) -- avoids waiting on a round trip through `refresh()` just to
    *  reflect a change the screen already knows happened. */
   removeEntryLocal: (recordedOn: string, entryId: string) => void;
+  /** Optimistic local macro edit (e.g. after an update already committed to
+   *  the server, or queued for offline replay) -- same reasoning and shape as
+   *  `removeEntryLocal`: avoids waiting on a round trip through `refresh()`
+   *  just to reflect a change the screen already knows happened. */
+  updateEntryLocal: (recordedOn: string, entryId: string, patch: Partial<FoodEntryRow>) => void;
   /**
    * Drop every cached day back to empty. Called from the auth store's
    * `signOut()`: clearing STORAGE is not clearing the app -- this store keeps
@@ -118,6 +123,20 @@ export const useNutritionDay = create<NutritionDayState>()(
           days: {
             ...get().days,
             [recordedOn]: { ...day, entries: day.entries.filter((e) => e.id !== entryId) },
+          },
+        });
+      },
+
+      updateEntryLocal: (recordedOn, entryId, patch) => {
+        const day = get().days[recordedOn];
+        if (!day) return;
+        set({
+          days: {
+            ...get().days,
+            [recordedOn]: {
+              ...day,
+              entries: day.entries.map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
+            },
           },
         });
       },
