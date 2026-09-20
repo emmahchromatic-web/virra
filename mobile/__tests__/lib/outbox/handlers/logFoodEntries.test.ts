@@ -1,12 +1,13 @@
 import { handler } from '@/lib/outbox/handlers/logFoodEntries';
 import { supabase } from '@/lib/supabase';
+import type { LogFoodEntryRow } from '@/lib/outbox';
 
 jest.mock('@/lib/supabase', () => ({
   supabase: { from: jest.fn() },
 }));
 
 describe('logFoodEntries handler', () => {
-  const row = {
+  const row: LogFoodEntryRow = {
     id: 'e1', log_id: 'log1', meal_type: 'lunch', food_name: 'Apple',
     quantity_g: 150, quantity_unit: 'g', calories: 80, carbs_g: 20,
     protein_g: 0, fat_g: 0, fibre_g: 4, nutritionix_id: null,

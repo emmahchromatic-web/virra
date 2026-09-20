@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PendingCompletion } from '@/lib/pendingCompletions';
+import type { MealType, FoodEntrySource } from '@/lib/nutritionLog';
 import { describeError } from '@/lib/outbox/errors';
 
 /**
@@ -32,7 +33,7 @@ export type MutationKind =
 export interface LogFoodEntryRow {
   id:             string;
   log_id:         string;
-  meal_type:      string;
+  meal_type:      MealType;
   food_name:      string;
   quantity_g:     number | null;
   quantity_unit:  string | null;
@@ -42,7 +43,7 @@ export interface LogFoodEntryRow {
   fat_g:          number;
   fibre_g:        number;
   nutritionix_id: string | null;
-  source:         string;
+  source:         FoodEntrySource;
   haiku_input:    string | null;
   confidence:     number | null;
 }
