@@ -11,6 +11,7 @@ jest.mock('@/lib/nutritionLog', () => ({
 import { useNutritionDay } from '@/store/nutritionDay';
 import { getNutritionDay } from '@/lib/nutritionLog';
 import { supabase } from '@/lib/supabase';
+import { enqueue } from '@/lib/outbox';
 
 const mockGetNutritionDay = getNutritionDay as jest.MockedFunction<typeof getNutritionDay>;
 const mockGetUser = supabase.auth.getUser as jest.MockedFunction<typeof supabase.auth.getUser>;
@@ -173,6 +174,70 @@ describe('nutritionDay store refresh()', () => {
     await Promise.all([first, second]);
 
     expect(mockGetNutritionDay).toHaveBeenCalledTimes(1);
+  });
+
+  // Card 284 / J3b. `food-search.tsx`'s add handlers apply `addEntryLocal`
+  // immediately and route the write through the `logFoodEntries` outbox kind
+  // on failure -- so between a queued add and its drain, the server's own
+  // list has not caught up yet BY DESIGN. `drain()` halts at the first
+  // retryable failure, so this window is reachable while fully online, not
+  // just offline. A `refresh()` landing in it must not let the server's
+  // stale list overwrite the entry the user just saw appear -- the same bug
+  // class J3a's final review found in `recipes.ts`'s `refreshFavourites`.
+  it('keeps a queued, undrained logFoodEntries row that the server has not caught up on yet', async () => {
+    mockGetNutritionDay.mockResolvedValue({
+      logId: 'log1', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null, entries: [entryA],
+    });
+    await enqueue('u1', 'logFoodEntries', {
+      rows: [{
+        id: 'e9', log_id: 'log1', meal_type: 'snack', food_name: 'Banana',
+        quantity_g: 120, quantity_unit: 'g', calories: 100, carbs_g: 25,
+        protein_g: 1, fat_g: 0, fibre_g: 3, nutritionix_id: null,
+        source: 'manual', haiku_input: null, confidence: null,
+      }],
+    });
+
+    await useNutritionDay.getState().refresh('2026-09-19');
+
+    const day = useNutritionDay.getState().days['2026-09-19'];
+    expect(day.entries.map((e) => e.id)).toEqual(['e1', 'e9']);
+  });
+
+  it('does not duplicate a queued row the server has already caught up on', async () => {
+    const queuedRow = {
+      id: 'e9', log_id: 'log1', meal_type: 'snack' as const, food_name: 'Banana',
+      quantity_g: 120, quantity_unit: 'g', calories: 100, carbs_g: 25,
+      protein_g: 1, fat_g: 0, fibre_g: 3, nutritionix_id: null,
+      source: 'manual' as const, haiku_input: null, confidence: null,
+    };
+    mockGetNutritionDay.mockResolvedValue({
+      logId: 'log1', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null, entries: [entryA, queuedRow],
+    });
+    await enqueue('u1', 'logFoodEntries', { rows: [queuedRow] });
+
+    await useNutritionDay.getState().refresh('2026-09-19');
+
+    const day = useNutritionDay.getState().days['2026-09-19'];
+    expect(day.entries.map((e) => e.id)).toEqual(['e1', 'e9']);
+  });
+
+  it('ignores a queued logFoodEntries row for a different log_id', async () => {
+    mockGetNutritionDay.mockResolvedValue({
+      logId: 'log1', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null, entries: [entryA],
+    });
+    await enqueue('u1', 'logFoodEntries', {
+      rows: [{
+        id: 'e9', log_id: 'log-other-day', meal_type: 'snack', food_name: 'Banana',
+        quantity_g: 120, quantity_unit: 'g', calories: 100, carbs_g: 25,
+        protein_g: 1, fat_g: 0, fibre_g: 3, nutritionix_id: null,
+        source: 'manual', haiku_input: null, confidence: null,
+      }],
+    });
+
+    await useNutritionDay.getState().refresh('2026-09-19');
+
+    const day = useNutritionDay.getState().days['2026-09-19'];
+    expect(day.entries.map((e) => e.id)).toEqual(['e1']);
   });
 });
 

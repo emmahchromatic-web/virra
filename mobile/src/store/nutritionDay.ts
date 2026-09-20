@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import { getNutritionDay, type FoodEntryRow } from '@/lib/nutritionLog';
 import type { TrainingLoad, NutritionTargets } from '@/lib/nutritionTargets';
+import { readOutbox, type OutboxItem, type MutationPayloadMap } from '@/lib/outbox';
 import { asyncStorageAdapter } from './persistAdapter';
 
 const STORE_NAME = 'virra:nutrition:v1';
@@ -70,6 +71,54 @@ interface PersistedNutritionDayState {
   days: Record<string, NutritionDayData>;
 }
 
+function isQueuedLogFoodEntries(item: OutboxItem): item is OutboxItem<'logFoodEntries'> {
+  return item.kind === 'logFoodEntries';
+}
+
+/**
+ * Lays every `logFoodEntries` row still sitting in the outbox for this day's
+ * log back over a freshly-fetched server entry list, same pattern as
+ * `recipes.ts`'s `overlayQueuedToggles`.
+ *
+ * WHY THE READ PATH NEEDS THIS. `food-search.tsx`'s add handlers apply
+ * `addEntryLocal` immediately and route the write through the outbox on
+ * failure, so between a queued add and its drain the server's list is out of
+ * date BY DESIGN. That window is not offline-only: `drain()` halts at the
+ * first retryable failure, so a food entry queued behind an earlier stuck
+ * item stays unsent while the device is perfectly connected -- and
+ * `nutrition.tsx`'s focus-triggered `refresh()` (or `reloadEntries()`) can
+ * land in exactly that window. Without this, `refresh()`'s wholesale
+ * `entries: snapshot.entries` below would overwrite the local list with the
+ * server's stale answer and make the just-added entry vanish until the drain
+ * catches up -- the same bug class J3a's final review found in
+ * `refreshFavourites`.
+ *
+ * The outbox is already the record of "not confirmed by the server yet", so
+ * it is the right thing to consult: an item leaves it exactly when the
+ * server has agreed (sent) or can never agree (dead-lettered). `readOutbox`
+ * is already scoped to this user's own AsyncStorage key, so -- unlike
+ * `overlayQueuedToggles`, whose payload carries its own `userId` to
+ * cross-check -- no extra per-item identity check is needed here.
+ */
+async function overlayQueuedFoodEntries(
+  userId: string, logId: string | null, entries: FoodEntryRow[],
+): Promise<FoodEntryRow[]> {
+  if (!logId) return entries;
+  const queued = await readOutbox(userId);
+  const seen = new Set(entries.map((e) => e.id));
+  let merged = entries;
+  for (const item of queued) {
+    if (!isQueuedLogFoodEntries(item)) continue;
+    const { rows } = item.payload as MutationPayloadMap['logFoodEntries'];
+    for (const row of rows) {
+      if (row.log_id !== logId || seen.has(row.id)) continue;
+      merged = [...merged, row];
+      seen.add(row.id);
+    }
+  }
+  return merged;
+}
+
 export const useNutritionDay = create<NutritionDayState>()(
   persist(
     (set, get) => ({
@@ -92,6 +141,7 @@ export const useNutritionDay = create<NutritionDayState>()(
             if (!user) return;
 
             const snapshot = await getNutritionDay(user.id, recordedOn);
+            const entries  = await overlayQueuedFoodEntries(user.id, snapshot.logId, snapshot.entries);
 
             // Only a genuinely successful read reaches this `set()` -- a
             // thrown/rejected call below is caught and leaves the existing
@@ -104,7 +154,7 @@ export const useNutritionDay = create<NutritionDayState>()(
                   trainingLoad: snapshot.trainingLoad,
                   inferredLoad: snapshot.inferredLoad,
                   targetsJson:  snapshot.targetsJson,
-                  entries:      snapshot.entries,
+                  entries,
                   fetchedAt:    new Date().toISOString(),
                 },
               },
