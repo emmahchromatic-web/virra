@@ -13,13 +13,14 @@ import { appAlert } from '@/components/ui/VirraAlert';
 import {
   fetchRecipeDetail, scaleServings, scaleIngredientQuantity, logRecipe,
   stepServings, formatServings, MIN_SERVINGS, MAX_SERVINGS,
-  fetchFavouriteIds, toggleFavourite, noteStatesAnAmount, type RecipeDetail,
+  noteStatesAnAmount, type RecipeDetail,
 } from '@/lib/recipes';
 import { formatQuantity } from '@/lib/foodUnits';
 import { getOrCreateTodayLogId, defaultMealSlot, type MealType } from '@/lib/nutritionLog';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore, personalMetricsFields } from '@/store/profile';
+import { useRecipesStore } from '@/store/recipes';
 import { buildPersonalMetrics, type TrainingLoad } from '@/lib/nutritionTargets';
 import { getDailyTrainingContext } from '@/lib/dailyTrainingContext';
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
@@ -80,8 +81,12 @@ function RecipeDetailScreen() {
   const [loading,  setLoading]  = useState(true);
   const [servings, setServings] = useState(1);
   const [meal,     setMeal]     = useState<MealType>(defaultMealSlot());
-  const [favourite, setFavourite] = useState(false);
   const [logging,  setLogging]  = useState(false);
+
+  // Derived from the shared `recipes` store, not a local copy -- the same
+  // cache the Recipes tab's FAVOURITES rail reads (`recipes.tsx:220`), so a
+  // toggle made here is visible there without a separate round trip.
+  const favourite = useRecipesStore((s) => s.favouriteIds.includes(recipe?.id ?? ''));
 
   useEffect(() => {
     let cancelled = false;
@@ -96,27 +101,27 @@ function RecipeDetailScreen() {
       setLoading(false);
 
       if (session) {
-        const favs = await fetchFavouriteIds(session.user.id);
-        if (!cancelled) setFavourite(favs.includes(slug));
+        // Refreshes the SHARED store cache rather than a screen-local fetch,
+        // so this screen and the tab's FAVOURITES rail never disagree.
+        void useRecipesStore.getState().refreshFavourites(session.user.id);
       }
     })();
     return () => { cancelled = true; };
   }, [slug, session]);
 
   /**
-   * The heart flips immediately and rolls back if the write fails. A favourite
-   * is a low-stakes toggle; making her wait on the network to see it move
-   * would be worse than the rare rollback.
+   * The heart flips immediately via the store's own optimistic update. It no
+   * longer rolls back here on a mere write failure -- offline is a NORMAL
+   * outcome for a low-stakes toggle, not a reason to flash the heart back
+   * before she can see it settle. `useRecipesStore.toggleFavourite` queues
+   * the write through the outbox unconditionally, and only a DEAD-LETTERED
+   * item (one that has proven it can never succeed) reverts it, via
+   * `syncPending.ts`'s reconciliation calling `revertLocalToggle` -- see
+   * store/recipes.ts's `toggleFavourite` doc comment for the full reasoning.
    */
   async function handleFavourite() {
     if (!session || !recipe) return;
-    const next = !favourite;
-    setFavourite(next);
-    const result = await toggleFavourite(session.user.id, recipe.id, next);
-    if (result === null) {
-      setFavourite(!next);
-      appAlert('Could not save that', 'Your favourite did not stick. Try again in a moment.');
-    }
+    await useRecipesStore.getState().toggleFavourite(session.user.id, recipe.id, !favourite);
   }
 
   async function handleLog() {

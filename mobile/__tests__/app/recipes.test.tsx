@@ -48,7 +48,6 @@ const mockSavePrefs    = jest.fn();
 const mockFetchDetail  = jest.fn();
 const mockLogRecipe    = jest.fn();
 const mockFetchFavs    = jest.fn();
-const mockToggleFav    = jest.fn();
 jest.mock('@/lib/recipes', () => {
   const actual = jest.requireActual('@/lib/recipes');
   return {
@@ -60,9 +59,19 @@ jest.mock('@/lib/recipes', () => {
     fetchRecipeDetail: (...a: any[]) => mockFetchDetail(...a),
     logRecipe:         (...a: any[]) => mockLogRecipe(...a),
     fetchFavouriteIds: (...a: any[]) => mockFetchFavs(...a),
-    toggleFavourite:   (...a: any[]) => mockToggleFav(...a),
   };
 });
+
+// The detail screen's `handleFavourite` now goes through the `recipes` store
+// (Task 5), which routes the write through the outbox unconditionally rather
+// than calling `@/lib/recipes`'s `toggleFavourite` directly. Both are mocked
+// so these tests never touch AsyncStorage or the real drain/network path --
+// only that the store's action is called correctly and the optimistic state
+// is never reverted from here.
+const mockEnqueue     = jest.fn();
+const mockSyncPending = jest.fn();
+jest.mock('@/lib/outbox', () => ({ enqueue: (...a: any[]) => mockEnqueue(...a) }));
+jest.mock('@/lib/syncPending', () => ({ syncPending: (...a: any[]) => mockSyncPending(...a) }));
 
 const mockGetLogId = jest.fn();
 jest.mock('@/lib/nutritionLog', () => ({
@@ -103,7 +112,7 @@ beforeEach(() => {
   mockFetchPrefs.mockResolvedValue([]);
   mockSavePrefs.mockResolvedValue(true);
   mockFetchFavs.mockResolvedValue([]);
-  mockToggleFav.mockImplementation((_u, _r, next) => Promise.resolve(next));
+  mockEnqueue.mockResolvedValue({ id: 'ob_1', kind: 'toggleFavourite', payload: {}, createdAt: '', attempts: 0 });
   mockLogRecipe.mockResolvedValue(null);
   mockGetLogId.mockResolvedValue('log-1');
   // The Recipes tab now reads/writes through the `recipes` store (Task 6),
@@ -376,7 +385,9 @@ describe('favourites', () => {
   it('saves a recipe and shows it as saved', async () => {
     const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
     fireEvent.press(await findByLabelText('Save to favourites'));
-    await waitFor(() => expect(mockToggleFav).toHaveBeenCalledWith('u1', 'r1', true));
+    await waitFor(() => expect(mockEnqueue).toHaveBeenCalledWith('u1', 'toggleFavourite', {
+      userId: 'u1', recipeId: 'r1', desiredState: true,
+    }));
     expect(getByLabelText('Remove from favourites')).toBeTruthy();
   });
 
@@ -386,13 +397,42 @@ describe('favourites', () => {
     expect(await findByLabelText('Remove from favourites')).toBeTruthy();
   });
 
-  // Optimistic, so a failure has to put the heart back or the screen would
-  // claim something the database does not hold.
-  it('rolls the heart back when the write fails', async () => {
-    mockToggleFav.mockResolvedValue(null);
+  // Reads from the SAME store the Recipes tab's FAVOURITES rail reads, not a
+  // screen-local fetch -- pre-seeding the store is enough, no network mock
+  // needed to see it reflected here.
+  it('shows a favourite already held by the shared recipes store, before any refresh resolves', async () => {
+    useRecipesStore.setState({ favouriteIds: ['r1'] });
+    const { findByLabelText } = render(<RecipeDetailScreen />);
+    expect(await findByLabelText('Remove from favourites')).toBeTruthy();
+  });
+
+  // The old behaviour reverted the optimistic heart on ANY failure, including
+  // an ordinary offline blip -- that was the bug (card 298 / J3a task 5).
+  // `handleFavourite` no longer has a revert/alert branch at all: it fires
+  // the store's `toggleFavourite` (enqueue + a fire-and-forget sync attempt)
+  // and stops. Only a DEAD-LETTERED item reverts the heart now, via
+  // `syncPending.ts`'s reconciliation calling `revertLocalToggle` (covered in
+  // syncPending.test.ts and store/recipes.test.ts, not here) -- a queued item
+  // that simply hasn't synced yet (offline, or this fire-and-forget attempt
+  // failing) is never treated as a reason to revert from this screen.
+  it('never reverts the optimistic heart or alerts here -- reverting is the dead-letter path\'s job now', async () => {
     const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
     fireEvent.press(await findByLabelText('Save to favourites'));
-    await waitFor(() => expect(mockAppAlert).toHaveBeenCalled());
+    await waitFor(() => expect(mockEnqueue).toHaveBeenCalledWith('u1', 'toggleFavourite', {
+      userId: 'u1', recipeId: 'r1', desiredState: true,
+    }));
+    expect(mockSyncPending).toHaveBeenCalledWith('u1');
+    expect(getByLabelText('Remove from favourites')).toBeTruthy();
+    expect(mockAppAlert).not.toHaveBeenCalled();
+  });
+
+  it('unfavourites through the same store action', async () => {
+    useRecipesStore.setState({ favouriteIds: ['r1'] });
+    const { findByLabelText, getByLabelText } = render(<RecipeDetailScreen />);
+    fireEvent.press(await findByLabelText('Remove from favourites'));
+    await waitFor(() => expect(mockEnqueue).toHaveBeenCalledWith('u1', 'toggleFavourite', {
+      userId: 'u1', recipeId: 'r1', desiredState: false,
+    }));
     expect(getByLabelText('Save to favourites')).toBeTruthy();
   });
 
