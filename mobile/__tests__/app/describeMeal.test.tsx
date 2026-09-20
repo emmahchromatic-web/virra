@@ -15,7 +15,22 @@ jest.mock('@/lib/notifications', () => ({
 }));
 
 jest.mock('@/store/auth', () => ({
+  // Every selector call resolves to this fixed shape regardless of the
+  // selector passed in -- both `s.user?.id` (truthy check only) and
+  // `s.session` (needs `.user.id` for `enqueue`) happen to read correctly
+  // off it since `session.user.id` and `user.id` are the same value here.
   useAuthStore: () => ({ user: { id: 'user-1' } }),
+}));
+
+const mockEnqueue = jest.fn();
+jest.mock('@/lib/outbox', () => ({ enqueue: (...args: any[]) => mockEnqueue(...args) }));
+
+const mockSyncPending = jest.fn();
+jest.mock('@/lib/syncPending', () => ({ syncPending: (...args: any[]) => mockSyncPending(...args) }));
+
+const mockAddEntryLocal = jest.fn();
+jest.mock('@/store/nutritionDay', () => ({
+  useNutritionDay: { getState: () => ({ addEntryLocal: (...args: any[]) => mockAddEntryLocal(...args), removeEntryLocal: jest.fn(), days: {} }) },
 }));
 jest.mock('@/store/profile', () => ({
   // Acknowledged, so the one-time disclosure card never blocks the flow below.
@@ -120,27 +135,31 @@ describe('describe-meal save, meal type resilience', () => {
   });
 });
 
-describe('describe-meal save failure', () => {
-  it('shows a dismissible inline banner instead of a global alert, and stays interactive', async () => {
+describe('describe-meal save failure (offline / transient)', () => {
+  // A failed direct insert now matches Task 1's convention (food-search.tsx's
+  // handleAdd/handleAddManual/handleAddCombo): queue it on the outbox and let
+  // the user carry on, rather than surfacing an inline error and blocking.
+  it('queues the write via the outbox and still navigates back, without a plain (non-replace) replaceCriteria', async () => {
     mockUseLocalSearchParams.mockReturnValue({ logId: 'log-1', mealType: 'lunch' });
     mockInsert.mockResolvedValue({ error: { message: 'network unreachable' } });
-    const { getByText, queryByText, getByPlaceholderText, getByLabelText } = render(<DescribeMealScreen />);
+    const { getByText, queryByText, getByPlaceholderText } = render(<DescribeMealScreen />);
 
     await describeAndEstimate(getByText, getByPlaceholderText);
     await act(async () => {
       fireEvent.press(getByText('Save 1 item'));
     });
 
-    // Error surfaces in-tree, not via a second native modal stacked on top of
-    // the food-search modal this screen is pushed inside of.
-    expect(getByText('COULD NOT SAVE')).toBeTruthy();
-    expect(getByText('network unreachable')).toBeTruthy();
-    expect(mockBack).not.toHaveBeenCalled();
-
-    // The screen must remain interactive after a failed save — dismiss the
-    // banner and confirm the Save button is still there to retry.
-    fireEvent.press(getByLabelText('Dismiss'));
-    await waitFor(() => expect(queryByText('COULD NOT SAVE')).toBeNull());
-    expect(getByText('Save 1 item')).toBeTruthy();
+    expect(queryByText('COULD NOT SAVE')).toBeNull();
+    await waitFor(() => expect(mockEnqueue).toHaveBeenCalledWith(
+      'user-1',
+      'logFoodEntries',
+      expect.objectContaining({
+        rows: [expect.objectContaining({ meal_type: 'lunch', log_id: 'log-1', source: 'haiku' })],
+        replaceCriteria: undefined,
+      }),
+    ));
+    expect(mockSyncPending).toHaveBeenCalledWith('user-1');
+    expect(mockAddEntryLocal).toHaveBeenCalled();
+    expect(mockBack).toHaveBeenCalled();
   });
 });

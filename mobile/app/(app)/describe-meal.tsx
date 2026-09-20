@@ -4,10 +4,14 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { uuid } from 'expo-modules-core';
 import { supabase } from '@/lib/supabase';
 import { cancelNutritionReminderForMeal } from '@/lib/notifications';
 import { useAuthStore } from '@/store/auth';
 import { useProfileStore } from '@/store/profile';
+import { useNutritionDay } from '@/store/nutritionDay';
+import { enqueue, type LogFoodEntryRow } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { InlineError } from '@/components/ui/InlineError';
@@ -208,8 +212,9 @@ function DescribeMealScreen() {
     replaceHaikuInput?: string;
   }>();
   const userId                            = useAuthStore((s) => s.user?.id);
+  const session                            = useAuthStore((s) => s.session);
   const disclosureAckAt                   = useProfileStore((s) => s.haikuDisclosureAcknowledgedAt);
-  const acknowledgeHaikuDisclosure        = useProfileStore((s) => s.acknowledgeHaikuDisclosure);
+  const acknowledgeHaikuDisclosure         = useProfileStore((s) => s.acknowledgeHaikuDisclosure);
 
   const [description, setDescription] = useState(prefillHaikuInput ?? '');
   const [estimating, setEstimating]   = useState(false);
@@ -271,43 +276,91 @@ function DescribeMealScreen() {
   }
 
   async function handleSaveAll() {
-    if (!logId || !items || items.length === 0) return;
+    if (!logId || !items || items.length === 0 || !session) return;
     setError(null);
     setSaving(true);
     const haikuInput = description.trim();
+    const today = new Date().toISOString().split('T')[0];
+    const replaceCriteria = isReplaceMode && replaceHaikuInput
+      ? { logId, haikuInput: replaceHaikuInput }
+      : undefined;
+
+    // Captured BEFORE this save's new rows are added to the local cache
+    // below -- so this filter can never catch them too. The common (unedited
+    // re-estimate) case reuses the SAME haiku_input for the new rows as the
+    // old ones being replaced, so capturing after `addEntryLocal` would match
+    // -- and then delete -- the rows this very save just added.
+    const staleEntryIds = replaceHaikuInput
+      ? (useNutritionDay.getState().days[today]?.entries.filter(
+          (e) => e.log_id === logId && e.haiku_input === replaceHaikuInput,
+        ) ?? []).map((e) => e.id)
+      : [];
 
     // Replace mode: wipe the prior rows from this same description on this log
     // before inserting the new estimate. A failed delete is non-fatal; we
     // continue to insert: user can hand-delete duplicates if it matters.
-    if (isReplaceMode && replaceHaikuInput) {
+    let deleteSucceeded = false;
+    if (replaceCriteria) {
       const { error: delErr } = await supabase
         .from('food_entries')
         .delete()
         .eq('log_id', logId)
         .eq('haiku_input', replaceHaikuInput);
-      if (delErr) console.warn('[describe-meal] failed to remove prior haiku rows:', delErr.message);
+      if (delErr) {
+        console.warn('[describe-meal] failed to remove prior haiku rows:', delErr.message);
+      } else {
+        deleteSucceeded = true;
+      }
     }
 
-    const rows = items.map((item) => ({
-      log_id:      logId,
-      meal_type:   safeMealType,
-      food_name:   item.food_name,
-      quantity_g:  item.quantity_g,
+    // Ids are generated up front, same reasoning as food-search.tsx's
+    // handleAdd/handleAddManual/handleAddCombo: the eventual outbox replay
+    // (an upsert on `id`) then matches whatever may have already landed,
+    // instead of creating duplicate rows.
+    const rows: LogFoodEntryRow[] = items.map((item) => ({
+      id:             uuid.v4(),
+      log_id:         logId,
+      meal_type:      safeMealType,
+      food_name:      item.food_name,
+      quantity_g:     item.quantity_g,
       // The estimator only returns a gram figure, so the name is all we have
       // to go on for whether it should read as millilitres.
-      quantity_unit: inferUnitFromName(item.food_name),
-      calories:    item.calories,
-      carbs_g:     item.carbs_g,
-      protein_g:   item.protein_g,
-      fat_g:       item.fat_g,
-      fibre_g:     item.fibre_g,
-      source:      'haiku',
-      confidence:  item.confidence,
-      haiku_input: haikuInput,
+      quantity_unit:  inferUnitFromName(item.food_name),
+      calories:       item.calories,
+      carbs_g:        item.carbs_g,
+      protein_g:      item.protein_g,
+      fat_g:          item.fat_g,
+      fibre_g:        item.fibre_g,
+      nutritionix_id: null,
+      source:         'haiku',
+      confidence:     item.confidence,
+      haiku_input:    haikuInput,
     }));
+
     const { error: insertError } = await supabase.from('food_entries').insert(rows);
     setSaving(false);
-    if (insertError) { setError({ title: 'Could not save', message: insertError.message }); return; }
+
+    // Offline (or a transient server blip) -- queue it and let her carry on,
+    // same pattern as food-search.tsx's handleAdd/handleAddManual/handleAddCombo.
+    let queuedWithReplace = false;
+    if (insertError) {
+      await enqueue(session.user.id, 'logFoodEntries', { rows, replaceCriteria });
+      syncPending(session.user.id);
+      queuedWithReplace = !!replaceCriteria;
+    }
+
+    useNutritionDay.getState().addEntryLocal(today, rows);
+
+    // Remove the OLD (replaced) rows from the local cache whenever the
+    // replace intent is committed -- the direct delete succeeded, or the
+    // save was enqueued WITH replaceCriteria (the queued handler will run
+    // that delete when it eventually drains). The only case left alone is a
+    // failed direct delete with a successful direct insert and nothing
+    // queued -- pre-existing behaviour, not something to fix here.
+    if (deleteSucceeded || queuedWithReplace) {
+      staleEntryIds.forEach((id) => useNutritionDay.getState().removeEntryLocal(today, id));
+    }
+
     if (safeMealType === 'breakfast' || safeMealType === 'lunch' || safeMealType === 'dinner') {
       cancelNutritionReminderForMeal(safeMealType);
     }

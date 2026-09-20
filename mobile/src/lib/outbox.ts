@@ -86,6 +86,15 @@ export interface MutationPayloadMap {
   };
   logFoodEntries: {
     rows: LogFoodEntryRow[];
+    /**
+     * Set only by `describe-meal.tsx`'s replace-mode (re-estimate) path.
+     * When present, the handler deletes the prior haiku-sourced rows for this
+     * `(log_id, haiku_input)` pair before upserting `rows` -- the same
+     * non-fatal-delete-then-insert order the direct (online) write already
+     * uses, preserved here so a queued replace replays identically to the
+     * online path instead of leaving duplicate rows behind.
+     */
+    replaceCriteria?: { logId: string; haikuInput: string };
   };
 }
 
