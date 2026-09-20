@@ -25,18 +25,32 @@ function seedSession(id: string, scheduledDate: string) {
       week_number: 0, day_of_week: 0,
     } },
     idsByDate: { [scheduledDate]: [id] },
-    loadedRanges: [], fetching: new Set(), hasHydrated: true, lastError: null,
+    loadedRanges: [], fetching: new Set(), hasHydrated: true, lastError: null, pendingOps: {},
   });
 }
 
 function emptySessionStore() {
   useSessionStore.setState({
     byId: {}, idsByDate: {}, loadedRanges: [], fetching: new Set(), hasHydrated: true, lastError: null,
+    pendingOps: {},
   });
 }
 
 function seedFavourites(ids: string[]) {
   useRecipesStore.setState({ favouriteIds: ids });
+}
+
+function seedPendingDrop(id: string, scheduledDate: string) {
+  useSessionStore.setState({
+    byId: { [id]: {
+      id, scheduled_date: scheduledDate, modality: 'run', session_label: null,
+      status: 'dropped', block_id: null, activity_id: null, moved_to_id: null,
+      week_number: 0, day_of_week: 0,
+    } },
+    idsByDate: { [scheduledDate]: [id] },
+    loadedRanges: [], fetching: new Set(), hasHydrated: true, lastError: null,
+    pendingOps: { [id]: { op: 'drop' } },
+  });
 }
 
 beforeEach(() => {
@@ -351,6 +365,111 @@ describe('syncPending', () => {
 
     expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
     expect(mockedOutbox.markDeadLettersReconciled).toHaveBeenCalledWith('u1', ['a']);
+  });
+
+  /**
+   * `dropSession` dead-letter reconciliation -- the same shape as the
+   * `completeWorkout`/`toggleFavourite` tests above, extended to a third
+   * kind.
+   */
+  it('reverts the local optimistic drop for a session whose item just dead-lettered', async () => {
+    seedPendingDrop('s1', '2026-09-19');
+    const payload = { sessionId: 's1' };
+    mockedOutbox.readOutbox.mockResolvedValue([{ id: 'a', kind: 'dropSession', payload, createdAt: '', attempts: 0 }]);
+    mockedOutbox.readDeadLetters
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'a', kind: 'dropSession', payload, createdAt: '', attempts: 1, lastError: 'x' }]);
+    mockedOutbox.drain.mockResolvedValue({
+      sent: 0, left: 0, failed: 1,
+      deadLettered: [{ id: 'a', kind: 'dropSession', payload, createdAt: '', attempts: 1, lastError: 'x' }],
+    });
+
+    await syncPending('u1');
+
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+    expect(useSessionStore.getState().pendingOps['s1']).toBeUndefined();
+  });
+
+  it('reverts a phantom local drop from a dead letter already on disk, with no drain this call', async () => {
+    seedPendingDrop('s1', '2026-09-19');
+    const payload = { sessionId: 's1' };
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'dropSession', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(mockedOutbox.drain).not.toHaveBeenCalled();
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+  });
+
+  it('leaves a since-confirmed drop alone when replaying an old dead letter', async () => {
+    // Same session id, but the server has since confirmed the drop and
+    // `refresh()` already cleared its `pendingOps` marker (see
+    // sessionStore.refresh's preserve-rule test). Re-running reconciliation
+    // over the whole dead-letter list on every launch must never undo this.
+    useSessionStore.setState({
+      byId: { s1: {
+        id: 's1', scheduled_date: '2026-09-19', modality: 'run', session_label: null,
+        status: 'dropped', block_id: null, activity_id: null, moved_to_id: null,
+        week_number: 0, day_of_week: 0,
+      } },
+      idsByDate: { '2026-09-19': ['s1'] },
+      loadedRanges: [], fetching: new Set(), hasHydrated: true, lastError: null, pendingOps: {},
+    });
+    const payload = { sessionId: 's1' };
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'dropSession', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(useSessionStore.getState().byId['s1'].status).toBe('dropped');
+  });
+
+  it('marks a reverted drop dead letter reconciled, and never reverts it again once a later drop legitimately lands', async () => {
+    seedPendingDrop('s1', '2026-09-19');
+    const payload = { sessionId: 's1' };
+    const deadLetter = { id: 'a', kind: 'dropSession' as const, payload, createdAt: '', attempts: 1, lastError: 'x' };
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([deadLetter]);
+
+    // Launch 1: the stale dead letter is reverted, exactly as before.
+    await syncPending('u1');
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+    expect(mockedOutbox.markDeadLettersReconciled).toHaveBeenCalledWith('u1', ['a']);
+
+    // A later, genuinely successful re-drop of s1 lands, so pendingOps/status
+    // match the stale item's shape once more. The dead letter is still on
+    // disk (only Dismiss removes it) -- but it now carries the reconciled
+    // marker the sweep above wrote.
+    seedPendingDrop('s1', '2026-09-19');
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { ...deadLetter, reconciledAt: '2026-09-19T10:00:00.000Z' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(useSessionStore.getState().byId['s1'].status).toBe('dropped');
+    expect(useSessionStore.getState().pendingOps['s1']).toEqual({ op: 'drop' });
+  });
+
+  it('does not mark a dropSession dead letter reconciled when the revert was a no-op', async () => {
+    // No pending drop for s1 -- either the store has not rehydrated, or a
+    // later mutation already moved it on. Either way nothing was undone, so
+    // nothing may be marked done.
+    emptySessionStore();
+    const payload = { sessionId: 's1' };
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'dropSession', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(mockedOutbox.markDeadLettersReconciled).not.toHaveBeenCalled();
   });
 
   it('a persistence failure while marking reconciled never breaks the sync', async () => {

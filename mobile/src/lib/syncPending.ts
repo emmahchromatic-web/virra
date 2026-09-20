@@ -14,6 +14,10 @@ function isToggleFavourite(item: OutboxItem): item is OutboxItem<'toggleFavourit
   return item.kind === 'toggleFavourite';
 }
 
+function isDropSession(item: OutboxItem): item is OutboxItem<'dropSession'> {
+  return item.kind === 'dropSession';
+}
+
 /**
  * Reverts the optimistic local state behind every dead-lettered item in
  * `items`, for every kind this module knows how to undo:
@@ -25,6 +29,10 @@ function isToggleFavourite(item: OutboxItem): item is OutboxItem<'toggleFavourit
  * - `toggleFavourite`: a dead-lettered item's server row will never reflect
  *   `desiredState`, so the optimistic heart would otherwise stay flipped
  *   forever with nothing to correct it. See recipes.revertLocalToggle.
+ * - `dropSession`: a dead-lettered item's server row will never report
+ *   `dropped`, so `refresh()`'s "preserve a pending drop" rule (via
+ *   `pendingOps`) would otherwise hold the phantom forever. See
+ *   sessionStore.revertLocalDrop.
  *
  * SAFE TO RE-RUN OVER THE WHOLE ON-DISK LIST ON EVERY LAUNCH, for two
  * different reasons:
@@ -55,6 +63,9 @@ async function revertDeadLetteredItems(userId: string, items: OutboxItem[]): Pro
     } else if (isToggleFavourite(item)) {
       const { recipeId, desiredState } = item.payload;
       if (recipeId && useRecipesStore.getState().revertLocalToggle(recipeId, desiredState)) reverted.push(item.id);
+    } else if (isDropSession(item)) {
+      const { sessionId } = item.payload;
+      if (sessionId && useSessionStore.getState().revertLocalDrop(sessionId)) reverted.push(item.id);
     }
   }
   if (reverted.length === 0) return;

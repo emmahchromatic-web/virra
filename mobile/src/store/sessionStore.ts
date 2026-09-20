@@ -3,9 +3,10 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
 import {
   _commitLink,
-  dropSession as dropSessionDb,
   moveSession as moveSessionDb,
 } from '@/lib/scheduleGenerator';
+import { enqueue, isPermanentError } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
 import { proposeLinks } from '@/lib/sessionReconciler';
 import { asyncStorageAdapter } from './persistAdapter';
 import type {
@@ -25,9 +26,19 @@ function rangeKey(from: DateISO, to: DateISO): string {
  * Prefix of the placeholder activity id `applyLocalCompletion` is given when a
  * workout is finished with no signal and parked in the outbox.
  *
- * It is the only tell `refresh()` has that a row is waiting on the outbox,
- * short of importing the outbox itself -- which would tie this store to the
- * write layer it is deliberately independent of.
+ * It is the tell `refresh()` uses to recognise a row still waiting on the
+ * outbox for a COMPLETION specifically. Drop/move mutations have no spare
+ * field on `PlannedSessionRow` to overload this way, so they use the
+ * separate `pendingOps` map instead (see `SessionStoreState.pendingOps`).
+ *
+ * This store DOES import `enqueue`/`syncPending` directly (for `dropSession`
+ * routing a failed direct write through the outbox) -- the "independent of
+ * the write layer" framing this comment used to make is no longer accurate.
+ * The resulting `sessionStore.ts` <-> `syncPending.ts` import cycle
+ * (`syncPending.ts` already imports `useSessionStore`) resolves safely the
+ * same way `recipes.ts`'s equivalent cycle with `syncPending.ts` does:
+ * both references are only dereferenced inside action bodies, well after
+ * module init, never at module-evaluation time.
  */
 export const LOCAL_ACTIVITY_PREFIX = 'local_';
 
@@ -54,6 +65,7 @@ const initialState: SessionStoreState = {
   fetching: new Set(),
   hasHydrated: false,
   lastError: null,
+  pendingOps: {},
 };
 
 export const useSessionStore = create<SessionStore>()(
@@ -90,7 +102,8 @@ export const useSessionStore = create<SessionStore>()(
 
           // Replace any session currently keyed within [from,to] with the fresh
           // server data -- EXCEPT rows finished offline and still sitting in the
-          // outbox.
+          // outbox, and rows with a pending drop (or, in a later task, move)
+          // not yet confirmed by the server.
           //
           // WHY. `applyLocalCompletion` marks a session completed the moment the
           // completion is queued, so the dashboard stops lagging behind what the
@@ -98,23 +111,36 @@ export const useSessionStore = create<SessionStore>()(
           // drained would otherwise read "planned" off the server and flip it
           // straight back, and nothing would put it right again until the 5-minute
           // staleness window turned over. The spec's rule (§9, Risks): refresh()
-          // keeps any local row still pending in the outbox.
+          // keeps any local row still pending in the outbox. `dropSession` is the
+          // same story via `pendingOps` instead of a placeholder id, since a drop
+          // has no spare field on the row to overload that way.
           //
-          // The moment the server agrees the session is completed the local row is
-          // dropped -- that is what keeps this from pinning the placeholder
-          // `local_` id in the cache forever once the drain has actually landed.
+          // The moment the server agrees (completed / dropped) the local marker is
+          // dropped -- that is what keeps this from pinning a stale local override
+          // in the cache forever once the drain has actually landed.
           const existing = get();
           const nextById = { ...existing.byId };
           const nextIdsByDate = { ...existing.idsByDate };
+          const nextPendingOps = { ...existing.pendingOps };
 
           const serverById = new Map(rows.map((r) => [r.id, r]));
           const preserved = new Set<string>();
           for (const [date, ids] of Object.entries(existing.idsByDate)) {
             if (date < from || date > to) continue;
             for (const id of ids) {
-              if (!isLocallyCompleted(existing.byId[id])) continue;
-              if (serverById.get(id)?.status === 'completed') continue;  // server caught up
-              preserved.add(id);
+              if (isLocallyCompleted(existing.byId[id])) {
+                if (serverById.get(id)?.status === 'completed') continue;  // server caught up
+                preserved.add(id);
+                continue;
+              }
+              const pendingOp = existing.pendingOps[id];
+              if (pendingOp?.op === 'drop') {
+                if (serverById.get(id)?.status === 'dropped') {
+                  delete nextPendingOps[id];  // server caught up
+                  continue;
+                }
+                preserved.add(id);
+              }
             }
           }
 
@@ -133,7 +159,10 @@ export const useSessionStore = create<SessionStore>()(
           }
 
           const nextLoaded = mergeRange(get().loadedRanges, { from, to, fetchedAt: Date.now() });
-          set({ byId: nextById, idsByDate: nextIdsByDate, loadedRanges: nextLoaded });
+          set({
+            byId: nextById, idsByDate: nextIdsByDate, loadedRanges: nextLoaded,
+            pendingOps: nextPendingOps,
+          });
         } finally {
           const after = new Set(get().fetching); after.delete(key);
           set({ fetching: after });
@@ -172,21 +201,80 @@ export const useSessionStore = create<SessionStore>()(
         });
         return true;
       },
-      dropSession: async (sessionId) => {
+      dropSession: async (userId, sessionId) => {
+        // Guard on identity BEFORE any state mutation, same as
+        // `recipes.ts`'s `toggleFavourite` -- a write can never succeed
+        // without a session anyway (RLS scopes `planned_sessions` by
+        // `auth.uid()`), and without this guard an empty `userId` would
+        // still flip the optimistic UI and try (or queue) a write nothing
+        // can ever authenticate.
+        if (!userId) throw new Error('dropSession: no user id');
         const prev = get().byId[sessionId];
         if (!prev) return;
         set({
           byId: { ...get().byId, [sessionId]: { ...prev, status: 'dropped' } },
+          pendingOps: { ...get().pendingOps, [sessionId]: { op: 'drop' } },
         });
-        try {
-          await dropSessionDb(sessionId);
-        } catch (e) {
-          set({
-            byId: { ...get().byId, [sessionId]: prev },
-            lastError: { at: Date.now(), op: 'dropSession', message: e instanceof Error ? e.message : String(e) },
-          });
-          throw e;
+
+        const { error, status } = await supabase
+          .from('planned_sessions')
+          .update({ status: 'dropped' })
+          .eq('id', sessionId);
+
+        if (error) {
+          if (isPermanentError({ message: error.message, status, code: error.code })) {
+            // Deterministic failure (RLS violation, malformed id, etc.) --
+            // this can never succeed on replay, so revert the optimistic
+            // drop immediately and surface the existing friendly error
+            // rather than queueing a write that will just dead-letter later.
+            // No realistic user path hits this for a drop today (there is
+            // nothing to violate), but every write in this plan classifies
+            // before enqueueing, for consistency -- see the plan's Global
+            // Constraints.
+            const revertedOps = { ...get().pendingOps };
+            delete revertedOps[sessionId];
+            set({
+              byId: { ...get().byId, [sessionId]: prev },
+              pendingOps: revertedOps,
+              lastError: { at: Date.now(), op: 'dropSession', message: error.message },
+            });
+            throw new Error(error.message);
+          }
+          // Transient/offline failure -- queue it and keep going. Keep the
+          // optimistic drop and the pendingOps marker -- do NOT revert here.
+          // Only a genuine dead-letter (via syncPending's reconciliation,
+          // see revertLocalDrop) reverts it.
+          await enqueue(userId, 'dropSession', { sessionId });
+          syncPending(userId);
+        } else {
+          const next = { ...get().pendingOps };
+          delete next[sessionId];
+          set({ pendingOps: next });
         }
+      },
+      /**
+       * The inverse of `dropSession`'s optimistic drop: reverts a session's
+       * status back to `planned` and clears its `pendingOps` marker. A no-op
+       * unless `pendingOps[sessionId]` is still a pending `drop` -- this
+       * must never undo a drop the server has already confirmed (which
+       * clears the marker itself, see `dropSession`) nor a drop that has
+       * already been reverted.
+       *
+       * Returns whether it actually reverted anything, so `syncPending`'s
+       * dead-letter sweep can tell "undone" apart from "nothing to undo" and
+       * only mark the former reconciled (see `OutboxItem.reconciledAt`).
+       */
+      revertLocalDrop: (sessionId) => {
+        const prev = get().byId[sessionId];
+        const pending = get().pendingOps[sessionId];
+        if (!prev || !pending || pending.op !== 'drop') return false;
+        const nextOps = { ...get().pendingOps };
+        delete nextOps[sessionId];
+        set({
+          byId: { ...get().byId, [sessionId]: { ...prev, status: 'planned' } },
+          pendingOps: nextOps,
+        });
+        return true;
       },
       moveSession: async (sessionId, newDate) => {
         const prev = get().byId[sessionId];
@@ -314,9 +402,16 @@ export const useSessionStore = create<SessionStore>()(
         byId: s.byId,
         idsByDate: s.idsByDate,
         loadedRanges: s.loadedRanges,
+        // Without this, an app restart between an optimistic drop (or move)
+        // and the outbox draining loses the marker entirely: byId/idsByDate
+        // ARE persisted (so the dropped-looking row survives restart), but
+        // with no pendingOps entry the next refresh() immediately flips it
+        // back to 'planned' before the queued item has a chance to land --
+        // silently undoing the drop the user thinks already happened.
+        pendingOps: s.pendingOps,
       }),
       version: 1,
-      migrate: () => ({ byId: {}, idsByDate: {}, loadedRanges: [] }) as any,
+      migrate: () => ({ byId: {}, idsByDate: {}, loadedRanges: [], pendingOps: {} }) as any,
       onRehydrateStorage: () => (state) => {
         if (state) state.hasHydrated = true;
       },

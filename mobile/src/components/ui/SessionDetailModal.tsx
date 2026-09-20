@@ -117,8 +117,15 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
   async function handleDrop(sessionId: string) {
     setBusy(true);
     try {
-      await useSessionStore.getState().dropSession(sessionId);
-      await reloadDetail();
+      await useSessionStore.getState().dropSession(userId, sessionId);
+      // Don't `reloadDetail()` here: it reads `planned_sessions` directly
+      // from Supabase (not the sessionStore), and on a queued (not-yet-
+      // confirmed) drop that read shows server truth -- still "planned" --
+      // which visibly contradicts the optimistic drop this action just
+      // applied. Close instead, the same way week-move.tsx's equivalent
+      // drop flow (`router.back()`) avoids re-showing stale-relative-to-
+      // optimistic state rather than reloading into it.
+      onClose();
     } catch (e: unknown) {
       setError({ title: 'Could not drop session', message: e instanceof Error ? e.message : 'Unknown error' });
     } finally {

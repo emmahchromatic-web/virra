@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { View, Pressable, StyleSheet, SafeAreaView } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
 import { useProfileStore, personalMetricsFields } from '@/store/profile';
 import { useSessionStore } from '@/store/sessionStore';
@@ -129,6 +130,7 @@ function fmtRange(monday: string): string {
 }
 
 function WeekAheadScreen() {
+  const userId = useAuthStore((s) => s.session?.user.id);
   const { periodStart, cycleLength, periodDays } = useCycleStore();
   const profile                           = useProfileStore();
   const metrics                           = useMemo(
@@ -155,8 +157,9 @@ function WeekAheadScreen() {
   }, [days, monday, periodStart, cycleLength, periodDays, metrics]);
 
   async function handleDrop(sessionId: string) {
+    if (!userId) return;
     setBusy(sessionId);
-    try { await useSessionStore.getState().dropSession(sessionId); }
+    try { await useSessionStore.getState().dropSession(userId, sessionId); }
     catch (e: any) { appAlert('Could not drop session', e.message); }
     finally { setBusy(null); }
   }

@@ -32,7 +32,7 @@ beforeEach(async () => {
   __setRows();
   useSessionStore.setState({
     byId: {}, idsByDate: {}, loadedRanges: [], fetching: new Set(),
-    hasHydrated: true, lastError: null,
+    hasHydrated: true, lastError: null, pendingOps: {},
   });
 });
 
@@ -120,5 +120,48 @@ describe('sessionStore.refresh — a completion still waiting in the outbox', ()
     await useSessionStore.getState().refresh('2026-05-25', '2026-05-26');
 
     expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+  });
+});
+
+/**
+ * The same "don't clobber an unconfirmed local mutation" rule as above,
+ * extended to `dropSession`'s `pendingOps` marker -- drop has no spare field
+ * on the row to overload the way `local_`-prefixed activity ids do for
+ * completions, so it needs its own preserve check in `refresh()`.
+ */
+describe('sessionStore.refresh — a drop still waiting in the outbox', () => {
+  it('keeps a pending drop the server has not caught up with yet', async () => {
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    useSessionStore.setState({
+      byId: { ...useSessionStore.getState().byId, s1: { ...useSessionStore.getState().byId['s1'], status: 'dropped' } },
+      pendingOps: { s1: { op: 'drop' } },
+    });
+
+    await useSessionStore.getState().refresh('2026-05-25', '2026-05-26');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('dropped');
+    expect(s.pendingOps['s1']).toEqual({ op: 'drop' });
+    expect(s.idsByDate['2026-05-25']).toEqual(['s1']);
+    // Everything else in the range is still replaced from the server.
+    expect(s.byId['s2'].status).toBe('planned');
+  });
+
+  it('hands the row back to the server and clears pendingOps the moment it agrees the session is dropped', async () => {
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    useSessionStore.setState({
+      byId: { ...useSessionStore.getState().byId, s1: { ...useSessionStore.getState().byId['s1'], status: 'dropped' } },
+      pendingOps: { s1: { op: 'drop' } },
+    });
+
+    __setRows([
+      { id: 's1', scheduled_date: '2026-05-25', modality: 'run', session_label: 'Easy', status: 'dropped',
+        block_id: 'b1', activity_id: null, moved_to_id: null, week_number: 1, day_of_week: 0, created_at: '2026-05-20T00:00:00Z' },
+    ]);
+    await useSessionStore.getState().refresh('2026-05-25', '2026-05-26');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('dropped');
+    expect(s.pendingOps['s1']).toBeUndefined();
   });
 });

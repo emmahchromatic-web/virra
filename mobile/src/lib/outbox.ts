@@ -19,7 +19,7 @@ const LEGACY_QUEUE_PREFIX  = 'virra:pending_completions:v1:';
 
 export type MutationKind =
   'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry' | 'saveMealCombo' | 'toggleFavourite'
-  | 'logFoodEntries';
+  | 'logFoodEntries' | 'dropSession';
 
 /**
  * The row shape `food_entries` inserts need, shared by every call site across
@@ -95,6 +95,9 @@ export interface MutationPayloadMap {
      * online path instead of leaving duplicate rows behind.
      */
     replaceCriteria?: { logId: string; haikuInput: string };
+  };
+  dropSession: {
+    sessionId: string;
   };
 }
 
@@ -320,7 +323,14 @@ const PERMANENT_CODE = /^(22|23|42)/;
 const PERMANENT_MESSAGE =
   /row-level security|permission denied|insufficient[_ ]privilege|violates (unique|foreign key|check|not-null|exclusion) constraint|duplicate key value/i;
 
-function isPermanentError(e: unknown): boolean {
+/**
+ * Exported so a store's "try the direct write first" path (e.g.
+ * `sessionStore.dropSession`) can classify a failure BEFORE deciding whether
+ * to enqueue it, per this plan's Global Constraints -- a deterministic
+ * failure must revert and re-throw immediately rather than being queued for
+ * a retry that can never succeed. `drain()` below is the other caller.
+ */
+export function isPermanentError(e: unknown): boolean {
   const { message, status, code } = describeError(e);
   if (typeof status === 'number' && status >= 400 && status < 500 && !RETRYABLE_STATUSES.has(status)) return true;
   if (code && PERMANENT_CODE.test(code)) return true;

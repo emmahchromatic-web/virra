@@ -30,6 +30,7 @@ import '@/lib/outbox/handlers/updateFoodEntry';
 import '@/lib/outbox/handlers/saveMealCombo';
 import '@/lib/outbox/handlers/toggleFavourite';
 import '@/lib/outbox/handlers/logFoodEntries';
+import '@/lib/outbox/handlers/dropSession';
 
 function nextMondayISO(): string {
   const now    = new Date();

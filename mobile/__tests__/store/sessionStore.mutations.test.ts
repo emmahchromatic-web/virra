@@ -1,30 +1,51 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const mockCommitLink = jest.fn().mockResolvedValue(undefined);
-const mockDropSessionDb = jest.fn().mockResolvedValue(undefined);
 const mockMoveSessionDb = jest.fn();
 const mockLinkActivityToSession = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@/lib/scheduleGenerator', () => ({
   _commitLink: (sid: string, aid: string) => mockCommitLink(sid, aid),
-  dropSession: (sid: string) => mockDropSessionDb(sid),
   moveSession: (sid: string, newDate: string) => mockMoveSessionDb(sid, newDate),
   linkActivityToSession: (aid: string, sid: string) => mockLinkActivityToSession(aid, sid),
 }));
 
+// dropSession now writes directly against `planned_sessions` (no more
+// scheduleGenerator indirection) and, on a transient failure, routes through
+// `enqueue`/`syncPending` -- mocked below, kept apart from the real
+// `isPermanentError` classifier (pulled in via `requireActual`) so these
+// tests exercise the real permanent-vs-transient decision, not a stub of it.
+const mockPlannedUpdate = jest.fn();
+const mockUpdateEq      = jest.fn();
+
 jest.mock('@/lib/supabase', () => {
-  const empty = {
+  const empty: any = {
     select: () => empty, eq: () => empty, gte: () => empty, lte: () => empty,
     in: () => empty, is: () => empty, neq: () => empty,
     order: () => Promise.resolve({ data: [], error: null }),
   };
   return {
     supabase: {
-      from: () => empty,
+      from: (table: string) => ({
+        ...empty,
+        update: (patch: unknown) => {
+          mockPlannedUpdate(table, patch);
+          return { eq: (col: string, val: string) => mockUpdateEq(col, val) };
+        },
+      }),
       auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) },
     },
   };
 });
+
+const mockEnqueue     = jest.fn();
+const mockSyncPending = jest.fn();
+
+jest.mock('@/lib/outbox', () => ({
+  ...jest.requireActual('@/lib/outbox'),
+  enqueue: (...a: unknown[]) => mockEnqueue(...a),
+}));
+jest.mock('@/lib/syncPending', () => ({ syncPending: (...a: unknown[]) => mockSyncPending(...a) }));
 
 import { useSessionStore } from '@/store/sessionStore';
 
@@ -40,15 +61,19 @@ function seed() {
     fetching: new Set(),
     hasHydrated: true,
     lastError: null,
+    pendingOps: {},
   });
 }
 
 beforeEach(async () => {
   await AsyncStorage.clear();
   mockCommitLink.mockClear().mockResolvedValue(undefined);
-  mockDropSessionDb.mockClear().mockResolvedValue(undefined);
   mockMoveSessionDb.mockClear().mockResolvedValue('s1_new');
   mockLinkActivityToSession.mockClear().mockResolvedValue(undefined);
+  mockPlannedUpdate.mockClear();
+  mockUpdateEq.mockClear().mockResolvedValue({ error: null, status: 200 });
+  mockEnqueue.mockClear().mockResolvedValue({ id: 'ob_1', kind: 'dropSession', payload: {}, createdAt: '', attempts: 0 });
+  mockSyncPending.mockClear();
   seed();
 });
 
@@ -77,17 +102,118 @@ describe('sessionStore.markComplete', () => {
 });
 
 describe('sessionStore.dropSession', () => {
-  it('flips status to dropped optimistically', async () => {
-    await useSessionStore.getState().dropSession('s1');
+  it('flips status to dropped optimistically and clears pendingOps on a successful direct write', async () => {
+    await useSessionStore.getState().dropSession('u1', 's1');
+
     expect(useSessionStore.getState().byId['s1'].status).toBe('dropped');
-    expect(mockDropSessionDb).toHaveBeenCalledWith('s1');
+    expect(useSessionStore.getState().pendingOps['s1']).toBeUndefined();
+    expect(mockPlannedUpdate).toHaveBeenCalledWith('planned_sessions', { status: 'dropped' });
+    expect(mockUpdateEq).toHaveBeenCalledWith('id', 's1');
+    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
-  it('reverts on DB failure', async () => {
-    mockDropSessionDb.mockRejectedValueOnce(new Error('boom'));
-    await expect(useSessionStore.getState().dropSession('s1')).rejects.toThrow('boom');
+  it('throws without touching state or attempting a write when userId is missing', async () => {
+    await expect(useSessionStore.getState().dropSession('', 's1')).rejects.toThrow('dropSession: no user id');
+
     expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
-    expect(useSessionStore.getState().lastError?.op).toBe('dropSession');
+    expect(mockPlannedUpdate).not.toHaveBeenCalled();
+    expect(mockEnqueue).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op if the session is not in the cache', async () => {
+    await useSessionStore.getState().dropSession('u1', 'absent');
+    expect(mockPlannedUpdate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The J3a Task 5 fix shape, applied to drop: a merely transient failure
+   * (offline, a server blip) keeps the optimistic UI and queues the write --
+   * it must never revert or throw, unlike the pre-fix behaviour this test
+   * replaces.
+   */
+  it('keeps the optimistic drop and records a pending op on a transient failure, without throwing', async () => {
+    mockUpdateEq.mockResolvedValueOnce({ error: { message: 'server blip' }, status: 500 });
+
+    await expect(useSessionStore.getState().dropSession('u1', 's1')).resolves.toBeUndefined();
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('dropped');
+    expect(s.pendingOps['s1']).toEqual({ op: 'drop' });
+    expect(mockEnqueue).toHaveBeenCalledWith('u1', 'dropSession', { sessionId: 's1' });
+    expect(mockSyncPending).toHaveBeenCalledWith('u1');
+  });
+
+  /**
+   * The one exception this plan carves out of "never revert on a mere
+   * enqueue": a DETERMINISTIC failure (RLS violation, etc.) can never
+   * succeed on replay, so it reverts immediately and surfaces the existing
+   * friendly error instead of queueing something doomed to dead-letter
+   * later. No realistic user path hits this for a drop today, but every
+   * write in this plan classifies before enqueueing, for consistency.
+   */
+  it('reverts immediately and throws the friendly error on a permanent failure, without enqueueing', async () => {
+    mockUpdateEq.mockResolvedValueOnce({
+      error: { message: 'permission denied for table planned_sessions', code: '42501' }, status: 403,
+    });
+
+    await expect(useSessionStore.getState().dropSession('u1', 's1'))
+      .rejects.toThrow('permission denied for table planned_sessions');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('planned');
+    expect(s.pendingOps['s1']).toBeUndefined();
+    expect(s.lastError?.op).toBe('dropSession');
+    expect(mockEnqueue).not.toHaveBeenCalled();
+    expect(mockSyncPending).not.toHaveBeenCalled();
+  });
+});
+
+describe('sessionStore.revertLocalDrop', () => {
+  function seedPendingDrop() {
+    useSessionStore.setState({
+      byId: { ...useSessionStore.getState().byId, s1: { ...useSessionStore.getState().byId['s1'], status: 'dropped' } },
+      pendingOps: { s1: { op: 'drop' } },
+    });
+  }
+
+  it('reverts a pending drop back to planned and clears the pendingOps marker', () => {
+    seedPendingDrop();
+
+    const reverted = useSessionStore.getState().revertLocalDrop('s1');
+
+    expect(reverted).toBe(true);
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+    expect(useSessionStore.getState().pendingOps['s1']).toBeUndefined();
+  });
+
+  it('returns false and does nothing when there is no pending drop for that session', () => {
+    const reverted = useSessionStore.getState().revertLocalDrop('s1');
+
+    expect(reverted).toBe(false);
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+  });
+
+  it('returns false for a pendingOps entry that is a move, not a drop', () => {
+    useSessionStore.setState({
+      byId: { ...useSessionStore.getState().byId, s1: { ...useSessionStore.getState().byId['s1'], status: 'moved' } },
+      pendingOps: { s1: { op: 'move', newSessionId: 's1_new' } },
+    });
+
+    const reverted = useSessionStore.getState().revertLocalDrop('s1');
+
+    expect(reverted).toBe(false);
+    expect(useSessionStore.getState().byId['s1'].status).toBe('moved');
+  });
+
+  it('is a no-op for a session not in the cache', () => {
+    expect(useSessionStore.getState().revertLocalDrop('does-not-exist')).toBe(false);
+  });
+
+  it('is idempotent -- calling it twice for the same dead letter does nothing the second time', () => {
+    seedPendingDrop();
+
+    expect(useSessionStore.getState().revertLocalDrop('s1')).toBe(true);
+    expect(useSessionStore.getState().revertLocalDrop('s1')).toBe(false);
   });
 });
 

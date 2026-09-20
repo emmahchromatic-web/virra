@@ -5,6 +5,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { GestureHandlerRootView, ScrollView } from 'react-native-gesture-handler';
+import { useAuthStore } from '@/store/auth';
 import { useSessionStore } from '@/store/sessionStore';
 import { useWeekSessions } from '@/hooks/useWeekSessions';
 import { groupSessionsByDay, findRowAtY, isOverloaded, type RowBounds } from '@/lib/weekMove';
@@ -52,6 +53,7 @@ function fullDayLabel(iso: string): string {
 }
 
 function WeekMoveScreen() {
+  const userId = useAuthStore((s) => s.session?.user.id);
   const { session: focusedSessionId, date: focusedDate } = useLocalSearchParams<{ session: string; date: string }>();
 
   const today  = new Date().toLocaleDateString('en-CA');
@@ -177,9 +179,9 @@ function WeekMoveScreen() {
   }
 
   function handleDrop() {
-    if (!focusedSessionId) return;
+    if (!focusedSessionId || !userId) return;
     commit(async () => {
-      await useSessionStore.getState().dropSession(focusedSessionId);
+      await useSessionStore.getState().dropSession(userId, focusedSessionId);
       router.back();
     });
   }
