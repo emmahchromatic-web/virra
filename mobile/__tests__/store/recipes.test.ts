@@ -3,14 +3,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const mockFetchRecipes      = jest.fn();
 const mockFetchRecipeDetail = jest.fn();
 const mockFetchFavouriteIds = jest.fn();
-const mockToggleFavourite   = jest.fn();
 
 jest.mock('@/lib/recipes', () => ({
   fetchRecipes:      (...a: any[]) => mockFetchRecipes(...a),
   fetchRecipeDetail: (...a: any[]) => mockFetchRecipeDetail(...a),
   fetchFavouriteIds: (...a: any[]) => mockFetchFavouriteIds(...a),
-  toggleFavourite:   (...a: any[]) => mockToggleFavourite(...a),
 }));
+
+const mockEnqueue     = jest.fn();
+const mockSyncPending = jest.fn();
+
+jest.mock('@/lib/outbox', () => ({ enqueue: (...a: any[]) => mockEnqueue(...a) }));
+jest.mock('@/lib/syncPending', () => ({ syncPending: (...a: any[]) => mockSyncPending(...a) }));
 
 import { useRecipesStore } from '@/store/recipes';
 
@@ -29,6 +33,7 @@ const detail = { ...recipe(), ingredients: [], steps: [] };
 beforeEach(async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
+  mockEnqueue.mockResolvedValue({ id: 'ob_1', kind: 'toggleFavourite', payload: {}, createdAt: '', attempts: 0 });
   useRecipesStore.setState({
     list: [], listFetchedAt: null, details: {}, favouriteIds: [], favouritesFetchedAt: null,
   });
@@ -172,45 +177,107 @@ describe('recipes store refreshFavourites()', () => {
 });
 
 describe('recipes store toggleFavourite()', () => {
-  it('flips favouriteIds optimistically before the write resolves', async () => {
-    let resolveWrite: (v: boolean | null) => void = () => {};
-    mockToggleFavourite.mockImplementation(() => new Promise((resolve) => { resolveWrite = resolve; }));
+  it('flips favouriteIds optimistically before the enqueue resolves', async () => {
+    let resolveEnqueue: (v: unknown) => void = () => {};
+    mockEnqueue.mockImplementation(() => new Promise((resolve) => { resolveEnqueue = resolve; }));
 
     const promise = useRecipesStore.getState().toggleFavourite('u1', 'r1', true);
-    // The optimistic flip must be visible synchronously, before the write settles.
+    // The optimistic flip must be visible synchronously, before enqueue settles.
     expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
 
-    resolveWrite(true);
+    resolveEnqueue({ id: 'ob_1', kind: 'toggleFavourite', payload: {}, createdAt: '', attempts: 0 });
     await promise;
     expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
   });
 
-  it('reverts favouriteIds to the pre-toggle snapshot when the write fails', async () => {
+  it('routes the write through the outbox, not a direct Supabase call', async () => {
+    await useRecipesStore.getState().toggleFavourite('u1', 'r1', true);
+
+    expect(mockEnqueue).toHaveBeenCalledWith('u1', 'toggleFavourite', {
+      userId: 'u1', recipeId: 'r1', desiredState: true,
+    });
+  });
+
+  it('kicks off an immediate drain attempt via syncPending after enqueueing', async () => {
+    await useRecipesStore.getState().toggleFavourite('u1', 'r1', true);
+
+    expect(mockSyncPending).toHaveBeenCalledWith('u1');
+  });
+
+  it('keeps the optimistic flip even though enqueue only queues -- no revert here regardless of outcome', async () => {
     useRecipesStore.setState({ favouriteIds: [] });
-    mockToggleFavourite.mockResolvedValue(null); // toggleFavouriteApi's failure signal
 
     const result = await useRecipesStore.getState().toggleFavourite('u1', 'r1', true);
 
-    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
-    expect(result).toBe(false);
-  });
-
-  it('reverts an unfavourite back to favourited when the write fails', async () => {
-    useRecipesStore.setState({ favouriteIds: ['r1', 'r2'] });
-    mockToggleFavourite.mockResolvedValue(null);
-
-    const result = await useRecipesStore.getState().toggleFavourite('u1', 'r1', false);
-
-    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1', 'r2']);
+    // Unlike the old direct-write behaviour, a mere enqueue (which can mean
+    // "queued while offline") never reverts the optimistic state. Only a
+    // dead-lettered item does, via revertLocalToggle -- tested below.
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
     expect(result).toBe(true);
   });
 
   it('does not duplicate an id already present when toggling on again', async () => {
     useRecipesStore.setState({ favouriteIds: ['r1'] });
-    mockToggleFavourite.mockImplementation((_u: string, _r: string, next: boolean) => Promise.resolve(next));
 
     await useRecipesStore.getState().toggleFavourite('u1', 'r1', true);
 
     expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
+  });
+
+  it('flips favouriteIds off optimistically for an unfavourite', async () => {
+    useRecipesStore.setState({ favouriteIds: ['r1', 'r2'] });
+
+    await useRecipesStore.getState().toggleFavourite('u1', 'r1', false);
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r2']);
+  });
+
+  it('guards on a missing userId before touching state or the outbox', async () => {
+    useRecipesStore.setState({ favouriteIds: ['r1'] });
+
+    const result = await useRecipesStore.getState().toggleFavourite('', 'r2', true);
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
+    expect(mockEnqueue).not.toHaveBeenCalled();
+    expect(mockSyncPending).not.toHaveBeenCalled();
+    expect(result).toBe(false);
+  });
+});
+
+describe('recipes store revertLocalToggle()', () => {
+  it('undoes an "on" toggle back to unfavourited when the state still matches desiredState', () => {
+    useRecipesStore.setState({ favouriteIds: ['r1', 'r2'] });
+
+    useRecipesStore.getState().revertLocalToggle('r1', true);
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r2']);
+  });
+
+  it('undoes an "off" toggle back to favourited when the state still matches desiredState', () => {
+    useRecipesStore.setState({ favouriteIds: ['r2'] });
+
+    useRecipesStore.getState().revertLocalToggle('r1', false);
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1', 'r2']);
+  });
+
+  it('does nothing when the cached state has already moved on from desiredState', () => {
+    // A later, successful toggle already flipped this back -- reverting here
+    // would undo that newer, correct state rather than the stale failed one.
+    useRecipesStore.setState({ favouriteIds: ['r2'] });
+
+    useRecipesStore.getState().revertLocalToggle('r1', true);
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r2']);
+  });
+
+  it('is idempotent -- calling it twice for the same dead letter does nothing the second time', () => {
+    useRecipesStore.setState({ favouriteIds: ['r1'] });
+
+    useRecipesStore.getState().revertLocalToggle('r1', true);
+    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
+
+    useRecipesStore.getState().revertLocalToggle('r1', true);
+    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
   });
 });

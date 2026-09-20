@@ -28,6 +28,7 @@ import '@/lib/outbox/handlers/checkIn';
 import '@/lib/outbox/handlers/deleteFoodEntry';
 import '@/lib/outbox/handlers/updateFoodEntry';
 import '@/lib/outbox/handlers/saveMealCombo';
+import '@/lib/outbox/handlers/toggleFavourite';
 
 function nextMondayISO(): string {
   const now    = new Date();

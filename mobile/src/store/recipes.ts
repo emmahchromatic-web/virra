@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import {
-  fetchRecipes, fetchRecipeDetail, fetchFavouriteIds, toggleFavourite as toggleFavouriteApi,
+  fetchRecipes, fetchRecipeDetail, fetchFavouriteIds,
   type Recipe, type RecipeDetail,
 } from '@/lib/recipes';
+import { enqueue } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
 import { asyncStorageAdapter } from './persistAdapter';
 
 const STORE_NAME = 'virra:recipes:v1';
@@ -25,15 +27,40 @@ interface RecipesState {
   refreshDetail:     (id: string) => Promise<void>;
   refreshFavourites: (userId: string) => Promise<void>;
   /**
-   * `toggleFavourite` stays a direct online write for this plan (J2 is
-   * reads-only; an outbox-backed version is J3's own `toggleFavourite` kind).
-   * What's new here is that the CACHED `favouriteIds` updates optimistically
-   * the moment the write is fired, and reverts to the pre-toggle snapshot if
-   * the server call fails -- same snapshot-and-revert shape as
-   * `sessionStore.ts`'s `dropSession`/`moveSession`, rather than waiting on a
-   * full `refreshFavourites()` round trip to reflect what the user just did.
+   * J3's `toggleFavourite` outbox kind. The optimistic `favouriteIds` flip
+   * applies immediately and unconditionally, then the write is routed through
+   * the outbox -- online AND offline alike, unlike every other J3 kind's
+   * "try a direct write first, enqueue only on failure" shape (see
+   * `checkin.tsx`, `nutrition.tsx`'s `handleDeleteEntry`,
+   * `FoodEntryEditModal.handleSave`).
+   *
+   * WHY THE DEVIATION. Before this, ANY failure -- including an ordinary
+   * offline/transient blip -- reverted the optimistic flip immediately,
+   * which flashed the heart back before a merely-offline user could ever see
+   * it settle. That revert-on-any-failure behaviour was the bug, not a
+   * property to preserve for a "try direct" path and merely disable for a
+   * queued one. Going through `enqueue` unconditionally means every call
+   * gets the SAME apply-now/only-undo-on-dead-letter treatment regardless of
+   * connectivity: `revertLocalToggle` below only fires from `syncPending.ts`
+   * when the outbox item has proven it can never succeed, exactly like
+   * `sessionStore.applyLocalCompletion`/`revertLocalCompletion` for workout
+   * completions. A "try direct, enqueue on failure" split here would still
+   * need two different revert rules for the two paths -- routing both
+   * through one path is what makes the fix uniform.
    */
   toggleFavourite: (userId: string, recipeId: string, next: boolean) => Promise<boolean>;
+  /**
+   * Reverts a favourite toggle whose outbox item dead-lettered, undoing back
+   * to `!desiredState` -- but ONLY if `favouriteIds` still reflects
+   * `desiredState`. That guard is what makes this safe to call from
+   * `syncPending.ts`'s on-disk dead-letter sweep on every single launch: a
+   * later, successful toggle of the SAME recipe (or a fresh `refreshFavourites`)
+   * may already have moved `favouriteIds` on since this item was queued, and
+   * blindly flipping back would undo that newer, correct state rather than the
+   * stale failed one. Mirrors `sessionStore.revertLocalCompletion`'s own
+   * "only touch it if it's still the questionable state" guard.
+   */
+  revertLocalToggle: (recipeId: string, desiredState: boolean) => void;
   /**
    * Drop the cached list, details and favourites back to empty. Called from
    * the auth store's `signOut()`.
@@ -126,21 +153,38 @@ export const useRecipesStore = create<RecipesState>()(
       },
 
       toggleFavourite: async (userId, recipeId, next) => {
+        // Guard on identity BEFORE any state mutation, same as
+        // `nutrition.tsx`'s `handleDeleteEntry` / `FoodEntryEditModal`'s
+        // `handleSave`: a write can never succeed without a session anyway
+        // (RLS scopes `recipe_favourites` by `auth.uid()`), and without this
+        // guard an empty `userId` would still flip the optimistic UI and
+        // enqueue a write nothing can ever authenticate.
+        if (!userId) return get().favouriteIds.includes(recipeId);
+
         const prevIds = get().favouriteIds;
         const optimisticIds = next
           ? (prevIds.includes(recipeId) ? prevIds : [recipeId, ...prevIds])
           : prevIds.filter((id) => id !== recipeId);
         set({ favouriteIds: optimisticIds });
 
-        const result = await toggleFavouriteApi(userId, recipeId, next);
-        if (result === null) {
-          // toggleFavouriteApi never throws (it catches and returns null on
-          // failure) -- revert to the pre-toggle snapshot rather than leaving
-          // the optimistic flip stranded.
-          set({ favouriteIds: prevIds });
-          return prevIds.includes(recipeId);
-        }
-        return result;
+        await enqueue(userId, 'toggleFavourite', { userId, recipeId, desiredState: next });
+        // Fire-and-forget, same as every other J3 kind: surfaces the pending
+        // item on the sync pill immediately and retries at once if the
+        // device is actually online.
+        syncPending(userId);
+
+        return next;
+      },
+
+      revertLocalToggle: (recipeId, desiredState) => {
+        const ids = get().favouriteIds;
+        const has = ids.includes(recipeId);
+        if (has !== desiredState) return; // already reverted, or moved on since
+        set({
+          favouriteIds: desiredState
+            ? ids.filter((id) => id !== recipeId)
+            : [recipeId, ...ids],
+        });
       },
 
       clear: () => set({

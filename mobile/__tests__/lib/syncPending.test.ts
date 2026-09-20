@@ -2,9 +2,18 @@ import { syncPending } from '@/lib/syncPending';
 import { useNetworkStore } from '@/store/network';
 import { useOutboxStatus } from '@/store/outboxStatus';
 import { useSessionStore } from '@/store/sessionStore';
+import { useRecipesStore } from '@/store/recipes';
 import * as outbox from '@/lib/outbox';
 
 jest.mock('@/lib/outbox');
+// `store/recipes.ts` pulls in `@/lib/recipes`'s real network calls; nothing
+// here exercises them (only `setState`/`getState().revertLocalToggle` are
+// used), but mocking keeps this file from ever making a real Supabase call.
+jest.mock('@/lib/recipes', () => ({
+  fetchRecipes:      jest.fn(),
+  fetchRecipeDetail: jest.fn(),
+  fetchFavouriteIds: jest.fn(),
+}));
 
 const mockedOutbox = outbox as jest.Mocked<typeof outbox>;
 
@@ -26,6 +35,10 @@ function emptySessionStore() {
   });
 }
 
+function seedFavourites(ids: string[]) {
+  useRecipesStore.setState({ favouriteIds: ids });
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   // `clearAllMocks` clears call history but NOT installed implementations, and
@@ -40,6 +53,7 @@ beforeEach(() => {
   mockedOutbox.drain.mockResolvedValue({ sent: 0, left: 0, failed: 0, deadLettered: [] });
 
   emptySessionStore();
+  seedFavourites([]);
   useNetworkStore.setState({ isOnline: true, lastOnlineAt: Date.now() });
   useOutboxStatus.setState({ syncing: false, pendingCount: 0, deadLetterCount: 0, justSynced: false });
 });
@@ -198,5 +212,71 @@ describe('syncPending', () => {
     mockedOutbox.readOutbox.mockRejectedValue(new Error('boom'));
     await expect(syncPending('u1')).resolves.toBeUndefined();
     expect(useOutboxStatus.getState().syncing).toBe(false);
+  });
+
+  /**
+   * `toggleFavourite` dead-letter reconciliation -- the exact same shape as
+   * the `completeWorkout` tests above, extended to a second kind for the
+   * first time.
+   */
+  it('reverts the local optimistic favourite for a recipe whose item just dead-lettered', async () => {
+    seedFavourites(['r1']);
+    const payload = { userId: 'u1', recipeId: 'r1', desiredState: true } as const;
+    mockedOutbox.readOutbox.mockResolvedValue([{ id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 0 }]);
+    mockedOutbox.readDeadLetters
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 1, lastError: 'x' }]);
+    mockedOutbox.drain.mockResolvedValue({
+      sent: 0, left: 0, failed: 1,
+      deadLettered: [{ id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 1, lastError: 'x' }],
+    });
+
+    await syncPending('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
+  });
+
+  it('reverts a phantom local favourite from a dead letter already on disk, with no drain this call', async () => {
+    seedFavourites(['r1']);
+    const payload = { userId: 'u1', recipeId: 'r1', desiredState: true } as const;
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(mockedOutbox.drain).not.toHaveBeenCalled();
+    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
+  });
+
+  it('leaves a since-changed favourite state alone when replaying an old dead letter', async () => {
+    // Same recipe id, but a later successful toggle already moved it back to
+    // unfavourited by the time this stale dead letter (desiredState: true) is
+    // replayed. Re-running reconciliation over the whole dead-letter list on
+    // every launch must never undo that newer, correct state.
+    seedFavourites([]);
+    const payload = { userId: 'u1', recipeId: 'r1', desiredState: true } as const;
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
+  });
+
+  it('reverts an "off" toggle dead letter back to favourited', async () => {
+    seedFavourites([]);
+    const payload = { userId: 'u1', recipeId: 'r1', desiredState: false } as const;
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
   });
 });

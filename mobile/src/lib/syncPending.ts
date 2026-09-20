@@ -1,28 +1,45 @@
 import { useNetworkStore } from '@/store/network';
 import { useOutboxStatus } from '@/store/outboxStatus';
 import { useSessionStore } from '@/store/sessionStore';
+import { useRecipesStore } from '@/store/recipes';
 import { drain, readOutbox, readDeadLetters, type OutboxItem } from '@/lib/outbox';
 
 function isCompleteWorkout(item: OutboxItem): item is OutboxItem<'completeWorkout'> {
   return item.kind === 'completeWorkout';
 }
 
+function isToggleFavourite(item: OutboxItem): item is OutboxItem<'toggleFavourite'> {
+  return item.kind === 'toggleFavourite';
+}
+
 /**
- * Reverts the optimistic local completion behind every dead-lettered
- * completion in `items`. A dead-lettered item's server row will never report
- * `completed`, so `refresh()`'s "preserve a locally-completed row" rule would
- * otherwise hold the phantom forever. See sessionStore.revertLocalCompletion.
+ * Reverts the optimistic local state behind every dead-lettered item in
+ * `items`, for every kind this module knows how to undo:
  *
- * Idempotent by construction: `revertLocalCompletion` only touches rows whose
- * `activity_id` is still a `local_` placeholder, so re-running it over the
- * whole on-disk dead-letter list on every launch costs nothing and cannot undo
- * a real, server-confirmed completion.
+ * - `completeWorkout`: a dead-lettered item's server row will never report
+ *   `completed`, so `refresh()`'s "preserve a locally-completed row" rule
+ *   would otherwise hold the phantom forever. See
+ *   sessionStore.revertLocalCompletion.
+ * - `toggleFavourite`: a dead-lettered item's server row will never reflect
+ *   `desiredState`, so the optimistic heart would otherwise stay flipped
+ *   forever with nothing to correct it. See recipes.revertLocalToggle.
+ *
+ * Idempotent by construction for both: `revertLocalCompletion` only touches
+ * rows whose `activity_id` is still a `local_` placeholder, and
+ * `revertLocalToggle` only touches ids whose cached state still matches the
+ * failed item's `desiredState` -- so re-running this over the whole on-disk
+ * dead-letter list on every launch costs nothing and cannot undo a real,
+ * server-confirmed state.
  */
-function revertDeadLetteredCompletions(items: OutboxItem[]): void {
+function revertDeadLetteredItems(items: OutboxItem[]): void {
   for (const item of items) {
-    if (!isCompleteWorkout(item)) continue;
-    const sessionId = item.payload.sessionId;
-    if (sessionId) useSessionStore.getState().revertLocalCompletion(sessionId);
+    if (isCompleteWorkout(item)) {
+      const sessionId = item.payload.sessionId;
+      if (sessionId) useSessionStore.getState().revertLocalCompletion(sessionId);
+    } else if (isToggleFavourite(item)) {
+      const { recipeId, desiredState } = item.payload;
+      if (recipeId) useRecipesStore.getState().revertLocalToggle(recipeId, desiredState);
+    }
   }
 }
 
@@ -57,7 +74,7 @@ export async function syncPending(userId: string): Promise<void> {
     // this module exists to clear, reached by a second route. This loop is the
     // actual guarantee; the `result.deadLettered` loop further down is now a
     // promptness optimisation (react on the same call that dead-letters).
-    revertDeadLetteredCompletions(deadBefore);
+    revertDeadLetteredItems(deadBefore);
 
     if (!useNetworkStore.getState().isOnline) return;
     if (pendingBefore.length === 0) return;
@@ -78,7 +95,7 @@ export async function syncPending(userId: string): Promise<void> {
     // can never succeed, without waiting for the next launch's `deadBefore`
     // sweep above to notice. Promptness, not correctness: the sweep is what
     // guarantees this eventually happens even if this process never gets here.
-    revertDeadLetteredCompletions(result.deadLettered);
+    revertDeadLetteredItems(result.deadLettered);
 
     // The server now owns these sessions. Pull the real row in now rather than
     // leaving the `local_` placeholder sitting there until the next screen

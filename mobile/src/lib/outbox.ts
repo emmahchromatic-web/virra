@@ -16,7 +16,8 @@ const OUTBOX_PREFIX        = 'virra:outbox:v1:';
 const DEAD_LETTER_PREFIX   = 'virra:outbox_failed:v1:';
 const LEGACY_QUEUE_PREFIX  = 'virra:pending_completions:v1:';
 
-export type MutationKind = 'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry' | 'saveMealCombo';
+export type MutationKind =
+  'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry' | 'saveMealCombo' | 'toggleFavourite';
 
 export interface MutationPayloadMap {
   completeWorkout: PendingCompletion;
@@ -47,6 +48,12 @@ export interface MutationPayloadMap {
     name:       string;
     meal_type:  string;
     items_json: unknown;
+  };
+  toggleFavourite: {
+    userId:       string;
+    recipeId:     string;
+    /** The state the toggle was asking for, not the state it was undoing. */
+    desiredState: boolean;
   };
 }
 
