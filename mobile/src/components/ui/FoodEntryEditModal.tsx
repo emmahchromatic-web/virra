@@ -30,8 +30,10 @@ export interface FoodEntry {
 interface Props {
   visible:    boolean;
   entry:      FoodEntry | null;
-  /** Owner of the entry, needed to queue an offline edit. Null only when no
-   *  session is available yet -- editing an entry always implies one exists. */
+  /** Owner of the entry, needed to queue an offline edit. Not assumed
+   *  non-null just because an entry is being edited -- `handleSave` guards on
+   *  it up front (see that guard's comment) rather than treating null as
+   *  impossible. */
   userId:     string | null;
   /** The nutrition day this entry belongs to, so a queued edit's optimistic
    *  local update lands on the right cached day (see `updateEntryLocal`). */
@@ -68,6 +70,18 @@ export function FoodEntryEditModal({ visible, entry, userId, recordedOn, onClose
   async function handleSave() {
     if (!entry) return;
 
+    if (!userId) {
+      // Mirrors nutrition.tsx's handleDeleteEntry guard (b66b311): an edit can
+      // never succeed without a session anyway (RLS scopes by auth.uid()),
+      // and without this a genuine error concurrent with a null session would
+      // enqueue nothing while updateEntryLocal still ran below, silently
+      // discarding the edit while the UI reported it as saved. Unlike a
+      // delete, Save is an explicit user action awaiting feedback, so this
+      // surfaces an error rather than quietly closing the modal.
+      setError('Can’t save right now — try again.');
+      return;
+    }
+
     if (!isValidNum) {
       setError(`Enter a value between 1 and 4999 ${unit === 'ml' ? 'millilitres' : 'grams'}.`);
       return;
@@ -94,18 +108,16 @@ export function FoodEntryEditModal({ visible, entry, userId, recordedOn, onClose
         // server right now. The local update below still happens immediately
         // either way, so the UI reads as saved regardless of which path
         // actually did the work.
-        if (userId) {
-          await enqueue(userId, 'updateFoodEntry', {
-            entryId:   entry.id,
-            quantityG: patch.quantity_g,
-            calories:  patch.calories,
-            carbsG:    patch.carbs_g,
-            proteinG:  patch.protein_g,
-            fatG:      patch.fat_g,
-            fibreG:    patch.fibre_g,
-          });
-          syncPending(userId);
-        }
+        await enqueue(userId, 'updateFoodEntry', {
+          entryId:   entry.id,
+          quantityG: patch.quantity_g,
+          calories:  patch.calories,
+          carbsG:    patch.carbs_g,
+          proteinG:  patch.protein_g,
+          fatG:      patch.fat_g,
+          fibreG:    patch.fibre_g,
+        });
+        syncPending(userId);
       }
 
       useNutritionDay.getState().updateEntryLocal(recordedOn, entry.id, patch);
