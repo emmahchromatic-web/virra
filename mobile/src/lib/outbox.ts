@@ -16,7 +16,7 @@ const OUTBOX_PREFIX        = 'virra:outbox:v1:';
 const DEAD_LETTER_PREFIX   = 'virra:outbox_failed:v1:';
 const LEGACY_QUEUE_PREFIX  = 'virra:pending_completions:v1:';
 
-export type MutationKind = 'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry';
+export type MutationKind = 'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry' | 'saveMealCombo';
 
 export interface MutationPayloadMap {
   completeWorkout: PendingCompletion;
@@ -40,6 +40,13 @@ export interface MutationPayloadMap {
     proteinG:  number;
     fatG:      number;
     fibreG:    number;
+  };
+  saveMealCombo: {
+    id:         string;
+    user_id:    string;
+    name:       string;
+    meal_type:  string;
+    items_json: unknown;
   };
 }
 

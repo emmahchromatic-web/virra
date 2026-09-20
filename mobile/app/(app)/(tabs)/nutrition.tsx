@@ -431,12 +431,24 @@ export default function NutritionScreen() {
           fat_g:      e.fat_g,
           fibre_g:    e.fibre_g,
         }));
-        await supabase.from('meal_combos').insert({
+        // Generated up front so the same id is used whether the direct write
+        // below succeeds or the offline fallback enqueues it -- the eventual
+        // outbox replay (an upsert on `id`) then matches whatever may have
+        // already landed, instead of creating a duplicate combo.
+        const comboPayload = {
+          id:         crypto.randomUUID(),
           user_id:    session.user.id,
           name,
           meal_type:  meal,
           items_json: comboItems,
-        });
+        };
+        const { error } = await supabase.from('meal_combos').insert(comboPayload);
+        if (error) {
+          // Offline (or a transient server blip) -- queue it and let her carry
+          // on, same pattern as handleDeleteEntry/FoodEntryEditModal above.
+          await enqueue(session.user.id, 'saveMealCombo', comboPayload);
+          syncPending(session.user.id);
+        }
       },
     });
   }

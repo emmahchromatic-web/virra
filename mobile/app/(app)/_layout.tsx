@@ -18,10 +18,16 @@ import { colors } from '@/constants/theme';
 import { startNetworkListener, useNetworkStore } from '@/store/network';
 import { syncPending } from '@/lib/syncPending';
 import { SyncPill } from '@/components/SyncPill';
-// Registers the completeWorkout/checkIn/deleteFoodEntry outbox handlers — must run before any drain().
+// Registers the outbox handlers — must run before any drain(). (updateFoodEntry
+// was missing here from its own task, silently orphaning that kind: a queued
+// edit would never find a registered handler and drain() would just halt on
+// it forever, per its "no handler registered yet" branch. Fixed alongside
+// wiring in saveMealCombo since both are the same class of bug.)
 import '@/lib/outbox/handlers/completeWorkout';
 import '@/lib/outbox/handlers/checkIn';
 import '@/lib/outbox/handlers/deleteFoodEntry';
+import '@/lib/outbox/handlers/updateFoodEntry';
+import '@/lib/outbox/handlers/saveMealCombo';
 
 function nextMondayISO(): string {
   const now    = new Date();
