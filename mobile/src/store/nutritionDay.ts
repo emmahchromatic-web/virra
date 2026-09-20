@@ -45,6 +45,14 @@ interface NutritionDayState {
    *  just to reflect a change the screen already knows happened. */
   updateEntryLocal: (recordedOn: string, entryId: string, patch: Partial<FoodEntryRow>) => void;
   /**
+   * Optimistic local append (e.g. after a food-entry insert already committed
+   * to the server, or queued for offline replay via the `logFoodEntries`
+   * outbox kind) -- same reasoning as `removeEntryLocal`/`updateEntryLocal`:
+   * reflects a change the screen already knows happened without waiting on a
+   * round trip through `refresh()`.
+   */
+  addEntryLocal: (recordedOn: string, rows: FoodEntryRow[]) => void;
+  /**
    * Drop every cached day back to empty. Called from the auth store's
    * `signOut()`: clearing STORAGE is not clearing the app -- this store keeps
    * its days in memory and nothing reloads between sign-out and the next
@@ -139,6 +147,32 @@ export const useNutritionDay = create<NutritionDayState>()(
             },
           },
         });
+      },
+
+      addEntryLocal: (recordedOn, rows) => {
+        const day = get().days[recordedOn];
+        if (day) {
+          set({
+            days: {
+              ...get().days,
+              [recordedOn]: { ...day, entries: [...day.entries, ...rows] },
+            },
+          });
+        } else {
+          // The day isn't cached yet (shouldn't normally happen -- these
+          // screens only ever operate on today, and today's day is loaded
+          // before a logId exists to navigate here with -- but don't
+          // silently drop the entries if it does).
+          set({
+            days: {
+              ...get().days,
+              [recordedOn]: {
+                logId: rows[0]?.log_id ?? null, trainingLoad: null, inferredLoad: null,
+                targetsJson: null, entries: rows, fetchedAt: new Date().toISOString(),
+              },
+            },
+          });
+        }
       },
 
       clear: () => set({ days: {}, inFlight: {} }),

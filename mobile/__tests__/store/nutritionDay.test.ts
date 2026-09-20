@@ -249,3 +249,39 @@ describe('nutritionDay store updateEntryLocal()', () => {
     expect(useNutritionDay.getState().days['2026-09-19'].entries).toEqual([entryA]);
   });
 });
+
+describe('nutritionDay store addEntryLocal()', () => {
+  it('appends new entries to a cached day without touching other days', () => {
+    useNutritionDay.setState({
+      days: {
+        '2026-09-19': {
+          logId: 'log1', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null,
+          entries: [entryA], fetchedAt: '2026-09-19T06:00:00.000Z',
+        },
+        '2026-09-18': {
+          logId: 'log0', trainingLoad: 'easy', inferredLoad: 'easy', targetsJson: null,
+          entries: [entryA], fetchedAt: '2026-09-18T06:00:00.000Z',
+        },
+      },
+    });
+
+    useNutritionDay.getState().addEntryLocal('2026-09-19', [entryB]);
+
+    expect(useNutritionDay.getState().days['2026-09-19'].entries).toEqual([entryA, entryB]);
+    expect(useNutritionDay.getState().days['2026-09-18'].entries).toEqual([entryA]);
+  });
+
+  it('creates a minimal day when nothing is cached yet, rather than dropping the entries', () => {
+    useNutritionDay.setState({ days: {} });
+
+    useNutritionDay.getState().addEntryLocal('2026-09-19', [entryB]);
+
+    const day = useNutritionDay.getState().days['2026-09-19'];
+    expect(day.entries).toEqual([entryB]);
+    expect(day.logId).toBe('log1');
+    expect(day.trainingLoad).toBeNull();
+    expect(day.inferredLoad).toBeNull();
+    expect(day.targetsJson).toBeNull();
+    expect(day.fetchedAt).toBeTruthy();
+  });
+});

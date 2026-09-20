@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { uuid } from 'expo-modules-core';
 import { supabase } from '@/lib/supabase';
 import { searchCommonFoods, scaleFood, type VirraFood } from '@/lib/commonFoods';
 import { foodUnit, per100Label, unitInputLabel, inferUnitFromName, type FoodUnit } from '@/lib/foodUnits';
@@ -13,6 +14,9 @@ import { lookupBarcode, searchByName } from '@/lib/openFoodFacts';
 import { searchMyFoods } from '@/lib/myFoods';
 import { useAuthStore } from '@/store/auth';
 import { useProGate, paywallRoute } from '@/lib/pro';
+import { enqueue } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
+import { useNutritionDay } from '@/store/nutritionDay';
 import { colors, spacing, radius, fonts } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -387,30 +391,46 @@ export default function FoodSearchScreen() {
   }, [query, retryNonce]);
 
   async function handleAdd(food: VirraFood, grams: number) {
-    if (!logId) return;
+    if (!logId || !session) return;
     setAdding(true);
     const macros = scaleFood(food, grams);
     // Repurpose the legacy `nutritionix_id` column as the OFF barcode/id, per CLAUDE.md.
     const isOff   = food.id.startsWith('off-');
     const offCode = isOff ? food.id.slice(4) : null;
-    const source  = selectedFromBarcode ? 'barcode' : isOff ? 'off' : 'common';
+    const source: 'barcode' | 'off' | 'common' = selectedFromBarcode ? 'barcode' : isOff ? 'off' : 'common';
 
-    const { error } = await supabase.from('food_entries').insert({
-      log_id:    logId,
-      meal_type: activeMeal,
-      food_name: food.name,
+    // Generated up front so the same id is used whether the direct write
+    // below succeeds or the offline fallback enqueues it -- the eventual
+    // outbox replay (an upsert on `id`) then matches whatever may have
+    // already landed, instead of creating a duplicate entry.
+    const row = {
+      id:         uuid.v4(),
+      log_id:     logId,
+      meal_type:  activeMeal,
+      food_name:  food.name,
       quantity_g: grams,
       quantity_unit: foodUnit(food),
-      calories:  macros.calories,
-      carbs_g:   macros.carbs_g,
-      protein_g: macros.protein_g,
-      fat_g:     macros.fat_g,
-      fibre_g:   macros.fibre_g,
+      calories:   macros.calories,
+      carbs_g:    macros.carbs_g,
+      protein_g:  macros.protein_g,
+      fat_g:      macros.fat_g,
+      fibre_g:    macros.fibre_g,
       nutritionix_id: offCode,
       source,
-    });
+      haiku_input: null,
+      confidence:  null,
+    };
+
+    const { error } = await supabase.from('food_entries').insert(row);
     setAdding(false);
-    if (error) { appAlert('Could not add food', error.message); return; }
+    if (error) {
+      // Offline (or a transient server blip) -- queue it and let her carry on,
+      // same pattern as `nutrition.tsx`'s handleDeleteEntry/handleSaveCombo.
+      await enqueue(session.user.id, 'logFoodEntries', { rows: [row] });
+      syncPending(session.user.id);
+    }
+    const today = new Date().toISOString().split('T')[0];
+    useNutritionDay.getState().addEntryLocal(today, [row]);
     if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
       cancelNutritionReminderForMeal(activeMeal);
     }
@@ -418,23 +438,35 @@ export default function FoodSearchScreen() {
   }
 
   async function handleAddManual(m: ManualMacros) {
-    if (!logId) return;
+    if (!logId || !session) return;
     setAdding(true);
 
-    const { error } = await supabase.from('food_entries').insert({
-      log_id:    logId,
-      meal_type: activeMeal,
-      food_name: m.food_name.trim(),
+    const row = {
+      id:         uuid.v4(),
+      log_id:     logId,
+      meal_type:  activeMeal,
+      food_name:  m.food_name.trim(),
       quantity_g: null,
-      calories:  parseFloat(m.calories)   || 0,
-      carbs_g:   parseFloat(m.carbs_g)    || 0,
-      protein_g: parseFloat(m.protein_g)  || 0,
-      fat_g:     parseFloat(m.fat_g)      || 0,
-      fibre_g:   parseFloat(m.fibre_g)    || 0,
-      source:    'manual',
-    });
+      quantity_unit: null,
+      calories:   parseFloat(m.calories)   || 0,
+      carbs_g:    parseFloat(m.carbs_g)    || 0,
+      protein_g:  parseFloat(m.protein_g)  || 0,
+      fat_g:      parseFloat(m.fat_g)      || 0,
+      fibre_g:    parseFloat(m.fibre_g)    || 0,
+      nutritionix_id: null,
+      source:     'manual' as const,
+      haiku_input: null,
+      confidence:  null,
+    };
+
+    const { error } = await supabase.from('food_entries').insert(row);
     setAdding(false);
-    if (error) { appAlert('Could not add food', error.message); return; }
+    if (error) {
+      await enqueue(session.user.id, 'logFoodEntries', { rows: [row] });
+      syncPending(session.user.id);
+    }
+    const today = new Date().toISOString().split('T')[0];
+    useNutritionDay.getState().addEntryLocal(today, [row]);
     if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
       cancelNutritionReminderForMeal(activeMeal);
     }
@@ -469,32 +501,46 @@ export default function FoodSearchScreen() {
   }
 
   async function handleAddCombo(combo: MealCombo) {
-    if (!logId) return;
+    if (!logId || !session) return;
     setAdding(true);
+    // Each row's id is generated up front, same reasoning as handleAdd/
+    // handleAddManual above: the eventual outbox replay (an upsert on `id`)
+    // then matches whatever may have already landed, instead of creating
+    // duplicate entries.
     const rows = combo.items_json.map((item) => ({
-      log_id:    logId,
-      meal_type: activeMeal,
-      food_name: item.food_name,
+      id:         uuid.v4(),
+      log_id:     logId,
+      meal_type:  activeMeal,
+      food_name:  item.food_name,
       quantity_g: item.quantity_g,
       quantity_unit: item.quantity_unit ?? 'g',
-      calories:  item.calories,
-      carbs_g:   item.carbs_g,
-      protein_g: item.protein_g,
-      fat_g:     item.fat_g,
-      fibre_g:   item.fibre_g ?? 0,
-      source:    'manual' as const,
+      calories:   item.calories,
+      carbs_g:    item.carbs_g,
+      protein_g:  item.protein_g,
+      fat_g:      item.fat_g,
+      fibre_g:    item.fibre_g ?? 0,
+      nutritionix_id: null,
+      source:     'manual' as const,
+      haiku_input: null,
+      confidence:  null,
     }));
     const { error } = await supabase.from('food_entries').insert(rows);
     setAdding(false);
-    if (!error) {
-      supabase.from('meal_combos').update({ last_used_at: new Date().toISOString() }).eq('id', combo.id).then(() => {});
-      if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
-        cancelNutritionReminderForMeal(activeMeal);
-      }
-      router.back();
+    if (error) {
+      await enqueue(session.user.id, 'logFoodEntries', { rows });
+      syncPending(session.user.id);
     } else {
-      appAlert('Could not add meal', error.message);
+      // Fire-and-forget touch of the combo's last-used timestamp -- cosmetic,
+      // not part of the offline-critical path, so it stays exactly as-is:
+      // only on the direct insert's success, never queued.
+      supabase.from('meal_combos').update({ last_used_at: new Date().toISOString() }).eq('id', combo.id).then(() => {});
     }
+    const today = new Date().toISOString().split('T')[0];
+    useNutritionDay.getState().addEntryLocal(today, rows);
+    if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
+      cancelNutritionReminderForMeal(activeMeal);
+    }
+    router.back();
   }
 
   async function handleOpenScanner() {

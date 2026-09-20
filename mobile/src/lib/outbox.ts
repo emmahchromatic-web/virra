@@ -17,7 +17,35 @@ const DEAD_LETTER_PREFIX   = 'virra:outbox_failed:v1:';
 const LEGACY_QUEUE_PREFIX  = 'virra:pending_completions:v1:';
 
 export type MutationKind =
-  'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry' | 'saveMealCombo' | 'toggleFavourite';
+  'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry' | 'saveMealCombo' | 'toggleFavourite'
+  | 'logFoodEntries';
+
+/**
+ * The row shape `food_entries` inserts need, shared by every call site across
+ * J3b's Tasks 1-3 (food-search, manual-log, describe-meal) so all three enqueue
+ * the exact same payload shape into one `logFoodEntries` kind. `id` is
+ * client-generated (`food_entries.id` is `uuid default gen_random_uuid()`,
+ * which only fires when the column is left unset) so a queued write and its
+ * already-succeeded direct counterpart -- or a replayed queue item -- upsert
+ * onto the same row instead of duplicating it.
+ */
+export interface LogFoodEntryRow {
+  id:             string;
+  log_id:         string;
+  meal_type:      string;
+  food_name:      string;
+  quantity_g:     number | null;
+  quantity_unit:  string | null;
+  calories:       number;
+  carbs_g:        number;
+  protein_g:      number;
+  fat_g:          number;
+  fibre_g:        number;
+  nutritionix_id: string | null;
+  source:         string;
+  haiku_input:    string | null;
+  confidence:     number | null;
+}
 
 export interface MutationPayloadMap {
   completeWorkout: PendingCompletion;
@@ -54,6 +82,9 @@ export interface MutationPayloadMap {
     recipeId:     string;
     /** The state the toggle was asking for, not the state it was undoing. */
     desiredState: boolean;
+  };
+  logFoodEntries: {
+    rows: LogFoodEntryRow[];
   };
 }
 
