@@ -35,6 +35,30 @@ const logFoodEntriesItem: OutboxItem = {
   } as never,
 };
 
+const logFoodEntriesMultiRowItem: OutboxItem = {
+  id: 'ob_3b', kind: 'logFoodEntries', attempts: 1, createdAt: '2026-09-03T00:00:00.000Z',
+  lastError: 'new row violates row-level security policy for table "food_entries"',
+  payload: {
+    rows: [
+      {
+        id: 'fe_2', log_id: 'log_1', meal_type: 'lunch', food_name: 'Chicken sandwich',
+        quantity_g: 250, quantity_unit: 'g', calories: 450, carbs_g: 40, protein_g: 30, fat_g: 15,
+        fibre_g: 3, nutritionix_id: null, source: 'haiku_estimate', haiku_input: 'chicken sandwich and crisps', confidence: 0.7,
+      },
+      {
+        id: 'fe_3', log_id: 'log_1', meal_type: 'lunch', food_name: 'Crisps',
+        quantity_g: 30, quantity_unit: 'g', calories: 160, carbs_g: 15, protein_g: 2, fat_g: 10,
+        fibre_g: 1, nutritionix_id: null, source: 'haiku_estimate', haiku_input: 'chicken sandwich and crisps', confidence: 0.7,
+      },
+      {
+        id: 'fe_4', log_id: 'log_1', meal_type: 'lunch', food_name: 'Apple juice',
+        quantity_g: 200, quantity_unit: 'ml', calories: 90, carbs_g: 22, protein_g: 0, fat_g: 0,
+        fibre_g: 0, nutritionix_id: null, source: 'haiku_estimate', haiku_input: 'chicken sandwich and crisps', confidence: 0.7,
+      },
+    ],
+  } as never,
+};
+
 const dropSessionItem: OutboxItem = {
   id: 'ob_4', kind: 'dropSession', attempts: 1, createdAt: '2026-09-04T00:00:00.000Z',
   lastError: 'duplicate key value violates unique constraint',
@@ -85,6 +109,7 @@ describe('DeadLetterSheet', () => {
     expect(labelForDeadLetter(workoutItem)).not.toMatch(/[{}]/);
     expect(labelForDeadLetter(checkInItem)).not.toMatch(/[{}]/);
     expect(labelForDeadLetter(logFoodEntriesItem)).not.toMatch(/[{}]/);
+    expect(labelForDeadLetter(logFoodEntriesMultiRowItem)).not.toMatch(/[{}]/);
     expect(labelForDeadLetter(dropSessionItem)).not.toMatch(/[{}]/);
     expect(labelForDeadLetter(moveSessionItem)).not.toMatch(/[{}]/);
   });
@@ -92,7 +117,14 @@ describe('DeadLetterSheet', () => {
   it('labels the three J3b kinds', () => {
     expect(labelForDeadLetter(logFoodEntriesItem)).toBe('A food entry from Porridge');
     expect(labelForDeadLetter(dropSessionItem)).toBe('A dropped training session');
-    expect(labelForDeadLetter(moveSessionItem)).toBe('Moving a session to 2026-09-10');
+    expect(labelForDeadLetter(moveSessionItem)).toBe('Moving a session to 10 Sept');
+  });
+
+  // A combo/describe-meal payload can carry several rows -- the label must use
+  // the FIRST row's name, never the whole array and never the last row.
+  it('labels a multi-row logFoodEntries payload using only the first row', () => {
+    expect(labelForDeadLetter(logFoodEntriesMultiRowItem)).toBe('A food entry from Chicken sandwich');
+    expect(labelForDeadLetter(logFoodEntriesMultiRowItem)).not.toMatch(/Crisps|Apple juice/);
   });
 
   it('renders the three J3b kinds in the sheet', async () => {
@@ -101,7 +133,7 @@ describe('DeadLetterSheet', () => {
 
     await findByText('A food entry from Porridge');
     expect(await findByText('A dropped training session')).toBeTruthy();
-    expect(await findByText('Moving a session to 2026-09-10')).toBeTruthy();
+    expect(await findByText('Moving a session to 10 Sept')).toBeTruthy();
   });
 
   it('dismisses an item, calling dismissDeadLetter(userId, id) and removing it from view', async () => {

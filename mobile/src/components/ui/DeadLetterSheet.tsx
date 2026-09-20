@@ -59,7 +59,7 @@ export function labelForDeadLetter(item: OutboxItem): string {
       return 'A dropped training session';
     case 'moveSession': {
       const payload = item.payload as MutationPayloadMap['moveSession'];
-      return `Moving a session to ${payload.newDate}`;
+      return `Moving a session to ${formatShortDate(payload.newDate) ?? payload.newDate}`;
     }
     default:
       return 'An unsaved change';
