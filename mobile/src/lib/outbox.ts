@@ -36,7 +36,7 @@ export interface LogFoodEntryRow {
   meal_type:      MealType;
   food_name:      string;
   quantity_g:     number | null;
-  quantity_unit:  string | null;
+  quantity_unit:  string;
   calories:       number;
   carbs_g:        number;
   protein_g:      number;

@@ -447,7 +447,13 @@ export default function FoodSearchScreen() {
       meal_type:  activeMeal,
       food_name:  m.food_name.trim(),
       quantity_g: null,
-      quantity_unit: null,
+      // `food_entries.quantity_unit` is `text not null default 'g'` -- a
+      // manual macro entry has no scaled portion, so 'g' (the DB's own
+      // default) is the right value here, not null: PostgREST only applies a
+      // column default when the key is OMITTED, not when it's sent as an
+      // explicit null, and an explicit null would violate the not-null
+      // constraint outright.
+      quantity_unit: 'g',
       calories:   parseFloat(m.calories)   || 0,
       carbs_g:    parseFloat(m.carbs_g)    || 0,
       protein_g:  parseFloat(m.protein_g)  || 0,
