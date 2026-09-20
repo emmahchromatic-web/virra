@@ -28,9 +28,32 @@ jest.mock('@/lib/outbox', () => ({ enqueue: (...args: any[]) => mockEnqueue(...a
 const mockSyncPending = jest.fn();
 jest.mock('@/lib/syncPending', () => ({ syncPending: (...args: any[]) => mockSyncPending(...args) }));
 
-const mockAddEntryLocal = jest.fn();
+// `mockDays` and `mockRemoveEntryLocal` are SINGLE, stable references shared
+// across every `getState()` call (`handleSaveAll` calls `getState()` once per
+// `removeEntryLocal` inside its `forEach`, plus once more for the stale-id
+// read and once for `addEntryLocal` -- a fresh `jest.fn()` per call, as an
+// earlier version of this mock had, would make call-count/call-args
+// assertions across those calls meaningless). `mockAddEntryLocal` actually
+// mutates `mockDays`, mirroring the real store's `addEntryLocal`, so replace-
+// mode tests below can genuinely exercise the "capture stale ids BEFORE the
+// new rows land in the cache" ordering in describe-meal.tsx, not just assert
+// against a mock that never changes state.
+const mockRemoveEntryLocal = jest.fn();
+let mockDays: Record<string, { logId: string | null; entries: any[] }> = {};
+const mockAddEntryLocal = jest.fn((recordedOn: string, rows: any[]) => {
+  const day = mockDays[recordedOn];
+  mockDays[recordedOn] = day
+    ? { ...day, entries: [...day.entries, ...rows] }
+    : { logId: rows[0]?.log_id ?? null, entries: rows };
+});
 jest.mock('@/store/nutritionDay', () => ({
-  useNutritionDay: { getState: () => ({ addEntryLocal: (...args: any[]) => mockAddEntryLocal(...args), removeEntryLocal: jest.fn(), days: {} }) },
+  useNutritionDay: {
+    getState: () => ({
+      days:             mockDays,
+      addEntryLocal:    (recordedOn: string, rows: any[]) => mockAddEntryLocal(recordedOn, rows),
+      removeEntryLocal: (...args: any[]) => mockRemoveEntryLocal(...args),
+    }),
+  },
 }));
 jest.mock('@/store/profile', () => ({
   // Acknowledged, so the one-time disclosure card never blocks the flow below.
@@ -42,10 +65,16 @@ jest.mock('@/store/profile', () => ({
 
 const mockInvoke = jest.fn();
 const mockInsert = jest.fn();
+const mockDeleteResult = jest.fn();
 jest.mock('@/lib/supabase', () => ({
   supabase: {
     functions: { invoke: (...args: any[]) => mockInvoke(...args) },
-    from:      () => ({ insert: (rows: any) => mockInsert(rows) }),
+    from:      () => ({
+      insert: (rows: any) => mockInsert(rows),
+      // `.delete().eq('log_id', ...).eq('haiku_input', ...)` -- only the
+      // final `.eq()` call's resolved value matters to the handler.
+      delete: () => ({ eq: () => ({ eq: (...args: any[]) => mockDeleteResult(...args) }) }),
+    }),
   },
 }));
 
@@ -74,11 +103,13 @@ async function describeAndEstimate(getByText: any, getByPlaceholderText: any) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockDays = {};
   mockInvoke.mockResolvedValue({
     data:  { items: [ESTIMATE_ITEM], overall_confidence: 0.8, notes: null },
     error: null,
   });
   mockInsert.mockResolvedValue({ error: null });
+  mockDeleteResult.mockResolvedValue({ error: null });
 });
 
 describe('describe-meal save, meal type resilience', () => {
@@ -161,5 +192,92 @@ describe('describe-meal save failure (offline / transient)', () => {
     expect(mockSyncPending).toHaveBeenCalledWith('user-1');
     expect(mockAddEntryLocal).toHaveBeenCalled();
     expect(mockBack).toHaveBeenCalled();
+  });
+});
+
+describe('describe-meal replace mode (unedited re-estimate)', () => {
+  const today = new Date().toISOString().split('T')[0];
+  const OLD_ENTRY = {
+    id: 'old-entry-1', log_id: 'log-1', haiku_input: 'Chicken katsu curry',
+    meal_type: 'lunch', food_name: 'Chicken katsu curry', calories: 700,
+    carbs_g: 80, protein_g: 30, fat_g: 20, fibre_g: 3, quantity_g: 400,
+    quantity_unit: 'g', source: 'haiku',
+  };
+
+  function setUpReplaceRoute() {
+    mockUseLocalSearchParams.mockReturnValue({
+      logId: 'log-1', mealType: 'lunch',
+      prefillHaikuInput: 'Chicken katsu curry', replaceHaikuInput: 'Chicken katsu curry',
+    });
+  }
+
+  it('captures the stale entry id BEFORE addEntryLocal runs, then removes only that old row once the direct delete succeeds', async () => {
+    mockDays[today] = { logId: 'log-1', entries: [{ ...OLD_ENTRY, id: 'old-entry-1' }] };
+    setUpReplaceRoute();
+    const { getByText, getByPlaceholderText } = render(<DescribeMealScreen />);
+
+    await describeAndEstimate(getByText, getByPlaceholderText);
+    await act(async () => {
+      fireEvent.press(getByText('Replace with 1 item'));
+    });
+
+    // The new row landed in the cache (mockAddEntryLocal's mock impl actually
+    // mutates mockDays, mirroring the real store).
+    expect(mockAddEntryLocal).toHaveBeenCalledTimes(1);
+    const newRows = mockAddEntryLocal.mock.calls[0][1];
+    const newIds  = newRows.map((r: any) => r.id);
+    expect(newIds).not.toContain('old-entry-1');
+
+    // Exactly the old row is removed -- if `staleEntryIds` had instead been
+    // captured AFTER `addEntryLocal` (a self-matching bug: the new rows carry
+    // the SAME haiku_input as the old ones in this unedited-re-estimate case),
+    // this would also have fired for every id in `newIds`.
+    expect(mockRemoveEntryLocal).toHaveBeenCalledTimes(1);
+    expect(mockRemoveEntryLocal).toHaveBeenCalledWith(today, 'old-entry-1');
+    newIds.forEach((id: string) => {
+      expect(mockRemoveEntryLocal).not.toHaveBeenCalledWith(today, id);
+    });
+
+    expect(mockBack).toHaveBeenCalled();
+  });
+
+  it('removes the old row when the direct delete fails but the save is enqueued with replaceCriteria', async () => {
+    mockDays[today] = { logId: 'log-1', entries: [{ ...OLD_ENTRY, id: 'old-entry-2' }] };
+    mockDeleteResult.mockResolvedValue({ error: { message: 'delete blip' } });
+    mockInsert.mockResolvedValue({ error: { message: 'network unreachable' } });
+    setUpReplaceRoute();
+    const { getByText, getByPlaceholderText } = render(<DescribeMealScreen />);
+
+    await describeAndEstimate(getByText, getByPlaceholderText);
+    await act(async () => {
+      fireEvent.press(getByText('Replace with 1 item'));
+    });
+
+    await waitFor(() => expect(mockEnqueue).toHaveBeenCalledWith(
+      'user-1',
+      'logFoodEntries',
+      expect.objectContaining({
+        replaceCriteria: { logId: 'log-1', haikuInput: 'Chicken katsu curry' },
+      }),
+    ));
+
+    expect(mockRemoveEntryLocal).toHaveBeenCalledTimes(1);
+    expect(mockRemoveEntryLocal).toHaveBeenCalledWith(today, 'old-entry-2');
+  });
+
+  it('leaves the old row in place when the direct delete fails but the direct insert succeeds (nothing tracks the removal)', async () => {
+    mockDays[today] = { logId: 'log-1', entries: [{ ...OLD_ENTRY, id: 'old-entry-3' }] };
+    mockDeleteResult.mockResolvedValue({ error: { message: 'delete blip' } });
+    mockInsert.mockResolvedValue({ error: null });
+    setUpReplaceRoute();
+    const { getByText, getByPlaceholderText } = render(<DescribeMealScreen />);
+
+    await describeAndEstimate(getByText, getByPlaceholderText);
+    await act(async () => {
+      fireEvent.press(getByText('Replace with 1 item'));
+    });
+
+    expect(mockEnqueue).not.toHaveBeenCalled();
+    expect(mockRemoveEntryLocal).not.toHaveBeenCalled();
   });
 });
