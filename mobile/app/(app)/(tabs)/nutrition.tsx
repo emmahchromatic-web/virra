@@ -6,6 +6,7 @@ import { GestureHandlerRootView, Swipeable } from 'react-native-gesture-handler'
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { SymbolView } from 'expo-symbols';
+import { uuid } from 'expo-modules-core';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/auth';
 import { useCycleStore } from '@/store/cycle';
@@ -436,7 +437,7 @@ export default function NutritionScreen() {
         // outbox replay (an upsert on `id`) then matches whatever may have
         // already landed, instead of creating a duplicate combo.
         const comboPayload = {
-          id:         crypto.randomUUID(),
+          id:         uuid.v4(),
           user_id:    session.user.id,
           name,
           meal_type:  meal,
