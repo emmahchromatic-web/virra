@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
+import { uuid } from 'expo-modules-core';
 import { supabase } from '@/lib/supabase';
 import { colors, spacing } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraModal } from '@/components/ui/VirraModal';
 import { appAlert } from '@/components/ui/VirraAlert';
+import { enqueue, type LogFoodEntryRow } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
+import { useNutritionDay } from '@/store/nutritionDay';
 
 /** How far back to offer. Two weeks covers "the same breakfast as Sunday". */
 const LOOKBACK_DAYS = 14;
@@ -104,28 +108,44 @@ export function CopyMealFromDayModal({ visible, userId, mealType, targetLogId, o
   }
 
   async function copyDay(day: CopyableDay) {
-    if (!targetLogId) return;
+    if (!targetLogId || !userId) return;
     setCopying(day.recorded_on);
     // Copy the macros, not the provenance: a copied row is a fresh manual
     // decision, and carrying haiku_input across would let a later re-estimate
     // silently delete the original day's rows too.
-    const { error } = await supabase.from('food_entries').insert(
-      day.entries.map((e) => ({
-        log_id:        targetLogId,
-        meal_type:     mealType,
-        food_name:     e.food_name,
-        quantity_g:    e.quantity_g,
-        quantity_unit: e.quantity_unit ?? 'g',
-        calories:      e.calories,
-        carbs_g:       e.carbs_g,
-        protein_g:     e.protein_g,
-        fat_g:         e.fat_g,
-        fibre_g:       e.fibre_g,
-        source:        e.source === 'haiku' ? 'manual' : e.source,
-      })),
-    );
+    //
+    // `id` is generated up front, same reasoning as food-search.tsx's
+    // handleAdd/handleAddManual/handleAddCombo: the eventual outbox replay
+    // (an upsert on `id`) then matches whatever may have already landed,
+    // instead of creating duplicate rows.
+    const rows: LogFoodEntryRow[] = day.entries.map((e) => ({
+      id:             uuid.v4(),
+      log_id:         targetLogId,
+      meal_type:      mealType as LogFoodEntryRow['meal_type'],
+      food_name:      e.food_name,
+      quantity_g:     e.quantity_g,
+      quantity_unit:  e.quantity_unit ?? 'g',
+      calories:       e.calories,
+      carbs_g:        e.carbs_g,
+      protein_g:      e.protein_g,
+      fat_g:          e.fat_g,
+      fibre_g:        e.fibre_g,
+      nutritionix_id: null,
+      source:         (e.source === 'haiku' ? 'manual' : e.source) as LogFoodEntryRow['source'],
+      haiku_input:    null,
+      confidence:     null,
+    }));
+
+    const { error } = await supabase.from('food_entries').insert(rows);
+    if (error) {
+      // Offline (or a transient server blip) -- queue it and let her carry
+      // on, same pattern as food-search.tsx's handleAdd/handleAddCombo.
+      await enqueue(userId, 'logFoodEntries', { rows });
+      syncPending(userId);
+    }
+    const today = new Date().toISOString().split('T')[0];
+    useNutritionDay.getState().addEntryLocal(today, rows);
     setCopying(null);
-    if (error) { appAlert('Could not copy meal', error.message); return; }
     onCopied();
     onClose();
   }
