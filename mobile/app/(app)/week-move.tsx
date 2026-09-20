@@ -146,7 +146,7 @@ function WeekMoveScreen() {
     const source   = rows.find((r) => r.id === id);
     setHoverDate(null);
 
-    if (!target || !source || target === source.scheduled_date) {
+    if (!target || !source || target === source.scheduled_date || !userId) {
       setGrabbedId(null);
       return;
     }
@@ -155,7 +155,7 @@ function WeekMoveScreen() {
     // (old row → 'moved', new planned row at target); no copy. If the day
     // already has a session, the user can re-drag either one elsewhere.
     hapticImpact('medium');
-    await commit(() => useSessionStore.getState().moveSession(id, target));
+    await commit(() => useSessionStore.getState().moveSession(userId, id, target));
     setGrabbedId(null);
   }
 
@@ -171,9 +171,9 @@ function WeekMoveScreen() {
   }
 
   function handleCatchup() {
-    if (!focusedSessionId || !focusedDate) return;
+    if (!focusedSessionId || !focusedDate || !userId) return;
     commit(async () => {
-      await useSessionStore.getState().moveSession(focusedSessionId, shiftDate(focusedDate, 7));
+      await useSessionStore.getState().moveSession(userId, focusedSessionId, shiftDate(focusedDate, 7));
       router.back();
     });
   }

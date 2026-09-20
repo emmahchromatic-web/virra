@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -88,14 +88,12 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
   const cycleProfile   = useCycleStore((s) => s.cycleProfile);
   const hasPlaceboWeek = useCycleStore((s) => s.hasPlaceboWeek);
 
-  const reloadDetail = useCallback(async () => {
-    try {
-      const d = await getDaySessionDetail(userId, date, cycleStore, cycleProfile, hasPlaceboWeek);
-      setDetail(d);
-    } catch (e) {
-      console.warn('[SessionDetailModal]', e);
-    }
-  }, [userId, date, cycleStore, cycleProfile, hasPlaceboWeek]);
+  // NOTE: there is deliberately no post-mutation reload helper here any
+  // more. Both mutating actions here (drop, catch-up) now apply optimistically
+  // and may only reach the server via the outbox, while a reload re-reads
+  // `planned_sessions` straight from Supabase -- so a reload would show server
+  // truth contradicting what the user just did. Both close the modal instead;
+  // see `handleDrop`/`handleCatchup`.
 
   useEffect(() => {
     if (visible && date) {
@@ -118,9 +116,9 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
     setBusy(true);
     try {
       await useSessionStore.getState().dropSession(userId, sessionId);
-      // Don't `reloadDetail()` here: it reads `planned_sessions` directly
-      // from Supabase (not the sessionStore), and on a queued (not-yet-
-      // confirmed) drop that read shows server truth -- still "planned" --
+      // Don't reload the detail here: that read goes to `planned_sessions`
+      // directly (not the sessionStore), and on a queued (not-yet-
+      // confirmed) drop it shows server truth -- still "planned" --
       // which visibly contradicts the optimistic drop this action just
       // applied. Close instead, the same way week-move.tsx's equivalent
       // drop flow (`router.back()`) avoids re-showing stale-relative-to-
@@ -141,8 +139,15 @@ export function SessionDetailModal({ visible, date, userId, cycleStore, onClose 
   async function handleCatchup(sessionId: string) {
     setBusy(true);
     try {
-      await useSessionStore.getState().moveSession(sessionId, shiftDate(date, 7));
-      await reloadDetail();
+      await useSessionStore.getState().moveSession(userId, sessionId, shiftDate(date, 7));
+      // Same reasoning as `handleDrop` above: reloading re-reads
+      // `planned_sessions` straight from Supabase, so on a queued (not-yet-
+      // confirmed) move it shows server truth -- the session still sitting on
+      // THIS day -- which directly contradicts the move just applied. It is
+      // also the wrong day to be looking at now: the session has gone to next
+      // week. Close, the same way week-move.tsx's catch-up (`router.back()`)
+      // already does.
+      onClose();
     } catch (e: unknown) {
       setError({ title: 'Could not move session', message: e instanceof Error ? e.message : 'Unknown error' });
     } finally {

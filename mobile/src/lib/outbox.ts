@@ -19,7 +19,7 @@ const LEGACY_QUEUE_PREFIX  = 'virra:pending_completions:v1:';
 
 export type MutationKind =
   'completeWorkout' | 'checkIn' | 'deleteFoodEntry' | 'updateFoodEntry' | 'saveMealCombo' | 'toggleFavourite'
-  | 'logFoodEntries' | 'dropSession';
+  | 'logFoodEntries' | 'dropSession' | 'moveSession';
 
 /**
  * The row shape `food_entries` inserts need, shared by every call site across
@@ -98,6 +98,37 @@ export interface MutationPayloadMap {
   };
   dropSession: {
     sessionId: string;
+  };
+  /**
+   * Relocating a planned session to another date: write the replacement row,
+   * then point the original at it (`status:'moved', moved_to_id`).
+   *
+   * Every field the replacement row needs travels in the payload, because
+   * `sessionStore.moveSession` already holds all of them cached (see
+   * `SESSION_COLUMNS`) at the moment the move is made -- the handler must
+   * never re-SELECT them, since it may run hours later, offline-then-online,
+   * against a row the user has since changed.
+   *
+   * `newSessionId` is client-generated (`planned_sessions.id` is `uuid
+   * default gen_random_uuid()`, which only fires when the column is left
+   * unset) so the replacement write is an upsert on a KNOWN id: replaying
+   * this item lands on the same row rather than inserting a second copy of
+   * the session on the target date. That is the whole reason this kind is
+   * safe to queue at all -- see `handleMoveSession`.
+   */
+  moveSession: {
+    sessionId:         string;
+    /** Client-generated, and final from the start -- never a temp id to swap. */
+    newSessionId:      string;
+    newDate:           string;   // 'YYYY-MM-DD'
+    userId:            string;
+    blockId:           string | null;
+    weekNumber:        number;
+    dayOfWeek:         number;   // 0=Mon .. 6=Sun, computed from `newDate`
+    modality:          string;
+    sessionLabel:      string | null;
+    runStructure:      unknown;
+    strengthStructure: unknown;
   };
 }
 
@@ -325,10 +356,15 @@ const PERMANENT_MESSAGE =
 
 /**
  * Exported so a store's "try the direct write first" path (e.g.
- * `sessionStore.dropSession`) can classify a failure BEFORE deciding whether
- * to enqueue it, per this plan's Global Constraints -- a deterministic
- * failure must revert and re-throw immediately rather than being queued for
- * a retry that can never succeed. `drain()` below is the other caller.
+ * `sessionStore.dropSession`/`moveSession`) can classify a failure BEFORE
+ * deciding whether to enqueue it, per this plan's Global Constraints -- a
+ * deterministic failure must revert and re-throw immediately rather than
+ * being queued for a retry that can never succeed. `moveSession` is the case
+ * where that actually bites a real user: a same-day clash on
+ * `planned_sessions_no_clash_idx` raises 23505, which is permanent by
+ * definition, and queueing it would replace today's specific "two identical
+ * sessions can't share a day" message with a silent snap-back minutes later.
+ * `drain()` below is the other caller.
  */
 export function isPermanentError(e: unknown): boolean {
   const { message, status, code } = describeError(e);

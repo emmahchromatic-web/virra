@@ -1,10 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { uuid } from 'expo-modules-core';
 import { supabase } from '@/lib/supabase';
-import {
-  _commitLink,
-  moveSession as moveSessionDb,
-} from '@/lib/scheduleGenerator';
+import { _commitLink } from '@/lib/scheduleGenerator';
 import { enqueue, isPermanentError } from '@/lib/outbox';
 import { syncPending } from '@/lib/syncPending';
 import { proposeLinks } from '@/lib/sessionReconciler';
@@ -31,8 +29,9 @@ function rangeKey(from: DateISO, to: DateISO): string {
  * field on `PlannedSessionRow` to overload this way, so they use the
  * separate `pendingOps` map instead (see `SessionStoreState.pendingOps`).
  *
- * This store DOES import `enqueue`/`syncPending` directly (for `dropSession`
- * routing a failed direct write through the outbox) -- the "independent of
+ * This store DOES import `enqueue`/`syncPending` directly (for
+ * `dropSession`/`moveSession` routing a failed direct write through the
+ * outbox) -- the "independent of
  * the write layer" framing this comment used to make is no longer accurate.
  * The resulting `sessionStore.ts` <-> `syncPending.ts` import cycle
  * (`syncPending.ts` already imports `useSessionStore`) resolves safely the
@@ -102,8 +101,8 @@ export const useSessionStore = create<SessionStore>()(
 
           // Replace any session currently keyed within [from,to] with the fresh
           // server data -- EXCEPT rows finished offline and still sitting in the
-          // outbox, and rows with a pending drop (or, in a later task, move)
-          // not yet confirmed by the server.
+          // outbox, and rows with a pending drop or move not yet confirmed by
+          // the server.
           //
           // WHY. `applyLocalCompletion` marks a session completed the moment the
           // completion is queued, so the dashboard stops lagging behind what the
@@ -115,15 +114,33 @@ export const useSessionStore = create<SessionStore>()(
           // same story via `pendingOps` instead of a placeholder id, since a drop
           // has no spare field on the row to overload that way.
           //
-          // The moment the server agrees (completed / dropped) the local marker is
-          // dropped -- that is what keeps this from pinning a stale local override
-          // in the cache forever once the drain has actually landed.
+          // A pending MOVE is two rows, not one, and they can sit in different
+          // weeks -- so they can be refreshed by two SEPARATE calls, minutes
+          // apart, as the user scrolls the calendar. Both halves need covering
+          // independently: the ORIGINAL row (keyed in `pendingOps`, waiting to
+          // read back as `moved`) and the REPLACEMENT row (which has no
+          // `pendingOps` key of its own -- it is only named in the original's
+          // entry). Preserving just the original is the bug shape J3a's final
+          // review caught for favourites: the half nobody thought to check gets
+          // silently deleted by the next refresh of the week it landed in, and
+          // the session the user just moved disappears.
+          //
+          // The moment the server agrees (completed / dropped / moved) the local
+          // marker is dropped -- that is what keeps this from pinning a stale
+          // local override in the cache forever once the drain has actually
+          // landed.
           const existing = get();
           const nextById = { ...existing.byId };
           const nextIdsByDate = { ...existing.idsByDate };
           const nextPendingOps = { ...existing.pendingOps };
 
           const serverById = new Map(rows.map((r) => [r.id, r]));
+          // Destination rows of not-yet-confirmed moves. They are values in
+          // `pendingOps`, never keys, so a `pendingOps[id]` lookup misses them.
+          const pendingMoveTargets = new Set<SessionId>();
+          for (const op of Object.values(existing.pendingOps)) {
+            if (op.op === 'move') pendingMoveTargets.add(op.newSessionId);
+          }
           const preserved = new Set<string>();
           for (const [date, ids] of Object.entries(existing.idsByDate)) {
             if (date < from || date > to) continue;
@@ -140,7 +157,28 @@ export const useSessionStore = create<SessionStore>()(
                   continue;
                 }
                 preserved.add(id);
+                continue;
               }
+              if (pendingOp?.op === 'move') {
+                const server = serverById.get(id);
+                // The original half only counts as confirmed when the server
+                // points it at OUR replacement id -- a bare `status:'moved'`
+                // could be some earlier move of the same session.
+                //
+                // Clearing the marker here also settles the replacement half:
+                // the handler writes the replacement row BEFORE marking the
+                // original moved, so a server that reports `moved` necessarily
+                // already holds the replacement too.
+                if (server?.status === 'moved' && server.moved_to_id === pendingOp.newSessionId) {
+                  delete nextPendingOps[id];
+                  continue;
+                }
+                preserved.add(id);
+                continue;
+              }
+              // The other half of a pending move: keep the optimistically
+              // inserted replacement row until the server actually returns it.
+              if (pendingMoveTargets.has(id) && !serverById.has(id)) preserved.add(id);
             }
           }
 
@@ -276,53 +314,163 @@ export const useSessionStore = create<SessionStore>()(
         });
         return true;
       },
-      moveSession: async (sessionId, newDate) => {
+      moveSession: async (userId, sessionId, newDate) => {
+        // Identity guard before any state mutation, same as `dropSession`.
+        if (!userId) throw new Error('moveSession: no user id');
         const prev = get().byId[sessionId];
         if (!prev) throw new Error(`moveSession: session ${sessionId} not in cache`);
 
-        const tempId: SessionId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const tempRow: PlannedSessionRow = { ...prev, id: tempId, scheduled_date: newDate, status: 'planned', activity_id: null, moved_to_id: null };
+        // The replacement row's id is generated HERE, before anything is
+        // written, and is final -- there is no temp id and no later swap.
+        // That is what makes the queued replay idempotent (the handler
+        // upserts on this id, so a replay lands on the same row instead of
+        // putting a second copy of the session on the target date), and it
+        // also means this function can return the real id even when the
+        // write only got as far as the outbox.
+        const newSessionId: SessionId = uuid.v4();
+        const [ny, nm, nd] = newDate.split('-').map(Number);
+        const jsDay = new Date(Date.UTC(ny, nm - 1, nd)).getUTCDay();
+        const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1;   // 0=Mon .. 6=Sun
 
-        const beforeById = get().byId;
-        const beforeIdsByDate = get().idsByDate;
+        const newRow: PlannedSessionRow = {
+          ...prev,
+          id: newSessionId, scheduled_date: newDate, day_of_week: dayOfWeek,
+          status: 'planned', activity_id: null, moved_to_id: null,
+        };
 
-        // Optimistic insert + mark original moved
         set({
           byId: {
-            ...beforeById,
-            [sessionId]: { ...prev, status: 'moved', moved_to_id: tempId },
-            [tempId]: tempRow,
+            ...get().byId,
+            [sessionId]: { ...prev, status: 'moved', moved_to_id: newSessionId },
+            [newSessionId]: newRow,
           },
           idsByDate: {
-            ...beforeIdsByDate,
-            [newDate]: [...(beforeIdsByDate[newDate] ?? []), tempId],
+            ...get().idsByDate,
+            [newDate]: [...(get().idsByDate[newDate] ?? []), newSessionId],
           },
+          pendingOps: { ...get().pendingOps, [sessionId]: { op: 'move', newSessionId } },
         });
 
-        let realId: SessionId;
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error('moveSession: not authenticated');
-          realId = await moveSessionDb(sessionId, newDate, user.id);
-        } catch (e) {
-          set({
-            byId: beforeById,
-            idsByDate: beforeIdsByDate,
-            lastError: { at: Date.now(), op: 'moveSession', message: e instanceof Error ? e.message : String(e) },
-          });
-          throw e;
+        // Everything the replacement row needs is already cached on `prev`
+        // (see SESSION_COLUMNS) -- no SELECT, here or in the handler.
+        const payload = {
+          sessionId, newSessionId, newDate, userId,
+          blockId:           prev.block_id,
+          weekNumber:        prev.week_number,
+          dayOfWeek,
+          modality:          prev.modality as string,
+          sessionLabel:      prev.session_label,
+          runStructure:      prev.run_structure ?? null,
+          strengthStructure: prev.strength_structure ?? null,
+        };
+
+        const failMove = (message: string): never => {
+          get().revertLocalMove(sessionId);
+          set({ lastError: { at: Date.now(), op: 'moveSession', message } });
+          throw new Error(message);
+        };
+
+        // Step 1: the replacement row. Written first, so a failure between
+        // the two steps can never leave the original pointing at a row that
+        // does not exist (see the handler's header).
+        const { error: upsertErr, status: upsertStatus } = await supabase
+          .from('planned_sessions')
+          .upsert({
+            id:                 newSessionId,
+            user_id:            userId,
+            block_id:           payload.blockId,
+            scheduled_date:     newDate,
+            week_number:        payload.weekNumber,
+            day_of_week:        dayOfWeek,
+            modality:           payload.modality,
+            session_label:      payload.sessionLabel,
+            status:             'planned',
+            run_structure:      payload.runStructure,
+            strength_structure: payload.strengthStructure,
+          }, { onConflict: 'id' });
+
+        if (upsertErr && isPermanentError({ message: upsertErr.message, status: upsertStatus, code: upsertErr.code })) {
+          // A clash is DETERMINISTIC and user-triggerable, not a
+          // connectivity problem: queueing it would show the move as done
+          // and then snap it back minutes later behind a generic "couldn't
+          // save this one". Revert now and keep the specific message this
+          // path has always shown.
+          if (upsertErr.code === '23505') {
+            return failMove(
+              `That day already has a ${payload.modality} session (${payload.sessionLabel}). `
+              + "Two identical sessions can't share a day. Move the existing one first.",
+            );
+          }
+          return failMove(upsertErr.message);
         }
 
-        // Swap temp id for real id
-        const afterById = { ...get().byId };
-        const afterIdsByDate = { ...get().idsByDate };
-        delete afterById[tempId];
-        afterById[realId] = { ...tempRow, id: realId };
-        afterById[sessionId] = { ...afterById[sessionId], moved_to_id: realId };
-        afterIdsByDate[newDate] = (afterIdsByDate[newDate] ?? []).map((id) => (id === tempId ? realId : id));
+        if (!upsertErr) {
+          // Step 2: point the original at the replacement.
+          const { error: updateErr, status: updateStatus } = await supabase
+            .from('planned_sessions')
+            .update({ status: 'moved', moved_to_id: newSessionId })
+            .eq('id', sessionId);
 
-        set({ byId: afterById, idsByDate: afterIdsByDate });
-        return realId;
+          if (!updateErr) {
+            const nextOps = { ...get().pendingOps };
+            delete nextOps[sessionId];
+            set({ pendingOps: nextOps });
+            return newSessionId;
+          }
+          if (isPermanentError({ message: updateErr.message, status: updateStatus, code: updateErr.code })) {
+            // The replacement row IS on the server at this point, so the
+            // revert leaves the cache briefly behind server truth -- the
+            // next refresh of that date pulls it back. Better than pinning a
+            // half-applied move nothing will ever finish.
+            return failMove(updateErr.message);
+          }
+        }
+
+        // Transient/offline on either step. Queue the WHOLE move (both steps
+        // replay; both are idempotent) and keep the optimistic state -- only
+        // a genuine dead letter reverts it, via `revertLocalMove`.
+        await enqueue(userId, 'moveSession', payload);
+        syncPending(userId);
+        return newSessionId;
+      },
+      /**
+       * The inverse of `moveSession`'s optimistic move, undoing BOTH halves.
+       * A no-op unless `pendingOps[sessionId]` is still a pending `move`, so
+       * it can never undo a move the server has confirmed (which clears the
+       * marker itself) nor one already reverted.
+       *
+       * Returns whether it actually reverted anything, so `syncPending`'s
+       * dead-letter sweep can tell "undone" apart from "nothing to undo" and
+       * only mark the former reconciled (see `OutboxItem.reconciledAt`).
+       */
+      revertLocalMove: (sessionId) => {
+        const prev    = get().byId[sessionId];
+        const pending = get().pendingOps[sessionId];
+        if (!prev || !pending || pending.op !== 'move') return false;
+        const { newSessionId } = pending;
+
+        const nextById      = { ...get().byId };
+        const nextIdsByDate = { ...get().idsByDate };
+        const newRow        = nextById[newSessionId];
+        delete nextById[newSessionId];
+        nextById[sessionId] = { ...prev, status: 'planned', moved_to_id: null };
+        if (newRow) {
+          const kept = (nextIdsByDate[newRow.scheduled_date] ?? []).filter((id) => id !== newSessionId);
+          if (kept.length > 0) nextIdsByDate[newRow.scheduled_date] = kept;
+          else delete nextIdsByDate[newRow.scheduled_date];
+        }
+
+        const nextOps = { ...get().pendingOps };
+        delete nextOps[sessionId];
+        // The replacement row is about to stop existing, so anything queued
+        // against it has to stop being tracked too -- a drop applied to a
+        // not-yet-confirmed moved session leaves a `pendingOps` entry keyed
+        // by an id that is no longer in `byId`, which nothing would ever
+        // clear (it would keep `refresh()` preserving a ghost forever).
+        delete nextOps[newSessionId];
+
+        set({ byId: nextById, idsByDate: nextIdsByDate, pendingOps: nextOps });
+        return true;
       },
       linkActivity: async (activityId, sessionId) => {
         const prev = get().byId[sessionId];

@@ -165,3 +165,124 @@ describe('sessionStore.refresh — a drop still waiting in the outbox', () => {
     expect(s.pendingOps['s1']).toBeUndefined();
   });
 });
+
+/**
+ * A pending MOVE is two rows, and they routinely live in different weeks (a
+ * catch-up pushes a session seven days on). The store only keys `pendingOps`
+ * by the ORIGINAL session's id, so the replacement row is easy to miss --
+ * and the two halves get refreshed by SEPARATE calls as the user scrolls the
+ * calendar, so covering only the week the move was made in is not enough.
+ * Both halves are checked independently below.
+ */
+describe('sessionStore.refresh — a move still waiting in the outbox', () => {
+  const NEW_ID = 'new-1';
+
+  // 2026-06-01 is a week clear of the default rows' range, so a refresh of
+  // the replacement row's week can be made on its own.
+  function applyPendingMove(newDate: string) {
+    const orig = useSessionStore.getState().byId['s1'];
+    useSessionStore.setState({
+      byId: {
+        ...useSessionStore.getState().byId,
+        s1: { ...orig, status: 'moved', moved_to_id: NEW_ID },
+        [NEW_ID]: { ...orig, id: NEW_ID, scheduled_date: newDate, status: 'planned', moved_to_id: null },
+      },
+      idsByDate: {
+        ...useSessionStore.getState().idsByDate,
+        [newDate]: [...(useSessionStore.getState().idsByDate[newDate] ?? []), NEW_ID],
+      },
+      pendingOps: { s1: { op: 'move', newSessionId: NEW_ID } },
+    });
+  }
+
+  it('keeps the ORIGINAL row moved while the server still calls it planned', async () => {
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    applyPendingMove('2026-06-01');
+
+    await useSessionStore.getState().refresh('2026-05-25', '2026-05-26');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('moved');
+    expect(s.byId['s1'].moved_to_id).toBe(NEW_ID);
+    expect(s.pendingOps['s1']).toEqual({ op: 'move', newSessionId: NEW_ID });
+    // Everything else in the range is still replaced from the server.
+    expect(s.byId['s2'].status).toBe('planned');
+  });
+
+  /**
+   * The bug class J3a's final review caught for favourites, applied to the
+   * half nobody keys on: the replacement row has no `pendingOps` entry of its
+   * own, so a refresh of the week it landed in would delete it outright --
+   * the session the user just moved simply disappears until the outbox drains.
+   */
+  it('keeps the REPLACEMENT row on a refresh of ITS week, which the server has never heard of', async () => {
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    applyPendingMove('2026-06-01');
+
+    __setRows([]);   // the server knows nothing about that week yet
+    await useSessionStore.getState().refresh('2026-06-01', '2026-06-07');
+
+    const s = useSessionStore.getState();
+    expect(s.byId[NEW_ID]).toMatchObject({ id: NEW_ID, scheduled_date: '2026-06-01', status: 'planned' });
+    expect(s.idsByDate['2026-06-01']).toEqual([NEW_ID]);
+    // The original's marker survives too -- its own half is still unconfirmed.
+    expect(s.pendingOps['s1']).toEqual({ op: 'move', newSessionId: NEW_ID });
+  });
+
+  it('hands the replacement row back to the server the moment it returns it', async () => {
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    applyPendingMove('2026-06-01');
+
+    __setRows([
+      { id: NEW_ID, scheduled_date: '2026-06-01', modality: 'run', session_label: 'Easy', status: 'planned',
+        block_id: 'b1', activity_id: null, moved_to_id: null, week_number: 1, day_of_week: 0, created_at: '2026-05-30T00:00:00Z' },
+    ]);
+    await useSessionStore.getState().refresh('2026-06-01', '2026-06-07');
+
+    expect(useSessionStore.getState().byId[NEW_ID].created_at).toBe('2026-05-30T00:00:00Z');
+  });
+
+  it('clears pendingOps once the server agrees the original is moved and points at OUR replacement', async () => {
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    applyPendingMove('2026-06-01');
+
+    __setRows([
+      { id: 's1', scheduled_date: '2026-05-25', modality: 'run', session_label: 'Easy', status: 'moved',
+        block_id: 'b1', activity_id: null, moved_to_id: NEW_ID, week_number: 1, day_of_week: 0, created_at: '2026-05-20T00:00:00Z' },
+    ]);
+    await useSessionStore.getState().refresh('2026-05-25', '2026-05-26');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('moved');
+    expect(s.pendingOps['s1']).toBeUndefined();
+  });
+
+  it('does NOT clear pendingOps when the server reports a move to some OTHER session', async () => {
+    // A `status:'moved'` alone is not proof our write landed -- it could be an
+    // earlier move of the same session that we are now moving again.
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    applyPendingMove('2026-06-01');
+
+    __setRows([
+      { id: 's1', scheduled_date: '2026-05-25', modality: 'run', session_label: 'Easy', status: 'moved',
+        block_id: 'b1', activity_id: null, moved_to_id: 'some-older-row', week_number: 1, day_of_week: 0, created_at: '2026-05-20T00:00:00Z' },
+    ]);
+    await useSessionStore.getState().refresh('2026-05-25', '2026-05-26');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].moved_to_id).toBe(NEW_ID);
+    expect(s.pendingOps['s1']).toEqual({ op: 'move', newSessionId: NEW_ID });
+  });
+
+  it('preserves both halves in one call when they share a week', async () => {
+    await useSessionStore.getState().ensureLoaded('2026-05-25', '2026-05-26');
+    applyPendingMove('2026-05-26');   // same week as the original
+
+    await useSessionStore.getState().refresh('2026-05-25', '2026-05-26');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('moved');
+    expect(s.byId[NEW_ID]).toBeDefined();
+    expect(s.idsByDate['2026-05-26']).toEqual(expect.arrayContaining(['s2', NEW_ID]));
+  });
+});

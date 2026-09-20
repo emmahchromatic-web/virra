@@ -18,6 +18,10 @@ function isDropSession(item: OutboxItem): item is OutboxItem<'dropSession'> {
   return item.kind === 'dropSession';
 }
 
+function isMoveSession(item: OutboxItem): item is OutboxItem<'moveSession'> {
+  return item.kind === 'moveSession';
+}
+
 /**
  * Reverts the optimistic local state behind every dead-lettered item in
  * `items`, for every kind this module knows how to undo:
@@ -33,6 +37,10 @@ function isDropSession(item: OutboxItem): item is OutboxItem<'dropSession'> {
  *   `dropped`, so `refresh()`'s "preserve a pending drop" rule (via
  *   `pendingOps`) would otherwise hold the phantom forever. See
  *   sessionStore.revertLocalDrop.
+ * - `moveSession`: the same story with two rows instead of one -- the
+ *   original would sit `moved` and the replacement would sit on a date the
+ *   server has never heard of, both pinned by `refresh()`'s preserve rule.
+ *   See sessionStore.revertLocalMove, which undoes both halves.
  *
  * SAFE TO RE-RUN OVER THE WHOLE ON-DISK LIST ON EVERY LAUNCH, for two
  * different reasons:
@@ -66,6 +74,9 @@ async function revertDeadLetteredItems(userId: string, items: OutboxItem[]): Pro
     } else if (isDropSession(item)) {
       const { sessionId } = item.payload;
       if (sessionId && useSessionStore.getState().revertLocalDrop(sessionId)) reverted.push(item.id);
+    } else if (isMoveSession(item)) {
+      const { sessionId } = item.payload;
+      if (sessionId && useSessionStore.getState().revertLocalMove(sessionId)) reverted.push(item.id);
     }
   }
   if (reverted.length === 0) return;

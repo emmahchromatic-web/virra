@@ -306,63 +306,12 @@ export async function generateAndSaveSchedule(
   }
 }
 
-export async function dropSession(sessionId: string): Promise<void> {
-  const { error } = await supabase
-    .from('planned_sessions')
-    .update({ status: 'dropped' })
-    .eq('id', sessionId);
-  if (error) throw new Error(error.message);
-}
-
-export async function moveSession(
-  sessionId: string,
-  newDate:   string,
-  userId:    string,
-): Promise<string> {
-  const { data: orig, error: fetchErr } = await supabase
-    .from('planned_sessions')
-    .select('week_number, modality, session_label, block_id, run_structure, strength_structure')
-    .eq('id', sessionId)
-    .single();
-  if (fetchErr || !orig) throw new Error(fetchErr?.message ?? 'Session not found');
-
-  const [ny, nm, nd] = newDate.split('-').map(Number);
-  const jsDay  = new Date(Date.UTC(ny, nm - 1, nd)).getUTCDay();
-  const newDow = jsDay === 0 ? 6 : jsDay - 1;
-
-  const { data: newRow, error: insertErr } = await supabase
-    .from('planned_sessions')
-    .insert({
-      user_id:            userId,
-      block_id:           (orig as any).block_id,
-      scheduled_date:     newDate,
-      week_number:        (orig as any).week_number,
-      day_of_week:        newDow,
-      modality:           (orig as any).modality,
-      session_label:      (orig as any).session_label,
-      status:             'planned',
-      run_structure:      (orig as any).run_structure,
-      strength_structure: (orig as any).strength_structure,
-    })
-    .select('id')
-    .single();
-  if (insertErr || !newRow) {
-    // 23505 = unique violation on planned_sessions_no_clash_idx: an identical
-    // session (same modality + label) already sits on that day.
-    if ((insertErr as { code?: string } | null)?.code === '23505') {
-      const label = (orig as any).session_label as string;
-      throw new Error(`That day already has a ${(orig as any).modality} session (${label}). Two identical sessions can't share a day. Move the existing one first.`);
-    }
-    throw new Error(insertErr?.message ?? 'Could not create replacement');
-  }
-
-  await supabase
-    .from('planned_sessions')
-    .update({ status: 'moved', moved_to_id: newRow.id })
-    .eq('id', sessionId);
-
-  return (newRow as { id: string }).id;
-}
+// `dropSession` and `moveSession` used to live here. Both are now owned by
+// `sessionStore` (optimistic local state + a direct write + an outbox
+// fallback) and their replayable halves by `lib/outbox/handlers/`. The
+// versions here had no offline path and, in `moveSession`'s case, a
+// SELECT + INSERT + UPDATE sequence that duplicated the session on replay --
+// see `outbox/handlers/moveSession.ts` for why the id is now client-generated.
 
 export async function closeBlock(blockId: string, endsOn: string): Promise<void> {
   await Promise.all([

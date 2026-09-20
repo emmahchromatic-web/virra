@@ -41,12 +41,18 @@ export interface SessionStoreState {
    * (see `LOCAL_ACTIVITY_PREFIX`), kept as a separate map because drop/move
    * have no spare field on `PlannedSessionRow` to overload that way.
    * `refresh()` uses this to avoid clobbering a pending drop/move with stale
-   * server data, and `revertLocalDrop` (this task) / its `move` counterpart
-   * (a later task) use it to know what to undo on a dead letter. Persisted
-   * (see `partialize`) so an app restart between an optimistic mutation and
-   * the outbox draining doesn't silently lose track of it. The `move`
-   * variant is declared here now but not yet produced or consumed by any
-   * action in this file -- that lands in a later task.
+   * server data, and `revertLocalDrop`/`revertLocalMove` use it to know what
+   * to undo on a dead letter. Persisted (see `partialize`) so an app restart
+   * between an optimistic mutation and the outbox draining doesn't silently
+   * lose track of it.
+   *
+   * A pending MOVE is keyed by the ORIGINAL session's id only; the
+   * replacement row it names in `newSessionId` has no entry of its own. Any
+   * code that asks "is this row still unconfirmed?" about an arbitrary id
+   * therefore has to scan the VALUES of this map for `newSessionId` as well
+   * as looking the id up as a key -- see `refresh()`, where missing that is
+   * how an optimistically-inserted replacement row gets silently deleted by
+   * a refresh of the week it landed in.
    */
   pendingOps: Record<SessionId, { op: 'drop' } | { op: 'move'; newSessionId: SessionId }>;
 }
@@ -105,7 +111,36 @@ export interface SessionStoreActions {
    * mark the former reconciled (see `OutboxItem.reconciledAt`).
    */
   revertLocalDrop(sessionId: SessionId): boolean;
-  moveSession(sessionId: SessionId, newDate: DateISO):    Promise<SessionId>;
+  /**
+   * Relocates a planned session to `newDate`: inserts a replacement row
+   * there and marks the original `moved`. Same optimistic/outbox contract as
+   * `dropSession` -- a transient failure queues the write and KEEPS the
+   * optimistic move (only a dead letter undoes it, via `revertLocalMove`), a
+   * permanent one reverts and re-throws immediately.
+   *
+   * Returns the replacement row's id, which is generated client-side before
+   * any write and is final from the start -- there is no temp id, and no
+   * later swap, so callers can rely on it even when the write only got as
+   * far as the outbox.
+   *
+   * The permanent case that matters here is a 23505 clash on
+   * `planned_sessions_no_clash_idx` (the target day already has an identical
+   * session): it throws the same specific message it always has, so the call
+   * sites' `catch -> appAlert` keeps working unchanged.
+   */
+  moveSession(userId: string, sessionId: SessionId, newDate: DateISO): Promise<SessionId>;
+  /**
+   * The inverse of `moveSession`'s optimistic move, undoing BOTH halves:
+   * removes the replacement row from `byId`/`idsByDate` and restores the
+   * original row's `status`/`moved_to_id`. A no-op (returns `false`) unless
+   * `pendingOps[sessionId]` is still a pending `move`, so it can never undo
+   * a move the server has already confirmed nor one already reverted.
+   *
+   * Returns whether it actually reverted anything, so `syncPending`'s
+   * dead-letter sweep can tell "undone" apart from "nothing to undo" and only
+   * mark the former reconciled (see `OutboxItem.reconciledAt`).
+   */
+  revertLocalMove(sessionId: SessionId): boolean;
   linkActivity(activityId: string, sessionId: SessionId): Promise<void>;
 
   // background reconciliation

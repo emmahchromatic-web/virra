@@ -165,11 +165,12 @@ function WeekAheadScreen() {
   }
 
   async function handleDefer(sessionId: string, currentDate: string) {
+    if (!userId) return;
     setBusy(sessionId);
     try {
       const d = new Date(`${currentDate}T00:00:00`);
       d.setDate(d.getDate() + 7);
-      await useSessionStore.getState().moveSession(sessionId, d.toLocaleDateString('en-CA'));
+      await useSessionStore.getState().moveSession(userId, sessionId, d.toLocaleDateString('en-CA'));
     } catch (e: any) { appAlert('Could not defer session', e.message); }
     finally { setBusy(null); }
   }

@@ -53,6 +53,28 @@ function seedPendingDrop(id: string, scheduledDate: string) {
   });
 }
 
+const MOVE_PAYLOAD = {
+  sessionId: 's1', newSessionId: 'new-1', newDate: '2026-09-26', userId: 'u1',
+  blockId: null, weekNumber: 0, dayOfWeek: 5, modality: 'run', sessionLabel: null,
+  runStructure: null, strengthStructure: null,
+} as const;
+
+function seedPendingMove(id: string, scheduledDate: string, newDate: string) {
+  const base = {
+    modality: 'run' as const, session_label: null, block_id: null, activity_id: null,
+    week_number: 0, day_of_week: 0,
+  };
+  useSessionStore.setState({
+    byId: {
+      [id]:  { ...base, id, scheduled_date: scheduledDate, status: 'moved', moved_to_id: 'new-1' },
+      'new-1': { ...base, id: 'new-1', scheduled_date: newDate, status: 'planned', moved_to_id: null },
+    },
+    idsByDate: { [scheduledDate]: [id], [newDate]: ['new-1'] },
+    loadedRanges: [], fetching: new Set(), hasHydrated: true, lastError: null,
+    pendingOps: { [id]: { op: 'move', newSessionId: 'new-1' } },
+  });
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   // `clearAllMocks` clears call history but NOT installed implementations, and
@@ -465,6 +487,72 @@ describe('syncPending', () => {
     mockedOutbox.readOutbox.mockResolvedValue([]);
     mockedOutbox.readDeadLetters.mockResolvedValue([
       { id: 'a', kind: 'dropSession', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(mockedOutbox.markDeadLettersReconciled).not.toHaveBeenCalled();
+  });
+
+  /**
+   * `moveSession` dead-letter reconciliation -- the fourth kind, and the only
+   * one whose revert touches TWO rows.
+   */
+  it('reverts both halves of the local optimistic move for an item that just dead-lettered', async () => {
+    seedPendingMove('s1', '2026-09-19', '2026-09-26');
+    const deadLetter = { id: 'a', kind: 'moveSession' as const, payload: MOVE_PAYLOAD, createdAt: '', attempts: 1, lastError: 'x' };
+    mockedOutbox.readOutbox.mockResolvedValue([{ id: 'a', kind: 'moveSession', payload: MOVE_PAYLOAD, createdAt: '', attempts: 0 }]);
+    mockedOutbox.readDeadLetters
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([deadLetter]);
+    mockedOutbox.drain.mockResolvedValue({ sent: 0, left: 0, failed: 1, deadLettered: [deadLetter] });
+
+    await syncPending('u1');
+
+    const s = useSessionStore.getState();
+    expect(s.byId['s1'].status).toBe('planned');
+    expect(s.byId['s1'].moved_to_id).toBeNull();
+    expect(s.byId['new-1']).toBeUndefined();
+    expect(s.idsByDate['2026-09-26']).toBeUndefined();
+    expect(s.pendingOps['s1']).toBeUndefined();
+  });
+
+  it('reverts a phantom local move from a dead letter already on disk, with no drain this call', async () => {
+    seedPendingMove('s1', '2026-09-19', '2026-09-26');
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'moveSession', payload: MOVE_PAYLOAD, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(mockedOutbox.drain).not.toHaveBeenCalled();
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+    expect(mockedOutbox.markDeadLettersReconciled).toHaveBeenCalledWith('u1', ['a']);
+  });
+
+  it('leaves a since-confirmed move alone when replaying an old dead letter', async () => {
+    // The server confirmed the move and `refresh()` cleared the marker.
+    // Re-running reconciliation over the whole list every launch must never
+    // undo that.
+    seedPendingMove('s1', '2026-09-19', '2026-09-26');
+    useSessionStore.setState({ pendingOps: {} });
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'moveSession', payload: MOVE_PAYLOAD, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(useSessionStore.getState().byId['s1'].status).toBe('moved');
+    expect(useSessionStore.getState().byId['new-1']).toBeDefined();
+  });
+
+  it('does not mark a moveSession dead letter reconciled when the revert was a no-op', async () => {
+    emptySessionStore();
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'moveSession', payload: MOVE_PAYLOAD, createdAt: '', attempts: 1, lastError: 'x' },
     ]);
 
     await syncPending('u1');
