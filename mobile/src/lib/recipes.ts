@@ -545,31 +545,13 @@ export async function fetchFavouriteIds(userId: string): Promise<string[]> {
   return (data ?? []).map((r: { recipe_id: string }) => r.recipe_id);
 }
 
-/**
- * Toggle a favourite. Returns the resulting state, or null if it failed, so a
- * caller that optimistically flipped the heart knows to put it back.
- */
-export async function toggleFavourite(
-  userId:   string,
-  recipeId: string,
-  next:     boolean,
-): Promise<boolean | null> {
-  const { error } = next
-    ? await supabase.from('recipe_favourites').upsert(
-        { user_id: userId, recipe_id: recipeId },
-        { onConflict: 'user_id,recipe_id' },
-      )
-    : await supabase.from('recipe_favourites')
-        .delete()
-        .eq('user_id', userId)
-        .eq('recipe_id', recipeId);
-
-  if (error) {
-    console.warn('[recipes] toggleFavourite failed:', error.message);
-    return null;
-  }
-  return next;
-}
+// A raw `toggleFavourite(userId, recipeId, next)` used to live here: a direct,
+// error-swallowing write against `recipe_favourites`. It is deliberately GONE.
+// The write now exists in exactly one place, `@/lib/outbox/handlers/
+// toggleFavourite`, reached only through `useRecipesStore.toggleFavourite`,
+// so an offline or head-of-line-blocked toggle is queued rather than silently
+// dropped. Leaving the old function exported is what let a screen call it
+// directly and reintroduce that bug once already -- re-add nothing here.
 
 // ---------------------------------------------------------------------------
 // Tiering

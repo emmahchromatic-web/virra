@@ -51,6 +51,8 @@ beforeEach(() => {
   mockedOutbox.readDeadLetters.mockResolvedValue([]);
   mockedOutbox.drain.mockReset();
   mockedOutbox.drain.mockResolvedValue({ sent: 0, left: 0, failed: 0, deadLettered: [] });
+  mockedOutbox.markDeadLettersReconciled.mockReset();
+  mockedOutbox.markDeadLettersReconciled.mockResolvedValue(undefined);
 
   emptySessionStore();
   seedFavourites([]);
@@ -278,5 +280,89 @@ describe('syncPending', () => {
     await syncPending('u1');
 
     expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
+  });
+
+  /**
+   * The reason `reconciledAt` exists.
+   *
+   * `completeWorkout`'s revert is self-limiting -- it only touches a row still
+   * carrying a one-way `local_` placeholder id, which disappears for good the
+   * moment the server confirms. A favourite has no such marker: it is a plain
+   * boolean that can legitimately come back round to the SAME value later. So
+   * the "still matches desiredState" guard, on its own, cannot tell a stale
+   * dead letter's leftover state apart from a fresh, genuinely-successful
+   * re-toggle of the same recipe -- and the full-list sweep would keep undoing
+   * the latter on every single launch until the user found Dismiss.
+   */
+  it('marks a reverted favourite dead letter reconciled, and never reverts it again once state legitimately returns', async () => {
+    seedFavourites(['r1']);
+    const payload = { userId: 'u1', recipeId: 'r1', desiredState: true } as const;
+    const deadLetter = { id: 'a', kind: 'toggleFavourite' as const, payload, createdAt: '', attempts: 1, lastError: 'x' };
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([deadLetter]);
+
+    // Launch 1: the stale dead letter is reverted, exactly as before.
+    await syncPending('u1');
+    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
+    expect(mockedOutbox.markDeadLettersReconciled).toHaveBeenCalledWith('u1', ['a']);
+
+    // The user then genuinely re-favourites r1, and that write succeeds, so
+    // `favouriteIds` matches the stale item's `desiredState` once more. The
+    // dead letter is still on disk (only Dismiss removes it) -- but it now
+    // carries the reconciled marker the sweep above wrote.
+    seedFavourites(['r1']);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { ...deadLetter, reconciledAt: '2026-09-19T10:00:00.000Z' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
+  });
+
+  it('does not mark an item reconciled when the revert was a no-op, so a pre-hydration sweep still self-heals next launch', async () => {
+    // `favouriteIds` does not (yet) reflect `desiredState` -- either the store
+    // has not rehydrated, or a later toggle already moved it on. Either way
+    // nothing was undone, so nothing may be marked done.
+    seedFavourites([]);
+    const payload = { userId: 'u1', recipeId: 'r1', desiredState: true } as const;
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(mockedOutbox.markDeadLettersReconciled).not.toHaveBeenCalled();
+  });
+
+  it('marks a reverted completion reconciled too, so a stale letter cannot undo a LATER offline completion of the same session', async () => {
+    seedSession('s1', '2026-09-19');
+    const payload = {
+      kind: 'strength', queuedAt: '', sessionId: 's1',
+      activity: { started_at: '2026-09-19T08:00:00Z' }, setRows: [], details: null,
+    } as never;
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'completeWorkout', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+
+    await syncPending('u1');
+
+    expect(useSessionStore.getState().byId['s1'].status).toBe('planned');
+    expect(mockedOutbox.markDeadLettersReconciled).toHaveBeenCalledWith('u1', ['a']);
+  });
+
+  it('a persistence failure while marking reconciled never breaks the sync', async () => {
+    seedFavourites(['r1']);
+    const payload = { userId: 'u1', recipeId: 'r1', desiredState: true } as const;
+    mockedOutbox.readOutbox.mockResolvedValue([]);
+    mockedOutbox.readDeadLetters.mockResolvedValue([
+      { id: 'a', kind: 'toggleFavourite', payload, createdAt: '', attempts: 1, lastError: 'x' },
+    ]);
+    mockedOutbox.markDeadLettersReconciled.mockRejectedValue(new Error('disk full'));
+
+    await expect(syncPending('u1')).resolves.toBeUndefined();
+    expect(useRecipesStore.getState().favouriteIds).toEqual([]);
   });
 });

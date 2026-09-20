@@ -34,13 +34,23 @@ describe('DeadLetterSheet', () => {
     expect(queryByText(/COULDN'T SAVE/i)).toBeNull();
   });
 
-  it('lists dead-lettered items with a human-readable label and their error', async () => {
+  it('lists dead-lettered items with a human-readable label', async () => {
     const { findByText } = render(<DeadLetterSheet visible={true} userId="u1" onClose={() => {}} />);
 
     await findByText('A workout from 1 Sept');
     expect(await findByText('A check-in from 2 Sept')).toBeTruthy();
-    expect(await findByText('row-level security policy violation')).toBeTruthy();
-    expect(await findByText('duplicate key value violates unique constraint')).toBeTruthy();
+  });
+
+  // The raw `lastError` is a Postgres/PostgREST string. It stays ON the item
+  // for diagnostics, but a runner gets a sentence, not a stack of internals.
+  it('never shows the raw database error to the user', async () => {
+    const { queryByText, findAllByText } = render(
+      <DeadLetterSheet visible={true} userId="u1" onClose={() => {}} />
+    );
+    await findAllByText(/We couldn't save this one/);
+
+    expect(queryByText('row-level security policy violation')).toBeNull();
+    expect(queryByText('duplicate key value violates unique constraint')).toBeNull();
   });
 
   it('never dumps raw JSON as a label', () => {

@@ -64,6 +64,22 @@ export interface OutboxItem<K extends MutationKind = MutationKind> {
   createdAt:  string;
   attempts:   number;
   lastError?: string;
+  /**
+   * Set on a DEAD-LETTERED item once `syncPending`'s sweep has actually undone
+   * the optimistic local state behind it. Purely a marker for that sweep -- a
+   * reconciled item still belongs in the dead-letter list, and still shows in
+   * the dead-letter sheet, until the user dismisses it.
+   *
+   * WHY IT EXISTS. The sweep re-reads the WHOLE on-disk dead-letter list on
+   * every launch (see `revertDeadLetteredItems`' doc comment for that
+   * rationale). For `completeWorkout` that repeat is harmless -- the revert
+   * only touches a row still carrying a one-way `local_` placeholder id. A
+   * favourite has no such marker: it is a plain boolean that can legitimately
+   * come back round to the same value later, so without this the sweep would
+   * keep un-favouriting a recipe the user has since successfully re-favourited,
+   * on every single launch, forever.
+   */
+  reconciledAt?: string;
 }
 
 export interface Drain { sent: number; left: number; failed: number; deadLettered: OutboxItem[] }
@@ -144,6 +160,30 @@ export async function dismissDeadLetter(userId: string, id: string): Promise<voi
   await withLock(userId, async () => {
     const items = await readList(deadLetterKey(userId));
     await writeList(deadLetterKey(userId), items.filter((i) => i.id !== id));
+  });
+}
+
+/**
+ * Stamps `reconciledAt` on the named dead letters, so `syncPending`'s
+ * every-launch sweep does not undo their optimistic local state a second time
+ * (see `OutboxItem.reconciledAt`). Deliberately does NOT remove them: they are
+ * still a record of something that failed to save, and only the user's own
+ * Dismiss clears that.
+ *
+ * Locked for the same reason `dismissDeadLetter` is -- a read-modify-write on
+ * the dead-letter key, which `drain()`'s tail also writes from inside
+ * `withLock`.
+ */
+export async function markDeadLettersReconciled(userId: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const wanted = new Set(ids);
+  await withLock(userId, async () => {
+    const items = await readList(deadLetterKey(userId));
+    const at = new Date().toISOString();
+    await writeList(
+      deadLetterKey(userId),
+      items.map((i) => (wanted.has(i.id) && !i.reconciledAt ? { ...i, reconciledAt: at } : i)),
+    );
   });
 }
 

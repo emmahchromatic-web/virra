@@ -11,9 +11,13 @@ jest.mock('@/lib/recipes', () => ({
 }));
 
 const mockEnqueue     = jest.fn();
+const mockReadOutbox  = jest.fn();
 const mockSyncPending = jest.fn();
 
-jest.mock('@/lib/outbox', () => ({ enqueue: (...a: any[]) => mockEnqueue(...a) }));
+jest.mock('@/lib/outbox', () => ({
+  enqueue:    (...a: any[]) => mockEnqueue(...a),
+  readOutbox: (...a: any[]) => mockReadOutbox(...a),
+}));
 jest.mock('@/lib/syncPending', () => ({ syncPending: (...a: any[]) => mockSyncPending(...a) }));
 
 import { useRecipesStore } from '@/store/recipes';
@@ -34,6 +38,7 @@ beforeEach(async () => {
   await AsyncStorage.clear();
   jest.clearAllMocks();
   mockEnqueue.mockResolvedValue({ id: 'ob_1', kind: 'toggleFavourite', payload: {}, createdAt: '', attempts: 0 });
+  mockReadOutbox.mockResolvedValue([]);
   useRecipesStore.setState({
     list: [], listFetchedAt: null, details: {}, favouriteIds: [], favouritesFetchedAt: null,
   });
@@ -169,6 +174,63 @@ describe('recipes store refreshFavourites()', () => {
   it('treats non-empty -> empty as a suspected failure and keeps the cached favourite ids', async () => {
     useRecipesStore.setState({ favouriteIds: ['r1'], favouritesFetchedAt: '2026-09-18T08:00:00.000Z' });
     mockFetchFavouriteIds.mockResolvedValue([]);
+
+    await useRecipesStore.getState().refreshFavourites('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
+  });
+
+  /**
+   * The read path must not undo what the write path has not sent yet.
+   *
+   * An enqueued-but-undrained `toggleFavourite` happens ONLINE too -- `drain()`
+   * halts at the first retryable failure, so anything behind it is
+   * head-of-line blocked while the app is perfectly connected. A focus-driven
+   * `refreshFavourites` landing in that window would read the server's
+   * pre-toggle list and flip the heart straight back: the exact bug the
+   * outbox-routed toggle exists to prevent, reintroduced through the refetch.
+   */
+  it('keeps an optimistic favourite that is still queued in the outbox, even though the server has not caught up', async () => {
+    mockReadOutbox.mockResolvedValue([
+      { id: 'ob_1', kind: 'toggleFavourite', payload: { userId: 'u1', recipeId: 'r9', desiredState: true }, createdAt: '', attempts: 0 },
+    ]);
+    // The server list predates the toggle.
+    mockFetchFavouriteIds.mockResolvedValue(['r1']);
+
+    await useRecipesStore.getState().refreshFavourites('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r9', 'r1']);
+  });
+
+  it('keeps a queued UNfavourite off the list, even though the server still reports it', async () => {
+    mockReadOutbox.mockResolvedValue([
+      { id: 'ob_1', kind: 'toggleFavourite', payload: { userId: 'u1', recipeId: 'r1', desiredState: false }, createdAt: '', attempts: 0 },
+    ]);
+    mockFetchFavouriteIds.mockResolvedValue(['r1', 'r2']);
+
+    await useRecipesStore.getState().refreshFavourites('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r2']);
+  });
+
+  it('applies queued toggles in order, so the newest intent for a recipe wins', async () => {
+    mockReadOutbox.mockResolvedValue([
+      { id: 'ob_1', kind: 'toggleFavourite', payload: { userId: 'u1', recipeId: 'r9', desiredState: true }, createdAt: '', attempts: 0 },
+      { id: 'ob_2', kind: 'toggleFavourite', payload: { userId: 'u1', recipeId: 'r9', desiredState: false }, createdAt: '', attempts: 0 },
+    ]);
+    mockFetchFavouriteIds.mockResolvedValue(['r1']);
+
+    await useRecipesStore.getState().refreshFavourites('u1');
+
+    expect(useRecipesStore.getState().favouriteIds).toEqual(['r1']);
+  });
+
+  it('ignores queued items of other kinds and other users', async () => {
+    mockReadOutbox.mockResolvedValue([
+      { id: 'ob_1', kind: 'checkIn', payload: { user_id: 'u1' }, createdAt: '', attempts: 0 },
+      { id: 'ob_2', kind: 'toggleFavourite', payload: { userId: 'u2', recipeId: 'r9', desiredState: true }, createdAt: '', attempts: 0 },
+    ]);
+    mockFetchFavouriteIds.mockResolvedValue(['r1']);
 
     await useRecipesStore.getState().refreshFavourites('u1');
 

@@ -57,6 +57,21 @@ export function labelForDeadLetter(item: OutboxItem): string {
 }
 
 /**
+ * What the runner is told about WHY an item failed.
+ *
+ * Deliberately generic. `lastError` is a raw Postgres/PostgREST string --
+ * "new row violates row-level security policy for table ...", "duplicate key
+ * value violates unique constraint" -- which tells a runner nothing she can
+ * act on and reads like the app broke in front of her. It is still recorded on
+ * the item itself for diagnostics; it just isn't the sentence she gets. The
+ * actionable half is already in `labelForDeadLetter` ("A workout from 1 Sept")
+ * plus the Dismiss control beside it.
+ */
+function reasonForDeadLetter(): string {
+  return "We couldn't save this one, and we've stopped retrying it.";
+}
+
+/**
  * The dead-letter sheet -- the first (and, as of this task, only) caller of
  * `dismissDeadLetter`. Opened by tapping the "Unsaved" sync pill.
  *
@@ -113,11 +128,9 @@ export function DeadLetterSheet({ visible, userId, onClose }: Props) {
                 <VirraText variant="body" size={13} color={colors.breath}>
                   {labelForDeadLetter(item)}
                 </VirraText>
-                {item.lastError ? (
-                  <VirraText variant="mono" size={11} color={colors.muted} numberOfLines={2}>
-                    {item.lastError}
-                  </VirraText>
-                ) : null}
+                <VirraText variant="body" size={11} color={colors.muted} numberOfLines={2}>
+                  {reasonForDeadLetter()}
+                </VirraText>
               </View>
               <Pressable
                 onPress={() => handleDismiss(item.id)}

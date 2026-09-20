@@ -69,8 +69,15 @@ jest.mock('@/lib/recipes', () => {
 // only that the store's action is called correctly and the optimistic state
 // is never reverted from here.
 const mockEnqueue     = jest.fn();
+const mockReadOutbox  = jest.fn();
 const mockSyncPending = jest.fn();
-jest.mock('@/lib/outbox', () => ({ enqueue: (...a: any[]) => mockEnqueue(...a) }));
+jest.mock('@/lib/outbox', () => ({
+  enqueue:    (...a: any[]) => mockEnqueue(...a),
+  // `refreshFavourites` reads the outbox to overlay any toggle the server has
+  // not confirmed yet; nothing here queues one, so an empty queue is the
+  // right default.
+  readOutbox: (...a: any[]) => mockReadOutbox(...a),
+}));
 jest.mock('@/lib/syncPending', () => ({ syncPending: (...a: any[]) => mockSyncPending(...a) }));
 
 const mockGetLogId = jest.fn();
@@ -113,6 +120,7 @@ beforeEach(() => {
   mockSavePrefs.mockResolvedValue(true);
   mockFetchFavs.mockResolvedValue([]);
   mockEnqueue.mockResolvedValue({ id: 'ob_1', kind: 'toggleFavourite', payload: {}, createdAt: '', attempts: 0 });
+  mockReadOutbox.mockResolvedValue([]);
   mockLogRecipe.mockResolvedValue(null);
   mockGetLogId.mockResolvedValue('log-1');
   // The Recipes tab now reads/writes through the `recipes` store (Task 6),

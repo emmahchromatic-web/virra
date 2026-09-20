@@ -57,8 +57,12 @@ export interface SessionStoreActions {
    * `activity_id`. A no-op if the row's activity_id is no longer a local
    * placeholder (the server has since confirmed it) -- this must never
    * undo a real completion.
+   *
+   * Returns whether it actually reverted anything, so `syncPending`'s
+   * dead-letter sweep can tell "undone" apart from "nothing to undo" and only
+   * mark the former reconciled (see `OutboxItem.reconciledAt`).
    */
-  revertLocalCompletion(sessionId: SessionId): void;
+  revertLocalCompletion(sessionId: SessionId): boolean;
   dropSession(sessionId: SessionId):                      Promise<void>;
   moveSession(sessionId: SessionId, newDate: DateISO):    Promise<SessionId>;
   linkActivity(activityId: string, sessionId: SessionId): Promise<void>;

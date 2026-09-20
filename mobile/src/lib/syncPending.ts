@@ -2,7 +2,9 @@ import { useNetworkStore } from '@/store/network';
 import { useOutboxStatus } from '@/store/outboxStatus';
 import { useSessionStore } from '@/store/sessionStore';
 import { useRecipesStore } from '@/store/recipes';
-import { drain, readOutbox, readDeadLetters, type OutboxItem } from '@/lib/outbox';
+import {
+  drain, readOutbox, readDeadLetters, markDeadLettersReconciled, type OutboxItem,
+} from '@/lib/outbox';
 
 function isCompleteWorkout(item: OutboxItem): item is OutboxItem<'completeWorkout'> {
   return item.kind === 'completeWorkout';
@@ -24,23 +26,42 @@ function isToggleFavourite(item: OutboxItem): item is OutboxItem<'toggleFavourit
  *   `desiredState`, so the optimistic heart would otherwise stay flipped
  *   forever with nothing to correct it. See recipes.revertLocalToggle.
  *
- * Idempotent by construction for both: `revertLocalCompletion` only touches
- * rows whose `activity_id` is still a `local_` placeholder, and
- * `revertLocalToggle` only touches ids whose cached state still matches the
- * failed item's `desiredState` -- so re-running this over the whole on-disk
- * dead-letter list on every launch costs nothing and cannot undo a real,
- * server-confirmed state.
+ * SAFE TO RE-RUN OVER THE WHOLE ON-DISK LIST ON EVERY LAUNCH, for two
+ * different reasons:
+ *
+ * - `completeWorkout`, structurally: `revertLocalCompletion` only touches rows
+ *   whose `activity_id` is still a one-way `local_` placeholder, which
+ *   disappears for good the moment the server confirms. A server-confirmed
+ *   completion is therefore untouchable by definition.
+ * - `toggleFavourite`, by bookkeeping: its "still matches `desiredState`" guard
+ *   is NOT enough on its own, because a favourite is a plain boolean that can
+ *   legitimately come back round to the same value later. A stale dead letter
+ *   (say "favourite r1") whose guard matched again after the user genuinely
+ *   re-favourited r1 would un-favourite it once more, on every launch, until
+ *   the dead-letter sheet's Dismiss was found. So an item is stamped
+ *   `reconciledAt` once its revert has actually fired, and skipped from then on.
+ *
+ * Only items whose revert genuinely DID something are stamped. A revert that
+ * no-ops because the store has not rehydrated yet must stay unmarked, so the
+ * next launch still gets its chance -- which is the whole point of the sweep.
  */
-function revertDeadLetteredItems(items: OutboxItem[]): void {
+async function revertDeadLetteredItems(userId: string, items: OutboxItem[]): Promise<void> {
+  const reverted: string[] = [];
   for (const item of items) {
+    if (item.reconciledAt) continue;
     if (isCompleteWorkout(item)) {
       const sessionId = item.payload.sessionId;
-      if (sessionId) useSessionStore.getState().revertLocalCompletion(sessionId);
+      if (sessionId && useSessionStore.getState().revertLocalCompletion(sessionId)) reverted.push(item.id);
     } else if (isToggleFavourite(item)) {
       const { recipeId, desiredState } = item.payload;
-      if (recipeId) useRecipesStore.getState().revertLocalToggle(recipeId, desiredState);
+      if (recipeId && useRecipesStore.getState().revertLocalToggle(recipeId, desiredState)) reverted.push(item.id);
     }
   }
+  if (reverted.length === 0) return;
+  // Best-effort: the revert itself has already happened in memory, and failing
+  // to persist the marker only costs one more (harmless, guarded) attempt on a
+  // later launch. It must never abort the sync that is mid-flight around it.
+  await markDeadLettersReconciled(userId, reverted).catch(() => { /* retried next launch */ });
 }
 
 /**
@@ -74,7 +95,7 @@ export async function syncPending(userId: string): Promise<void> {
     // this module exists to clear, reached by a second route. This loop is the
     // actual guarantee; the `result.deadLettered` loop further down is now a
     // promptness optimisation (react on the same call that dead-letters).
-    revertDeadLetteredItems(deadBefore);
+    await revertDeadLetteredItems(userId, deadBefore);
 
     if (!useNetworkStore.getState().isOnline) return;
     if (pendingBefore.length === 0) return;
@@ -95,7 +116,7 @@ export async function syncPending(userId: string): Promise<void> {
     // can never succeed, without waiting for the next launch's `deadBefore`
     // sweep above to notice. Promptness, not correctness: the sweep is what
     // guarantees this eventually happens even if this process never gets here.
-    revertDeadLetteredItems(result.deadLettered);
+    await revertDeadLetteredItems(userId, result.deadLettered);
 
     // The server now owns these sessions. Pull the real row in now rather than
     // leaving the `local_` placeholder sitting there until the next screen

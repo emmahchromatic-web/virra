@@ -4,7 +4,7 @@ import {
   fetchRecipes, fetchRecipeDetail, fetchFavouriteIds,
   type Recipe, type RecipeDetail,
 } from '@/lib/recipes';
-import { enqueue } from '@/lib/outbox';
+import { enqueue, readOutbox, type OutboxItem, type MutationPayloadMap } from '@/lib/outbox';
 import { syncPending } from '@/lib/syncPending';
 import { asyncStorageAdapter } from './persistAdapter';
 
@@ -59,8 +59,11 @@ interface RecipesState {
    * blindly flipping back would undo that newer, correct state rather than the
    * stale failed one. Mirrors `sessionStore.revertLocalCompletion`'s own
    * "only touch it if it's still the questionable state" guard.
+   *
+   * Returns whether it actually reverted anything, so the sweep can mark only
+   * the items it really undid as reconciled (see `OutboxItem.reconciledAt`).
    */
-  revertLocalToggle: (recipeId: string, desiredState: boolean) => void;
+  revertLocalToggle: (recipeId: string, desiredState: boolean) => boolean;
   /**
    * Drop the cached list, details and favourites back to empty. Called from
    * the auth store's `signOut()`.
@@ -111,6 +114,49 @@ interface PersistedRecipesState {
  * this device makes its own change) is a much smaller problem than a flaky
  * refresh silently wiping a real cached list.
  */
+function isQueuedToggle(item: OutboxItem): item is OutboxItem<'toggleFavourite'> {
+  return item.kind === 'toggleFavourite';
+}
+
+/**
+ * Lays every `toggleFavourite` still sitting in the outbox back over a
+ * freshly-fetched server list, newest intent last.
+ *
+ * WHY THE READ PATH NEEDS THIS. `toggleFavourite` flips `favouriteIds`
+ * optimistically and routes the write through the outbox, so between the tap
+ * and the drain the server's list is out of date BY DESIGN. That window is not
+ * an offline-only one: `drain()` halts at the first retryable failure, so a
+ * favourite queued behind a stuck item stays unsent while the device is
+ * perfectly connected. Any `refreshFavourites` landing in it -- the Recipes
+ * tab's own `useFocusEffect` refetch is the obvious one -- would otherwise
+ * overwrite the optimistic flip with the server's stale answer and flip the
+ * heart back, which is precisely the bug routing the write through the outbox
+ * exists to prevent, reintroduced through the read.
+ *
+ * The outbox is already the record of "not confirmed by the server yet", so it
+ * is the right thing to consult: an item leaves it exactly when the server has
+ * agreed (sent) or can never agree (dead-lettered, which `syncPending`'s sweep
+ * then reverts explicitly). Same rule as `sessionStore.refresh`'s "preserve a
+ * row still pending in the outbox", reached differently -- sessions can lean on
+ * a `local_` placeholder id, a boolean favourite has no such marker.
+ */
+async function overlayQueuedToggles(userId: string, serverIds: string[]): Promise<string[]> {
+  const queued = await readOutbox(userId);
+  let ids = serverIds;
+  for (const item of queued) {
+    if (!isQueuedToggle(item)) continue;
+    const { userId: itemUserId, recipeId, desiredState } =
+      item.payload as MutationPayloadMap['toggleFavourite'];
+    if (!recipeId || itemUserId !== userId) continue;
+    if (desiredState) {
+      if (!ids.includes(recipeId)) ids = [recipeId, ...ids];
+    } else {
+      ids = ids.filter((id) => id !== recipeId);
+    }
+  }
+  return ids;
+}
+
 export const useRecipesStore = create<RecipesState>()(
   persist(
     (set, get) => ({
@@ -146,7 +192,10 @@ export const useRecipesStore = create<RecipesState>()(
         try {
           const ids = await fetchFavouriteIds(userId);
           if (ids.length === 0 && get().favouriteIds.length > 0) return; // see file header
-          set({ favouriteIds: ids, favouritesFetchedAt: new Date().toISOString() });
+          set({
+            favouriteIds:        await overlayQueuedToggles(userId, ids),
+            favouritesFetchedAt: new Date().toISOString(),
+          });
         } catch (e) {
           console.warn('[recipes store] refreshFavourites() failed, keeping cached state:', e instanceof Error ? e.message : String(e));
         }
@@ -179,12 +228,13 @@ export const useRecipesStore = create<RecipesState>()(
       revertLocalToggle: (recipeId, desiredState) => {
         const ids = get().favouriteIds;
         const has = ids.includes(recipeId);
-        if (has !== desiredState) return; // already reverted, or moved on since
+        if (has !== desiredState) return false; // already reverted, or moved on since
         set({
           favouriteIds: desiredState
             ? ids.filter((id) => id !== recipeId)
             : [recipeId, ...ids],
         });
+        return true;
       },
 
       clear: () => set({
