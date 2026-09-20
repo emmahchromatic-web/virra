@@ -51,6 +51,16 @@ export function labelForDeadLetter(item: OutboxItem): string {
       const payload = item.payload as MutationPayloadMap['toggleFavourite'];
       return payload.desiredState ? 'Adding a recipe favourite' : 'Removing a recipe favourite';
     }
+    case 'logFoodEntries': {
+      const payload = item.payload as MutationPayloadMap['logFoodEntries'];
+      return `A food entry from ${payload.rows[0]?.food_name ?? 'your log'}`;
+    }
+    case 'dropSession':
+      return 'A dropped training session';
+    case 'moveSession': {
+      const payload = item.payload as MutationPayloadMap['moveSession'];
+      return `Moving a session to ${payload.newDate}`;
+    }
     default:
       return 'An unsaved change';
   }

@@ -23,6 +23,34 @@ const checkInItem: OutboxItem = {
   payload: { user_id: 'u1', recorded_on: '2026-09-02', energy: 3, mood: 3, sleep_quality: 3, symptoms: [], notes: null } as never,
 };
 
+const logFoodEntriesItem: OutboxItem = {
+  id: 'ob_3', kind: 'logFoodEntries', attempts: 1, createdAt: '2026-09-03T00:00:00.000Z',
+  lastError: 'new row violates row-level security policy for table "food_entries"',
+  payload: {
+    rows: [{
+      id: 'fe_1', log_id: 'log_1', meal_type: 'breakfast', food_name: 'Porridge',
+      quantity_g: 200, quantity_unit: 'g', calories: 300, carbs_g: 50, protein_g: 10, fat_g: 5,
+      fibre_g: 4, nutritionix_id: null, source: 'manual', haiku_input: null, confidence: null,
+    }],
+  } as never,
+};
+
+const dropSessionItem: OutboxItem = {
+  id: 'ob_4', kind: 'dropSession', attempts: 1, createdAt: '2026-09-04T00:00:00.000Z',
+  lastError: 'duplicate key value violates unique constraint',
+  payload: { sessionId: 'sess_1' } as never,
+};
+
+const moveSessionItem: OutboxItem = {
+  id: 'ob_5', kind: 'moveSession', attempts: 1, createdAt: '2026-09-05T00:00:00.000Z',
+  lastError: 'duplicate key value violates unique constraint',
+  payload: {
+    sessionId: 'sess_1', newSessionId: 'sess_2', newDate: '2026-09-10', userId: 'u1',
+    blockId: null, weekNumber: 1, dayOfWeek: 3, modality: 'run', sessionLabel: null,
+    runStructure: null, strengthStructure: null,
+  } as never,
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
   readDeadLetters.mockResolvedValue([workoutItem, checkInItem]);
@@ -56,6 +84,24 @@ describe('DeadLetterSheet', () => {
   it('never dumps raw JSON as a label', () => {
     expect(labelForDeadLetter(workoutItem)).not.toMatch(/[{}]/);
     expect(labelForDeadLetter(checkInItem)).not.toMatch(/[{}]/);
+    expect(labelForDeadLetter(logFoodEntriesItem)).not.toMatch(/[{}]/);
+    expect(labelForDeadLetter(dropSessionItem)).not.toMatch(/[{}]/);
+    expect(labelForDeadLetter(moveSessionItem)).not.toMatch(/[{}]/);
+  });
+
+  it('labels the three J3b kinds', () => {
+    expect(labelForDeadLetter(logFoodEntriesItem)).toBe('A food entry from Porridge');
+    expect(labelForDeadLetter(dropSessionItem)).toBe('A dropped training session');
+    expect(labelForDeadLetter(moveSessionItem)).toBe('Moving a session to 2026-09-10');
+  });
+
+  it('renders the three J3b kinds in the sheet', async () => {
+    readDeadLetters.mockResolvedValue([logFoodEntriesItem, dropSessionItem, moveSessionItem]);
+    const { findByText } = render(<DeadLetterSheet visible={true} userId="u1" onClose={() => {}} />);
+
+    await findByText('A food entry from Porridge');
+    expect(await findByText('A dropped training session')).toBeTruthy();
+    expect(await findByText('Moving a session to 2026-09-10')).toBeTruthy();
   });
 
   it('dismisses an item, calling dismissDeadLetter(userId, id) and removing it from view', async () => {
