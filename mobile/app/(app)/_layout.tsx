@@ -18,9 +18,10 @@ import { colors } from '@/constants/theme';
 import { startNetworkListener, useNetworkStore } from '@/store/network';
 import { syncPending } from '@/lib/syncPending';
 import { SyncPill } from '@/components/SyncPill';
-// Registers the completeWorkout/checkIn outbox handlers — must run before any drain().
+// Registers the completeWorkout/checkIn/deleteFoodEntry outbox handlers — must run before any drain().
 import '@/lib/outbox/handlers/completeWorkout';
 import '@/lib/outbox/handlers/checkIn';
+import '@/lib/outbox/handlers/deleteFoodEntry';
 
 function nextMondayISO(): string {
   const now    = new Date();

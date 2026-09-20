@@ -25,6 +25,8 @@ import { VirraButton } from '@/components/ui/VirraButton';
 import { FoodEntryEditModal } from '@/components/ui/FoodEntryEditModal';
 import { toFoodUnit, formatQuantity, type FoodUnit } from '@/lib/foodUnits';
 import { appAlert, appPrompt } from '@/components/ui/VirraAlert';
+import { enqueue } from '@/lib/outbox';
+import { syncPending } from '@/lib/syncPending';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type MealType = typeof MEAL_TYPES[number];
@@ -440,7 +442,15 @@ export default function NutritionScreen() {
   }
 
   async function handleDeleteEntry(entry: FoodEntry) {
-    await supabase.from('food_entries').delete().eq('id', entry.id);
+    const { error } = await supabase.from('food_entries').delete().eq('id', entry.id);
+    if (error && session) {
+      // Offline (or a transient server blip) -- queue the delete and let her
+      // carry on rather than leaving the entry stuck on screen. The local
+      // removal below still happens immediately either way, so the UI reads
+      // as deleted regardless of which path actually did the work.
+      await enqueue(session.user.id, 'deleteFoodEntry', { entryId: entry.id });
+      syncPending(session.user.id);
+    }
     // Optimistically remove from the cache for instant feedback
     useNutritionDay.getState().removeEntryLocal(today, entry.id);
   }
