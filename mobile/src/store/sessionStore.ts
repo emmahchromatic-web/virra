@@ -4,9 +4,11 @@ import { uuid } from 'expo-modules-core';
 import { supabase } from '@/lib/supabase';
 import { _commitLink } from '@/lib/scheduleGenerator';
 import { enqueue, isPermanentError } from '@/lib/outbox';
+import { setSessionCompletedListener } from '@/lib/outboxEvents';
 import { syncPending } from '@/lib/syncPending';
 import { proposeLinks } from '@/lib/sessionReconciler';
 import { asyncStorageAdapter } from './persistAdapter';
+import { LOCAL_ACTIVITY_PREFIX } from './localActivity';
 import type {
   SessionStore, SessionStoreState, PlannedSessionRow, DateISO, LoadedRange, SessionId,
 } from './sessionStore.types';
@@ -39,7 +41,7 @@ function rangeKey(from: DateISO, to: DateISO): string {
  * both references are only dereferenced inside action bodies, well after
  * module init, never at module-evaluation time.
  */
-export const LOCAL_ACTIVITY_PREFIX = 'local_';
+export { LOCAL_ACTIVITY_PREFIX } from './localActivity';
 
 const isLocallyCompleted = (row: PlannedSessionRow | undefined): boolean =>
   !!row && row.status === 'completed' && typeof row.activity_id === 'string'
@@ -579,3 +581,19 @@ export const useSessionStore = create<SessionStore>()(
 export function hasLoadedDate(dateISO: DateISO): boolean {
   return isCovered(useSessionStore.getState().loadedRanges, dateISO, dateISO, Date.now());
 }
+
+/**
+ * Card 253. Keep this cache in step when a queued completion finally reaches
+ * the server.
+ *
+ * Finishing a workout offline marks the session completed here immediately,
+ * with a placeholder activity id; this swaps in the real one. Without it the
+ * Training tab, which reads this cache and stays mounted as a tab, went on
+ * saying TO DO while the dashboard, which re-queries on focus, said DONE.
+ *
+ * Registered here rather than called from the handler because the dependency
+ * only runs one way: this store imports the outbox, never the reverse.
+ */
+setSessionCompletedListener((sessionId, activityId) => {
+  useSessionStore.getState().applyLocalCompletion(sessionId, activityId);
+});

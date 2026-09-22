@@ -18,6 +18,7 @@ import { CycleProgressBar } from '@/components/ui/CycleProgressBar';
 import { SectionLabel } from '@/components/ui/SectionLabel';
 import { ActivityRings } from '@/components/ui/ActivityRing';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
+import { sessionRoute } from '@/lib/sessionRoutes';
 import { NutritionArcCard } from '@/components/ui/NutritionArcCard';
 import { QuickLogRow } from '@/components/ui/QuickLogRow';
 import { TipsCarousel } from '@/components/ui/TipsCarousel';
@@ -256,13 +257,10 @@ export default function DashboardScreen() {
           {isPro ? (
             <TodaysSessionHero
               sessions={todaySessions}
-              onStartPress={(session) => {
-                if (session.modality === 'run') {
-                  router.push(`/(app)/run?sessionId=${session.id}` as any);
-                } else {
-                  router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
-                }
-              }}
+              onStartPress={(session) => router.push(sessionRoute(session) as any)}
+              // Card 319. Tapping the row itself, which is what people try
+              // first: the pill and the name look like a link and were not one.
+              onOpenSession={(session) => router.push(sessionRoute(session) as any)}
               style={styles.sessionHero}
             />
           ) : showLocked ? (

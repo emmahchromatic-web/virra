@@ -48,10 +48,20 @@ function StatusBadge({ status }: StatusBadgeProps) {
 interface Props {
   sessions:      TodaysSession[];
   onStartPress?: (session: TodaysSession) => void;
+  /**
+   * Open one session. Card 319: the rows were inert, and the only ways into a
+   * session in the whole app were this card's play button and the tab bar's.
+   * The Training tab passed no callbacks at all, so its list could not be
+   * opened by any means.
+   *
+   * Kept separate from `onStartPress`, which filters to planned sessions and
+   * asks which one when there are several. A row press already knows.
+   */
+  onOpenSession?: (session: TodaysSession) => void;
   style?:        StyleProp<ViewStyle>;
 }
 
-export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
+export function TodaysSessionHero({ sessions, onStartPress, onOpenSession, style }: Props) {
   if (sessions.length === 0) {
     return (
       <VirraCard style={[styles.card, style]}>
@@ -103,7 +113,21 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
         TODAY · {sessions.length > 1 ? `${sessions.length} SESSIONS` : '1 SESSION'}
       </VirraText>
       {sessions.map((s, i) => (
-        <View key={s.id} style={[styles.row, i > 0 && styles.rowDivider]}>
+        <Pressable
+          key={s.id}
+          onPress={onOpenSession ? () => onOpenSession(s) : undefined}
+          disabled={!onOpenSession}
+          android_disableSound={!onOpenSession}
+          style={({ pressed }) => [
+            styles.row,
+            i > 0 && styles.rowDivider,
+            pressed && !!onOpenSession && styles.rowPressed,
+          ]}
+          accessibilityRole={onOpenSession ? 'button' : undefined}
+          accessibilityLabel={onOpenSession
+            ? `${s.status === 'completed' ? 'View' : 'Open'} ${sessionLabelText(s.session_label)}`
+            : undefined}
+        >
           <View style={[styles.icon, { backgroundColor: `${MODALITY_TINT[s.modality]}22` }]}>
             <SymbolView
               name={MODALITY_ICON[s.modality]}
@@ -140,7 +164,7 @@ export function TodaysSessionHero({ sessions, onStartPress, style }: Props) {
             )}
           </View>
           <StatusBadge status={s.status} />
-        </View>
+        </Pressable>
       ))}
       {onStartPress && planned.length > 0 && (
         <Pressable
@@ -163,6 +187,7 @@ const styles = StyleSheet.create({
   card:       { gap: spacing.sm },
   kicker:     { letterSpacing: 1.5 },
   row:        { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.xs },
+  rowPressed: { opacity: 0.6 },
   rowDivider: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
   icon:       { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   badge:      { flexDirection: 'row', alignItems: 'center', gap: 4,

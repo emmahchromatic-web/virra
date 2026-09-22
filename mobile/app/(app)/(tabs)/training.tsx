@@ -20,6 +20,7 @@ import { attachMobilityLabels, topUpMobilitySchedule } from '@/lib/mobilitySched
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
 import { TodaysSessionHero } from '@/components/ui/TodaysSessionHero';
+import { sessionRoute } from '@/lib/sessionRoutes';
 import { enrichTodaysSessions, type TodaysSession } from '@/lib/todaysSession';
 import { useTodaySessions } from '@/hooks/useTodaySessions';
 import { useSessionStore } from '@/store/sessionStore';
@@ -444,7 +445,14 @@ export default function TrainingScreen() {
 
         {/* Today's planned session hero */}
         {isPro && (activeBlocks.length > 0 || activePlan || (planLoadFailed && cachedWeek.length > 0)) && (
-          <TodaysSessionHero sessions={enrichedToday} />
+          <TodaysSessionHero
+            sessions={enrichedToday}
+            // Card 319. This screen passed nothing, so its rows did nothing:
+            // the only way into a session from the Training tab was the tab
+            // bar's own button.
+            onOpenSession={(session) => router.push(sessionRoute(session) as any)}
+            onStartPress={(session) => router.push(sessionRoute(session) as any)}
+          />
         )}
 
         {/* Active plan / block stack. Card 298: a free user sees what a plan

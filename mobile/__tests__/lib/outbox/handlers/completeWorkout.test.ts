@@ -16,7 +16,9 @@ const mockFrom = jest.fn((table: string) => {
 
 jest.mock('@/lib/supabase', () => ({ supabase: { from: (t: string) => mockFrom(t) } }));
 
+
 import { handleCompleteWorkout } from '@/lib/outbox/handlers/completeWorkout';
+import { setSessionCompletedListener } from '@/lib/outboxEvents';
 import type { PendingCompletion } from '@/lib/pendingCompletions';
 
 // A stand-in for the `strength_set_logs` table, so "what is actually stored
@@ -140,5 +142,56 @@ describe('handleCompleteWorkout', () => {
       { onConflict: 'activity_id' },
     );
     expect(mockUpdate).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('handleCompleteWorkout and the session cache (card 253)', () => {
+  const onCompleted = jest.fn();
+  beforeEach(() => { onCompleted.mockClear(); setSessionCompletedListener(onCompleted); });
+  afterAll(() => setSessionCompletedListener(null));
+
+  it('announces the real activity id, so the placeholder can be swapped out', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'act-7' }, error: null });
+    await handleCompleteWorkout({
+      kind: 'run', queuedAt: '2026-09-22T09:00:00Z', sessionId: 'sess-7',
+      activity: { user_id: 'u1', started_at: '2026-09-22T08:00:00Z' },
+      runDetails: {},
+    } as any);
+
+    expect(onCompleted).toHaveBeenCalledWith('sess-7', 'act-7');
+  });
+
+  it('says nothing when the completion was not linked to a session', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'act-8' }, error: null });
+    await handleCompleteWorkout({
+      kind: 'run', queuedAt: '2026-09-22T09:00:00Z', sessionId: null,
+      activity: { user_id: 'u1', started_at: '2026-09-22T08:30:00Z' },
+      runDetails: {},
+    } as any);
+
+    expect(onCompleted).not.toHaveBeenCalled();
+  });
+
+  it('says nothing when the server refused the session update', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'act-9' }, error: null });
+    mockEqUpdate.mockResolvedValueOnce({ error: { message: 'nope' } });
+    await handleCompleteWorkout({
+      kind: 'run', queuedAt: '2026-09-22T09:00:00Z', sessionId: 'sess-9',
+      activity: { user_id: 'u1', started_at: '2026-09-22T08:45:00Z' },
+      runDetails: {},
+    } as any);
+
+    expect(onCompleted).not.toHaveBeenCalled();
+  });
+
+  it('survives a listener that throws: a stale pill must not fail a drain', async () => {
+    mockSingle.mockResolvedValue({ data: { id: 'act-10' }, error: null });
+    setSessionCompletedListener(() => { throw new Error('store exploded'); });
+    await expect(handleCompleteWorkout({
+      kind: 'run', queuedAt: '2026-09-22T09:00:00Z', sessionId: 'sess-10',
+      activity: { user_id: 'u1', started_at: '2026-09-22T09:15:00Z' },
+      runDetails: {},
+    } as any)).resolves.toBeUndefined();
   });
 });
