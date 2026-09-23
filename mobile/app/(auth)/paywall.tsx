@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, SafeAreaView, ScrollView, Pressable, Linking } from 'react-native';
+import { View, StyleSheet, SafeAreaView, ScrollView, Pressable, Linking, ActivityIndicator } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { getOfferings, purchasePackage, restorePurchases, getTrialEligibility } from '@/lib/revenuecat';
@@ -11,6 +11,7 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { InlineError } from '@/components/ui/InlineError';
+import { NeedsSignal } from '@/components/ui/NeedsSignal';
 import { trackPro } from '@/lib/proEvents';
 import { SymbolView } from 'expo-symbols';
 
@@ -43,6 +44,12 @@ export default function PaywallScreen() {
   const [packages, setPackages]   = useState<PurchasesPackage[]>([]);
   const [selected, setSelected]   = useState<PurchasesPackage | null>(null);
   const [loading,  setLoading]    = useState(false);
+  // The initial offerings fetch, separate from `loading` (which is the
+  // purchase/restore spinner). `offeringsFailed` distinguishes "the App
+  // Store couldn't be reached" from "loaded fine, genuinely nothing to
+  // sell" -- see getOfferings()'s doc comment. Card 284/J3c.
+  const [offeringsLoading, setOfferingsLoading] = useState(true);
+  const [offeringsFailed,  setOfferingsFailed]  = useState(false);
   // Not appAlert. StoreKit puts its own view controller on screen for the
   // purchase sheet, and iOS will not present a modal from a controller that
   // already has one — so an alert fired the instant a purchase fails lands
@@ -56,13 +63,20 @@ export default function PaywallScreen() {
   const evt = { feature: isProFeature(params.feature) ? params.feature : null, source: fromApp ? 'app' as const : 'onboarding' as const };
   useEffect(() => { trackPro('paywall_open', evt); /* once per visit */ }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    getOfferings().then((pkgs) => {
-      setPackages(pkgs);
-      setSelected(pkgs[0] ?? null);
+  async function loadOfferings() {
+    setOfferingsLoading(true);
+    setOfferingsFailed(false);
+    const { packages: pkgs, failed } = await getOfferings();
+    setOfferingsLoading(false);
+    setOfferingsFailed(failed);
+    setPackages(pkgs);
+    setSelected(pkgs[0] ?? null);
+    if (pkgs.length > 0) {
       getTrialEligibility(pkgs.map((p) => p.product.identifier)).then(setStoreEligible);
-    });
-  }, []);
+    }
+  }
+
+  useEffect(() => { loadOfferings(); }, []);
 
   async function routePostPaywall() {
     if (fromApp && router.canGoBack()) { router.back(); return; }
@@ -80,7 +94,16 @@ export default function PaywallScreen() {
   }
 
   async function handlePurchase() {
-    if (!selected) return;
+    if (!selected) {
+      // Belt-and-braces: the CTA is `disabled` whenever `selected` is null,
+      // so a real tap cannot reach here -- but if that ever changes, this
+      // must never be a silent no-op on the one screen that takes money.
+      setFailure({
+        title:   'Nothing to subscribe to yet',
+        message: 'We couldn\'t load your plan options. Check your connection, then try again.',
+      });
+      return;
+    }
     setLoading(true);
     setFailure(null);
     const productId = selected.product.identifier;
@@ -170,7 +193,9 @@ export default function PaywallScreen() {
           ))}
         </VirraCard>
 
-        {packages.length > 0 && (
+        {offeringsLoading ? (
+          <ActivityIndicator color={colors.pulse} style={styles.offeringsLoading} />
+        ) : packages.length > 0 ? (
           <View style={styles.packages}>
             {packages.map((pkg) => (
               <Pressable key={pkg.identifier} onPress={() => setSelected(pkg)}>
@@ -188,6 +213,14 @@ export default function PaywallScreen() {
               </Pressable>
             ))}
           </View>
+        ) : (
+          <NeedsSignal
+            title={offeringsFailed ? "Couldn't load your options" : 'No plans available right now'}
+            detail={offeringsFailed
+              ? 'We couldn\'t reach the App Store to load your plan options. Check your connection and try again.'
+              : 'Something\'s not quite right on our end — we\'re on it. Try again in a bit.'}
+            onRetry={loadOfferings}
+          />
         )}
 
         {failure && (
@@ -202,6 +235,7 @@ export default function PaywallScreen() {
           label={canTrial ? 'Start 14-day free trial' : 'Subscribe to Virra Pro'}
           onPress={handlePurchase}
           loading={loading}
+          disabled={!selected}
           style={styles.cta}
         />
 
@@ -277,6 +311,7 @@ const styles = StyleSheet.create({
   // flexing label keeps every line aligned however the copy grows.
   featureRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   featureLabel:{ flex: 1 },
+  offeringsLoading: { marginVertical: spacing.md },
   packages:    { gap: spacing.sm },
   pkg:         { paddingVertical: spacing.md },
   pkgSelected: { borderColor: colors.pulse },

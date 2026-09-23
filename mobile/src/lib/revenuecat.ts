@@ -53,13 +53,20 @@ export async function getActiveEntitlement(): Promise<boolean> {
   }
 }
 
-export async function getOfferings(): Promise<PurchasesPackage[]> {
+/**
+ * `failed:true` distinguishes "couldn't reach the App Store" from a genuinely
+ * empty current offering -- a bare `[]` return here once meant both, which
+ * left the paywall unable to tell offline apart from "nothing to sell" and
+ * show either honestly. See card 284's offline-first spec, J3c.
+ */
+export async function getOfferings(): Promise<{ packages: PurchasesPackage[]; failed: boolean }> {
   await ready;
   try {
     const offerings = await Purchases.getOfferings();
-    return offerings.current?.availablePackages ?? [];
-  } catch {
-    return [];
+    return { packages: offerings.current?.availablePackages ?? [], failed: false };
+  } catch (e) {
+    console.error('[revenuecat] getOfferings failed:', e);
+    return { packages: [], failed: true };
   }
 }
 

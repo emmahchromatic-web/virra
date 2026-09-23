@@ -14,7 +14,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }));
 jest.mock('@/lib/revenuecat', () => ({
-  getOfferings:     jest.fn().mockResolvedValue([]),
+  getOfferings:     jest.fn().mockResolvedValue({ packages: [], failed: false }),
   purchasePackage:  jest.fn(),
   restorePurchases: jest.fn(),
   getTrialEligibility: jest.fn().mockResolvedValue(null),
@@ -93,9 +93,10 @@ describe('paywall close + Apple-led trial eligibility', () => {
   it('drops the trial promise when Apple says she is not eligible, even on a "free" account', async () => {
     mockParams = {};
     useSubscriptionStore.setState({ status: 'free', isActive: false });
-    rc.getOfferings.mockResolvedValueOnce([
-      { identifier: 'm', product: { identifier: 'pro.month', title: 'Monthly', priceString: '£9.99' } },
-    ]);
+    rc.getOfferings.mockResolvedValueOnce({
+      packages: [{ identifier: 'm', product: { identifier: 'pro.month', title: 'Monthly', priceString: '£9.99' } }],
+      failed: false,
+    });
     rc.getTrialEligibility.mockResolvedValueOnce(false);
     const { findByText, queryByText } = render(<PaywallScreen />);
     expect(await findByText('Subscribe to Virra Pro')).toBeTruthy();
@@ -108,9 +109,10 @@ describe('internal preview pin', () => {
     const rc = require('@/lib/revenuecat');
     mockParams = {};
     useSubscriptionStore.setState({ status: 'expired', isActive: false, devOverride: 'expired' });
-    rc.getOfferings.mockResolvedValueOnce([
-      { identifier: 'm', product: { identifier: 'pro.month', title: 'Monthly', priceString: '£9.99' } },
-    ]);
+    rc.getOfferings.mockResolvedValueOnce({
+      packages: [{ identifier: 'm', product: { identifier: 'pro.month', title: 'Monthly', priceString: '£9.99' } }],
+      failed: false,
+    });
     rc.getTrialEligibility.mockResolvedValueOnce(true);
     const { findByText, queryByText } = render(<PaywallScreen />);
     expect(await findByText('Virra Pro Monthly · £9.99').catch(() => null)).toBeDefined();
