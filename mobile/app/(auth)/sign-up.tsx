@@ -3,11 +3,20 @@ import { View, TextInput, StyleSheet, SafeAreaView, AppState, ScrollView } from 
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import type { AuthError } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase, isAuthNetworkError } from '@/lib/supabase';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert } from '@/components/ui/VirraAlert';
+
+const NO_SIGNAL_MESSAGE = 'We couldn\'t reach the server. Check your connection and try again.';
+
+/** appAlert for an auth failure, on-brand for a network error rather than
+ *  showing the raw fetch error, and unchanged for a genuine auth rejection. */
+function alertSignUpFailure(error: AuthError) {
+  if (isAuthNetworkError(error)) appAlert('No signal', NO_SIGNAL_MESSAGE);
+  else appAlert('Sign up failed', error.message);
+}
 
 // Supabase reports an unconfirmed address differently across versions, so match
 // on the stable error code first and fall back to the message.
@@ -45,9 +54,11 @@ export default function SignUpScreen() {
     if (error) {
       if (!silent) {
         setConfirmError(
-          isUnconfirmedEmail(error)
-            ? 'That address is not confirmed yet. Tap the link in the email, then try again.'
-            : error.message,
+          isAuthNetworkError(error)
+            ? NO_SIGNAL_MESSAGE
+            : isUnconfirmedEmail(error)
+              ? 'That address is not confirmed yet. Tap the link in the email, then try again.'
+              : error.message,
         );
       }
       return;
@@ -78,7 +89,7 @@ export default function SignUpScreen() {
           provider: 'apple',
           token: credential.identityToken,
         });
-        if (error) appAlert('Sign up failed', error.message);
+        if (error) alertSignUpFailure(error);
         else router.replace('/(onboarding)/welcome');
       }
     } catch (e: any) {
@@ -95,7 +106,7 @@ export default function SignUpScreen() {
     const { data, error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (error) {
-      appAlert('Sign up failed', error.message);
+      alertSignUpFailure(error);
       return;
     }
     // A session means the account is usable immediately (confirmation off).
@@ -113,7 +124,7 @@ export default function SignUpScreen() {
     setConfirmNotice(null);
     const { error } = await supabase.auth.resend({ type: 'signup', email });
     setLoading(false);
-    if (error) setConfirmError(error.message);
+    if (error) setConfirmError(isAuthNetworkError(error) ? NO_SIGNAL_MESSAGE : error.message);
     else setConfirmNotice('Sent. It can take a minute to arrive.');
   }
 

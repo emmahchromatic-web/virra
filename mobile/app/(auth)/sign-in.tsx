@@ -2,13 +2,22 @@ import React, { useState } from 'react';
 import { View, TextInput, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { supabase } from '@/lib/supabase';
+import { supabase, isAuthNetworkError } from '@/lib/supabase';
 import { useCycleStore } from '@/store/cycle';
 import { colors, fonts, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert } from '@/components/ui/VirraAlert';
 import { getPostAuthRoute } from '@/lib/permissionsConfig';
+
+const NO_SIGNAL_MESSAGE = 'We couldn\'t reach the server. Check your connection and try again.';
+
+/** appAlert for an auth failure, on-brand for a network error rather than
+ *  showing the raw fetch error, and unchanged for a genuine auth rejection. */
+function alertSignInFailure(error: { message: string }, fallbackTitle: string) {
+  if (isAuthNetworkError(error)) appAlert('No signal', NO_SIGNAL_MESSAGE);
+  else appAlert(fallbackTitle, error.message);
+}
 
 async function routeAfterSignIn(userId: string) {
   const { data } = await supabase
@@ -44,7 +53,7 @@ export default function SignInScreen() {
           provider: 'apple',
           token: credential.identityToken,
         });
-        if (error) appAlert('Apple sign in failed', error.message);
+        if (error) alertSignInFailure(error, 'Apple sign in failed');
         else if (data.user) await routeAfterSignIn(data.user.id);
       }
     } catch (e: any) {
@@ -61,7 +70,7 @@ export default function SignInScreen() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
     if (error) {
-      appAlert('Sign in failed', error.message);
+      alertSignInFailure(error, 'Sign in failed');
     } else if (data.user) {
       await routeAfterSignIn(data.user.id);
     }

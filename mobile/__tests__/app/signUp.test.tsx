@@ -19,12 +19,19 @@ jest.mock('@/lib/supabase', () => ({
       resend:             jest.fn().mockResolvedValue({ error: null }),
     },
   },
+  // Real signature: true only for supabase-js's AuthRetryableFetchError.
+  // Tests opt individual errors into "network failure" via mockReturnValueOnce.
+  isAuthNetworkError: jest.fn().mockReturnValue(false),
 }));
+
+jest.mock('@/components/ui/VirraAlert', () => ({ appAlert: jest.fn(), appPrompt: jest.fn() }));
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { router } = require('expo-router');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { supabase } = require('@/lib/supabase');
+const { supabase, isAuthNetworkError } = require('@/lib/supabase');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { appAlert } = require('@/components/ui/VirraAlert');
 
 import SignUpScreen from '@/app/(auth)/sign-up';
 
@@ -46,6 +53,8 @@ describe('SignUpScreen — email confirmation', () => {
     supabase.auth.signUp.mockReset();
     supabase.auth.signInWithPassword.mockReset();
     supabase.auth.resend.mockClear();
+    appAlert.mockClear();
+    isAuthNetworkError.mockReturnValue(false);
   });
 
   it('enters onboarding when signUp returns a session', async () => {
@@ -139,5 +148,67 @@ describe('SignUpScreen — email confirmation', () => {
         email: 'runner@example.com',
       });
     });
+  });
+});
+
+describe('SignUpScreen — offline copy (card 284/J3c)', () => {
+  beforeEach(() => {
+    router.replace.mockClear();
+    supabase.auth.signUp.mockReset();
+    supabase.auth.signInWithPassword.mockReset();
+    appAlert.mockClear();
+    isAuthNetworkError.mockReturnValue(false);
+  });
+
+  it('shows on-brand "no signal" copy, not the raw fetch error, when sign-up fails due to a network error', async () => {
+    supabase.auth.signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { message: 'Network request failed' },
+    });
+    isAuthNetworkError.mockReturnValue(true);
+
+    const utils = render(<SignUpScreen />);
+    await submitSignUpForm(utils);
+
+    await waitFor(() => {
+      expect(appAlert).toHaveBeenCalledWith('No signal', 'We couldn\'t reach the server. Check your connection and try again.');
+    });
+  });
+
+  it('still shows the real error message for a genuine (non-network) sign-up failure', async () => {
+    supabase.auth.signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { message: 'User already registered' },
+    });
+    isAuthNetworkError.mockReturnValue(false);
+
+    const utils = render(<SignUpScreen />);
+    await submitSignUpForm(utils);
+
+    await waitFor(() => {
+      expect(appAlert).toHaveBeenCalledWith('Sign up failed', 'User already registered');
+    });
+  });
+
+  it('shows on-brand "no signal" copy inline when checking confirmation fails due to a network error', async () => {
+    supabase.auth.signUp.mockResolvedValue({
+      data: { user: SESSION.user, session: null }, error: null,
+    });
+    supabase.auth.signInWithPassword.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { message: 'Network request failed' },
+    });
+
+    const utils = render(<SignUpScreen />);
+    await submitSignUpForm(utils);
+    await waitFor(() => utils.getByText('Check your email'));
+
+    isAuthNetworkError.mockReturnValue(true);
+    fireEvent.press(utils.getByRole('button', { name: "I've confirmed my email" }));
+
+    await waitFor(() => {
+      expect(utils.getByText(/couldn't reach the server/i)).toBeTruthy();
+    });
+    expect(utils.queryByText(/not confirmed yet/i)).toBeNull();
   });
 });
