@@ -60,10 +60,14 @@ jest.mock('@/store/sessionStore', () => ({
   // contract between `applyLocalCompletion` (this screen) and
   // `revertLocalCompletion`/`refresh` (the store). A hardcoded literal here
   // would keep passing against its own stale copy if that contract ever moved.
-  LOCAL_ACTIVITY_PREFIX: jest.requireActual('@/store/sessionStore').LOCAL_ACTIVITY_PREFIX,
+  //
+  // Taken from `@/store/localActivity`, where card 319 moved it: requiring the
+  // actual STORE for one string drags in the network stack and the outbox, and
+  // re-enters this very module while it is still initialising.
+  LOCAL_ACTIVITY_PREFIX: jest.requireActual('@/store/localActivity').LOCAL_ACTIVITY_PREFIX,
 }));
 
-const { LOCAL_ACTIVITY_PREFIX } = jest.requireActual<typeof import('@/store/sessionStore')>('@/store/sessionStore');
+const { LOCAL_ACTIVITY_PREFIX } = jest.requireActual<typeof import('@/store/localActivity')>('@/store/localActivity');
 
 const CACHED_ROW = {
   id: 'ps-1',

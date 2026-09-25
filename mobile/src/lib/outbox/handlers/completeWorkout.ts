@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { registerHandler, type MutationPayloadMap } from '@/lib/outbox';
+import { notifySessionCompleted } from '@/lib/outboxEvents';
 import { SupabaseWriteError } from '@/lib/outbox/errors';
 
 /** Supabase errors are plain objects, not `Error` instances. Wrap them so a
@@ -72,7 +73,16 @@ export async function handleCompleteWorkout(item: MutationPayloadMap['completeWo
       .from('planned_sessions')
       .update({ status: 'completed', activity_id: act.id })
       .eq('id', item.sessionId);
-    if (pErr) console.error('[outbox] planned_sessions update failed', pErr);
+    if (pErr) {
+      console.error('[outbox] planned_sessions update failed', pErr);
+    } else {
+      // Card 253. Finishing offline writes a LOCAL activity id into the phone's
+      // session cache so the pill says DONE at once; this is where that
+      // placeholder becomes the real one. Without it the Training tab, which
+      // reads that cache and stays mounted, keeps saying TO DO until the app is
+      // killed -- while the dashboard, which re-queries, says DONE.
+      notifySessionCompleted(item.sessionId, act.id);
+    }
   }
 }
 

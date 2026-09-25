@@ -18,6 +18,10 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 import { enqueue } from '@/lib/outbox';
+import { useSessionById } from '@/hooks/useSessionById';
+import { enrichTodaysSessions } from '@/lib/todaysSession';
+import { sessionLabelText } from '@/lib/sessionLabels';
+import type { RunWorkoutStructure, RunStep } from '@/lib/workoutStructure';
 import { syncPending } from '@/lib/syncPending';
 
 function formatDuration(s: number): string {
@@ -35,6 +39,22 @@ function formatPace(secPerKm: number | null): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/**
+ * What today's run is meant to be, for the target strip. Card 322: the tracker
+ * took a sessionId purely to write the session back as completed when you
+ * saved, and showed nothing about it — so someone starting today's easy 3.1 km
+ * saw a blank counter and had to remember the plan themselves.
+ */
+interface RunTarget {
+  label:      string;
+  distanceKm: number | null;
+  paceSecs:   number | null;
+  /** Today's cycle line for THIS session, not a generic sentence per phase. */
+  reason:     string | null;
+  /** "4 x 800m @ 4:20" and the like, when the session is structured. */
+  summary:    string | null;
+}
+
 const PHASE_CUE: Record<string, string> = {
   menstrual:  'Keep it easy. Effort over pace today.',
   follicular: 'Good day to push. Your body is primed.',
@@ -50,6 +70,11 @@ export default function RunTrackerScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const { session }               = useAuthStore();
   const { periodStart, cycleLength, periodDays, cycleInfo } = useCycleStore();
+
+  // Card 322. The planned session, from the same cache the workout screen
+  // reads, so a run started in a dead spot still shows its target.
+  const plannedRow = useSessionById(sessionId ?? null);
+  const [target,       setTarget]       = useState<RunTarget | null>(null);
 
   const [runState,     setRunState]     = useState<RunState>('idle');
   const [distanceM,    setDistanceM]    = useState(0);
@@ -261,7 +286,13 @@ export default function RunTrackerScreen() {
         .from('planned_sessions')
         .update({ status: 'completed', activity_id: act.id })
         .eq('id', sessionId);
-      if (sessionErr) console.error('[run] failed to mark session completed', sessionErr);
+      if (sessionErr) {
+        console.error('[run] failed to mark session completed', sessionErr);
+      } else {
+        // Card 253, same as the strength path: the Training tab reads the
+        // cache, so a server-only write leaves it saying TO DO.
+        useSessionStore.getState().applyLocalCompletion(sessionId, act.id);
+      }
     }
 
     // Write to HealthKit
@@ -292,12 +323,52 @@ export default function RunTrackerScreen() {
     ]);
   }
 
+  // Card 322. Enrichment gives the cycle-adjusted pace and this session's own
+  // reason, which is what the dashboard card already shows; falling back to the
+  // structure keeps a target on screen when that call cannot run (offline, or
+  // no profile row yet). Runs once per session, never on the GPS tick.
+  useEffect(() => {
+    if (!plannedRow || plannedRow.modality !== 'run') { setTarget(null); return; }
+    let cancelled = false;
+
+    const structure = (plannedRow.run_structure ?? null) as RunWorkoutStructure | null;
+    const totalM    = structure?.total_distance_m ?? null;
+    const firstPace = structure?.steps?.find((st: RunStep) => st.target?.pace_secs_per_km)?.target?.pace_secs_per_km ?? null;
+    const base: RunTarget = {
+      label:      sessionLabelText(plannedRow.session_label),
+      distanceKm: totalM ? totalM / 1000 : null,
+      paceSecs:   firstPace,
+      reason:     null,
+      summary:    null,
+    };
+    setTarget(base);
+
+    if (!session) return;
+    // The store row carries every modality the app knows; enrichment takes the
+    // narrower set it can actually enrich, and this path is run-only anyway.
+    enrichTodaysSessions(session.user.id, [plannedRow as unknown as Parameters<typeof enrichTodaysSessions>[1][number]])
+      .then(([enriched]) => {
+        if (cancelled || !enriched) return;
+        setTarget({
+          ...base,
+          paceSecs: enriched.cycle_adjusted_pace_secs ?? base.paceSecs,
+          reason:   enriched.cycle_reason_short,
+          summary:  enriched.structure_summary,
+        });
+      })
+      .catch(() => { /* the plain target above is already on screen */ });
+
+    return () => { cancelled = true; };
+  }, [plannedRow, session]);
+
   // ---- Derived ----
   const distanceKm = (distanceM / 1000).toFixed(2);
   const avgPace    = distanceM > 100
     ? Math.round(elapsedS / (distanceM / 1000))
     : null;
-  const phaseCue   = cycleInfo ? PHASE_CUE[cycleInfo.phase] : null;
+  // This session's own line first; the generic per-phase sentence is for a
+  // free run, which has no session to speak for it.
+  const phaseCue   = target?.reason ?? (cycleInfo ? PHASE_CUE[cycleInfo.phase] : null);
 
   // ---- Render ----
   return (
@@ -318,6 +389,37 @@ export default function RunTrackerScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+
+        {/* Card 322. What this run is meant to be. Deliberately quiet next to
+            the live counter below: "3.1 km target" and "3.1 km so far" must
+            never be mistaken for each other. */}
+        {target && (
+          <View style={styles.targetCard}>
+            <VirraText variant="mono" size={10} color={colors.muted} style={styles.targetLabel}>
+              TARGET
+            </VirraText>
+            <View style={styles.targetRow}>
+              <VirraText variant="display" size={17} color={colors.breath}>
+                {target.label}
+              </VirraText>
+              {target.distanceKm != null && (
+                <VirraText variant="mono" size={12} color={colors.breath}>
+                  {target.distanceKm.toFixed(target.distanceKm >= 10 ? 0 : 1)} KM
+                </VirraText>
+              )}
+              {target.paceSecs != null && (
+                <VirraText variant="mono" size={12} color={colors.pulse}>
+                  {formatPace(target.paceSecs)}/KM
+                </VirraText>
+              )}
+            </View>
+            {target.summary && (
+              <VirraText variant="mono" size={11} color={colors.muted}>
+                {target.summary}
+              </VirraText>
+            )}
+          </View>
+        )}
 
         {/* Primary stat: distance */}
         <View style={styles.distanceBlock}>
@@ -433,6 +535,13 @@ const styles = StyleSheet.create({
   headerTitle:  { letterSpacing: 1.5 },
   closeBtn:     { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
   scroll:       { padding: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.xl, alignItems: 'center' },
+  targetCard: {
+    backgroundColor: colors.mist, borderRadius: radius.md,
+    paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+    gap: 4, marginBottom: spacing.md,
+  },
+  targetLabel: { letterSpacing: 1.5 },
+  targetRow:   { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm, flexWrap: 'wrap' },
   distanceBlock:{ alignItems: 'center', gap: 4, marginTop: spacing.xl },
   distanceNum:  { lineHeight: 80 },
   distanceUnit: { letterSpacing: 2 },

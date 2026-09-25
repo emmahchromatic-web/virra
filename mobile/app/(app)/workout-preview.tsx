@@ -1079,7 +1079,15 @@ function WorkoutPreviewScreen() {
         .from('planned_sessions')
         .update({ status: 'completed', activity_id: act.id })
         .eq('id', sessionId);
-      if (sessionErr) console.error('[workout-preview] failed to mark session completed', sessionErr);
+      if (sessionErr) {
+        console.error('[workout-preview] failed to mark session completed', sessionErr);
+      } else {
+        // Card 253. The dashboard re-queries on focus, so it showed DONE; the
+        // Training tab reads this cache and stays mounted, so it sat on TO DO
+        // until the app was killed. Same row, two answers. The offline path
+        // has always written the cache here (below); the online one did not.
+        useSessionStore.getState().applyLocalCompletion(sessionId, act.id);
+      }
     }
 
     deleteWorkoutDraft(session.user.id).catch(() => {});

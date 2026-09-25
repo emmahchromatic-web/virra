@@ -112,3 +112,56 @@ describe('TodaysSessionHero', () => {
     expect(queryByRole('button', { name: /start/i })).toBeNull();
   });
 });
+
+// Card 319. The rows were inert: the pill and the name looked like a link and
+// were not one, and the Training tab passed no callbacks at all, so nothing in
+// its list could be opened by any means.
+describe('opening a session by tapping its row', () => {
+  it('opens the session that was tapped, not the first planned one', () => {
+    const onOpenSession = jest.fn();
+    const { getByLabelText } = render(
+      <TodaysSessionHero
+        sessions={[runSession, strengthSession]}
+        onOpenSession={onOpenSession}
+      />,
+    );
+
+    fireEvent.press(getByLabelText('Open Lower Body'));
+    expect(onOpenSession).toHaveBeenCalledTimes(1);
+    expect(onOpenSession).toHaveBeenCalledWith(strengthSession);
+  });
+
+  it('says VIEW rather than OPEN for a session already done', () => {
+    const onOpenSession = jest.fn();
+    const done: TodaysSession = { ...runSession, status: 'completed', activity_id: 'act-1' };
+    const { getByLabelText } = render(
+      <TodaysSessionHero sessions={[done]} onOpenSession={onOpenSession} />,
+    );
+
+    fireEvent.press(getByLabelText('View Easy Run'));
+    expect(onOpenSession).toHaveBeenCalledWith(done);
+  });
+
+  it('stays inert when no handler is given, rather than looking tappable', () => {
+    const { queryByLabelText } = render(<TodaysSessionHero sessions={[runSession]} />);
+    expect(queryByLabelText('Open Easy Run')).toBeNull();
+  });
+
+  it('does not confuse a row press with the start button', () => {
+    // The start button filters to planned sessions and asks which one when
+    // there are several; a row press already knows which session it is.
+    const onOpenSession = jest.fn();
+    const onStartPress  = jest.fn();
+    const { getByLabelText } = render(
+      <TodaysSessionHero
+        sessions={[runSession, strengthSession]}
+        onOpenSession={onOpenSession}
+        onStartPress={onStartPress}
+      />,
+    );
+
+    fireEvent.press(getByLabelText('Open Easy Run'));
+    expect(onStartPress).not.toHaveBeenCalled();
+    expect(mockAppAlert).not.toHaveBeenCalled();
+  });
+});

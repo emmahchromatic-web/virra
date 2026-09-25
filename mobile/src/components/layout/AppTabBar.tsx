@@ -10,6 +10,7 @@ import { useTodayStore } from '@/store/today';
 import { useProGate } from '@/lib/pro';
 import type { TodaysSession } from '@/lib/todaysSession';
 import { sessionLabelText } from '@/lib/sessionLabels';
+import { sessionRoute } from '@/lib/sessionRoutes';
 
 type SymbolName = React.ComponentProps<typeof SymbolView>['name'];
 
@@ -52,11 +53,9 @@ function TabButton({ route, routeIndex, state, navigation, dimmed }: {
 }
 
 function routeToSession(session: TodaysSession) {
-  if (session.modality === 'run') {
-    router.push(`/(app)/run?sessionId=${session.id}` as any);
-  } else {
-    router.push(`/(app)/workout-preview?sessionId=${session.id}` as any);
-  }
+  // Card 319 moved this rule into sessionRoutes, so the tab bar, the dashboard
+  // and the Training tab cannot drift apart on where a session opens.
+  router.push(sessionRoute(session) as any);
 }
 
 export function AppTabBar({ state, navigation }: BottomTabBarProps) {

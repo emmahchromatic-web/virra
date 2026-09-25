@@ -43,16 +43,34 @@ function statusColor(status: string): string {
 }
 
 /**
- * What tapping the pill will do, said plainly.
+ * What tapping the pill will do. Spoken by VoiceOver only.
  *
- * A granted permission used to say nothing at all, which left the pill looking
- * decorative on exactly the rows where someone most often wants to go and turn
- * something off.
+ * It used to be printed under every card as well. That was never in the spec
+ * and Emma asked for it to go (card 275): five rows each captioned with an
+ * instruction is noise, and the pill is already the control.
  */
 function actionLabel(entry: PermissionStatusEntry | undefined): string {
   if (!entry) return '';
-  if (entry.status === 'undetermined' || entry.canAskAgain) return 'TAP TO GRANT';
-  return 'TAP TO OPEN IOS SETTINGS';
+  return wantsPrompt(entry) ? 'Tap to grant' : 'Tap to open iOS Settings';
+}
+
+/**
+ * Whether tapping should raise the iOS prompt rather than open Settings.
+ *
+ * NOT `canAskAgain` on its own. Expo reports `canAskAgain: true` for a
+ * permission that is already GRANTED, so the old test sent granted rows back
+ * through `requestPermission`, iOS answered instantly with the permission it
+ * had already given, nothing appeared, and the pill looked dead -- which is
+ * exactly what card 275 failed on.
+ *
+ * Only a permission that has never been asked, or one that was denied and that
+ * iOS will still prompt for, should prompt. Everything else -- granted, or
+ * denied for good -- goes to Settings, which is where it can actually be
+ * changed.
+ */
+function wantsPrompt(entry: PermissionStatusEntry): boolean {
+  if (entry.status === 'granted') return false;
+  return entry.status === 'undetermined' || entry.canAskAgain;
 }
 
 export default function PermissionsStatusScreen() {
@@ -66,11 +84,12 @@ export default function PermissionsStatusScreen() {
   useFocusEffect(useCallback(() => { reload(); }, [reload]));
 
   async function handlePress(item: PermissionItem, entry: PermissionStatusEntry) {
-    // If never asked OR can still ask, fire the native prompt. Otherwise deep-link to Settings.
-    if (entry.status === 'undetermined' || entry.canAskAgain) {
+    if (wantsPrompt(entry)) {
       await requestPermission(item.id);
     } else {
-      Linking.openSettings();
+      // Granted, or denied for good: iOS will not prompt again either way, so
+      // the only useful destination is the app's own Settings page.
+      await Linking.openSettings();
     }
     reload();
   }
@@ -120,11 +139,7 @@ export default function PermissionsStatusScreen() {
                   </VirraText>
                 </Pressable>
               </View>
-              {entry && (
-                <VirraText variant="mono" size={10} color={colors.muted} style={styles.action}>
-                  {actionLabel(entry)}
-                </VirraText>
-              )}
+
             </VirraCard>
           );
         })}
@@ -148,6 +163,5 @@ const styles = StyleSheet.create({
   iconWrap:  { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   titleWrap: { flex: 1 },
   badge:     { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.full, borderWidth: 1 },
-  action:    { letterSpacing: 1.5, paddingLeft: 36 + spacing.md },
   footnote:  { lineHeight: 18, marginTop: spacing.sm },
 });
