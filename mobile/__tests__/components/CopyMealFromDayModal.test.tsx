@@ -2,7 +2,30 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { CopyMealFromDayModal } from '@/components/ui/CopyMealFromDayModal';
 
-const logsData = [{ id: 'log-yesterday', recorded_on: '2026-09-19' }];
+// The component's `dayLabel` is relative to the real current date, so the
+// logged day has to be genuinely yesterday. A hardcoded date only reads as
+// YESTERDAY on the day the test was written -- '2026-09-19' began rendering
+// as SATURDAY once the calendar moved on, and every test in here timed out
+// waiting for a label the component was right not to show.
+//
+// This is a function declaration, and it is called from inside the mock
+// factory rather than from a `const` at module scope, because babel's
+// jest-hoist lifts `jest.mock` above the file's other statements. It carries
+// `const` fixtures up with it only while their initialisers are provably
+// pure -- a plain literal like `entriesData` below qualifies, a call like
+// this one does not, so a `const` here would still be in its temporal dead
+// zone when the factory runs. Function declarations hoist unconditionally.
+//
+// Built from local date parts (not `Date.now() - 86400000`) to match the
+// component's own `en-CA` local-date convention and stay correct across the
+// DST boundary, where a day is not 24 hours long.
+function mockIsoYesterday(): string {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - 1);
+  return d.toLocaleDateString('en-CA');
+}
+
 const entriesData = [
   {
     log_id: 'log-yesterday', food_name: 'Porridge', quantity_g: 250, quantity_unit: 'g',
@@ -15,7 +38,10 @@ const entriesData = [
 ];
 
 jest.mock('@/lib/supabase', () => {
-  const order      = jest.fn().mockResolvedValue({ data: logsData, error: null });
+  const order      = jest.fn(async () => ({
+    data:  [{ id: 'log-yesterday', recorded_on: mockIsoYesterday() }],
+    error: null,
+  }));
   const lt         = jest.fn(() => ({ order }));
   const gte        = jest.fn(() => ({ lt }));
   const eqLogs     = jest.fn(() => ({ gte }));
