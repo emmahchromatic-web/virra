@@ -14,8 +14,9 @@ import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { ActivityRow, type Activity } from '@/components/ui/ActivityRow';
-import { fetchActiveBlocks, computeBlockLoad, endTrainingBlock, planSlot, SLOT_LABEL,
+import { fetchActiveBlocks, getOpenBlocks, computeBlockLoad, endTrainingBlock, planSlot, SLOT_LABEL,
          type TrainingBlock, type ComputedBlock } from '@/lib/trainingBlocks';
+import { planState, loadPlanFinish, acknowledgeFinishedPlan, type PlanFinish } from '@/lib/planLifecycle';
 import { attachMobilityLabels, topUpMobilitySchedule } from '@/lib/mobilitySchedule';
 import { MonthCalendar } from '@/components/ui/MonthCalendar';
 import { SessionDetailModal } from '@/components/ui/SessionDetailModal';
@@ -128,6 +129,10 @@ export default function TrainingScreen() {
   const [recentActivities,  setRecentActivities]   = useState<Activity[]>([]);
   const [loading, setLoading]                      = useState(true);
   const [activeBlocks,      setActiveBlocks]        = useState<TrainingBlock[]>([]);
+  // Card 255. Blocks that are open including ones that start later, which
+  // fetchActiveBlocks leaves out: a plan restarting on Monday has not ended.
+  const [openBlocks,        setOpenBlocks]          = useState<TrainingBlock[]>([]);
+  const [planFinish,        setPlanFinish]          = useState<PlanFinish | null>(null);
   const [enrichedToday,     setEnrichedToday]       = useState<TodaysSession[]>([]);
   const [seasonSummary,     setSeasonSummary]       = useState<SeasonChainSummary | null>(null);
 
@@ -330,8 +335,9 @@ export default function TrainingScreen() {
     // A weekly mobility session is written eight weeks ahead and topped up here,
     // so the habit never quietly runs out (card 264).
     await topUpMobilitySchedule(session!.user.id).catch(() => 0);
-    const [blocksRes, planRes, activityRes, seasonRes] = await Promise.all([
+    const [blocksRes, openRes, planRes, activityRes, seasonRes] = await Promise.all([
       fetchActiveBlocks(session!.user.id),
+      getOpenBlocks(session!.user.id).catch(() => [] as TrainingBlock[]),
       supabase
         .from('user_plans')
         .select('id, template_id, start_date, goal_date, template:plan_templates(id, name, sport_type, distance_goal, duration_weeks, description, tagline)')
@@ -352,6 +358,7 @@ export default function TrainingScreen() {
     setPlanLoadFailed(failed);
     if (!failed) {
       setActiveBlocks(await attachMobilityLabels(blocksRes.blocks));
+      setOpenBlocks(openRes);
       setActivePlan(planRes.data as UserPlan | null);
     }
     // Card 7. Same treatment for recent activity and the season chain: on
@@ -361,6 +368,36 @@ export default function TrainingScreen() {
     setSeasonLoadFailed(seasonRes.failed);
     if (!seasonRes.failed) setSeasonSummary(seasonRes.summary);
     setLoading(false);
+  }
+
+  // Card 255. A plan the runner never left, with no block of it still open,
+  // has finished. Leaving deactivates the user_plans row, so this cannot be
+  // confused with walking away.
+  const planFinished = Boolean(
+    activePlan && planState(activePlan, openBlocks, new Date().toLocaleDateString('en-CA')) === 'finished',
+  );
+
+  useEffect(() => {
+    if (!session || !activePlan || !planFinished) { setPlanFinish(null); return; }
+    let live = true;
+    loadPlanFinish(session.user.id, activePlan.template_id)
+      .then((f) => { if (live) setPlanFinish(f); })
+      .catch(() => { /* the card still says it ended, just without the tally */ });
+    return () => { live = false; };
+  }, [session, activePlan, planFinished]);
+
+  async function finishWithPlan(thenBrowse: boolean) {
+    if (!session || !activePlan) return;
+    try {
+      await acknowledgeFinishedPlan(session.user.id, activePlan.template_id);
+    } catch {
+      // The write is what stops Browse claiming the plan is still on. If it
+      // fails, say nothing and leave the card: pretending is worse.
+      return;
+    }
+    setActivePlan(null);
+    setPlanFinish(null);
+    if (thenBrowse) router.push('/(app)/plans/browse' as any);
   }
 
   const phaseLoad = cycleInfo ? PHASE_LOAD[cycleInfo.phase] : null;
@@ -488,6 +525,13 @@ export default function TrainingScreen() {
             cyclePhase={cycleInfo?.phase ?? null}
             onAddBlock={() => router.push('/(app)/plans/browse' as any)}
             onDropped={loadData}
+          />
+        ) : activePlan && planFinished ? (
+          <FinishedPlanCard
+            plan={activePlan}
+            finish={planFinish}
+            onNext={() => { void finishWithPlan(true); }}
+            onDone={() => { void finishWithPlan(false); }}
           />
         ) : activePlan ? (
           <ActivePlanCard plan={activePlan} onBrowse={() => router.push('/(app)/plans/browse' as any)} />
@@ -828,11 +872,62 @@ const stack = StyleSheet.create({
 
 // ---- Active plan card ----
 
+/**
+ * Card 255. What the runner sees when a plan reaches its end.
+ *
+ * Emma's run plan ended on 26 August and nothing said so; she reported the
+ * empty calendar as a bug. The tally is plain rather than congratulatory: a
+ * plan half done and a plan finished in full both end here, and the numbers
+ * are the honest difference between them.
+ */
+function FinishedPlanCard({ plan, finish, onNext, onDone }: {
+  plan:   UserPlan;
+  finish: PlanFinish | null;
+  onNext: () => void;
+  onDone: () => void;
+}) {
+  const ended = finish
+    ? new Date(`${finish.endedOn}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    : null;
+
+  return (
+    <VirraCard style={styles.activePlanCard}>
+      <VirraText variant="mono" size={11} color={colors.pulse} style={styles.phaseLabel}>PLAN FINISHED</VirraText>
+
+      <Pressable onPress={() => router.push(`/(app)/plan/${plan.template_id}` as any)}>
+        <VirraText variant="display" size={22} color={colors.breath} style={{ marginTop: spacing.xs }}>
+          {plan.template.name}
+        </VirraText>
+      </Pressable>
+
+      <VirraText variant="serif" size={17} color={colors.breath} style={{ lineHeight: 26, marginTop: spacing.xs }}>
+        {ended ? `Your plan ran to ${ended}.` : 'Your plan has come to its end.'}
+      </VirraText>
+
+      {finish && finish.planned > 0 && (
+        <VirraText variant="body" size={13} color="rgba(244,237,224,0.6)" style={{ lineHeight: 20 }}>
+          {finish.completed === finish.planned
+            ? `You did all ${finish.planned} sessions.`
+            : `You did ${finish.completed} of its ${finish.planned} sessions.`}
+        </VirraText>
+      )}
+
+      <VirraButton label="Find your next plan" onPress={onNext} style={{ marginTop: spacing.md }} />
+      <VirraButton label="Not right now" onPress={onDone} variant="ghost" />
+    </VirraCard>
+  );
+}
+
 function ActivePlanCard({ plan, onBrowse }: { plan: UserPlan; onBrowse: () => void }) {
   const start      = new Date(plan.start_date);
   const today      = new Date();
-  const weekNum    = Math.max(1, Math.floor((today.getTime() - start.getTime()) / (7 * 86400000)) + 1);
   const totalWeeks = plan.template.duration_weeks;
+  // Capped: uncapped this counted on past the end of the plan and read
+  // "Week 14 of 9" (card 255).
+  const weekNum    = Math.min(
+    Math.max(1, Math.floor((today.getTime() - start.getTime()) / (7 * 86400000)) + 1),
+    totalWeeks > 0 ? totalWeeks : Number.MAX_SAFE_INTEGER,
+  );
   const progress   = totalWeeks > 0 ? Math.min((weekNum - 1) / totalWeeks, 1) : 0;
 
   return (
