@@ -4,6 +4,8 @@ import { View, ScrollView, Pressable, StyleSheet, SafeAreaView } from 'react-nat
 import { SymbolView } from 'expo-symbols';
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
+import { getOpenBlocks } from '@/lib/trainingBlocks';
+import { planState } from '@/lib/planLifecycle';
 import { colors, spacing, radius } from '@/constants/theme';
 import { VirraText } from '@/components/ui/VirraText';
 import { VirraCard } from '@/components/ui/VirraCard';
@@ -84,14 +86,23 @@ function BrowsePlansScreen() {
     if (!session) return;
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
-        .from('user_plans')
-        .select('template_id')
-        .eq('user_id', session.user.id)
-        .eq('is_active', true);
+      // Card 255. A plan that reached its end keeps its user_plans row until
+      // the runner acknowledges it on the Training tab, so the row alone would
+      // have this list saying "you are on this plan" about a plan that
+      // finished weeks ago. The open blocks are what make it true today.
+      const [{ data, error }, openBlocks] = await Promise.all([
+        supabase
+          .from('user_plans')
+          .select('template_id, start_date')
+          .eq('user_id', session.user.id)
+          .eq('is_active', true),
+        getOpenBlocks(session.user.id).catch(() => []),
+      ]);
       // Offline, keep the last known "on this plan" marks rather than clearing them.
       if (!cancelled && !error) {
-        setActiveIds(((data ?? []) as { template_id: string | null }[])
+        const today = new Date().toLocaleDateString('en-CA');
+        setActiveIds(((data ?? []) as Array<{ template_id: string | null; start_date: string }>)
+          .filter((r) => planState(r, openBlocks, today) !== 'finished')
           .map((r) => r.template_id)
           .filter(Boolean) as string[]);
       }
