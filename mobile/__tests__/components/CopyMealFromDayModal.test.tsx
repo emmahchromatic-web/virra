@@ -2,11 +2,12 @@ import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { CopyMealFromDayModal } from '@/components/ui/CopyMealFromDayModal';
 
-// The component's `dayLabel` is relative to the real current date, so the
-// logged day has to be genuinely yesterday. A hardcoded date only reads as
+// The component dates itself from the nutrition day key, which is the user's
+// LOCAL date (see card 325 and `@/lib/localDate`), so the logged day has to be
+// genuinely yesterday *on that basis*. A hardcoded date only reads as
 // YESTERDAY on the day the test was written -- '2026-09-19' began rendering
 // as SATURDAY once the calendar moved on, and every test in here timed out
-// waiting for a label the component was right not to show.
+// waiting for a label the component was right not to show (card 323).
 //
 // This is a function declaration, and it is called from inside the mock
 // factory rather than from a `const` at module scope, because babel's
@@ -14,16 +15,15 @@ import { CopyMealFromDayModal } from '@/components/ui/CopyMealFromDayModal';
 // `const` fixtures up with it only while their initialisers are provably
 // pure -- a plain literal like `entriesData` below qualifies, a call like
 // this one does not, so a `const` here would still be in its temporal dead
-// zone when the factory runs. Function declarations hoist unconditionally.
-//
-// Built from local date parts (not `Date.now() - 86400000`) to match the
-// component's own `en-CA` local-date convention and stay correct across the
-// DST boundary, where a day is not 24 hours long.
-function mockIsoYesterday(): string {
+// zone when the factory runs and the mock would quietly resolve to
+// `undefined`. Function declarations hoist unconditionally.
+function mockShiftedKey(days: number): string {
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - 1);
-  return d.toLocaleDateString('en-CA');
+  d.setDate(d.getDate() + days);
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
 }
 
 const entriesData = [
@@ -39,7 +39,7 @@ const entriesData = [
 
 jest.mock('@/lib/supabase', () => {
   const order      = jest.fn(async () => ({
-    data:  [{ id: 'log-yesterday', recorded_on: mockIsoYesterday() }],
+    data:  [{ id: 'log-yesterday', recorded_on: mockShiftedKey(-1) }],
     error: null,
   }));
   const lt         = jest.fn(() => ({ order }));
@@ -59,7 +59,7 @@ jest.mock('@/lib/supabase', () => {
     throw new Error(`unexpected table ${table}`);
   });
 
-  return { supabase: { from }, __insert: insert };
+  return { supabase: { from }, __insert: insert, __lt: lt, __gte: gte };
 });
 
 jest.mock('@/lib/outbox', () => ({ enqueue: jest.fn() }));
@@ -146,6 +146,38 @@ describe('CopyMealFromDayModal', () => {
     expect(onCopied).toHaveBeenCalled();
     expect(mockAddEntryLocal).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  // Card 325. The component used to bound this query with a LOCAL date while
+  // the rest of the nutrition path keys the day in UTC. East of UTC the two
+  // disagree between local midnight and UTC midnight -- 00:00-00:59 nightly on
+  // BST -- and in that window the local date is a day ahead, so `.lt()` let
+  // TODAY's own log through as a day to copy FROM and `dayLabel` called it
+  // YESTERDAY. Copying it duplicated the day's entries into itself.
+  //
+  // Asserting the bounds rather than the filtered result is deliberate: the
+  // filtering is the server's, so a mock that ignores `.lt()` could never show
+  // it. What is ours to get right is which key we ask for.
+  it('bounds the lookback with the local day key, so today is never offered', async () => {
+    // Deliberately not `renderModal()`: that waits on the YESTERDAY label, so
+    // a regression would surface here as a timeout on someone else's
+    // assertion. Waiting on the query itself makes this test fail on the one
+    // thing it is about -- the key we ask the server for.
+    render(
+      <CopyMealFromDayModal
+        visible={true}
+        userId="u1"
+        mealType="breakfast"
+        targetLogId="log-today"
+        onClose={jest.fn()}
+        onCopied={jest.fn()}
+      />
+    );
+    await waitFor(() => expect(supabaseMock.__lt).toHaveBeenCalled());
+
+    const todayLocal = mockShiftedKey(0);
+    expect(supabaseMock.__lt).toHaveBeenCalledWith('recorded_on', todayLocal);
+    expect(supabaseMock.__gte).toHaveBeenCalledWith('recorded_on', mockShiftedKey(-14));
   });
 
   it('does nothing when userId is missing', async () => {

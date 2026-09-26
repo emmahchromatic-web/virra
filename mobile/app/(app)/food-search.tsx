@@ -23,6 +23,7 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { appAlert, VirraAlertHost } from '@/components/ui/VirraAlert';
 import { NeedsSignal } from '@/components/ui/NeedsSignal';
+import { todayIso } from '@/lib/localDate';
 
 interface FavouriteEntry {
   food_name:     string;
@@ -429,7 +430,7 @@ export default function FoodSearchScreen() {
       await enqueue(session.user.id, 'logFoodEntries', { rows: [row] });
       syncPending(session.user.id);
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayIso();
     useNutritionDay.getState().addEntryLocal(today, [row]);
     if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
       cancelNutritionReminderForMeal(activeMeal);
@@ -471,7 +472,7 @@ export default function FoodSearchScreen() {
       await enqueue(session.user.id, 'logFoodEntries', { rows: [row] });
       syncPending(session.user.id);
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayIso();
     useNutritionDay.getState().addEntryLocal(today, [row]);
     if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
       cancelNutritionReminderForMeal(activeMeal);
@@ -541,7 +542,7 @@ export default function FoodSearchScreen() {
       // only on the direct insert's success, never queued.
       supabase.from('meal_combos').update({ last_used_at: new Date().toISOString() }).eq('id', combo.id).then(() => {});
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayIso();
     useNutritionDay.getState().addEntryLocal(today, rows);
     if (activeMeal === 'breakfast' || activeMeal === 'lunch' || activeMeal === 'dinner') {
       cancelNutritionReminderForMeal(activeMeal);

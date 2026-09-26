@@ -19,6 +19,7 @@ import { VirraCard } from '@/components/ui/VirraCard';
 import { VirraButton } from '@/components/ui/VirraButton';
 import { inferUnitFromName, unitInputLabel } from '@/lib/foodUnits';
 import { ProScreen } from '@/components/ui/ProScreen';
+import { todayIso } from '@/lib/localDate';
 
 type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 
@@ -280,7 +281,7 @@ function DescribeMealScreen() {
     setError(null);
     setSaving(true);
     const haikuInput = description.trim();
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayIso();
     const replaceCriteria = isReplaceMode && replaceHaikuInput
       ? { logId, haikuInput: replaceHaikuInput }
       : undefined;
