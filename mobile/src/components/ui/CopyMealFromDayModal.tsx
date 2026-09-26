@@ -9,6 +9,7 @@ import { appAlert } from '@/components/ui/VirraAlert';
 import { enqueue, type LogFoodEntryRow } from '@/lib/outbox';
 import { syncPending } from '@/lib/syncPending';
 import { useNutritionDay } from '@/store/nutritionDay';
+import { todayIso, shiftIso, fromIso, daysAgo } from '@/lib/localDate';
 
 /** How far back to offer. Two weeks covers "the same breakfast as Sunday". */
 const LOOKBACK_DAYS = 14;
@@ -41,11 +42,9 @@ interface Props {
 }
 
 function dayLabel(iso: string): string {
-  const d     = new Date(`${iso}T00:00:00`);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diff = Math.round((today.getTime() - d.getTime()) / 86400000);
+  const diff = daysAgo(iso);
   if (diff === 1) return 'YESTERDAY';
+  const d = fromIso(iso);
   if (diff < 7)   return d.toLocaleDateString('en-GB', { weekday: 'long' }).toUpperCase();
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase();
 }
@@ -64,19 +63,21 @@ export function CopyMealFromDayModal({ visible, userId, mealType, targetLogId, o
     setLoading(true);
     setDays([]);
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const from = new Date(today.getTime() - LOOKBACK_DAYS * 86400000);
-    const iso  = (d: Date) => d.toLocaleDateString('en-CA');
+    const today = todayIso();
+    const from  = shiftIso(today, -LOOKBACK_DAYS);
 
     // Past logs first, so the entry query is bounded by log id rather than
     // scanning every food_entries row the user has ever written.
+    //
+    // `.lt(today)` is what keeps today's own log out of a list of days to copy
+    // FROM, so it has to be the same key the rest of the nutrition path calls
+    // today -- all of it local now, per card 325.
     const { data: logs, error: logErr } = await supabase
       .from('nutrition_logs')
       .select('id, recorded_on')
       .eq('user_id', userId)
-      .gte('recorded_on', iso(from))
-      .lt('recorded_on', iso(today))
+      .gte('recorded_on', from)
+      .lt('recorded_on', today)
       .order('recorded_on', { ascending: false });
 
     if (logErr) { setLoading(false); appAlert('Could not load previous days', logErr.message); return; }
@@ -143,8 +144,7 @@ export function CopyMealFromDayModal({ visible, userId, mealType, targetLogId, o
       await enqueue(userId, 'logFoodEntries', { rows });
       syncPending(userId);
     }
-    const today = new Date().toISOString().split('T')[0];
-    useNutritionDay.getState().addEntryLocal(today, rows);
+    useNutritionDay.getState().addEntryLocal(todayIso(), rows);
     setCopying(null);
     onCopied();
     onClose();

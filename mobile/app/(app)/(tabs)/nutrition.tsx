@@ -28,6 +28,7 @@ import { toFoodUnit, formatQuantity, type FoodUnit } from '@/lib/foodUnits';
 import { appAlert, appPrompt } from '@/components/ui/VirraAlert';
 import { enqueue } from '@/lib/outbox';
 import { syncPending } from '@/lib/syncPending';
+import { todayIso } from '@/lib/localDate';
 
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const;
 type MealType = typeof MEAL_TYPES[number];
@@ -255,7 +256,7 @@ export default function NutritionScreen() {
   const [editing, setEditing] = useState<FoodEntry | null>(null);
   const [copyingInto, setCopyingInto] = useState<MealType | null>(null);
 
-  const today   = new Date().toISOString().split('T')[0];
+  const today   = todayIso();
   const targets = resolveTargetsForTier(isPro, metrics, cycleInfo?.phase ?? null, load);
 
   // Cache-first: entries render from the store immediately on mount (from
